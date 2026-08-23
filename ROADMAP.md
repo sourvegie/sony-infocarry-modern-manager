@@ -4,6 +4,19 @@ This roadmap implements the [product vision](PRODUCT_VISION.md) and is governed
 by the [risk register](RISK_REGISTER.md). Critical release risks are addressed
 before expanding device-write capability.
 
+## Source-of-truth boundary
+
+This sanitized checkout is the future development source of truth. Verified
+commits are pushed normally to the private remote
+`https://github.com/sourvegie/sony-infocarry-modern-manager.git`.
+
+The sibling evidence-bearing `modern-client` checkout remains a read-only
+local research archive. Do not commit product work there, rewrite or clean its
+history, or push it. Older commit SHAs in this roadmap refer to that preserved
+local history unless explicitly identified as commits in this sanitized
+repository. Raw captures, complete backups, live-operation evidence, original
+Sony software, and transaction-range binaries are intentionally absent here.
+
 ## Goal
 
 Deliver a modern application that can safely detect a Sony InfoCarry VNW-V15, inspect it, make a complete backup, export and import supported content, and transfer data in both directions without requiring Windows 2000.
@@ -82,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — Milestones E, F, G, the captured-fixture Milestone H gate, constrained offline I.4, and native-capacity I.5 are complete for their defined scopes; H.1 live-delete generalization/readiness is blocked and parked pending new independent evidence; live package transfer and product exposure remain prohibited | Capture 7's exact one-folder/one-TXT offline model and the separate constrained modern policy are preserved; legacy timestamp/fixed-state generalization and package transport remain unresolved, while native total-limit capacity semantics are verified offline |
-| 13. Integrate Library, Prepare, and staged transfer | Planned after core primitives | Crude functional workflow precedes Concept A refinement and aesthetic work |
+| 13. Integrate Library, Prepare, and staged transfer | Active — Milestone J.0 Library foundation is next | Crude functional workflow precedes Concept A refinement and aesthetic work; proven package transfer remains disconnected |
 
 Current Phase 12/I.6 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only

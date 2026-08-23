@@ -1,5 +1,19 @@
 # Sony InfoCarry Toolkit
 
+## Development source and local research archive
+
+This sanitized checkout is the future development source of truth and its
+verified `main` commits are pushed normally to the approved private remote:
+`https://github.com/sourvegie/sony-infocarry-modern-manager.git`.
+
+The sibling evidence-bearing `modern-client` checkout is a read-only local
+research archive. Do not commit product development there, rewrite or clean
+its history, or push it. Older commit SHAs mentioned in these documents refer
+to that preserved local research history unless explicitly identified as a
+commit in this sanitized repository. Raw captures, complete backups, live
+operation evidence, original Sony software, and transaction-range binaries
+are intentionally absent from this source tree.
+
 ## Current Agent Handoff — Read This First
 
 The authoritative project documents, in order, are:
@@ -104,6 +118,10 @@ visual refinement, advanced rendering, packaging, or other aesthetic work:
 9. Only after create/delete/package primitives are proven, connect local
    Library, Prepare, selected transfer, and batch queue workflows. An early
    interface may remain crude and engineering-focused.
+
+10. Treat this sanitized checkout as the only development source of truth.
+    Push each verified commit normally to `origin/main`; keep the sibling
+    evidence-bearing research archive read-only and outside product history.
 
 The browser and Qt/PySide options remain explicitly deferred. See
 `analysis/phase-9-gui-runtime-and-integration.md` and

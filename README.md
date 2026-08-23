@@ -147,11 +147,21 @@ optional future work. Package evidence and the decision record are in
 
 See [ROADMAP.md](ROADMAP.md) for verified progress and the safety gates that apply before data-transfer commands are added.
 
-## Private source/history backup
+## Development source and private remote
 
-Any future GitHub repository for this project is a private source and history
-backup for the owner’s hobbyist development. It is not a public distribution
-channel and it is not the sole backup of reverse-engineering evidence.
+This sanitized checkout is the future development source of truth for the
+project. Its verified `main` commits are pushed normally to the approved
+private repository:
+
+`https://github.com/sourvegie/sony-infocarry-modern-manager.git`
+
+The sibling evidence-bearing `modern-client` checkout is a read-only local
+research archive. Do not commit new product development there. Historical
+commit SHAs in the analysis notes refer to that preserved local research
+history unless explicitly identified as commits in this sanitized repository.
+
+This private repository is an additional source/history backup, not a public
+distribution channel and not the sole backup of reverse-engineering evidence.
 
 Original Sony software, ISO contents, USB captures, complete device backups,
 raw live-operation evidence, private device data, credentials, and generated
