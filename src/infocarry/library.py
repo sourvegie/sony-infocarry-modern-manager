@@ -528,13 +528,14 @@ class LibraryCatalog:
             state = STATE_BLOCKED
             preparation_state = PREPARATION_BLOCKED
             error = details["validation_error"]
-        elif existing.preparation_state in {
-            PREPARATION_PREPARED,
-            PREPARATION_STALE,
-        }:
+        elif existing.preparation_state == PREPARATION_STALE:
             state = STATE_STALE
             preparation_state = existing.preparation_state
             error = existing.last_validation_error
+        elif existing.preparation_state == PREPARATION_PREPARED:
+            state = STATE_READY
+            preparation_state = existing.preparation_state
+            error = None
         else:
             state = STATE_IMPORTED
             preparation_state = existing.preparation_state
