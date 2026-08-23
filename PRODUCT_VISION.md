@@ -129,8 +129,11 @@ completed one narrowly constrained live one-folder/one-TXT package smoke with
 completion `0x0000` and exact independent read-back. Capture 7 proves the
 exact legacy one-folder/one-TXT fixture and supports an offline golden model;
 the separate constrained modern policy is not legacy timestamp equivalence.
-I.7 has completed offline timestamp and fixed-state characterization without
-establishing a safe general rule; its eligibility result fails closed. I.8 now
+I.7 has completed offline timestamp and fixed-state characterization plus one
+separately approved controlled legacy root-TXT add. That add independently
+observed shared timestamp regeneration and unchanged all-zero fixed state, but
+did not establish a safe general rule; its eligibility result still fails
+closed. I.8 now
 provides an ordered source-bound multiple-TXT logical model with strict
 authoring and no device candidate. I.9 now provides typed offline TXT/BMP
 validation with no device candidate. I.10 now provides a flat manifest-driven

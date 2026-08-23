@@ -48,8 +48,11 @@ continue speculative deletion work, prepare a live-delete protocol, or request
 another capture automatically. Milestone I.6 has completed one narrowly
 constrained live one-folder/one-TXT package smoke with `0x0000` completion and
 exact independent read-back. Milestone I.7 has now completed its offline
-timestamp/fixed-state characterization and added a fail-closed eligibility
-result; no deterministic fresh rule was established. I.8 provides an ordered
+timestamp/fixed-state characterization and one separately approved controlled
+legacy root-TXT add (`I7-LEGACY-ADD-01`); no deterministic fresh rule was
+established. The add evidence shows one persisted new record, regeneration of
+shared timestamps, and unchanged all-zero fixed state, but does not generalize
+timestamp or nonzero-state construction. I.8 provides an ordered
 source-bound multiple-TXT logical model with strict authoring and no device
 candidate. I.9 now provides typed offline TXT/BMP validation with no device
 candidate. I.10 now provides a flat manifest-driven representative ebook plan
@@ -102,8 +105,10 @@ I.7 preparation slice adds nine focused offline tests, bringing the suite to
 **417 tests** with the same three intentional skips. The operator-ready
 protocol is `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`;
 the read-only support module and separate support command only prepare and
-ingest evidence. No add approval has been given, no hardware operation has
-occurred in this slice, and the later delete stage remains separately gated.
+ingest evidence. The approved add-01 evidence is synthesized in
+`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
+companion. No state-reference or deletion experiment has been performed; the
+later delete stage remains separately gated.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
@@ -239,9 +244,12 @@ membership, and no sidecar assignment. I.6 now also has one separately
 approved live smoke with exact full read-back for that shape. This is not
 legacy timestamp equivalence; arbitrary folders, multiple children, bitmaps,
 nested placement, and normal product exposure remain excluded. I.7 is complete
-for offline characterization but found no safe general rule; the owner protocol
-is drafted and not executed. The next sequence is offline H.2/J.3 evidence
-review. I.8's offline model, I.9's typed model, and I.10's flat ebook plan are
+for offline characterization and one approved legacy add-01 evidence case, but
+found no safe general rule; the add result is recorded in
+`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md`. No
+state-reference or deletion experiment has been performed. The next sequence
+is offline H.2/J.3 evidence review. I.8's offline model, I.9's typed model,
+and I.10's flat ebook plan are
 recorded in `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`,
 `analysis/phase-13-milestone-i9-mixed-txt-bmp-offline-20260823.md`, and
 `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`; I.10 adds six

@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 offline characterization is a fail-closed negative result and the controlled legacy add experiment is prepared but awaits exact owner approval; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline; H.2 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01 independently verified one legacy root-TXT addition but remains a fail-closed negative result for general timestamp/fixed-state construction; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline; H.2 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7 status: native capacity semantics are resolved offline,
@@ -105,9 +105,13 @@ runner. Attempt 02 completed one approved constrained package smoke with
 after `cf7803b` corrected the expected payload-dependent object boundary. The
 complete suite is **417 tests** with three intentional evidence-dependent
 skips after the read-only I.7 experiment-support slice. The operator protocol
-and offline helpers do not authorize or perform a device operation. Arbitrary
-package transfer, live delete, and normal GUI/CLI package/delete actions remain
-prohibited.
+and offline helpers do not authorize or perform a device operation. The
+separately approved I7 add-01 was completed and independently verified; the
+evidence is synthesized in
+`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
+companion. No state-reference or deletion experiment has been performed, and
+the later delete stage remains separately gated. Arbitrary package transfer,
+live delete, and normal GUI/CLI package/delete actions remain prohibited.
 
 ## Verified Starting Facts
 
@@ -986,17 +990,20 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   The matrix, analysis, and unexecuted owner procedure are recorded in
   `analysis/phase-13-milestone-i7-timestamp-fixed-state-evidence-20260823.json`
   and `analysis/phase-13-milestone-i7-timestamp-fixed-state-characterization-20260823.md`.
-- [ ] **Milestone I.7 controlled legacy add experiment — attempt 01:** the
-  operator-ready protocol and read-only preparation/ingestion helpers are
-  complete in
-  `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`,
-  `src/infocarry/i7_experiment.py`, and
-  `scripts/i7_experiment_support.py`. Nine focused synthetic tests bring the
-  suite to **417 tests** with three intentional skips. The synthetic source is
-  1,863 bytes with SHA-256
-  `3aa626dc1e0dbd2fe13b59fbea7eddf43358a522b9f55ed15ac18556b2a69d4b`.
-  The hardware add remains pending the separate exact owner phrase
-  `APPROVE I7 LEGACY ADD 01`; no deletion is included or authorized.
+- [x] **Milestone I.7 controlled legacy add experiment — attempt 01:** the
+  separately approved `I7-LEGACY-ADD-01` was completed once through the
+  legacy Manager and independently verified from complete pre/post backups.
+  The native capture contains one ordinary `0x101b`; the model changes from
+  373 to 374 records and adds exactly `root\\IC_I7_CLOCK_01.txt` with the
+  exact 1,863-byte source payload. All 314 shared timestamps changed, while
+  all five fixed-state objects remained byte-identical all-zero state. The
+  Manager preview shows the new item, but explicit success wording and a
+  trustworthy request-4 completion decode were not preserved. The full
+  synthesis is in
+  `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its
+  JSON companion. This closes the add evidence gate only; it does not resolve
+  general timestamp/nonzero-state construction or authorize deletion. The
+  suite remains **417 tests** with three intentional skips.
 - [x] **Milestone I.8 — multiple-TXT package:** the logical model now supports
   at least two explicitly ordered TXT children with strict authoring, conflict
   rejection, source/payload hashes, lower-bound growth accounting, and
@@ -1260,20 +1267,17 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Guide the owner through the read-only macOS preflight for
-   `I7-LEGACY-ADD-01`: generate the exact source, record host time, confirm
-   `054c:001e`, confirm the target is absent, and create a fresh complete
-   pre-add backup in a new session root.
-2. Stop for the exact owner phrase `APPROVE I7 LEGACY ADD 01` before the one
-   legacy Manager Send Selected mutation. Preserve any failed/partial attempt
-   without retrying.
-3. After the add evidence is independently verified, compare timestamps and
-   fixed state offline. Only then prepare a separate state-referenced delete
-   procedure and request `APPROVE I7 LEGACY DELETE 01` if still required.
-4. Keep H.2 generalized deletion, I.8–I.10 device candidates, J.3 transfer
-   planning, normal GUI/CLI package/delete controls, and all broad or
-   interrupted-write operations blocked.
-5. Push every verified sanitized commit normally to `origin/main` after the
+1. Preserve and review the completed I7 add-01 evidence; keep timestamp
+   generation and nonzero fixed-state rules explicitly unresolved because the
+   available wall-clock and state evidence does not support a deterministic
+   fresh-backup rule.
+2. Do not perform a deletion or state-reference mutation from this add alone.
+   H.2 remains blocked; any future nonzero-state experiment must be separately
+   designed, approved, and captured before deletion is reconsidered.
+3. Keep I.8–I.10 device candidates, J.3 transfer planning, normal GUI/CLI
+   package/delete controls, and all broad or interrupted-write operations
+   blocked.
+4. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions
