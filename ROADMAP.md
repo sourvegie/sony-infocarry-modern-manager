@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 offline characterization is complete as a fail-closed negative result; I.8–I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 offline characterization is complete as a fail-closed negative result; I.8 logical multiple-TXT preparation is complete offline; I.9–I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7 status: native capacity semantics are resolved offline,
@@ -899,8 +899,12 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   fail-closed readiness result, and unexecuted owner procedure are recorded in
   `analysis/phase-13-milestone-i7-timestamp-fixed-state-evidence-20260823.json`
   and `analysis/phase-13-milestone-i7-timestamp-fixed-state-characterization-20260823.md`;
-  the I.7 slice adds five focused tests and reaches **384 tests**. I.8 is now
-  the next active offline slice.
+  the I.7 slice adds five focused tests and reaches **384 tests**. I.8's
+  ordered source-bound multiple-TXT logical model is complete offline in
+  `src/infocarry/prepared_multi_text.py`, with nine focused synthetic tests;
+  the suite reaches **393 tests**. Exact multi-record device construction,
+  timestamp/fixed-state generalization, capacity authorization, and USB
+  operation remain blocked. I.9 is now the next active offline slice.
 - [x] **Milestone I.4 — constrained modern one-folder/one-TXT package safety
   gate:** complete for the constrained offline/fake-only scope. This is
   deliberately distinct from legacy
@@ -970,18 +974,24 @@ modified. See `analysis/phase-11-offline-conversion.md`.
 
 ### Protocol generalization sequence — I.7 through I.10 and H.2
 
-- [ ] **Milestone I.7 — timestamp and fixed-state characterization:** active
-  offline. Inventory portable evidence for metadata timestamps, display
+- [x] **Milestone I.7 — timestamp and fixed-state characterization:** offline
+  characterization complete as a fail-closed negative result. Inventory portable evidence for metadata timestamps, display
   history, mark lists, bookmarks, metadata-relative offsets, and fixed-state
   rebasing. Classify each result as byte-verified, independently observed,
   single-capture observed, inferred, or unresolved. Unsupported timestamp or
-  state rules must fail closed; no live operation is authorized by this
-  milestone.
-- [ ] **Milestone I.8 — multiple-TXT package:** generalize the logical model to
-  at least two explicitly ordered TXT children, with strict authoring,
-  conflict rejection, complete growth/capacity accounting, preserved shared
-  state, independent verification, and fake-transport failure coverage. Keep
-  it offline and disconnected from normal CLI/ttk controls.
+  state rules fail closed; no live operation is authorized by this milestone.
+  The matrix, analysis, and unexecuted owner procedure are recorded in
+  `analysis/phase-13-milestone-i7-timestamp-fixed-state-evidence-20260823.json`
+  and `analysis/phase-13-milestone-i7-timestamp-fixed-state-characterization-20260823.md`.
+- [x] **Milestone I.8 — multiple-TXT package:** the logical model now supports
+  at least two explicitly ordered TXT children with strict authoring, conflict
+  rejection, source/payload hashes, lower-bound growth accounting, and
+  non-overwriting export. It remains offline and disconnected from normal
+  CLI/ttk controls; exact multi-record construction, capacity authorization,
+  independent device read-back, and fake transport are blocked pending the
+  relevant native evidence. Nine focused synthetic tests bring the suite to
+  **393 tests**. See
+  `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`.
 - [ ] **Milestone I.9 — mixed TXT/BMP package:** add a typed ordered model for
   strict synthetic TXT and validated 237×320 one-bit Windows BMP items. Extend
   candidate, capacity, authorization, audit, read-back, and fake-transport
@@ -1229,25 +1239,22 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Complete the offline I.7 timestamp/fixed-state evidence inventory and
-   matrix. Preserve the fail-closed boundary and, only if needed, prepare the
-   smallest owner-operated experiment without executing it.
-2. Implement I.8 as a synthetic-fixture multiple-TXT package model with
-   ordered children, strict authoring, full capacity/accounting, independent
-   verification, and fake-transport failure coverage. Keep all package
-   controls absent from normal CLI/ttk paths.
-3. Implement I.9 typed TXT/BMP validation and offline package coverage, then
+1. Implement I.9 typed TXT/BMP validation and offline package coverage, then
    I.10's smallest representative ebook plan only where structure is proven.
-4. Use I.7 conclusions for H.2 deletion eligibility. Keep unresolved
+   Keep all package controls absent from normal CLI/ttk paths.
+2. Preserve I.7's fail-closed timestamp/fixed-state boundary and I.8's logical
+   multiple-TXT model; do not promote either to a device candidate without
+   independently supported native evidence.
+3. Use I.7 conclusions for H.2 deletion eligibility. Keep unresolved
    timestamps/references fail-closed, accept only `0x0000`, never retry, and
    do not request or execute a live delete automatically.
-5. Defer J.3 device-aware Library transfer planning until the relevant I.8–I.10
+4. Defer J.3 device-aware Library transfer planning until the relevant I.8–I.10
    and H.2 operation gates close. Keep J.0–J.2's crude Library UI offline-only.
-6. Preserve R15: after `0x101b` begins, interruption is indeterminate and only
+5. Preserve R15: after `0x101b` begins, interruption is indeterminate and only
    later read-only recovery is allowed. Keep arbitrary package operations,
    delete, batch transfer, drag-and-drop, aesthetic refinement, packaging, and
    signing outside the current critical path.
-7. Push every verified sanitized commit normally to `origin/main` after the
+6. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions

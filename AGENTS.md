@@ -49,9 +49,10 @@ another capture automatically. Milestone I.6 has completed one narrowly
 constrained live one-folder/one-TXT package smoke with `0x0000` completion and
 exact independent read-back. Milestone I.7 has now completed its offline
 timestamp/fixed-state characterization and added a fail-closed eligibility
-result; no deterministic fresh rule was established. Protocol generalization is
-now the active objective: I.8 multiple-TXT, I.9 mixed TXT/BMP, and I.10
-representative ebook work proceed offline first. H.2
+result; no deterministic fresh rule was established. I.8 now provides an
+ordered source-bound multiple-TXT logical model with strict authoring and no
+device candidate. Protocol generalization is now the active objective: I.9
+mixed TXT/BMP and I.10 representative ebook work proceed offline first. H.2
 deletion generalization remains a separate fail-closed offline track. These
 milestones may proceed independently of the parked H.1 blocker.
 Milestone I.0 evidence audit, I.1 logical package model, and I.2 blocked
@@ -94,8 +95,8 @@ recovery is claimed. See
 The sanitized source-of-truth promotion is complete in `07f0db9`, and the
 non-destructive local Library foundation, offline Prepare workflow, and crude
 ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
-portable suite of **384 tests** (three evidence-dependent skips). The next
-review is the offline multiple-TXT package slice; keep package transfer
+portable suite of **393 tests** (three evidence-dependent skips). The next
+slice is the offline mixed TXT/BMP package model; keep package transfer
 disconnected from the Library and keep the normal GUI/CLI write actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
@@ -230,9 +231,11 @@ approved live smoke with exact full read-back for that shape. This is not
 legacy timestamp equivalence; arbitrary folders, multiple children, bitmaps,
 nested placement, and normal product exposure remain excluded. I.7 is complete
 for offline characterization but found no safe general rule; the owner protocol
-is drafted and not executed. The next sequence is I.8 multiple-TXT, I.9 mixed
-TXT/BMP, I.10 representative ebook, H.2 delete generalization, then J.3
-device-aware Library planning.
+is drafted and not executed. The next sequence is I.9 mixed TXT/BMP, I.10
+representative ebook, H.2 delete generalization, then J.3 device-aware Library
+planning. I.8's offline model and nine focused tests are
+recorded in `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`;
+the suite is **393 tests**.
 
 The current I.4 candidate boundary is offline-only in
 `prepared_package_candidate.py`. It revalidates the source bytes, rejects
