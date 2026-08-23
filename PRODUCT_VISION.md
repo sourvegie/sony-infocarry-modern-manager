@@ -133,8 +133,8 @@ I.7 has completed offline timestamp and fixed-state characterization without
 establishing a safe general rule; its eligibility result fails closed. I.8 now
 provides an ordered source-bound multiple-TXT logical model with strict
 authoring and no device candidate. I.9 now provides typed offline TXT/BMP
-validation with no device candidate; I.10 addresses a representative small
-ebook package offline first. H.2 deletion generalization remains a separate fail-closed
+validation with no device candidate. I.10 now provides a flat manifest-driven
+representative ebook plan that fails closed on nested sections; H.2 deletion generalization remains a separate fail-closed
 track. J.0–J.2 local Library foundations are complete, while J.3
 device-aware planning remains deferred. Arbitrary package transfer, normal
 GUI/CLI exposure, generalized deletion, and interrupted-write recovery remain

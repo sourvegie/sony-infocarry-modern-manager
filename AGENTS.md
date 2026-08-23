@@ -52,8 +52,9 @@ timestamp/fixed-state characterization and added a fail-closed eligibility
 result; no deterministic fresh rule was established. I.8 provides an ordered
 source-bound multiple-TXT logical model with strict authoring and no device
 candidate. I.9 now provides typed offline TXT/BMP validation with no device
-candidate. Protocol generalization is now the active objective: I.10
-representative ebook work proceeds offline first. H.2
+candidate. I.10 now provides a flat manifest-driven representative ebook plan
+that rejects nested sections. Protocol generalization remains the active
+objective for offline evidence review and H.2; H.2
 deletion generalization remains a separate fail-closed offline track. These
 milestones may proceed independently of the parked H.1 blocker.
 Milestone I.0 evidence audit, I.1 logical package model, and I.2 blocked
@@ -96,8 +97,8 @@ recovery is claimed. See
 The sanitized source-of-truth promotion is complete in `07f0db9`, and the
 non-destructive local Library foundation, offline Prepare workflow, and crude
 ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
-portable suite of **402 tests** (three evidence-dependent skips). The next
-slice is the offline representative ebook package model; keep package transfer
+portable suite of **408 tests** (three evidence-dependent skips). The next
+slice is offline evidence review for H.2/J.3 sequencing; keep package transfer
 disconnected from the Library and keep the normal GUI/CLI write actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
@@ -232,12 +233,12 @@ approved live smoke with exact full read-back for that shape. This is not
 legacy timestamp equivalence; arbitrary folders, multiple children, bitmaps,
 nested placement, and normal product exposure remain excluded. I.7 is complete
 for offline characterization but found no safe general rule; the owner protocol
-is drafted and not executed. The next sequence is I.9 mixed TXT/BMP, I.10
-representative ebook, H.2 delete generalization, then J.3 device-aware Library
-planning. I.8's offline model and I.9's typed model are recorded in
-`analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md` and
-`analysis/phase-13-milestone-i9-mixed-txt-bmp-offline-20260823.md`; I.9 adds
-nine focused tests and the suite is **402 tests**.
+is drafted and not executed. The next sequence is offline H.2/J.3 evidence
+review. I.8's offline model, I.9's typed model, and I.10's flat ebook plan are
+recorded in `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`,
+`analysis/phase-13-milestone-i9-mixed-txt-bmp-offline-20260823.md`, and
+`analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`; I.10 adds six
+focused tests and the suite is **408 tests**.
 
 The current I.4 candidate boundary is offline-only in
 `prepared_package_candidate.py`. It revalidates the source bytes, rejects
