@@ -1,0 +1,59 @@
+.DS_Store
+**/.DS_Store
+
+# Generated project output
+tmp/
+tests/output/*
+!tests/output/.gitkeep
+samples/generated/*
+!samples/generated/.gitkeep
+
+# Evidence and live-operation material (keep outside this source repository)
+/evidence/
+/backups/
+/device-backups/
+/captures/
+/usbsnifferlogs/
+/legacy/
+/live-evidence/
+/screenshots/
+*.usblog
+*.pcap
+*.pcapng
+analysis/**/range-*.bin
+
+# Original or proprietary distribution material
+*.exe
+*.dll
+*.sys
+*.msi
+*.iso
+*.dmg
+*.pkg
+*.whl
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Credentials and signing material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.mobileprovision
+
+# Python cache and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+*.spec

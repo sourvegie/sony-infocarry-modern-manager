@@ -1,0 +1,105 @@
+{
+  "format": "infocarry-milestone-i5-capacity-semantics-v1",
+  "date": "2026-08-23",
+  "status": "native_total_limit_resolved_offline",
+  "usb_write_performed": false,
+  "runtime": {
+    "python": "3.12.13",
+    "tcl_tk": "9.0",
+    "tests": 336
+  },
+  "static_artifacts": {
+    "victwo_dll": {
+      "path": "../legacy/extracted/program files/Sony/infoCarry/infoCarry Manager/VicTwo.dll",
+      "sha256": "a02e5927d2e5ded988556e0be0e79a38313ce91f6491ad0ac8835971d3db0dae"
+    },
+    "manager_exe": {
+      "path": "../legacy/extracted/program files/Sony/infoCarry/infoCarry Manager/infoCarryManager.exe",
+      "sha256": "a195c898de9f619a9978ba9bb8bc71c18692bf28cfca915ea0b747edc4ee4d76"
+    },
+    "manager_resources": {
+      "path": "../legacy/extracted/program files/Sony/infoCarry/infoCarry Manager/icmres.dll",
+      "sha256": "94c6e123514d67d88ed17907c9a8f60e45d787180147d9018f067c1f0ad6ee15"
+    }
+  },
+  "native_data_flow": {
+    "command": "0x0019",
+    "response_offset": "0x08",
+    "response_value_bytes": 3145728,
+    "worker_context_offset": "0x24",
+    "get_hardware_info_range": ["0x10007bc0", "0x10007cc4"],
+    "dispatcher_range": ["0x10004c90", "0x10004cee"],
+    "comparison": "prospective_N_plus_M <= worker_context_0x24",
+    "ordinary_transaction": {
+      "N": 0,
+      "M": "dynamic_blob_length"
+    },
+    "response_field_14_bytes": 4194304,
+    "response_field_14_semantics": "unresolved_and_not_used_for_capacity"
+  },
+  "manager_display": {
+    "function": "infoCarryManager.exe+0x41a130",
+    "denominator_field": "this+0x528",
+    "numerator_field": "this+0x52c",
+    "rounding": "ceil(value/1024), positive minimum 1",
+    "negative_numerator": "----",
+    "resource_used_total": "0x7d6",
+    "resource_unknown_total": "0x80e",
+    "meaning": "Manager-local used/total KB display; not independently mapped to native total limit",
+    "observed_display": "---- / 1997KB"
+  },
+  "capacity_table": [
+    {
+      "evidence": "capture-04",
+      "capacity_limit_bytes": 3145728,
+      "baseline_model_bytes": 2050696,
+      "candidate_model_bytes": 2050848,
+      "candidate_growth_bytes": 152,
+      "remaining_growth_bytes_before_candidate": 1095032,
+      "remaining_growth_bytes_after_candidate": 1094880,
+      "classification": "verified_capture_plus_derived_limit"
+    },
+    {
+      "evidence": "capture-07",
+      "capacity_limit_bytes": 3145728,
+      "baseline_model_bytes": 2050848,
+      "candidate_model_bytes": 2051132,
+      "candidate_growth_bytes": 284,
+      "remaining_growth_bytes_before_candidate": 1094880,
+      "remaining_growth_bytes_after_candidate": 1094596,
+      "classification": "verified_capture_plus_derived_limit"
+    },
+    {
+      "evidence": "i4_provisional_offline_preview",
+      "capacity_limit_bytes": 3145728,
+      "baseline_model_bytes": 2051132,
+      "candidate_model_bytes": 2051420,
+      "candidate_growth_bytes": 288,
+      "remaining_growth_bytes_before_candidate": 1094596,
+      "remaining_growth_bytes_after_candidate": 1094308,
+      "classification": "offline_derived_no_transmission"
+    }
+  ],
+  "excluded_capacity_sources": [
+    {
+      "command": "0x0024",
+      "observed_first_be32": 2051132,
+      "interpretation": "observed to equal the current dynamic-model length and excluded from capacity authorization; broader semantics unresolved"
+    },
+    {
+      "source": "Manager UI",
+      "interpretation": "local used/total accounting; exact callback-to-device-field mapping unresolved"
+    },
+    {
+      "source": "field_14_be32",
+      "observed_value": 4194304,
+      "interpretation": "not copied into worker context +0x24; semantic name remains unresolved"
+    }
+  ],
+  "safety_status": {
+    "capacity_gate": "resolved_for_offline_native_total_limit_model",
+    "live_package_write": "prohibited",
+    "normal_gui_cli_package_action": "prohibited",
+    "physical_atomicity_and_recovery": "unresolved"
+  }
+}

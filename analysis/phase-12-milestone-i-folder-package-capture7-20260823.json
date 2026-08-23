@@ -1,0 +1,129 @@
+{
+  "format": "infocarry-milestone-i-folder-package-capture-v1",
+  "capture_id": "capture7",
+  "date": "2026-08-23",
+  "source": {
+    "owner_path": "${OWNER_DESKTOP}/capture7",
+    "ignored_intake_path": "tmp/phase-12-milestone-i-folder-package-capture7-20260823-01/owner-original/capture7",
+    "owner_manifest": "tmp/phase-12-milestone-i-folder-package-capture7-20260823-01/owner-manifest.json",
+    "owner_manifest_sha256": "3c467f73339152023b78a05c34602e4d4f293241006b829fc550c47c5046c506",
+    "copied_file_count": 12,
+    "copy_hashes_verified": true,
+    "original_modified": false
+  },
+  "prepared_source": {
+    "folder": "IC_I_FOLDER_20260823_01",
+    "child_filename": "chapter.txt",
+    "source_staging_path": "tmp/phase-12-milestone-i-folder-package-source-20260823-01/IC_I_FOLDER_20260823_01/chapter.txt",
+    "source_bytes": 59,
+    "source_sha256": "5f9d50dc738cfb70c1e021d48c7b3aa73540fd97a57a9f1134cb5a82eca98372",
+    "encoding": "cp932",
+    "newline_policy": "crlf"
+  },
+  "backups": {
+    "pre_add": {
+      "path": "tmp/phase-12-milestone-i-folder-package-pre-add-20260823-01",
+      "manifest_sha256": "451a9affa88d3f7a45cea9b6e83b4c941358d074faf5d8a664e2b7f7120afeba",
+      "blob_sha256": "88b95f8bc158ab89253faea8c9085799cebba76abf0a3f416afa62df8b55f287",
+      "blob_bytes": 2050848,
+      "metadata_records": 367,
+      "reachable_records": 310,
+      "complete": true
+    },
+    "recovery_after_failed_receive": {
+      "path": "tmp/phase-12-milestone-i-folder-package-recovery-20260823-01",
+      "manifest_sha256": "15b7a26a594fb5924dc366957677f6c41053293fee10f4ed2633ea6e5322cddf",
+      "blob_sha256": "88b95f8bc158ab89253faea8c9085799cebba76abf0a3f416afa62df8b55f287",
+      "byte_identical_to_pre_add": true,
+      "complete": true
+    },
+    "post_add": {
+      "path": "tmp/phase-12-milestone-i-folder-package-post-add-20260823-01",
+      "manifest_sha256": "14f270b19f0a5fc2a3e05076fc1b342b4e89d8ca1e927480511267b7d843d794",
+      "blob_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+      "blob_bytes": 2051132,
+      "metadata_records": 370,
+      "reachable_records": 312,
+      "complete": true
+    }
+  },
+  "device_delta": {
+    "added_reachable_paths": [
+      "root\\IC_I_FOLDER_20260823_01",
+      "root\\IC_I_FOLDER_20260823_01\\chapter"
+    ],
+    "removed_reachable_paths": [],
+    "shared_file_payload_changes": 0,
+    "metadata_records_added": 3,
+    "metadata_bytes_added": 192,
+    "aligned_content_bytes_added": 92,
+    "total_blob_growth": 284,
+    "new_folder": {
+      "record_offset": "0x00000300",
+      "field_04": "0x00000300",
+      "field_08": "0x00000080",
+      "field_10": "0xffffffff",
+      "field_14": "0x00000000",
+      "timestamp_be32": "0x6a8aba6f"
+    },
+    "new_child": {
+      "record_offset": "0x00000380",
+      "field_04": "0x000001ac",
+      "field_08": "0x0000003b",
+      "payload_offset": "0x00005e8c",
+      "payload_bytes": 59,
+      "payload_sha256": "5f9d50dc738cfb70c1e021d48c7b3aa73540fd97a57a9f1134cb5a82eca98372",
+      "native_prefix_bytes": 32,
+      "alignment_padding_bytes": 1,
+      "alignment_padding_value": "0xff",
+      "field_10": "0xffffffff",
+      "field_14": "0x00000200"
+    }
+  },
+  "native_transaction": {
+    "path": "tmp/phase-12-milestone-i-folder-package-capture7-20260823-01/owner-original/capture7/usblog/01-send.usblog",
+    "sha256": "a0405d7dc87327c947fc3555dece2e46608d2b6c34d1cbc09fe845f8e0c38138",
+    "bytes": 2289156,
+    "parseable_101b_transactions": 1,
+    "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2051068],
+    "variable_n": 0,
+    "variable_m": 2051132,
+    "candidate_blob_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+    "candidate_equals_post_blob": true,
+    "derived_artifact_manifest_sha256": "8a078d7ad1328fbf45cd8c808579aae453bf320847168fc6e25a7a6e8bf8c755"
+  },
+  "manager_sidecars": {
+    "before_after_byte_identical": true,
+    "files": {
+      "Backup/VICDATA.bin": "72142be59413acdbd4c065fad9d16c2e50bc05d77e316844528de802b689b728",
+      "Memo/VICLV.bin": "86f79cd4d3edf092149203fb9d35dbe212d5651e24c3123f70d931a74d869eb2",
+      "Memo/VICMEM.bin": "ceeca1df5933bec05b5022f241ec23a08b6bf27bb47ef76d564579fb0265a470",
+      "ICM/転送元フォルダ/order.vnw": "d5b38676e00f13b11e609f49ca106b3048d69d73a1b6be153d81d2865a93ef18"
+    },
+    "order_contains_folder_before_send": true,
+    "order_contains_child_basename": false,
+    "classification": "Manager-local source bookkeeping; no sidecar transfer mutation observed"
+  },
+  "completion": {
+    "manager_result": "owner-reported completed normally",
+    "screenshot_preserved_in_owner_directory": false,
+    "native_request4_word": "unavailable_or_untrusted",
+    "classification": "observed by owner report, not independently decoded"
+  },
+  "golden_builder": {
+    "module": "src/infocarry/prepared_folder.py",
+    "offline_candidate_audit": "tmp/phase-12-milestone-i-folder-package-capture7-20260823-01/derived-folder-candidate-audit.json",
+    "audit_sha256": "7dc4c28015b615bb5e0eae8603ba1b7e11ed4037acc7b453054c605f6a7cf915",
+    "exact_capture7_reproduction": true,
+    "candidate_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+    "timestamp_generation_resolved": false,
+    "live_eligibility": false
+  },
+  "gate": {
+    "folder_multi_record_evidence_gate": "satisfied_for_capture7_fixture",
+    "arbitrary_folder_compatibility": "unproven",
+    "modern_package_sender": "prohibited",
+    "normal_gui_cli_package_action": "prohibited",
+    "next_scope": "offline golden-model tests and evidence-labeled hardening"
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "format": "infocarry-milestone-i6-controlled-package-live-smoke-readiness-v1",
+  "date": "2026-08-23",
+  "status": "owner_approved_preflight_stopped_before_write",
+  "commit": "09452be",
+  "launcher_fix_commit": "6e43927",
+  "usb_write_performed": false,
+  "runtime": {
+    "python": "3.12.13",
+    "tcl_tk": "9.0",
+    "tests": 357
+  },
+  "native_capacity_evidence": {
+    "device": {
+      "vendor_id": "0x054c",
+      "product_id": "0x001e"
+    },
+    "response_command": "0x0019",
+    "field_offset": "0x08",
+    "raw_response_path": "tmp/i4-live-smoke-20260823-01/info-01/command-0019-hardware.bin",
+    "raw_response_length": 64,
+    "raw_response_sha256": "c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a",
+    "capacity_limit_bytes": 3145728,
+    "evidence_source": "parsed_device_info_0x0019",
+    "evidence_version": "infocarry-native-capacity-evidence-v1",
+    "classification": "verified_preserved_fixture_response"
+  },
+  "offline_reference_candidate": {
+    "source_path": "tmp/i4-live-smoke-20260823-01/chapter.txt",
+    "source_sha256": "187ba5ae05ef08f86d5f27e7de7ff445d4a32df7921d21bb9345ce158f205321",
+    "prepared_manifest_sha256": "9d2389e9aaa3f32eff361004d37bd40ecb04422a4710ef379a9c29fa0c2f8c1d",
+    "folder_path": "root\\IC_I4_PACKAGE_20260823_01",
+    "child_path": "root\\IC_I4_PACKAGE_20260823_01\\chapter.txt",
+    "folder_record_offset": "0x340",
+    "child_record_offset": "0x3c0",
+    "pre_operation_backup_path": "tmp/i4-live-smoke-20260823-01/pre-backup-01",
+    "pre_operation_manifest_sha256": "7c238571179430cf91b657ce1fd9f0ffaf30bd12a73acc3d2ac23cb6df611fa4",
+    "baseline_blob_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+    "baseline_model_bytes": 2051132,
+    "candidate_blob_sha256": "fbebd82001f2b833e4bfe6af8922c03b4bffbbd42a18f3a9149c501107f1fd47",
+    "candidate_model_bytes": 2051420,
+    "candidate_growth_bytes": 288,
+    "remaining_growth_bytes_after_candidate": 1094308,
+    "transaction_sha256": "2965f96bb13206a57e8efdec96c6722a10862a39f56d6cba15f950c3794c938b",
+    "classification": "offline_reference_only"
+  },
+  "workflow_sequence": [
+    "fake_transport_asserted",
+    "device_detected",
+    "capacity_queried_0x0019",
+    "fresh_complete_backup",
+    "candidate_reconstructed",
+    "authorization",
+    "single_0x101b_transaction",
+    "completion_0x0000",
+    "fresh_post_operation_backup",
+    "independent_readback_verification"
+  ],
+  "failure_policy": {
+    "pre_start_cancellation": "safe_terminal_cancellation",
+    "post_start_disconnect_timeout_cancellation": "indeterminate_device_outcome",
+    "automatic_retry": false,
+    "recovery": "preserve before/audit evidence; later read-only detection and complete backup only"
+  },
+  "isolated_runner": {
+    "path": "run_i6_prepared_package_live_smoke.py",
+    "normal_cli_or_gui_imported": false,
+    "executed": false,
+    "exact_owner_review_command_recorded_in": "analysis/phase-12-milestone-i6-controlled-package-live-smoke-readiness-20260823.md",
+    "separate_owner_approval": "APPROVE I6 PACKAGE LIVE SMOKE",
+    "operation_confirmation": "ADD ONE INFOCARRY TEXT PACKAGE"
+  },
+  "excluded_capacity_sources": [
+    "caller-supplied constant",
+    "Manager UI value",
+    "0x0024",
+    "field_14_be32"
+  ],
+  "future_evidence_root": "${EVIDENCE_ROOT}/phase-12-milestone-i6-package-live-smoke-20260823-01",
+  "owner_approval_required": "APPROVE I6 PACKAGE LIVE SMOKE",
+  "operation_confirmation_required": "ADD ONE INFOCARRY TEXT PACKAGE",
+  "live_execution": "no package transaction issued",
+  "attempt_01": {
+    "status": "failed_before_transaction",
+    "evidence_root": "${EVIDENCE_ROOT}/phase-12-milestone-i6-package-live-smoke-20260823-01",
+    "raw_capacity_response_sha256": "c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a",
+    "pre_operation_manifest_sha256": "1c2d6b67946a188100f6ea0f8699d6d69806308381e71b6d872cd039f8356be4",
+    "pre_operation_blob_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+    "stage": "fresh_backup",
+    "write_started": false,
+    "automatic_retry_allowed": false,
+    "error": "backup manifest timestamp is in the future",
+    "cause": "stale now value was passed to live fresh-backup verification; launcher corrected to use the current verification clock",
+    "candidate_constructed": false,
+    "transaction_issued": false
+  }
+}

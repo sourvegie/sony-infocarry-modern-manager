@@ -1,0 +1,45 @@
+{
+  "format": "infocarry-milestone-h-delete-attempt-02-derived-v1",
+  "source_kind": "hash_and_structure_descriptor_only",
+  "stable_evidence_root": "evidence/phase-12-milestone-h-delete-attempt-20260822-02",
+  "target": {
+    "path": "root\\IC_E_ADD_20260822_04.txt",
+    "pre_record_offset": "0x000002c0",
+    "post_record_present": false,
+    "pre_record_count": 368,
+    "post_record_count": 367
+  },
+  "native_transaction": {
+    "command": "0x101b",
+    "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2050784],
+    "variable_n": 0,
+    "variable_m": 2050848,
+    "candidate_blob_sha256": "88b95f8bc158ab89253faea8c9085799cebba76abf0a3f416afa62df8b55f287",
+    "transaction_sha256": "001b32e3901fde1563ae1a098c46ecc6dad2ec8c16cd5511f961bf53f9e4d888"
+  },
+  "backup_manifests": {
+    "pre_sha256": "a0124716d81bfcadc76433b9bef06f4a452babca22700da1b91981e4e52591ea",
+    "post_sha256": "dde2a9c0230c7cf02bf30dae5efe12164e81c2ed775dbeef5756c6b9f3286b50"
+  },
+  "timestamp_policy": {
+    "classification": "observed_opaque_per_record_map",
+    "rule_inferred": false,
+    "surviving_record_count": 367,
+    "map_sha256": "67cdfaa4365832baf2be60babd97920f21f85dcfabe55ee16d1df1628ef39183"
+  },
+  "fixed_state_normalization": {
+    "block": "0x001d",
+    "native_count": 0,
+    "native_value_04": 1,
+    "native_record_offsets": [],
+    "post_count": 0,
+    "post_value_04": 0,
+    "post_record_offsets": [],
+    "only_allowed_difference": "+0x04..+0x05: 0x0001 -> 0x0000"
+  },
+  "evidence_hashes": {
+    "native_log_sha256": "676f68d8b5da4565ad295778c5d23a9772a568d727ecced8ac662e38c5001a3e",
+    "corrected_owner_manifest_sha256": "72a4468f21135a92bf87d70c0b0b1cd4b88d7c58948e28f2749dc18623481b63",
+    "native_artifact_manifest_sha256": "b908e9e0695b9f5b8d4775437ab72a0c4aa8fc512b5c096890419447c479af13"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "format": "infocarry-i6-attempt-02-readiness-v1",
+  "status": "ready_not_authorized",
+  "checkpoint": {
+    "head_before_slice": "f2c518a",
+    "baseline_tests": 357,
+    "complete_tests_after_slice": 359
+  },
+  "attempt_01": {
+    "root": "${EVIDENCE_ROOT}/phase-12-milestone-i6-package-live-smoke-20260823-01",
+    "tree_sha256": "c8a1e9d16fd43d5af9494c2c1a9985520bfc9fa555a8c177ec77ab60e770c056",
+    "write_started": false,
+    "transaction_issued": false,
+    "automatic_retry_allowed": false
+  },
+  "bindings": {
+    "source": "tmp/i4-live-smoke-20260823-01/chapter.txt",
+    "source_sha256": "187ba5ae05ef08f86d5f27e7de7ff445d4a32df7921d21bb9345ce158f205321",
+    "folder_path": "root\\IC_I4_PACKAGE_20260823_01",
+    "child_path": "root\\IC_I4_PACKAGE_20260823_01\\chapter.txt",
+    "template": "tmp/phase-12-milestone-i-folder-package-post-add-20260823-01/object-08-command-8004.bin",
+    "template_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+    "fixed_state_sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+    "capacity_source": "fresh parsed native 0x0019 response field +0x08",
+    "targets_absent_from_latest_read_only_backup": true
+  },
+  "attempt_02_outputs": {
+    "root": "${EVIDENCE_ROOT}/phase-12-milestone-i6-package-live-smoke-20260823-02",
+    "root_absent_before_execution": true,
+    "paths": [
+      "pre-operation-backup",
+      "post-operation-backup",
+      "response-0019.bin",
+      "preview.json",
+      "audit.json"
+    ],
+    "all_absent_before_execution": true
+  },
+  "tests": {
+    "focused": 14,
+    "complete": 359,
+    "command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest discover -s tests -q"
+  },
+  "execution": {
+    "executed": false,
+    "owner_approval_required": true,
+    "operation_confirmation": "ADD ONE INFOCARRY TEXT PACKAGE",
+    "owner_approval": "APPROVE I6 PACKAGE LIVE SMOKE"
+  }
+}
