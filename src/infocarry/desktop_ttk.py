@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import errno
+import json
 import queue
 from pathlib import Path
 import threading
@@ -24,6 +25,8 @@ from .offline_conversion import (
     export_text_document,
     load_utf8_text_document,
 )
+from .library import LibraryCatalog, LibraryCatalogError, LibraryError
+from .library_prepare import LibraryPreparationError, prepare_library_item
 from .runtime import DesktopRuntimeError, check_desktop_runtime
 
 
@@ -221,6 +224,19 @@ def format_offline_page_preview(document: OfflineTextDocument, page_number: int)
     return f"Page {page.number} / {document.page_count}\n\n{page.text}"
 
 
+def format_library_preparation_audit(report: Dict[str, Any]) -> str:
+    """Render the Library Prepare result without implying device access."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Library preparation audit must be a mapping")
+    return "OFFLINE LIBRARY PREPARE — no device change occurred\n\n" + json.dumps(
+        report,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+
+
 def launch_ttk_desktop() -> None:
     """Launch the supported no-write ttk desktop workflow."""
 
@@ -241,6 +257,12 @@ def launch_ttk_desktop() -> None:
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
     worker: Optional[threading.Thread] = None
+    try:
+        library_catalog: Optional[LibraryCatalog] = LibraryCatalog()
+        library_catalog_error: Optional[str] = None
+    except LibraryCatalogError as exc:
+        library_catalog = None
+        library_catalog_error = str(exc)
 
     try:
         style = ttk.Style(root)
@@ -256,14 +278,89 @@ def launch_ttk_desktop() -> None:
 
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True, padx=8, pady=(8, 0))
+    library_tab = ttk.Frame(notebook, padding=10)
     device_tab = ttk.Frame(notebook)
     text_converter_tab = ttk.Frame(notebook, padding=12)
     ebook_renderer_tab = ttk.Frame(notebook, padding=12)
     settings_tab = ttk.Frame(notebook, padding=12)
+    notebook.add(library_tab, text="Library")
     notebook.add(device_tab, text="Device Manager")
     notebook.add(text_converter_tab, text="Text Converter")
     notebook.add(ebook_renderer_tab, text="Ebook Renderer")
     notebook.add(settings_tab, text="Settings & Help")
+
+    library_status_var = tk.StringVar(
+        value=(
+            f"Library unavailable: {library_catalog_error}"
+            if library_catalog_error
+            else "Import a UTF-8 TXT source; no device operation occurs."
+        )
+    )
+    library_detail_var = tk.StringVar(value="Select a Library item")
+    library_tree_items: Dict[str, str] = {}
+    library_toolbar = ttk.Frame(library_tab)
+    library_toolbar.pack(fill="x", pady=(0, 8))
+    ttk.Label(
+        library_toolbar,
+        text="Local Library",
+        font=("TkDefaultFont", 14, "bold"),
+    ).pack(side="left", padx=(0, 16))
+    library_import_button = ttk.Button(library_toolbar, text="Import TXT…")
+    library_remove_button = ttk.Button(
+        library_toolbar, text="Remove from Library", state="disabled"
+    )
+    library_prepare_button = ttk.Button(
+        library_toolbar, text="Prepare…", state="disabled"
+    )
+    library_import_button.pack(side="left", padx=3)
+    library_remove_button.pack(side="left", padx=3)
+    library_prepare_button.pack(side="left", padx=3)
+    ttk.Label(
+        library_toolbar,
+        text="offline only — no transfer action",
+        foreground="#6b4f00",
+    ).pack(side="right", padx=(12, 0))
+
+    library_content = ttk.Panedwindow(library_tab, orient="horizontal")
+    library_content.pack(fill="both", expand=True)
+    library_list_frame = ttk.Frame(library_content, padding=(0, 0, 8, 0))
+    library_detail_frame = ttk.Frame(library_content, padding=(8, 0, 0, 0))
+    library_content.add(library_list_frame, weight=3)
+    library_content.add(library_detail_frame, weight=2)
+    library_tree = ttk.Treeview(
+        library_list_frame,
+        columns=("state", "source", "target"),
+        show="tree headings",
+        selectmode="browse",
+    )
+    library_tree.heading("#0", text="Item")
+    library_tree.heading("state", text="State")
+    library_tree.heading("source", text="Source")
+    library_tree.heading("target", text="Target")
+    library_tree.column("#0", minwidth=160, width=220, stretch=True)
+    library_tree.column("state", minwidth=90, width=100, stretch=False)
+    library_tree.column("source", minwidth=180, width=260, stretch=True)
+    library_tree.column("target", minwidth=180, width=260, stretch=True)
+    library_tree_scroll = ttk.Scrollbar(
+        library_list_frame, orient="vertical", command=library_tree.yview
+    )
+    library_tree.configure(yscrollcommand=library_tree_scroll.set)
+    library_tree.pack(side="left", fill="both", expand=True)
+    library_tree_scroll.pack(side="right", fill="y")
+    ttk.Label(library_detail_frame, text="Library selection").pack(anchor="w")
+    ttk.Label(
+        library_detail_frame,
+        textvariable=library_detail_var,
+        wraplength=380,
+    ).pack(anchor="w", fill="x", pady=(2, 10))
+    library_report = tk.Text(library_detail_frame, height=20, width=48, wrap="word")
+    library_report.pack(fill="both", expand=True)
+    library_report.configure(state="disabled")
+    ttk.Label(
+        library_detail_frame,
+        textvariable=library_status_var,
+        wraplength=520,
+    ).pack(anchor="w", fill="x", pady=(8, 0))
 
     toolbar = ttk.Frame(device_tab, padding=(10, 10, 10, 6))
     toolbar.pack(fill="x")
@@ -428,6 +525,171 @@ def launch_ttk_desktop() -> None:
         if selected:
             target.set(selected)
 
+    def refresh_library_view() -> None:
+        library_tree.delete(*library_tree.get_children())
+        library_tree_items.clear()
+        if library_catalog is None:
+            library_import_button.configure(state="disabled")
+            library_remove_button.configure(state="disabled")
+            library_prepare_button.configure(state="disabled")
+            return
+        library_import_button.configure(state="normal")
+        for item in library_catalog.items:
+            target = ""
+            if item.target_folder_name and item.target_child_name:
+                target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
+            tree_item = library_tree.insert(
+                "",
+                "end",
+                text=item.source_filename,
+                values=(item.state, item.source_path, target),
+            )
+            library_tree_items[tree_item] = item.item_id
+        show_library_selection()
+
+    def selected_library_item() -> Optional[Any]:
+        if library_catalog is None:
+            return None
+        selected = library_tree.selection()
+        if len(selected) != 1:
+            return None
+        item_id = library_tree_items.get(selected[0])
+        if item_id is None:
+            return None
+        try:
+            return library_catalog.get(item_id)
+        except LibraryError:
+            return None
+
+    def show_library_selection(_event: Any = None) -> None:
+        item = selected_library_item()
+        enabled = item is not None and library_catalog is not None
+        library_remove_button.configure(state="normal" if enabled else "disabled")
+        library_prepare_button.configure(
+            state=(
+                "normal"
+                if enabled
+                and item.supported
+                and item.state in {"imported", "ready", "blocked"}
+                else "disabled"
+            )
+        )
+        if item is None:
+            library_detail_var.set("Select a Library item")
+            _set_readonly_text(library_report, "")
+            return
+        target = "not prepared"
+        if item.target_folder_name and item.target_child_name:
+            target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
+        library_detail_var.set(
+            f"{item.source_filename}\n\n"
+            f"State: {item.state}\n"
+            f"Source: {item.source_path}\n"
+            f"SHA-256: {item.source_sha256}\n"
+            f"Target: {target}"
+        )
+        _set_readonly_text(
+            library_report,
+            json.dumps(item.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
+        )
+
+    def library_import_action() -> None:
+        if library_catalog is None:
+            messagebox.showerror("Library", library_catalog_error or "Library is unavailable", parent=root)
+            return
+        selected = filedialog.askopenfilename(
+            title="Import local source into Library",
+            filetypes=(
+                ("UTF-8 text files", "*.txt"),
+                ("All files", "*"),
+            ),
+            parent=root,
+        )
+        if not selected:
+            return
+        try:
+            item = library_catalog.import_file(Path(selected))
+            refresh_library_view()
+            library_status_var.set(
+                f"Imported {item.source_filename}; original source unchanged; no device access"
+            )
+            _set_readonly_text(
+                library_report,
+                json.dumps(item.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
+            )
+        except (LibraryError, OSError) as exc:
+            library_status_var.set(f"Library import blocked: {exc}")
+            messagebox.showerror("Library import", str(exc), parent=root)
+
+    def library_remove_action() -> None:
+        if library_catalog is None:
+            return
+        item = selected_library_item()
+        if item is None:
+            return
+        if not messagebox.askyesno(
+            "Remove from Library",
+            (
+                f"Remove {item.source_filename} from the local catalog?\n\n"
+                "The original source file will not be moved or deleted."
+            ),
+            parent=root,
+        ):
+            return
+        library_catalog.remove(item.item_id)
+        refresh_library_view()
+        library_status_var.set("Removed catalog entry only; original source unchanged")
+
+    def library_prepare_action() -> None:
+        if library_catalog is None:
+            return
+        item = selected_library_item()
+        if item is None:
+            messagebox.showinfo("Prepare", "Select exactly one supported TXT Library item.", parent=root)
+            return
+        folder_name = simpledialog.askstring(
+            "Prepare offline package",
+            "Root-level folder name:",
+            initialvalue=item.target_folder_name or Path(item.source_filename).stem,
+            parent=root,
+        )
+        if folder_name is None:
+            return
+        child_name = simpledialog.askstring(
+            "Prepare offline package",
+            "TXT child filename:",
+            initialvalue=item.target_child_name or item.source_filename,
+            parent=root,
+        )
+        if child_name is None:
+            return
+        try:
+            result = prepare_library_item(
+                library_catalog,
+                item.item_id,
+                folder_name,
+                child_name,
+            )
+            refresh_library_view()
+            _set_readonly_text(library_report, format_library_preparation_audit(dict(result.audit)))
+            library_status_var.set(
+                f"Prepared {result.package.target_item_path} offline; no device access"
+            )
+        except LibraryPreparationError as exc:
+            refresh_library_view()
+            library_status_var.set(f"Prepare blocked; no device access: {exc}")
+            _set_readonly_text(
+                library_report,
+                "OFFLINE LIBRARY PREPARE — blocked; no device change occurred\n\n" + str(exc),
+            )
+            messagebox.showerror("Offline Prepare", str(exc), parent=root)
+
+    library_tree.bind("<<TreeviewSelect>>", show_library_selection)
+    library_import_button.configure(command=library_import_action)
+    library_remove_button.configure(command=library_remove_action)
+    library_prepare_button.configure(command=library_prepare_action)
+    refresh_library_view()
+
     def load_conversion_preview() -> None:
         nonlocal conversion_document
         source = converter_source_var.get().strip()
@@ -512,6 +774,17 @@ def launch_ttk_desktop() -> None:
         state = "disabled" if busy else "normal"
         for button in (check_button, backup_button, open_button):
             button.configure(state=state)
+        if busy:
+            for button in (
+                library_import_button,
+                library_remove_button,
+                library_prepare_button,
+            ):
+                button.configure(state="disabled")
+        else:
+            show_library_selection()
+            if library_catalog is None:
+                library_import_button.configure(state="disabled")
         export_button.configure(state="disabled" if busy or not tree.selection() else "normal")
         if busy:
             replacement_button.configure(state="disabled")
@@ -941,6 +1214,7 @@ def launch_ttk_desktop() -> None:
 
 
 __all__ = [
+    "format_library_preparation_audit",
     "format_text_replacement_preview",
     "format_post_write_verification",
     "friendly_error_message",

@@ -88,7 +88,7 @@ def prepare_library_item(
             child_name=child_name,
         )
         raise LibraryPreparationError(message)
-    if item.state not in {STATE_IMPORTED, STATE_READY} or item.source_status != "present":
+    if item.state not in {STATE_IMPORTED, STATE_READY, STATE_BLOCKED} or item.source_status != "present":
         message = item.last_validation_error or "Library source is not current and ready for preparation"
         _blocked_item(
             catalog,

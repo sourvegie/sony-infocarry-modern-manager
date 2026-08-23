@@ -3,6 +3,7 @@ import unittest
 
 from infocarry.backup_format import BackupFormatError
 from infocarry.desktop_ttk import (
+    format_library_preparation_audit,
     format_offline_conversion_report,
     format_offline_page_preview,
     format_post_write_verification,
@@ -14,6 +15,20 @@ from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_library_prepare_summary_is_explicitly_offline(self):
+        summary = format_library_preparation_audit(
+            {
+                "device_operation": "none",
+                "usb_accessed": False,
+                "source": {"sha256": "a" * 64},
+                "prepared": {"child_path": "root\\Book\\chapter.txt"},
+            }
+        )
+        self.assertIn("OFFLINE LIBRARY PREPARE", summary)
+        self.assertIn("no device change occurred", summary)
+        self.assertIn("root\\\\Book\\\\chapter.txt", summary)
+        self.assertIn('"usb_accessed": false', summary)
+
     def test_recovery_messages_cover_common_read_only_failures(self):
         self.assertIn("not enough free disk space", friendly_error_message(OSError(errno.ENOSPC, "full")))
         self.assertIn("not writable", friendly_error_message(PermissionError("denied")))

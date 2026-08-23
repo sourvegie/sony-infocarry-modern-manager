@@ -111,6 +111,14 @@ class LibraryPrepareTests(unittest.TestCase):
         self.assertEqual(updated.state, STATE_BLOCKED)
         self.assertEqual(updated.preparation_state, PREPARATION_BLOCKED)
 
+        result = prepare_library_item(
+            self.catalog,
+            self.item.item_id,
+            "Book",
+            "chapter.txt",
+        )
+        self.assertEqual(result.item.state, STATE_READY)
+
 
 if __name__ == "__main__":
     unittest.main()
