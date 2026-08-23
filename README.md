@@ -104,6 +104,22 @@ text preview reads UTF-8 input, normalizes it to CRLF, validates strict CP932
 encoding and an optional caller-supplied limit, and writes only a JSON audit;
 it never includes candidate payload bytes or transmits anything.
 
+The local Library foundation supports one original UTF-8 `.txt` source per
+logical item. Import is non-destructive and records the source path, filename,
+size, SHA-256, format, preparation state, target names, and stale/missing
+observations in the versioned per-user catalog at
+`${HOME}/Library/Application Support/SonyInfoCarryModernManager/library.json`
+on macOS. The catalog is outside this checkout and reverse-engineering
+evidence; its previous version is retained as `library.previous.json` after a
+successful update. Library removal deletes only the catalog entry.
+
+`Prepare…` uses the existing strict UTF-8 → CP932/CRLF `PreparedTextPackage`
+model for one root-level folder with one TXT child and produces an offline
+audit containing source/prepared hashes, sizes, target paths, compatibility,
+and an explicit no-device-change notice. Unsupported formats, invalid source
+bytes, unsafe names, and stale sources remain blocked. No package transfer
+control is exposed in the Library tab.
+
 The no-write desktop Device Manager uses Tkinter/ttk and provides connection
 status, verified read-only backup, a hierarchical folder/file browser,
 selected download/export, progress/cancellation, recovery guidance, and TXT

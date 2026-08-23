@@ -83,9 +83,10 @@ authorized, and no broader package compatibility or physical interrupted-write
 recovery is claimed. See
 `analysis/phase-12-milestone-i6-package-live-smoke-attempt-02-result-20260823.md`.
 The sanitized source-of-truth promotion is complete in `07f0db9`, and the
-non-destructive local Library foundation is complete in `35f4406` with a
-portable suite of **373 tests** (three evidence-dependent skips). Milestone
-J.1 offline Prepare is next; keep package transfer disconnected from the
+non-destructive local Library foundation, offline Prepare workflow, and crude
+ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
+portable suite of **379 tests** (three evidence-dependent skips). The next
+review is owner usability review; keep package transfer disconnected from the
 Library and keep the normal GUI/CLI write actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:

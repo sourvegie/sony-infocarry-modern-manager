@@ -95,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — Milestones E, F, G, the captured-fixture Milestone H gate, constrained offline I.4, and native-capacity I.5 are complete for their defined scopes; H.1 live-delete generalization/readiness is blocked and parked pending new independent evidence; live package transfer and product exposure remain prohibited | Capture 7's exact one-folder/one-TXT offline model and the separate constrained modern policy are preserved; legacy timestamp/fixed-state generalization and package transport remain unresolved, while native total-limit capacity semantics are verified offline |
-| 13. Integrate Library, Prepare, and staged transfer | Active — Milestone J.0 Library foundation is next | Crude functional workflow precedes Concept A refinement and aesthetic work; proven package transfer remains disconnected |
+| 13. Integrate Library, Prepare, and staged transfer | Active — J.0/J.1/J.2 local foundation complete; owner usability review next | Crude local Library workflow is usable for TXT import/Prepare; drag-and-drop, package transfer, and aesthetic work remain deferred |
 
 Current Phase 12/I.6 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -1146,9 +1146,16 @@ stable post-backup form is (`count=0`, `value_04=0`, empty offsets). This
   and catalog-only removal. Complete in `35f4406`; the suite passes **373
   tests** with three intentional evidence-dependent skips. The catalog is
   outside the checkout and reverse-engineering evidence.
-- [ ] **Milestone J.1 — offline Prepare workflow:** connect one supported TXT
+- [x] **Milestone J.1 — offline Prepare workflow:** connect one supported TXT
   Library item to the proven `PreparedTextPackage` model without USB access,
   preserving strict encoding, naming, hashes, and no-device-change reporting.
+  Complete in `7650aaa`; the suite passes **378 tests** at this slice.
+- [x] **Milestone J.2 — crude local Library/Prepare ttk foundation:** the
+  versioned non-destructive catalog, strict offline Prepare workflow, and
+  file-picker-based Library section are complete in `35f4406`, `7650aaa`, and
+  `9dada7b`; the suite passes **379 tests** with three intentional
+  evidence-dependent skips. The catalog is per-user and outside the checkout;
+  the UI has no package-transfer action.
 - [ ] **Milestone J — crude end-to-end Library workflow:** add a versioned,
   non-destructive local catalog, picker import, drag-and-drop adapter,
   source/prepared states, and the simplest usable `Import → Prepare → Inspect →
@@ -1215,8 +1222,9 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    The timestamp/fixed-state comparison found no safe legacy generalization.
    I.4 may use only its explicit frozen modern timestamp and verified fresh
    all-zero fixed state; do not substitute current, copied, or guessed values.
-5. Milestone J.0 is complete in sanitized commit `35f4406`; begin J.1 offline
-   Prepare next, then add only a crude Library view. Keep early UI crude,
+5. Milestone J.0, J.1, and J.2 are complete in sanitized commits `35f4406`,
+   `7650aaa`, and `9dada7b`; stop for owner usability review before adding
+   drag-and-drop or any package-transfer connection. Keep early UI crude,
    preserve v0.1/v0.2 regression behavior, and
    defer aesthetic refinement, advanced renderer/EPUB work, signing, and broad
    packaging unless directly required by the core transfer path.
