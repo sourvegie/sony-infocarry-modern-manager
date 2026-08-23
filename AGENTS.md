@@ -45,9 +45,13 @@ live-delete generalization and readiness — is blocked and parked pending new
 independent evidence because the captured fixture builder still requires
 opaque attempt-02 timestamps and capture-specific fixed-state blocks. Do not
 continue speculative deletion work, prepare a live-delete protocol, or request
-another capture automatically. Milestone I — the minimum prepared text-content
-package — is now the active offline objective and may proceed independently of
-deletion support.
+another capture automatically. Milestone I.6 has completed one narrowly
+constrained live one-folder/one-TXT package smoke with `0x0000` completion and
+exact independent read-back. Protocol generalization is now the active
+objective: I.7 timestamp/fixed-state characterization, I.8 multiple-TXT, I.9
+mixed TXT/BMP, and I.10 representative ebook work proceed offline first. H.2
+deletion generalization remains a separate fail-closed offline track. These
+milestones may proceed independently of the parked H.1 blocker.
 Milestone I.0 evidence audit, I.1 logical package model, and I.2 blocked
 transfer preview are complete in commits `5a3c55b`, `0db6593`, and `05e29cb`;
 the suite now passes **294 tests** at that checkpoint. The owner-approved
@@ -153,9 +157,9 @@ The browser and Qt/PySide options remain explicitly deferred. See
 - Do not implement legacy send-all/receive-all semantics.
 - Restore, firmware/unlock, alternate modes, and destructive synchronization
   remain excluded. Milestone H.1 is blocked and parked pending new independent
-  evidence; Milestone I is active offline-only and cannot authorize a live
-  transfer or product exposure. Milestone J and aesthetic GUI work remain
-  deferred.
+  evidence. I.7–I.10 and H.2 are active offline-first research tracks and
+  cannot authorize a live transfer or product exposure. J.0–J.2 are complete;
+  J.3 device-aware Library planning and aesthetic GUI work remain deferred.
 
 ### Definition of Completed Milestone H, Parked H.1, and Active Milestone I
 
@@ -209,8 +213,9 @@ the smallest safe evidence needed to resolve it:
   owner protocol are prepared. No live transport, modern delete, or normal
   GUI/CLI action is enabled by H.1 documentation or tests.
 
-Milestone I remains active for offline prepared text-content work and the
-constrained package boundary. Capture 7 proves the exact one-folder/one-TXT
+Milestone I remains active for protocol generalization. I.6 has one separately
+approved constrained live smoke with exact full read-back; this does not prove
+arbitrary package behavior. Capture 7 proves the exact one-folder/one-TXT
 legacy fixture and supports an offline golden builder. Milestone I.4 is
 complete only for the separate constrained modern policy: one root folder, one
 TXT child, preserved existing timestamps, one explicit frozen timestamp for
@@ -218,8 +223,10 @@ the three new records, exact capture-7 all-zero fixed state, no state
 membership, and no sidecar assignment. I.6 now also has one separately
 approved live smoke with exact full read-back for that shape. This is not
 legacy timestamp equivalence; arbitrary folders, multiple children, bitmaps,
-nested placement, and normal product exposure remain excluded. Milestone J
-remains deferred until the remaining core transfer gates are resolved.
+nested placement, and normal product exposure remain excluded. The next
+sequence is I.7 timestamp/fixed-state characterization, I.8 multiple-TXT, I.9
+mixed TXT/BMP, I.10 representative ebook, H.2 delete generalization, then J.3
+device-aware Library planning.
 
 The current I.4 candidate boundary is offline-only in
 `prepared_package_candidate.py`. It revalidates the source bytes, rejects

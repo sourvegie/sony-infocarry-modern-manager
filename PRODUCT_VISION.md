@@ -124,26 +124,18 @@ The initial product covers the old Manager's core purpose: connection status,
 receive/backup, browsing, selected download, and selected send. Its destructive
 "send all" and "receive all" behavior is not copied into early releases.
 
-The current parity priority is offline preparation of one minimum text package:
-one root-level folder with one TXT child. Capture 7 proves the exact legacy
-one-folder/one-TXT fixture and supports an offline golden model; arbitrary
-folder and multi-record creation remain unproven. A separate constrained
-modern policy is active offline: preserve existing timestamps, use one explicit
-frozen timestamp for the folder, marker, and TXT child, and accept only the
-capture-7 all-zero fixed state without assigning category, mark, bookmark,
-selection, history, or sidecar membership. This is not legacy timestamp
-equivalence. The I.4 offline safety gate and I.6 live-smoke evidence are
-complete for this exact constrained shape; one separately approved smoke
-completed with independent full read-back. Arbitrary package transfer and
-normal GUI/CLI exposure remain prohibited. The
-offline candidate now uses a fail-closed complete-growth capacity gate and
-exact capture-7 fixed-state preflight, and its package-specific authorization
-binding, independent read-back verifier, and fake-only guarded workflow are
-transport-free outside the isolated runner.
-Milestone H.1
-selective-delete generalization remains blocked and parked pending independent
-evidence, so no delete control or live-delete protocol is authorized while
-this offline package work proceeds.
+The current parity priority is protocol and package generalization. I.6 has
+completed one narrowly constrained live one-folder/one-TXT package smoke with
+completion `0x0000` and exact independent read-back. Capture 7 proves the
+exact legacy one-folder/one-TXT fixture and supports an offline golden model;
+the separate constrained modern policy is not legacy timestamp equivalence.
+I.7 now characterizes timestamp and fixed-state evidence; I.8, I.9, and I.10
+address multiple TXT, mixed TXT/BMP, and a representative small ebook package
+offline first. H.2 deletion generalization remains a separate fail-closed
+track. J.0–J.2 local Library foundations are complete, while J.3
+device-aware planning remains deferred. Arbitrary package transfer, normal
+GUI/CLI exposure, generalized deletion, and interrupted-write recovery remain
+unproven or prohibited.
 
 ## Canonical Desktop Workflow
 

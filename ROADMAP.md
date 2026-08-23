@@ -94,8 +94,8 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — Milestones E, F, G, the captured-fixture Milestone H gate, constrained offline I.4, and native-capacity I.5 are complete for their defined scopes; H.1 live-delete generalization/readiness is blocked and parked pending new independent evidence; live package transfer and product exposure remain prohibited | Capture 7's exact one-folder/one-TXT offline model and the separate constrained modern policy are preserved; legacy timestamp/fixed-state generalization and package transport remain unresolved, while native total-limit capacity semantics are verified offline |
-| 13. Integrate Library, Prepare, and staged transfer | Active — J.0/J.1/J.2 local foundation complete; owner usability review next | Crude local Library workflow is usable for TXT import/Prepare; drag-and-drop, package transfer, and aesthetic work remain deferred |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7–I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.6 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -713,10 +713,11 @@ through the proven guarded path and see independent read-back verification.
 
 ## Phase 11 — Offline Conversion Foundation
 
-Priority note (2026-08-22): the existing conversion foundation is preserved,
-but renderer, EPUB/MOBI, Library, and visual work are paused except where a
-minimal piece is required to prove end-to-end new-file transfer. Functional
-legacy-Manager parity now takes precedence.
+Priority note (2026-08-23): the existing conversion foundation is preserved.
+Protocol and package generalization now take priority over renderer, EPUB/MOBI,
+drag-and-drop, visual refinement, packaging, and signing. J.0–J.2 delivered
+the local Library foundation, offline TXT Prepare, and crude ttk section in
+Phase 13; device-aware planning remains deferred.
 
 - [x] Freeze the constrained v0.2 scope after the approved live smoke and
   preserve the before/after evidence outside the source checkout.
@@ -728,17 +729,14 @@ legacy-Manager parity now takes precedence.
   dependency-free 1-bit BMP serializer in `offline_conversion.py`.
 - [x] Add ttk **Text Converter**, **Ebook Renderer**, and **Settings & Help**
   tabs. They are offline-only; the Device Manager's write gates are unchanged.
-- [ ] **Later Library foundation:** define a versioned,
-  framework-independent catalog for original sources, prepared outputs,
-  profiles, warnings, hashes, timestamps, and stale states. Import must be
-  non-destructive, Library removal must not delete originals by default, and
-  host Library capacity must never be confused with device capacity.
-- [ ] Add picker import and a drag-and-drop adapter for supported files. Both
-  paths must use the same validator, reject unsupported input clearly, avoid
-  silent overwrite, and perform no USB operation.
+- [x] **Library foundation:** delivered as Phase 13 J.0–J.2 in the sanitized
+  source-of-truth commits `35f4406`, `7650aaa`, and `9dada7b`; it includes a
+  versioned non-destructive catalog, picker TXT import, offline Prepare, and a
+  crude ttk Library section. Drag-and-drop remains a later enhancement.
 - [ ] Replace the normal-user converter-tab sequence with an outcome-oriented
   **Prepare for InfoCarry** workspace while retaining detailed controls in an
-  advanced Conversion Lab.
+  advanced Conversion Lab; this is product polish, not the current protocol
+  critical path.
 - [ ] **Later renderer foundation:** select or approve a narrowly
   scoped font/image dependency, render deterministic 240 x 320 1-bit pages,
   validate BMP structure and representative glyph output, and connect preview
@@ -866,8 +864,8 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   unproven, and modern delete plus product exposure remain prohibited pending
   separate approval. Milestone H.1 is blocked and parked because the current
   builder still requires the opaque attempt-02 timestamp map and
-  capture-specific fixed-state blocks. Milestone I is active offline and does
-  not depend on deletion.
+  capture-specific fixed-state blocks. I.7–I.10 are active offline-first
+  protocol-generalization work and do not depend on deletion.
 - [ ] **Milestone H.1 — live-delete generalization and readiness:** blocked and
   parked pending new independent evidence. The metadata `+0x0c` generation rule
   and fresh fixed-state derivation remain unresolved; no speculative deletion
@@ -876,8 +874,9 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   automatically. The fail-closed readiness result is in
   `analysis/phase-12-milestone-h1-live-delete-readiness-2026-08-23.md` and the
   four focused readiness tests keep the suite at **283 tests**.
-- [ ] **Milestone I — prepared content package:** active offline-only and
-  independent of H.1. I.0's evidence audit is complete in `5a3c55b` at **286
+- [ ] **Milestone I — prepared content package:** I.0–I.6 are complete for
+  their defined scopes and I.7–I.10 are active offline-first, independent of
+  H.1. I.0's evidence audit is complete in `5a3c55b` at **286
   tests**; I.1's logical package model is complete in `0db6593` at **291
   tests**; I.2's blocked transfer preview is complete in `05e29cb` at **294
   tests**. Owner-approved capture 7 now satisfies the exact one-folder/one-TXT
@@ -963,6 +962,39 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   `analysis/phase-12-milestone-i6-package-live-smoke-attempt-02-result-20260823.md`.
   Arbitrary packages, interrupted-write recovery, and normal GUI/CLI package
   action remain prohibited.
+
+### Protocol generalization sequence — I.7 through I.10 and H.2
+
+- [ ] **Milestone I.7 — timestamp and fixed-state characterization:** active
+  offline. Inventory portable evidence for metadata timestamps, display
+  history, mark lists, bookmarks, metadata-relative offsets, and fixed-state
+  rebasing. Classify each result as byte-verified, independently observed,
+  single-capture observed, inferred, or unresolved. Unsupported timestamp or
+  state rules must fail closed; no live operation is authorized by this
+  milestone.
+- [ ] **Milestone I.8 — multiple-TXT package:** generalize the logical model to
+  at least two explicitly ordered TXT children, with strict authoring,
+  conflict rejection, complete growth/capacity accounting, preserved shared
+  state, independent verification, and fake-transport failure coverage. Keep
+  it offline and disconnected from normal CLI/ttk controls.
+- [ ] **Milestone I.9 — mixed TXT/BMP package:** add a typed ordered model for
+  strict synthetic TXT and validated 237×320 one-bit Windows BMP items. Extend
+  candidate, capacity, authorization, audit, read-back, and fake-transport
+  coverage without claiming live eligibility.
+- [ ] **Milestone I.10 — representative small ebook package:** define the
+  smallest manifest-driven package supported by proven builders, preserving
+  order, paths, hashes, timestamps, fixed-state policy, capacity, and complete
+  read-back expectations. Fail closed if nested folders or other structure are
+  not proven.
+- [ ] **Milestone H.2 — deletion generalization:** use I.7 conclusions to
+  determine whether fresh-backup timestamp and `0x001b`–`0x001f` derivation is
+  possible without attempt-specific constants. Keep eligibility fail-closed,
+  accept only `0x0000`, and keep live delete/protocol/UI exposure prohibited.
+
+The owner-provided external source library may be used only in ignored local
+exploration. Tracked tests use synthetic data, generated fixtures, hashes, and
+structural summaries; copyrighted text, images, manifests, and excerpts are
+not copied into this repository.
 
 Phase 12 is the active project priority. A crude engineering UI or CLI is
 acceptable for proving each gated primitive. Do not spend the critical path on
@@ -1156,11 +1188,10 @@ stable post-backup form is (`count=0`, `value_04=0`, empty offsets). This
   `9dada7b`; the suite passes **379 tests** with three intentional
   evidence-dependent skips. The catalog is per-user and outside the checkout;
   the UI has no package-transfer action.
-- [ ] **Milestone J — crude end-to-end Library workflow:** add a versioned,
-  non-destructive local catalog, picker import, drag-and-drop adapter,
-  source/prepared states, and the simplest usable `Import → Prepare → Inspect →
-  Transfer → Verify` path. Preserve originals and distinguish host Library from
-  device content.
+- [ ] **Milestone J.3 — device-aware Library transfer planning:** after the
+  relevant I.8–I.10/H.2 operation gates close, add a framework-independent
+  preview/queue model that binds selected prepared items to proven operations,
+  conflicts, capacity, and verification. Do not expose device transfer yet.
 - [ ] Add a framework-independent offline transfer plan containing selected
   Library items, prepared artifacts, intended destinations, operation type,
   compatibility state, conflicts, per-item size, total size, and capacity
@@ -1193,41 +1224,26 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Preserve the Milestone G live-smoke archives and keep the normal new-file
-   GUI/CLI action disabled; do not generalize the result beyond one
-   root-level TXT shape.
-2. Retain the verified stable evidence copies and their SHA-256 manifests. Do
-   not remove the original Desktop or ignored `tmp` copies as part of routine
-   development.
-3. Retain attempt 01 as failure evidence and retain attempt 02 as the complete
-   persisted deletion-effect evidence fixture. Commits `b5bae4b` and `c8162c0`
-   implement and test the captured-fixture offline builder, exact delete
-   binding, independent verifier, and fake-transport failure model in the
-   **283-test** suite (279 at H closure). Milestone H.1 is blocked and parked:
-   the timestamp rule and fresh fixed-state derivation remain unresolved, so no
-   live eligibility, modern delete, live-delete protocol, or delete control is
-   authorized. Future modern delete accepts only completion `0x0000`, treats
-   missing/ambiguous/malformed/nonzero completion as terminal, and never
-   retries. Do not request another capture automatically.
-4. Milestone I.0–I.2 are complete offline in commits `5a3c55b`, `0db6593`,
-   and `05e29cb`; capture 7 and the exact offline golden builder are recorded
-   in `139c658`, and fixture-boundary hardening is complete in `465120f`,
-   bringing the suite to **301 tests**. The exact
-   one-folder/one-TXT legacy evidence gate is satisfied, but timestamp
-   generation, fresh fixed-state derivation, completion decoding, arbitrary
-   folder creation, and live package eligibility remain blocked. Native total
-   model-limit capacity semantics are resolved offline in I.5, but Manager UI
-   free-space mapping remains unresolved. Keep all package actions offline-only and do not expose them in the
-   normal GUI/CLI.
-   The timestamp/fixed-state comparison found no safe legacy generalization.
-   I.4 may use only its explicit frozen modern timestamp and verified fresh
-   all-zero fixed state; do not substitute current, copied, or guessed values.
-5. Milestone J.0, J.1, and J.2 are complete in sanitized commits `35f4406`,
-   `7650aaa`, and `9dada7b`; stop for owner usability review before adding
-   drag-and-drop or any package-transfer connection. Keep early UI crude,
-   preserve v0.1/v0.2 regression behavior, and
-   defer aesthetic refinement, advanced renderer/EPUB work, signing, and broad
-   packaging unless directly required by the core transfer path.
+1. Complete the offline I.7 timestamp/fixed-state evidence inventory and
+   matrix. Preserve the fail-closed boundary and, only if needed, prepare the
+   smallest owner-operated experiment without executing it.
+2. Implement I.8 as a synthetic-fixture multiple-TXT package model with
+   ordered children, strict authoring, full capacity/accounting, independent
+   verification, and fake-transport failure coverage. Keep all package
+   controls absent from normal CLI/ttk paths.
+3. Implement I.9 typed TXT/BMP validation and offline package coverage, then
+   I.10's smallest representative ebook plan only where structure is proven.
+4. Use I.7 conclusions for H.2 deletion eligibility. Keep unresolved
+   timestamps/references fail-closed, accept only `0x0000`, never retry, and
+   do not request or execute a live delete automatically.
+5. Defer J.3 device-aware Library transfer planning until the relevant I.8–I.10
+   and H.2 operation gates close. Keep J.0–J.2's crude Library UI offline-only.
+6. Preserve R15: after `0x101b` begins, interruption is indeterminate and only
+   later read-only recovery is allowed. Keep arbitrary package operations,
+   delete, batch transfer, drag-and-drop, aesthetic refinement, packaging, and
+   signing outside the current critical path.
+7. Push every verified sanitized commit normally to `origin/main` after the
+   required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions
 
