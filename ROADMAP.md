@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 offline characterization is complete as a fail-closed negative result; I.8 logical multiple-TXT preparation is complete offline; I.9–I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 offline characterization is complete as a fail-closed negative result; I.8 logical multiple-TXT and I.9 typed TXT/BMP preparation are complete offline; I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7 status: native capacity semantics are resolved offline,
@@ -992,10 +992,13 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   relevant native evidence. Nine focused synthetic tests bring the suite to
   **393 tests**. See
   `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`.
-- [ ] **Milestone I.9 — mixed TXT/BMP package:** add a typed ordered model for
-  strict synthetic TXT and validated 237×320 one-bit Windows BMP items. Extend
-  candidate, capacity, authorization, audit, read-back, and fake-transport
-  coverage without claiming live eligibility.
+- [x] **Milestone I.9 — mixed TXT/BMP package:** add a typed ordered offline
+  model for strict synthetic TXT and validated 237×320 one-bit Windows BMP
+  items, preserving order, hashes, geometry, and source safety. Exact native
+  wrappers, candidate/capacity/authorization/read-back construction, and
+  fake-transport coverage remain blocked without the relevant evidence; live
+  eligibility is not claimed. Nine focused tests bring the suite to **402
+  tests**. See `analysis/phase-13-milestone-i9-mixed-txt-bmp-offline-20260823.md`.
 - [ ] **Milestone I.10 — representative small ebook package:** define the
   smallest manifest-driven package supported by proven builders, preserving
   order, paths, hashes, timestamps, fixed-state policy, capacity, and complete
@@ -1239,11 +1242,10 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Implement I.9 typed TXT/BMP validation and offline package coverage, then
-   I.10's smallest representative ebook plan only where structure is proven.
-   Keep all package controls absent from normal CLI/ttk paths.
-2. Preserve I.7's fail-closed timestamp/fixed-state boundary and I.8's logical
-   multiple-TXT model; do not promote either to a device candidate without
+1. Implement I.10's smallest representative ebook plan only where structure is
+   proven. Keep all package controls absent from normal CLI/ttk paths.
+2. Preserve I.7's fail-closed timestamp/fixed-state boundary and I.8/I.9's
+   logical typed models; do not promote them to a device candidate without
    independently supported native evidence.
 3. Use I.7 conclusions for H.2 deletion eligibility. Keep unresolved
    timestamps/references fail-closed, accept only `0x0000`, never retry, and

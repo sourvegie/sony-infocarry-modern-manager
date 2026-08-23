@@ -64,6 +64,10 @@ class PreparedTextSourceItem:
         return _sha256(self.source_bytes)
 
     @property
+    def kind(self) -> str:
+        return "txt"
+
+    @property
     def payload_sha256(self) -> str:
         return _sha256(self.authored.payload)
 
@@ -74,6 +78,7 @@ class PreparedTextSourceItem:
     def to_dict(self, order: int, folder_path: str) -> dict[str, Any]:
         return {
             "order": order,
+            "kind": self.kind,
             "name": self.name,
             "path": f"{folder_path}\\{self.name}",
             "source": {
