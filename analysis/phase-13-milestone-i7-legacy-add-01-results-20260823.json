@@ -1,0 +1,131 @@
+{
+  "format": "infocarry-milestone-i7-legacy-add-01-evidence-v1",
+  "date": "2026-08-23",
+  "experiment_id": "I7-LEGACY-ADD-01",
+  "status": "add_evidence_complete_delete_not_started",
+  "operation_scope": {
+    "legacy_manager_selected_send": true,
+    "modern_writer_used": false,
+    "delete_performed": false,
+    "automatic_retry": false
+  },
+  "source": {
+    "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/00-source/IC_I7_CLOCK_01.txt",
+    "sha256": "3aa626dc1e0dbd2fe13b59fbea7eddf43358a522b9f55ed15ac18556b2a69d4b",
+    "size_bytes": 1863,
+    "encoding": "UTF-8 ASCII subset, strict",
+    "line_ending": "CRLF"
+  },
+  "target": {
+    "path": "root\\IC_I7_CLOCK_01.txt",
+    "expected_path_delta": {
+      "added": ["root\\IC_I7_CLOCK_01.txt"],
+      "removed": [],
+      "unrelated_payload_changes": []
+    }
+  },
+  "evidence": {
+    "stable_root": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01",
+    "pre_add_backup": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/00-pre-add-backup/archive-01",
+      "manifest_sha256": "f09539df7ae61a149fe37b4b6fe230536bf9b9714a064ca1013e28e750a26b10",
+      "blob_length": 2051420,
+      "blob_sha256": "fbebd82001f2b833e4bfe6af8922c03b4bffbbd42a18f3a9149c501107f1fd47",
+      "record_count": 373
+    },
+    "post_add_backup": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/04-post-add-backup/archive-01",
+      "manifest_sha256": "f36234ba433b14571c898834e14a84d216ea0aaf56b1a958ed4d607101d4126a",
+      "blob_length": 2053380,
+      "blob_sha256": "7d64a9dccc3bede003ee732d50a4ee25c02d324fa3c1f9f4b455e034ec1c805f",
+      "record_count": 374
+    },
+    "manager_before_source_preparation": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/01-manager-before-send",
+      "report_sha256": "3c9b1b06810bdcbd2a91b965426a69030bc9ea9e7b837d682780ef1b19577b9d",
+      "vicmem_sha256": "6b5ec74446130d0a9efc1bab659fe6e3cceafa3293eb67f316c22412b6b7d5f0"
+    },
+    "manager_immediate_before_send": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/07-owner-capture9-intake/before",
+      "report_sha256": "a5158ce140e40b0499282c56f3d8af170cfb4a98c1d9247d950491da8ec995cb",
+      "file_count": 5,
+      "vicdata_sha256": "72142be59413acdbd4c065fad9d16c2e50bc05d77e316844528de802b689b728",
+      "vicmem_sha256": "d06a8a46a7bb11863e82af873b16a1996824dfc126681ede97ccb476d7efaff1",
+      "viclv_sha256": "86f79cd4d3edf092149203fb9d35dbe212d5651e24c3123f70d931a74d869eb2",
+      "order_vnw_sha256": "6dff6f760230020c70943a2f09503668332f1d55be147e2ed3ebd2fe01575059"
+    },
+    "manager_after_send": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/03-manager-after-send",
+      "report_sha256": "68cab7f98cd196f2ec915625202c7c49d079db7eb962ebc3c1eb82a7cd7a2e93",
+      "vicdata_sha256": "72142be59413acdbd4c065fad9d16c2e50bc05d77e316844528de802b689b728",
+      "vicmem_sha256": "d06a8a46a7bb11863e82af873b16a1996824dfc126681ede97ccb476d7efaff1",
+      "viclv_sha256": "86f79cd4d3edf092149203fb9d35dbe212d5651e24c3123f70d931a74d869eb2",
+      "order_vnw_sha256": "6dff6f760230020c70943a2f09503668332f1d55be147e2ed3ebd2fe01575059"
+    },
+    "native_add_capture": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/02-snoopypro-add-capture/01-add.usblog",
+      "sha256": "4de11cdb8a5dc5c4830a40df176445dc18b136e37ac1394402eaa5a46c1cbc9d",
+      "size_bytes": 2291700,
+      "ordinary_101b_transaction_count": 1,
+      "completion_status": "request-4 value not decoded by offline parser; Manager displayed the new target without an explicit success dialog"
+    },
+    "manager_initialization_capture": {
+      "path": "${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01/02-snoopypro-add-capture/manager-int-01.usblog",
+      "sha256": "1c27759668be94b3caa2a7e3f623c5071a4e12c7dacdc3e8c86e2c16c4fa5247",
+      "ordinary_101b_transaction_count": 0
+    }
+  },
+  "native_transaction": {
+    "command_offset": 15428,
+    "declared_length": 2118916,
+    "record_offset": 15422,
+    "candidate_record_count": 521,
+    "range3_m": 2053380,
+    "range3_n": 0,
+    "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2053316]
+  },
+  "model_delta": {
+    "growth_bytes": 1960,
+    "new_record_offset": "0x00000380",
+    "new_record_flag": "0xe0",
+    "new_record_timestamp_be32": "0x6a8c4e78",
+    "new_record_payload_length": 1863,
+    "new_record_payload_sha256": "3aa626dc1e0dbd2fe13b59fbea7eddf43358a522b9f55ed15ac18556b2a69d4b",
+    "new_record_field_04_be32": "0x000001ac",
+    "new_record_field_08_be32": "0x00000747",
+    "new_record_field_10_be32": "0xffffffff",
+    "new_record_field_14_be32": "0x00000200"
+  },
+  "timestamp_analysis": {
+    "field_offset": "+0x0c",
+    "representation": "big-endian Unix-style seconds; representation verified",
+    "shared_timestamp_changes": 314,
+    "shared_after_values": [
+      {"value": "0x6a8c4ba3", "count": 99},
+      {"value": "0x6a8c4ba4", "count": 132},
+      {"value": "0x6a8c4ba5", "count": 83}
+    ],
+    "new_value": "0x6a8c4e78",
+    "decoded_utc": {
+      "shared_values": ["2026-08-24T13:48:19Z", "2026-08-24T13:48:20Z", "2026-08-24T13:48:21Z"],
+      "new_value": "2026-08-24T14:00:24Z"
+    },
+    "source_fixture_birthtime_utc": "2026-08-23T12:52:20.846306Z",
+    "rule_status": "unresolved",
+    "classification": "independent observation of legacy add timestamp rewriting; insufficient exact event-time records to promote a deterministic write rule"
+  },
+  "fixed_state": {
+    "commands": ["0x001b", "0x001c", "0x001d", "0x001e", "0x001f"],
+    "before_after_byte_identical": true,
+    "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+    "parsed_state": "all counts, offset lists, groups, and unused tails are zero",
+    "general_nonzero_rule": "unresolved"
+  },
+  "conclusion": {
+    "new_root_txt_add_evidence": "complete for the isolated legacy add observation",
+    "timestamp_generalization": "not eligible; legacy add rewrites shared timestamps and the exact generation inputs remain unresolved",
+    "fixed_state_generalization": "not eligible; this attempt supplies only an unchanged all-zero state",
+    "deletion": "not performed and not authorized by this evidence",
+    "modern_live_writer": "unchanged; no new product eligibility is established"
+  }
+}

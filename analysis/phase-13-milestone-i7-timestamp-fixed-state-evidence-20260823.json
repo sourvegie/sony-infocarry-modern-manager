@@ -6,7 +6,8 @@
   "source_documents": [
     "analysis/phase-12-milestone-i-timestamp-fixed-state-comparison-20260823.json",
     "analysis/phase-12-milestone-h1-timestamp-comparison-2026-08-23.json",
-    "analysis/phase-12-milestone-i-folder-package-capture7-20260823.json"
+    "analysis/phase-12-milestone-i-folder-package-capture7-20260823.json",
+    "analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.json"
   ],
   "timestamp_field": {
     "offset": "0x0c",
@@ -31,6 +32,15 @@
         "shared_timestamp_changes": 310,
         "new_timestamps_be32": ["0x6a8aba6f", "0x6a8aba6f", "0x6a8aba6f"],
         "classification": "verified_observation"
+      },
+      {
+        "operation": "legacy_root_txt_add_i7_attempt_01",
+        "baseline_blob_sha256": "fbebd82001f2b833e4bfe6af8922c03b4bffbbd42a18f3a9149c501107f1fd47",
+        "candidate_blob_sha256": "7d64a9dccc3bede003ee732d50a4ee25c02d324fa3c1f9f4b455e034ec1c805f",
+        "record_count": "373_to_374",
+        "shared_timestamp_changes": 314,
+        "new_timestamp_be32": "0x6a8c4e78",
+        "classification": "independently_observed_add_case"
       },
       {
         "operation": "modern_root_txt_add",
@@ -66,6 +76,7 @@
   "fixed_state": {
     "commands": ["0x001b", "0x001c", "0x001d", "0x001e", "0x001f"],
     "capture7_before_after": "byte_identical_zero_state",
+    "i7_add_attempt_01_before_after": "byte_identical_zero_state",
     "independent_add_observation": {
       "0x001b": "counted_metadata_offsets_rebased_by_inserted_0x40",
       "0x001c": "zero_count_unchanged",

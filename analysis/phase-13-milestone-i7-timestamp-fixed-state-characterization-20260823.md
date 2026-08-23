@@ -1,7 +1,15 @@
 # Milestone I.7 — timestamp and fixed-state characterization
 
 Date: 2026-08-23
-Status: **Offline characterization complete; live generalization blocked.**
+Status: **Offline characterization and controlled add-01 evidence complete; live generalization blocked.**
+
+The separately approved `I7-LEGACY-ADD-01` add result is synthesized in
+`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
+companion. That result adds an independent legacy root-TXT case: all 314 shared
+timestamps changed, the new payload and path were persisted, and all five
+fixed-state objects remained byte-identical zero state. The result strengthens
+the negative generalization boundary; it does not establish a fresh timestamp
+or nonzero fixed-state rule and does not authorize deletion.
 
 This slice compares the preserved capture-7 folder package, clean legacy
 root-TXT add capture 04, approved modern root-TXT add evidence, existing-text
@@ -14,7 +22,7 @@ and does not modify evidence. The portable machine-readable matrix is
 | Subject | Result | Classification |
 | --- | --- | --- |
 | Metadata `+0x0c` parses as big-endian Unix seconds | Consistent across the available records | verified representation |
-| Legacy add rewrites shared metadata timestamps | Seen in capture 04 and capture 07 | independently observed |
+| Legacy add rewrites shared metadata timestamps | Seen in capture 04, capture 07, and I7 add-01 | independently observed |
 | Modern root-TXT add preserves shared timestamps | Seen in the approved modern smoke | observed in one modern add |
 | Replacement preserves shared timestamps | Seen in the replacement fixture | observed in one replacement |
 | Folder and child receive one shared timestamp | Seen in capture 07 | verified observation, not a rule |
@@ -88,7 +96,9 @@ capture.
 
 ## Milestone status
 
-Milestone I.7 is complete for offline characterization and its fail-closed
-eligibility boundary. General legacy timestamp/fixed-state reconstruction
-remains unresolved. I.8 may proceed as a logical/offline multiple-TXT model;
-no package write or normal GUI/CLI transfer action is enabled.
+Milestone I.7 is complete for offline characterization, the controlled add-01
+evidence gate, and its fail-closed eligibility boundary. General legacy
+timestamp/fixed-state reconstruction remains unresolved. I.8 may proceed as a
+logical/offline multiple-TXT model; no package write or normal GUI/CLI transfer
+action is enabled. The add-01 disposable record remains on the device and no
+state-reference or deletion experiment has been performed.
