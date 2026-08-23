@@ -47,11 +47,12 @@ the final line ending. The expected source facts are:
 | Lines | 56 |
 | Source purpose | disposable clock/state experiment only |
 
-The exact source is generated with:
+The exact source is generated after the new session skeleton exists:
 
 ```sh
 .venv/bin/python scripts/i7_experiment_support.py fixture \
-  --destination "${SESSION_ROOT}/00-source/IC_I7_CLOCK_01.txt"
+  --destination "${SESSION_ROOT}/00-source/IC_I7_CLOCK_01.txt" \
+  > "${SESSION_ROOT}/00-source/fixture-report.json"
 ```
 
 The command refuses an existing file. Its JSON output records the actual
@@ -91,8 +92,10 @@ Create the session skeleton outside the source checkout and outside Git:
 ```sh
 SESSION_ROOT="${EVIDENCE_ROOT}/phase-13-i7-legacy-add-20260823-01"
 .venv/bin/python scripts/i7_experiment_support.py session \
-  --destination "$SESSION_ROOT" \
-  --source "$SESSION_ROOT/00-source/IC_I7_CLOCK_01.txt"
+  --destination "$SESSION_ROOT"
+.venv/bin/python scripts/i7_experiment_support.py fixture \
+  --destination "$SESSION_ROOT/00-source/IC_I7_CLOCK_01.txt" \
+  > "$SESSION_ROOT/00-source/fixture-report.json"
 ```
 
 The command creates these empty stage directories and a session manifest,
@@ -108,8 +111,9 @@ refusing an existing root:
 05-analysis/
 ```
 
-The source command must be run before the session command if `--source` is
-used. All reports and backups must use new child paths below this root.
+The session command must run before the source command so the source is created
+inside the new `00-source/` stage. All reports and backups must use new child
+paths below this root.
 
 ## Required time and identity observations
 
