@@ -19,7 +19,7 @@ exact independent read-back. I.7 offline timestamp/fixed-state characterization
 is complete as a fail-closed negative result: no safe general rule was
 established. I.8's ordered multiple-TXT logical model and I.9's typed TXT/BMP
 model are complete offline; I.10's flat ebook plan is complete offline, while
-H.2 deletion generalization and J.3 device-aware Library planning remain. The
+H.2 deletion generalization is blocked and parked and J.3 device-aware Library planning remains deferred. The
 portable suite is **408 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
@@ -82,15 +82,14 @@ preserved, and the corrected offline verifier confirms the constrained result.
    separate approval is required; accept only `0x0000`, do not retry
    missing/ambiguous/malformed/nonzero completion, and keep restore deferred.
    Physical interrupted-write recovery remains open.
-4. Implement the offline I.9 mixed TXT/BMP package model using synthetic
-   fixtures. Keep folder/multi-record device transfer blocked until its own
-   evidence gate.
+4. Keep H.2 deletion generalization blocked and parked pending independent
+   timestamp/fixed-state evidence; do not request a new capture automatically.
 5. Keep R14's batch queue disabled until single-item create/delete operations
    and every queued content type have individual proof.
-6. Retain both completed constrained-write and narrow new-TXT live-smoke
+7. Retain both completed constrained-write and narrow new-TXT live-smoke
    evidence and require fresh explicit authorization before every subsequent
    live hardware write.
-7. Treat R11–R13 during the completed J.0–J.2 Library foundation and later
+8. Treat R11–R13 during the completed J.0–J.2 Library foundation and later
    J.3 device-aware planning. R10 remains outside the product entirely.
 
 ## Stop Conditions for Any Device Write

@@ -1006,10 +1006,12 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   rejected rather than flattened because their native construction is not
   proven. Six focused tests bring the suite to **408 tests**. See
   `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`.
-- [ ] **Milestone H.2 — deletion generalization:** use I.7 conclusions to
-  determine whether fresh-backup timestamp and `0x001b`–`0x001f` derivation is
-  possible without attempt-specific constants. Keep eligibility fail-closed,
-  accept only `0x0000`, and keep live delete/protocol/UI exposure prohibited.
+- [ ] **Milestone H.2 — deletion generalization:** blocked and parked. I.7 does
+  not establish fresh-backup timestamp or `0x001b`–`0x001f` derivation without
+  attempt-specific constants. Keep eligibility fail-closed, accept only
+  `0x0000`, and keep live delete/protocol/UI exposure prohibited. The blocker
+  and smallest unexecuted evidence procedure are recorded in
+  `analysis/phase-13-milestone-h2-delete-generalization-blocker-20260823.md`.
 
 The owner-provided external source library may be used only in ignored local
 exploration. Tracked tests use synthetic data, generated fixtures, hashes, and

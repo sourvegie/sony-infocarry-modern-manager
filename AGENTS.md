@@ -165,8 +165,9 @@ The browser and Qt/PySide options remain explicitly deferred. See
 - Do not implement legacy send-all/receive-all semantics.
 - Restore, firmware/unlock, alternate modes, and destructive synchronization
   remain excluded. Milestone H.1 is blocked and parked pending new independent
-  evidence. I.7–I.10 and H.2 are active offline-first research tracks and
-  cannot authorize a live transfer or product exposure. J.0–J.2 are complete;
+  evidence. I.7–I.10 have completed their defined offline slices; H.2 remains
+  blocked and parked as an offline fail-closed research track. None can
+  authorize a live transfer or product exposure. J.0–J.2 are complete;
   J.3 device-aware Library planning and aesthetic GUI work remain deferred.
 
 ### Definition of Completed Milestone H, Parked H.1, and Active Milestone I
