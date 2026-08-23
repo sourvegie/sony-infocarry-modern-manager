@@ -1140,6 +1140,15 @@ stable post-backup form is (`count=0`, `value_04=0`, empty offsets). This
 
 ## Phase 13 — Integrate Library, Prepare, and Staged Transfer
 
+- [x] **Milestone J.0 — non-destructive local Library foundation:** add a
+  versioned catalog for one original local UTF-8 TXT source, with stable
+  identity/hash tracking, stale/missing detection, atomic recoverable writes,
+  and catalog-only removal. Complete in `35f4406`; the suite passes **373
+  tests** with three intentional evidence-dependent skips. The catalog is
+  outside the checkout and reverse-engineering evidence.
+- [ ] **Milestone J.1 — offline Prepare workflow:** connect one supported TXT
+  Library item to the proven `PreparedTextPackage` model without USB access,
+  preserving strict encoding, naming, hashes, and no-device-change reporting.
 - [ ] **Milestone J — crude end-to-end Library workflow:** add a versioned,
   non-destructive local catalog, picker import, drag-and-drop adapter,
   source/prepared states, and the simplest usable `Import → Prepare → Inspect →
@@ -1206,8 +1215,9 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    The timestamp/fixed-state comparison found no safe legacy generalization.
    I.4 may use only its explicit frozen modern timestamp and verified fresh
    all-zero fixed state; do not substitute current, copied, or guessed values.
-5. Begin Milestone J Library/Prepare integration only after the core primitives
-   are proven. Keep early UI crude, preserve v0.1/v0.2 regression behavior, and
+5. Milestone J.0 is complete in sanitized commit `35f4406`; begin J.1 offline
+   Prepare next, then add only a crude Library view. Keep early UI crude,
+   preserve v0.1/v0.2 regression behavior, and
    defer aesthetic refinement, advanced renderer/EPUB work, signing, and broad
    packaging unless directly required by the core transfer path.
 
