@@ -97,9 +97,15 @@ recovery is claimed. See
 The sanitized source-of-truth promotion is complete in `07f0db9`, and the
 non-destructive local Library foundation, offline Prepare workflow, and crude
 ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
-portable suite of **408 tests** (three evidence-dependent skips). The next
-slice is offline evidence review for H.2/J.3 sequencing; keep package transfer
-disconnected from the Library and keep the normal GUI/CLI write actions absent.
+portable suite of **408 tests** (three evidence-dependent skips). The current
+I.7 preparation slice adds nine focused offline tests, bringing the suite to
+**417 tests** with the same three intentional skips. The operator-ready
+protocol is `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`;
+the read-only support module and separate support command only prepare and
+ingest evidence. No add approval has been given, no hardware operation has
+occurred in this slice, and the later delete stage remains separately gated.
+Keep package transfer disconnected from the Library and keep all normal
+GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
 
