@@ -94,10 +94,10 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7–I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 offline characterization is complete as a fail-closed negative result; I.8–I.10 and H.2 are the active offline-first generalization sequence; H.1 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
-Current Phase 12/I.6 status: native capacity semantics are resolved offline,
+Current Phase 12/I.7 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
 capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
@@ -874,8 +874,8 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   automatically. The fail-closed readiness result is in
   `analysis/phase-12-milestone-h1-live-delete-readiness-2026-08-23.md` and the
   four focused readiness tests keep the suite at **283 tests**.
-- [ ] **Milestone I — prepared content package:** I.0–I.6 are complete for
-  their defined scopes and I.7–I.10 are active offline-first, independent of
+- [ ] **Milestone I — prepared content package:** I.0–I.7 are complete for
+  their defined scopes and I.8–I.10 are active offline-first, independent of
   H.1. I.0's evidence audit is complete in `5a3c55b` at **286
   tests**; I.1's logical package model is complete in `0db6593` at **291
   tests**; I.2's blocked transfer preview is complete in `05e29cb` at **294
@@ -895,7 +895,12 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   `analysis/phase-12-milestone-i-folder-package-capture7-20260823.json`.
   The read-only timestamp/fixed-state comparison is recorded in
   `analysis/phase-12-milestone-i-timestamp-fixed-state-comparison-20260823.md`;
-  it establishes no general fresh-backup rule.
+  it establishes no general fresh-backup rule. I.7's portable evidence matrix,
+  fail-closed readiness result, and unexecuted owner procedure are recorded in
+  `analysis/phase-13-milestone-i7-timestamp-fixed-state-evidence-20260823.json`
+  and `analysis/phase-13-milestone-i7-timestamp-fixed-state-characterization-20260823.md`;
+  the I.7 slice adds five focused tests and reaches **384 tests**. I.8 is now
+  the next active offline slice.
 - [x] **Milestone I.4 — constrained modern one-folder/one-TXT package safety
   gate:** complete for the constrained offline/fake-only scope. This is
   deliberately distinct from legacy

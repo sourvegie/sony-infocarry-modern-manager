@@ -15,10 +15,11 @@ absent from this checkout.
 
 Current checkpoint: I.4/I.5/I.6 are complete for the constrained policy; I.6
 completed one approved live one-folder/one-TXT package smoke with `0x0000` and
-exact independent read-back. I.7 timestamp/fixed-state characterization is
-the active offline research slice, followed by I.8 multiple-TXT, I.9 mixed
+exact independent read-back. I.7 offline timestamp/fixed-state characterization
+is complete as a fail-closed negative result: no safe general rule was
+established. I.8 multiple-TXT, I.9 mixed
 TXT/BMP, I.10 representative ebook, H.2 deletion generalization, and J.3
-device-aware Library planning. The portable suite is **379 tests** with three
+device-aware Library planning. The portable suite is **384 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 
@@ -51,7 +52,7 @@ destination and one approved transaction; its initial terminal audit remains
 preserved, and the corrected offline verifier confirms the constrained result.
 | R1 | Device data can be corrupted or lost by an incomplete or incorrect write. | Critical | Keep v0.1 read-only. For every later write: verify a fresh immutable backup, limit the target, preview the exact change, require explicit authorization, never retry an interrupted write automatically, and verify by full read-back. Do not expose legacy send-all. | Constrained existing-text replacement and one narrow root-level-TXT add each passed one approved live smoke on 2026-08-22 with preserved before/after archives and full read-back verification; broader writes remain blocked. |
 | R2 | Restore, delete, and recovery after an actual partial device commit are not proven. | Critical | Keep restore absent. For selective delete, preserve the completed legacy deletion-effect fixture, generalize only from independently supported fresh-backup rules, add failure-injection tests and recovery guidance, then require a separate approved modern smoke only after H.1 closes. Never combine delete proof with creation proof. | Milestone H's captured-fixture deletion-effect gate and narrow offline safety gate are complete in `b5bae4b` and `c8162c0`; the H closure suite was **279 tests** and the H.1 readiness slice passes **283 tests**. H.1 is **blocked and parked pending new independent evidence** because the two delete candidates use different opaque timestamp windows and `DeleteFixedState.attempt02()` is capture-specific. Static file-time conversion is observed, but no write-side metadata `+0x0c` rule or fresh fixed-state derivation is proven. Fake transports do not prove physical atomicity, rollback, or recovery. Modern delete, normal delete GUI/CLI actions, and any live-delete protocol remain prohibited. Milestone I may proceed offline without deletion support. |
-| R3 | Arbitrary new files require proven metadata/state construction, capacity handling, and guarded execution. | Critical | Use clean capture 04 as the golden legacy add fixture and capture 7 as the exact folder/package golden fixture. Require exact or documented normalized offline equivalence, unrelated-byte preservation, fail-closed capacity, exact operation binding, one-shot failure behavior, and full read-back before any approved live modern package smoke. | I.6 completed one approved constrained folder/TXT smoke with `0x0000`, exact candidate read-back, preserved shared records/payloads/timestamps, and fixed-state equality after offline verifier correction. The suite is now **379 tests** after J.0–J.2 Library work. I.7–I.10 remain offline-first generalization tracks; arbitrary packages, normal GUI/CLI package action, and interrupted-write recovery remain blocked. |
+| R3 | Arbitrary new files require proven metadata/state construction, capacity handling, and guarded execution. | Critical | Use clean capture 04 as the golden legacy add fixture and capture 7 as the exact folder/package golden fixture. Require exact or documented normalized offline equivalence, unrelated-byte preservation, fail-closed capacity, exact operation binding, one-shot failure behavior, and full read-back before any approved live modern package smoke. | I.6 completed one approved constrained folder/TXT smoke with `0x0000`, exact candidate read-back, preserved shared records/payloads/timestamps, and fixed-state equality after offline verifier correction. The suite is now **384 tests** after I.7 readiness coverage. I.7 characterizes the timestamp/fixed-state evidence but establishes no safe general rule; I.8–I.10 remain offline-first generalization tracks. Arbitrary packages, normal GUI/CLI package action, and interrupted-write recovery remain blocked. |
 | R4 | Development could continue in the evidence-bearing research archive instead of the sanitized source-of-truth checkout. | Critical | Commit product changes only in this sanitized repository, push each verified commit normally to `origin/main`, and keep the sibling research archive read-only. Preserve the complete local research bundle separately. | Mitigated for the migration checkpoint: sanitized commit `02df1fb` is pushed to the private `sourvegie/sony-infocarry-modern-manager` repository; the original research checkout remains read-only. |
 | R5 | The prototype GUI uses macOS system Python 3.9 and deprecated Tk 8.5; it already renders incorrectly. | High | Select a supported runtime/UI stack, pin dependencies, and reproduce backup loading and browsing without layout defects. Do not spend release effort polishing the deprecated Tk 8.5 rendering path. | Mitigated on 2026-08-22: Tkinter/ttk with Python 3.12.13 and Tcl/Tk 9.0 is approved, guarded by `src/infocarry/runtime.py`, and the backup browser, text preview, and BMP preview passed the hobby-release usability test. |
 | R6 | Rare original hardware and obsolete Windows software make evidence difficult to recreate. | High | Preserve original ISO, captures, raw backups, fixtures, hashes, and manifests. Keep live tests opt-in and use offline fixtures for routine development. | Mitigated; ongoing. Milestone G live-smoke and Milestone H attempt-01/02 raw and derived artifacts were copied without modifying their originals into stable evidence roots and verified by SHA-256 manifests on 2026-08-22. |
@@ -80,8 +81,9 @@ preserved, and the corrected offline verifier confirms the constrained result.
    separate approval is required; accept only `0x0000`, do not retry
    missing/ambiguous/malformed/nonzero completion, and keep restore deferred.
    Physical interrupted-write recovery remains open.
-4. Audit and model Milestone I's minimum prepared text package offline. Keep
-   folder/multi-record device transfer blocked until its own evidence gate.
+4. Implement the offline I.8 multiple-TXT package model using synthetic
+   fixtures. Keep folder/multi-record device transfer blocked until its own
+   evidence gate.
 5. Keep R14's batch queue disabled until single-item create/delete operations
    and every queued content type have individual proof.
 6. Retain both completed constrained-write and narrow new-TXT live-smoke

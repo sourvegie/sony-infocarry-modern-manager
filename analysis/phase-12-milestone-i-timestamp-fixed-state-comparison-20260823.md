@@ -1,4 +1,4 @@
-# Milestone I — timestamp and fixed-state comparison
+# Historical comparison supporting Milestone I.7
 
 Date: 2026-08-23
 Status: **Read-only comparison complete; no safe generalization established.**
@@ -60,4 +60,6 @@ required by this result.
 
 This is a verified negative result, not a failed experiment: the available
 evidence is sufficient to reject unsafe generalization. Milestone H.1 remains
-parked, Milestone I remains offline-only, and Milestone J remains deferred.
+parked. Milestone I.7 is complete for offline characterization, while I.8 and
+later protocol-generalization work remain offline-first. J.0-J.2 are complete;
+J.3 remains deferred until the relevant package operations are proven.

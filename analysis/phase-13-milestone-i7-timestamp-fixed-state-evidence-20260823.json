@@ -1,0 +1,92 @@
+{
+  "format": "infocarry-milestone-i7-timestamp-fixed-state-evidence-v1",
+  "date": "2026-08-23",
+  "scope": "offline characterization only",
+  "hardware_operation_performed": false,
+  "source_documents": [
+    "analysis/phase-12-milestone-i-timestamp-fixed-state-comparison-20260823.json",
+    "analysis/phase-12-milestone-h1-timestamp-comparison-2026-08-23.json",
+    "analysis/phase-12-milestone-i-folder-package-capture7-20260823.json"
+  ],
+  "timestamp_field": {
+    "offset": "0x0c",
+    "encoding": "big_endian_uint32",
+    "unix_representation_verified": true,
+    "rule_status": "unresolved",
+    "cases": [
+      {
+        "operation": "legacy_root_txt_add_capture_04",
+        "baseline_blob_sha256": "f25819688d9bd2d22e9520adff401b397c26319d4ee89cc3a6824d610bebd319",
+        "candidate_blob_sha256": "153f446520f556cb0d0c93061e14230664833d1320c25c9f86acf5c0ff7bc8dd",
+        "record_count": "366_to_367",
+        "shared_timestamp_changes": 309,
+        "new_timestamp_be32": "0x6a8a24b4",
+        "classification": "verified_observation"
+      },
+      {
+        "operation": "legacy_folder_package_capture_07",
+        "baseline_blob_sha256": "88b95f8bc158ab89253faea8c9085799cebba76abf0a3f416afa62df8b55f287",
+        "candidate_blob_sha256": "bd73cb33adafacbcb0d5d0313606c94ad2de97e2810953387085234863b509d1",
+        "record_count": "367_to_370",
+        "shared_timestamp_changes": 310,
+        "new_timestamps_be32": ["0x6a8aba6f", "0x6a8aba6f", "0x6a8aba6f"],
+        "classification": "verified_observation"
+      },
+      {
+        "operation": "modern_root_txt_add",
+        "baseline_blob_sha256": "153f446520f556cb0d0c93061e14230664833d1320c25c9f86acf5c0ff7bc8dd",
+        "candidate_blob_sha256": "aec90438c1323400b2f4d4210541c599600f4e9493596edc710bd676dee8adf6",
+        "record_count": "367_to_368",
+        "shared_timestamp_changes": 0,
+        "new_timestamp_be32": "0x6a8a24b4",
+        "classification": "verified_observation"
+      },
+      {
+        "operation": "existing_text_replacement",
+        "record_count": "unchanged",
+        "shared_timestamp_changes": 0,
+        "classification": "verified_observation"
+      },
+      {
+        "operation": "legacy_delete_attempt_02",
+        "record_count": "368_to_367",
+        "shared_timestamp_changes": 310,
+        "classification": "verified_observation"
+      }
+    ],
+    "hypotheses": {
+      "unix_or_device_time": "unresolved",
+      "local_time_transformation": "unresolved",
+      "filesystem_or_manager_timestamp": "unresolved",
+      "frozen_or_copy_derived": "unresolved",
+      "counter_or_opaque_generated_value": "unresolved",
+      "record_position_rule": "not_supported_by_simple_comparison"
+    }
+  },
+  "fixed_state": {
+    "commands": ["0x001b", "0x001c", "0x001d", "0x001e", "0x001f"],
+    "capture7_before_after": "byte_identical_zero_state",
+    "independent_add_observation": {
+      "0x001b": "counted_metadata_offsets_rebased_by_inserted_0x40",
+      "0x001c": "zero_count_unchanged",
+      "0x001d": "zero_count_unchanged_or_delete_specific_transient",
+      "0x001e": "counted_metadata_offsets_rebased_by_inserted_0x40",
+      "0x001f": "grouped_record_offsets_rebased_by_inserted_0x40"
+    },
+    "rule_status": "unresolved",
+    "unknown_bytes_policy": "preserve_and_reject_unresolved_references"
+  },
+  "static_analysis": {
+    "legacy_binary_sha256": "a02e5927d2e5ded988556e0be0e79a38313ce91f6491ad0ac8835971d3db0dae",
+    "file_time_helpers_observed": true,
+    "wire_field_data_flow_proven": false,
+    "metadata_offset_0x0c_semantics": "unresolved",
+    "classification": "verified_negative_result"
+  },
+  "eligibility": {
+    "timestamp_rule_independently_verified": false,
+    "fixed_state_rule_independently_verified": false,
+    "live_generalization_eligible": false,
+    "reason": "available evidence rejects unsafe generalization but does not establish a deterministic fresh-state rule"
+  }
+}

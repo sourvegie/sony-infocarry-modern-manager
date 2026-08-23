@@ -129,9 +129,10 @@ completed one narrowly constrained live one-folder/one-TXT package smoke with
 completion `0x0000` and exact independent read-back. Capture 7 proves the
 exact legacy one-folder/one-TXT fixture and supports an offline golden model;
 the separate constrained modern policy is not legacy timestamp equivalence.
-I.7 now characterizes timestamp and fixed-state evidence; I.8, I.9, and I.10
-address multiple TXT, mixed TXT/BMP, and a representative small ebook package
-offline first. H.2 deletion generalization remains a separate fail-closed
+I.7 has completed offline timestamp and fixed-state characterization without
+establishing a safe general rule; its eligibility result fails closed. I.8,
+I.9, and I.10 address multiple TXT, mixed TXT/BMP, and a representative small
+ebook package offline first. H.2 deletion generalization remains a separate fail-closed
 track. J.0–J.2 local Library foundations are complete, while J.3
 device-aware planning remains deferred. Arbitrary package transfer, normal
 GUI/CLI exposure, generalized deletion, and interrupted-write recovery remain
