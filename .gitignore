@@ -17,6 +17,7 @@ samples/generated/*
 /legacy/
 /live-evidence/
 /screenshots/
+support/windows2000-timestamp/logs/
 *.usblog
 *.pcap
 *.pcapng
