@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01 independently verified one legacy root-TXT addition but remains a fail-closed negative result for general timestamp/fixed-state construction; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline; H.2 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01 and the later isolated display-history/Mark-1/Bookmark-1 state experiment are independently verified but remain a fail-closed negative result for general timestamp/fixed-state construction; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline; H.2 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7 status: native capacity semantics are resolved offline,
@@ -111,8 +111,10 @@ evidence is synthesized in
 `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
 companion. The self-contained Windows 2000 timestamp tool is
 `support/windows2000-timestamp/`; its logs are ignored and validated only by
-`scripts/validate_timestamp_logs.py`. No state-reference or deletion experiment
-has been performed, and the later delete stage remains separately gated. Arbitrary package transfer,
+`scripts/validate_timestamp_logs.py`. The harmless two-stamp dry run passed,
+and the separately approved state experiment completed with isolated
+display-history, Mark-1, and Bookmark-1 backups. No deletion experiment has
+been performed, and the later delete stage remains separately gated. Arbitrary package transfer,
 live delete, and normal GUI/CLI package/delete actions remain prohibited.
 
 ## Verified Starting Facts
@@ -992,6 +994,10 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   The matrix, analysis, and unexecuted owner procedure are recorded in
   `analysis/phase-13-milestone-i7-timestamp-fixed-state-evidence-20260823.json`
   and `analysis/phase-13-milestone-i7-timestamp-fixed-state-characterization-20260823.md`.
+  The later approved disposable-record state experiment separately verified
+  bounded display-history, Mark-1, and Bookmark-1 transitions without closing
+  the general timestamp or fresh-state rule; see
+  `analysis/phase-13-milestone-i7-state-experiment-20260824.md`.
 - [x] **Milestone I.7 controlled legacy add experiment — attempt 01:** the
   separately approved `I7-LEGACY-ADD-01` was completed once through the
   legacy Manager and independently verified from complete pre/post backups.
@@ -1006,8 +1012,12 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   JSON companion. This closes the add evidence gate only; it does not resolve
   general timestamp/nonzero-state construction or authorize deletion. The
   suite remains **429 tests** with three intentional skips. The timestamp
-  tool/validator slice is preparation-only; the harmless Windows dry run is
-  the next owner step and no device mutation is authorized by it.
+  tool/validator slice is preparation-only. The harmless Windows dry run
+  passed, followed by the separately approved display-history, Mark-1, and
+  Bookmark-1 state experiment on the disposable record. Its raw evidence is
+  local-only and its synthesis is recorded in
+  `analysis/phase-13-milestone-i7-state-experiment-20260824.md`; no deletion
+  is authorized by it.
 - [x] **Milestone I.8 — multiple-TXT package:** the logical model now supports
   at least two explicitly ordered TXT children with strict authoring, conflict
   rejection, source/payload hashes, lower-bound growth accounting, and
@@ -1271,12 +1281,13 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Complete and validate the harmless two-stamp Windows 2000 dry run; preserve
-   the numbered logs and validate them offline without putting raw logs in Git.
-2. After the dry run passes, perform only the separately guided nonzero-state
-   experiment on `root\\IC_I7_CLOCK_01.txt`, one state change and one complete
-   read-only backup at a time.
-3. Keep timestamp generation, generalized deletion, I.8–I.10 device
+1. Preserve the validated two-stamp Windows 2000 dry-run logs outside Git and
+   retain the non-overwriting validation report.
+2. Retain the completed disposable-record display-history, Mark-1, and
+   Bookmark-1 synthesis while keeping the derived report and raw evidence
+   separate from the source tree.
+3. Continue offline H.2/J.3 evidence review, while keeping timestamp
+   generation, generalized deletion, I.8–I.10 device
    candidates, J.3 transfer planning, normal GUI/CLI package/delete controls,
    and all broad or interrupted-write operations blocked.
 4. Push every verified sanitized commit normally to `origin/main` after the

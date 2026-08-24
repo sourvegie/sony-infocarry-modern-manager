@@ -100,5 +100,9 @@ Milestone I.7 is complete for offline characterization, the controlled add-01
 evidence gate, and its fail-closed eligibility boundary. General legacy
 timestamp/fixed-state reconstruction remains unresolved. I.8 may proceed as a
 logical/offline multiple-TXT model; no package write or normal GUI/CLI transfer
-action is enabled. The add-01 disposable record remains on the device and no
-state-reference or deletion experiment has been performed.
+action is enabled. The add-01 disposable record remains on the device. A later
+separately approved state experiment on that record completed after this
+analysis was written; it is synthesized in
+`analysis/phase-13-milestone-i7-state-experiment-20260824.md`. That experiment
+did not resolve the general timestamp or fresh-state rule, and no deletion
+experiment has been performed.

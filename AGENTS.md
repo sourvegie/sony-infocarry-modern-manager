@@ -51,8 +51,10 @@ exact independent read-back. Milestone I.7 has now completed its offline
 timestamp/fixed-state characterization and one separately approved controlled
 legacy root-TXT add (`I7-LEGACY-ADD-01`); no deterministic fresh rule was
 established. The add evidence shows one persisted new record, regeneration of
-shared timestamps, and unchanged all-zero fixed state, but does not generalize
-timestamp or nonzero-state construction. I.8 provides an ordered
+shared timestamps, and unchanged all-zero fixed state. The subsequent isolated
+state experiment records bounded display-history, Mark-1, and Bookmark-1
+transitions without establishing general timestamp or nonzero-state
+construction. I.8 provides an ordered
 source-bound multiple-TXT logical model with strict authoring and no device
 candidate. I.9 now provides typed offline TXT/BMP validation with no device
 candidate. I.10 now provides a flat manifest-driven representative ebook plan
@@ -110,9 +112,13 @@ ingest evidence. The approved add-01 evidence is synthesized in
 `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
 companion. The self-contained Windows 2000 timestamp tool is
 `support/windows2000-timestamp/`; its logs are ignored and validated only by
-`scripts/validate_timestamp_logs.py`. No state-reference or deletion
-experiment has been performed; the later delete stage remains separately
-gated.
+`scripts/validate_timestamp_logs.py`. The harmless two-stamp dry run passed,
+and the separately approved state experiment on `root\\IC_I7_CLOCK_01.txt`
+completed with isolated display-history, Mark 1, and Bookmark 1 backups. Its
+derived report is `analysis/phase-13-milestone-i7-state-experiment-20260824.md`;
+the raw evidence remains outside Git. This state evidence does not resolve
+general timestamp generation or fresh fixed-state derivation, and deletion
+remains separately gated.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
@@ -250,14 +256,16 @@ legacy timestamp equivalence; arbitrary folders, multiple children, bitmaps,
 nested placement, and normal product exposure remain excluded. I.7 is complete
 for offline characterization and one approved legacy add-01 evidence case, but
 found no safe general rule; the add result is recorded in
-`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md`. No
-state-reference or deletion experiment has been performed. The next sequence
-is offline H.2/J.3 evidence review. I.8's offline model, I.9's typed model,
+`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md`. The state
+result is recorded in
+`analysis/phase-13-milestone-i7-state-experiment-20260824.md`. No deletion
+experiment has been performed. The next sequence is offline H.2/J.3 evidence
+review. I.8's offline model, I.9's typed model,
 and I.10's flat ebook plan are
 recorded in `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`,
 `analysis/phase-13-milestone-i9-mixed-txt-bmp-offline-20260823.md`, and
 `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`; I.10 adds six
-focused tests and the suite is **408 tests**.
+focused tests and the suite is **429 tests**.
 
 The current I.4 candidate boundary is offline-only in
 `prepared_package_candidate.py`. It revalidates the source bytes, rejects

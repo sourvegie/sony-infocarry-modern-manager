@@ -26,10 +26,12 @@ deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The I.7 controlled legacy add protocol was approved and completed as
 `I7-LEGACY-ADD-01`: one synthetic root TXT was added and independently
 verified in the post-add backup. Shared timestamp regeneration and unchanged
-all-zero fixed state are observed, but timestamp generation and nonzero-state
-derivation remain unresolved; the later deletion stage remains separately
-gated. The timestamp tool and offline validator are preparation-only and do
-not authorize a device mutation.
+all-zero fixed state are observed. A later separately approved state experiment
+on that record isolated display history, Mark 1, and Bookmark 1 in complete
+backups, but timestamp generation and generalized nonzero-state derivation
+remain unresolved; the later deletion stage remains separately gated. The
+timestamp tool and offline validator are preparation-only and do not authorize
+a device mutation.
 
 Historical I.4/I.5/I.6 status: the constrained offline/fake-only gate and
 unexecuted owner protocol are complete at the **329-test** I.4 checkpoint;
