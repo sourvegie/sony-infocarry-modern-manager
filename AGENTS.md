@@ -101,14 +101,18 @@ The sanitized source-of-truth promotion is complete in `07f0db9`, and the
 non-destructive local Library foundation, offline Prepare workflow, and crude
 ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
 portable suite of **408 tests** (three evidence-dependent skips). The current
-I.7 preparation slice adds nine focused offline tests, bringing the suite to
-**417 tests** with the same three intentional skips. The operator-ready
+I.7 preparation slice adds nine focused offline tests and the timestamp
+validator slice adds twelve synthetic tests, bringing the suite to
+**429 tests** with the same three intentional skips. The operator-ready
 protocol is `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`;
 the read-only support module and separate support command only prepare and
 ingest evidence. The approved add-01 evidence is synthesized in
 `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
-companion. No state-reference or deletion experiment has been performed; the
-later delete stage remains separately gated.
+companion. The self-contained Windows 2000 timestamp tool is
+`support/windows2000-timestamp/`; its logs are ignored and validated only by
+`scripts/validate_timestamp_logs.py`. No state-reference or deletion
+experiment has been performed; the later delete stage remains separately
+gated.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,

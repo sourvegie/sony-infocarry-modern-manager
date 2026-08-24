@@ -390,8 +390,16 @@ def hash_manager_snapshot(snapshot_root: Path) -> dict[str, Any]:
             data = path.read_bytes()
         except OSError as exc:
             raise I7ExperimentError(f"could not read Manager snapshot file {path}: {exc}") from exc
+        times = _filesystem_times(path)
         files.append(
-            {"relative_path": relative, "size": len(data), "sha256": _sha256(data)}
+            {
+                "relative_path": relative,
+                "size": len(data),
+                "sha256": _sha256(data),
+                "filesystem_created_at_utc": times["created_at_utc"],
+                "filesystem_modified_at_utc": times["modified_at_utc"],
+                "filesystem_creation_time_kind": times["creation_time_kind"],
+            }
         )
     if not files:
         raise I7ExperimentError("Manager snapshot contains no regular files")

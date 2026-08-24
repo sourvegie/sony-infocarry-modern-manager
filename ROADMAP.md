@@ -103,14 +103,16 @@ capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
-complete suite is **417 tests** with three intentional evidence-dependent
+complete suite is **429 tests** with three intentional evidence-dependent
 skips after the read-only I.7 experiment-support slice. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
 evidence is synthesized in
 `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its JSON
-companion. No state-reference or deletion experiment has been performed, and
-the later delete stage remains separately gated. Arbitrary package transfer,
+companion. The self-contained Windows 2000 timestamp tool is
+`support/windows2000-timestamp/`; its logs are ignored and validated only by
+`scripts/validate_timestamp_logs.py`. No state-reference or deletion experiment
+has been performed, and the later delete stage remains separately gated. Arbitrary package transfer,
 live delete, and normal GUI/CLI package/delete actions remain prohibited.
 
 ## Verified Starting Facts
@@ -1003,7 +1005,9 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md` and its
   JSON companion. This closes the add evidence gate only; it does not resolve
   general timestamp/nonzero-state construction or authorize deletion. The
-  suite remains **417 tests** with three intentional skips.
+  suite remains **429 tests** with three intentional skips. The timestamp
+  tool/validator slice is preparation-only; the harmless Windows dry run is
+  the next owner step and no device mutation is authorized by it.
 - [x] **Milestone I.8 — multiple-TXT package:** the logical model now supports
   at least two explicitly ordered TXT children with strict authoring, conflict
   rejection, source/payload hashes, lower-bound growth accounting, and
@@ -1267,16 +1271,14 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Preserve and review the completed I7 add-01 evidence; keep timestamp
-   generation and nonzero fixed-state rules explicitly unresolved because the
-   available wall-clock and state evidence does not support a deterministic
-   fresh-backup rule.
-2. Do not perform a deletion or state-reference mutation from this add alone.
-   H.2 remains blocked; any future nonzero-state experiment must be separately
-   designed, approved, and captured before deletion is reconsidered.
-3. Keep I.8–I.10 device candidates, J.3 transfer planning, normal GUI/CLI
-   package/delete controls, and all broad or interrupted-write operations
-   blocked.
+1. Complete and validate the harmless two-stamp Windows 2000 dry run; preserve
+   the numbered logs and validate them offline without putting raw logs in Git.
+2. After the dry run passes, perform only the separately guided nonzero-state
+   experiment on `root\\IC_I7_CLOCK_01.txt`, one state change and one complete
+   read-only backup at a time.
+3. Keep timestamp generation, generalized deletion, I.8–I.10 device
+   candidates, J.3 transfer planning, normal GUI/CLI package/delete controls,
+   and all broad or interrupted-write operations blocked.
 4. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 

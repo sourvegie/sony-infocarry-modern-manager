@@ -162,6 +162,8 @@ class I7ExperimentTests(unittest.TestCase):
                 report["required_files"]["order.vnw"]["relative_path"],
                 "ICM/転送元フォルダ/order.vnw",
             )
+            self.assertIn("filesystem_created_at_utc", report["files"][0])
+            self.assertIn("filesystem_modified_at_utc", report["files"][0])
             self.assertEqual(report["file_count"], 5)
             manifest = write_manager_snapshot_manifest(root)
             self.assertTrue(manifest.is_file())

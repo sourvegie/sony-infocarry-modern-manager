@@ -1,8 +1,8 @@
 # Milestone I.7 controlled legacy timestamp/state experiment — attempt 01
 
-Date: 2026-08-23
+Date: 2026-08-24
 Experiment ID: `I7-LEGACY-ADD-01`
-Status: **Prepared offline; owner operation and exact approval are required.**
+Status: **Add-01 evidence complete; timestamp-tool dry run and separate state characterization remain.**
 
 This document prepares one isolated legacy Manager add. It does not authorize
 the add, a deletion, a modern-client write, or any other device mutation. The
@@ -13,10 +13,12 @@ because this add appears successful.
 
 The existing offline matrix proves that metadata `+0x0c` is represented as a
 big-endian Unix-style value, but it does not establish how legacy Manager
-generates it. It also does not establish how nonzero display history, mark,
-bookmark, or other references are transformed. This experiment records the
-smallest clean legacy add needed to add one independent time/state observation
-without combining it with deletion.
+generates it. Add-01 has now supplied one independent legacy add observation:
+the new record persisted, shared timestamps were regenerated, and the
+all-zero fixed state was preserved. It still does not establish a general
+timestamp or nonzero-state rule. This document retains the add procedure for
+provenance, defines the finalized timestamp capture contract, and prepares a
+separate state characterization without combining it with deletion.
 
 The result is useful only if it has a complete before backup, one isolated
 native selected-send transaction, complete Manager-before/after snapshots, a
@@ -64,7 +66,56 @@ The content begins with the experiment identifier and explicitly states that
 it is disposable. It contains 48 numbered synthetic lines so it can be opened
 and scrolled through later if a separate state experiment is approved. Do not
 assign a mark or bookmark, open unrelated records, or change device state in
-this add session unless a later, separately reviewed state procedure says so.
+the add evidence session. The existing Add-01 result is recorded in
+`analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md`; do not
+repeat the add merely to collect timestamps.
+
+## Timestamp tool and four-event model
+
+The self-contained Windows 2000 tool is
+`support/windows2000-timestamp/CaptureTimestamp.js`. It creates immutable
+numbered files in its sibling `logs/` directory. The raw sequence number has
+no meaning by itself; meanings are recorded in a separate event mapping and
+never by renaming the raw file.
+
+For one successful Manager mutation, collect only these four relevant
+timestamps:
+
+1. `initialization_before`: immediately before the successful SnoopyPro
+   `Restart Device` action. If logging works without a restart, use
+   `manager_launch_before` immediately before starting Manager instead.
+2. `initialization_idle`: after reconnection and Manager initialization have
+   completed and SnoopyPro packet activity is idle.
+3. `mutation_before`: immediately before the selected Manager mutation.
+4. `mutation_after`: after Manager completion and after the correct SnoopyPro
+   packet count has remained unchanged for approximately 2–3 seconds.
+
+Double-click `CaptureTimestamp.js` only at those four requested moments and
+record the returned sequence numbers in a separate, non-overwriting session
+mapping, for example:
+
+```json
+{
+  "format": "infocarry-experiment-event-map-v1",
+  "events": {
+    "initialization_before": {"sequence": 1},
+    "initialization_idle": {"sequence": 2},
+    "mutation_before": {"sequence": 3},
+    "mutation_after": {"sequence": 4}
+  }
+}
+```
+
+The validator accepts setup attempts with gaps in sequence numbers. Preserve
+all failed/setup timestamp files and mappings; never overwrite or discard
+them. These timestamps define restart/initialization and mutation/completion
+intervals. They do not prove the device metadata timestamp rule.
+
+The tool's dry run is harmless and must be completed before any later hardware
+state experiment: double-click it twice, inspect `stamp-0001.txt` and
+`stamp-0002.txt`, preserve the complete `logs/` directory, and validate the
+copied logs offline with `scripts/validate_timestamp_logs.py`. Do not run
+JScript in the macOS test suite.
 
 ## Non-negotiable safety rules
 
@@ -115,43 +166,39 @@ The session command must run before the source command so the source is created
 inside the new `00-source/` stage. All reports and backups must use new child
 paths below this root.
 
-## Required time and identity observations
+## Required identity and automatic time observations
 
-Record the following before the add and preserve the notes/screenshots with
-the session:
+Before any later owner operation, macOS must own the device alone. Run the
+read-only detection and preserve its output, confirming Sony `054c:001e`:
 
-1. On macOS, with macOS owning the device, record UTC, local time, timezone,
-   and the supported device identity. The offline helper records host time
-   only and does not query USB:
+```sh
+.venv/bin/infocarry detect
+```
 
-   ```sh
-   .venv/bin/python scripts/i7_experiment_support.py clock \
-     --destination "$SESSION_ROOT/00-source/macos-clock.json" \
-     --host-label macOS
-   .venv/bin/infocarry detect
-   ```
+Confirm the Windows 2000 date, time, and timezone manually once before the
+session. The four event timestamps above are the only manual event-time
+observations required. Do not request separate timestamps for SnoopyPro
+launch, log saving, USB ownership changes, screenshots, backups, evidence
+copying, or each source-copy step.
 
-   Preserve the detection output and confirm exactly Sony `054c:001e`.
+The source fixture report records its filesystem creation and modification
+times automatically. The offline Manager snapshot report hashes every file
+and records the filesystem creation/modification times available on the
+copied artifacts, including the source copy when it is included. Preserve
+those reports; do not ask the owner to double-click the timestamp tool for
+them. A copied file's filesystem time is an observation of the available copy
+metadata, not proof of the original Windows source-file time.
 
-2. On Windows 2000, before selecting Send Selected, record the taskbar clock,
-   the Windows date/time, and the configured timezone as far as that guest
-   exposes them. Preserve a screenshot or written observation. If the helper
-   is available in the guest, its `clock` command may be used with
-   `--host-label Windows-2000`; otherwise the manual observation is the
-   authoritative recorded source. Do not infer UTC from local time without
-   recording the timezone.
-
-3. Record the device clock only if the physical InfoCarry displays it or the
-   already established read-only interface exposes it. Otherwise write
-   `device_clock: not_visible` rather than guessing.
-
-4. Record the exact source filesystem creation and modification timestamps
-   from the fixture JSON, the time the source was copied into the Manager
-   source folder, the Manager-before snapshot time, SnoopyPro start/stop
-   times, the Manager result time, and the post-backup time. These are
-   observations for later correlation, not a timestamp-generation rule.
+Record the device clock only if the physical InfoCarry displays it or the
+already established read-only interface exposes it. Otherwise record
+`device_clock: not_visible` rather than guessing.
 
 ## Add sequence
+
+The following add sequence is retained as the historical operator protocol for
+`I7-LEGACY-ADD-01`, which is already complete and independently verified. Do
+not repeat the add merely to collect timestamps, and do not interpret the
+historical approval phrase below as approval for a new operation.
 
 ### 1. macOS read-only preflight and pre-add backup
 
@@ -178,20 +225,48 @@ Stop if the backup is incomplete, stale for the established read-only
 procedure, structurally invalid, the identity is wrong, the target exists,
 or any output path would be reused.
 
-### 2. Prepare the legacy Manager before snapshot
+### 2. Establish a successful Manager/SnoopyPro initialization
 
 Windows 2000 must own the device only after macOS has released it normally.
-Do not start the isolated SnoopyPro log yet.
+Open SnoopyPro first, then start Manager. The owner must check the correct
+InfoCarry log window's packet count rather than assuming that a visible
+SnoopyPro window is logging.
 
-- Start the legacy Manager normally and allow startup, detection, and source
-  preparation to finish while no isolated add log is running.
+- Allow any current Manager initialization to become idle before taking any
+  setup action.
+- If packet logging is not working, capture `initialization_before` immediately
+  before the established `Restart Device` action, click it once, and wait for
+  Manager reconnection/initialization to finish. Capture `initialization_idle`
+  only after Manager is idle and initialization packet activity has stopped.
+- If logging works without a restart, use `manager_launch_before` immediately
+  before Manager launch instead of `initialization_before`, then capture
+  `initialization_idle` after the clean launch interval. Preserve any failed
+  setup attempt and its timestamp sequence; a later successful pair gets new
+  sequence numbers.
+- Never click Restart Device during active initialization or transfer. If
+  packet logging still does not work after one established setup attempt, stop
+  and preserve the attempt; do not begin a mutation.
+- Do not proceed unless the correct SnoopyPro packet count is visibly working
+  and Manager initialization has completed.
+
+The timestamp tool is not a substitute for checking packet activity. It only
+records the requested instant and never accesses Manager, SnoopyPro, USB, or
+the network.
+
+### 3. Prepare the Manager and preserve BEFORE files
+
+After successful initialization, Windows 2000 still owns the device.
+
 - Place exactly the preserved `IC_I7_CLOCK_01.txt` source in the Manager's
   `Transfer Source Folder` (`転送元フォルダ`). Do not edit its bytes.
 - Confirm the Manager shows the one exact source item and no duplicate target.
-- Record the Windows time/timezone and the Manager's displayed device identity
-  and capacity information if available.
-- Before Send Selected, copy the exact source and all relevant Manager files
-  under `01-manager-before-send/`, retaining their actual relative paths:
+- Start one new native log at
+  `02-snoopypro-add-capture/01-add.usblog` and confirm it targets exactly
+  `USB\Vid_054c&Pid_001e`, never a root hub or parent hub. Do not begin the
+  mutation if its packet logging is not visibly working.
+- After the `initialization_idle` timestamp, copy the exact source and all
+  relevant Manager files into `01-manager-before-send/`, retaining actual
+  relative paths:
 
   ```text
   source/IC_I7_CLOCK_01.txt
@@ -202,11 +277,14 @@ Do not start the isolated SnoopyPro log yet.
   ```
 
   Include every additional related sidecar that is present. Do not flatten or
-  rename the Japanese transfer-folder path. If Windows file locking prevents
-  copying, close Manager normally without refreshing or receiving, copy the
-  files, and reopen it only before the isolated capture. Never substitute a
-  later refreshed snapshot for this before-send snapshot.
+  rename the Japanese transfer-folder path. The snapshot report records each
+  available artifact's size, SHA-256, and filesystem timestamps automatically.
+  Verify that all four required files exist before continuing.
 
+- If Windows file locking prevents copying, if any required file is missing,
+  or if a copy is incomplete, stop and ask the owner. Close Manager normally
+  only if necessary, without refreshing or receiving, and do not proceed to
+  the mutation.
 - Hash the snapshot without changing the Manager files:
 
   ```sh
@@ -215,39 +293,39 @@ Do not start the isolated SnoopyPro log yet.
     --output "$SESSION_ROOT/05-analysis/manager-before-report.json"
   ```
 
-  The report must identify the actual relative `order.vnw` path and hash every
-  regular snapshot file. Preserve the source hash separately and require it to
-  equal the expected source SHA-256 above.
+  Preserve the actual relative `order.vnw` path and require the source hash
+  to equal the expected SHA-256 above.
 
-### 3. Isolated native capture and one selected send
+### 4. One selected Manager mutation and AFTER files
 
-Windows 2000 still owns the device. Finish all startup, browsing, source
-preparation, and selection before starting the log.
+Windows 2000 still owns the device, and no other application may mutate it.
 
-- In SnoopyPro select exactly the InfoCarry row
-  `USB\Vid_054c&Pid_001e` (or the established full row with revision). Never
-  select a root hub or parent hub. Record SnoopyPro version and the capture
-  filename.
-- Start one new native log at
-  `02-snoopypro-add-capture/01-add.usblog`.
-- Confirm the selected Manager item is exactly `IC_I7_CLOCK_01.txt`.
+- Capture `mutation_before` immediately before the selected Manager action.
 - Reconfirm the target path, source SHA-256, pre-add backup SHA-256, session
-  identifier, and expected path delta before the mutation.
-- Obtain a separate exact owner approval phrase:
+  identifier, and expected single added path.
+- The add-01 approval phrase was:
 
   ```text
   APPROVE I7 LEGACY ADD 01
   ```
 
-  This phrase authorizes only this one legacy add capture. It does not
-  authorize deletion or any modern-client operation.
+  It authorized only that historical add capture. It never authorizes
+  deletion, another add, or a modern-client operation.
 - Invoke only `Transfer → Send Selected` / `転送 → 選択送信` once. Confirm the
   dialog names `IC_I7_CLOCK_01.txt`. Let it finish normally.
-- Record the Manager's final displayed result verbatim, including Japanese
-  wording, item/capacity display, and the visible target path. Record the
-  result time and take a screenshot if practical.
-- Stop SnoopyPro immediately after that final result and preserve the native
-  log unchanged. Do not refresh, receive, browse, send, delete, or retry.
+- Wait until Manager animation/progress has stopped and Manager is idle or
+  shows its result. Then wait until the correct SnoopyPro packet count is
+  unchanged for approximately 2–3 seconds. Capture `mutation_after` now.
+- Record the exact Manager result from the owner-visible UI. A screenshot is
+  optional supporting evidence, not a required timestamp event.
+- Stop SnoopyPro immediately and preserve the native log unchanged. Do not
+  refresh, receive, browse, send, delete, or retry.
+- Copy the same four Manager artifacts into the separate
+  `03-manager-after-send/` directory with actual relative paths and an
+  independent hash report. Never overwrite the BEFORE directory or replace
+  it with a later refreshed snapshot.
+- If copying is blocked or incomplete, stop and ask the owner. Do not proceed
+  with any refresh or second mutation.
 - Hash the original native log before any optional conversion:
 
   ```sh
@@ -260,18 +338,6 @@ preparation, and selection before starting the log.
   The generic offline parser does not claim to decode request-4 completion;
   preserve the Manager result and any independently recoverable completion
   evidence separately.
-
-### 4. Immediate Manager-after snapshot
-
-Windows 2000 still owns the device. Do this before any read/receive refresh.
-
-- Preserve the same Manager file set under `03-manager-after-send/`, with
-  actual relative paths and a new independent hash report.
-- If file locking prevents a copy, close Manager normally without refreshing
-  or receiving, copy the files, and do not reopen it until the macOS post-add
-  backup is complete.
-- Do not replace this snapshot with a later refreshed snapshot. If a separate
-  refresh is ever approved, it must use another clearly named stage.
 
 Stop and preserve the attempt if Manager reports failure, timeout, disconnect,
 or ambiguity; if the target is not shown exactly; if SnoopyPro captured no
@@ -336,6 +402,36 @@ designed. Any later deletion must:
 
 The add approval never authorizes deletion. Do not begin deletion under this
 document.
+
+## Next offline-guided nonzero-state experiment
+
+After the timestamp-tool dry run has been validated, do not immediately add or
+delete anything. The next hardware-related work is one state change and one
+complete read-only backup at a time, using the existing disposable record:
+
+```text
+root\IC_I7_CLOCK_01.txt
+```
+
+1. With macOS owning the device, create and verify a new stable baseline
+   backup. Confirm the target exists exactly once and inventory raw/parsed
+   `0x001b`–`0x001f` state.
+2. Transfer ownership safely to Windows 2000, open only the disposable record
+   on the physical InfoCarry, and return ownership normally to macOS.
+3. Create a complete read-only backup and analyze display-history changes
+   before proposing any further state change.
+4. Only if that result is independently verified, assign one mark to the
+   disposable record if the Manager/device supports it. Create another
+   complete backup and analyze it before continuing.
+5. Only if the mark result is independently verified and the content is long
+   enough, set one bookmark at a documented position. Create another complete
+   backup and analyze it.
+
+No SnoopyPro timestamp sequence is required for these physical UI state
+changes unless a separate hypothesis specifically needs a native transaction.
+Do not disturb unrelated marks or bookmarks. Stop after any unexpected state,
+ownership problem, incomplete backup, or ambiguous UI result. This state
+experiment must finish and be analyzed before a deletion procedure is drafted.
 
 ## Recovery and stop procedure
 
