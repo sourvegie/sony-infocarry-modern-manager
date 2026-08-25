@@ -87,6 +87,22 @@ def _require_hash(value: Any, label: str) -> str:
     return value
 
 
+def _require_u32(value: Any, label: str, *, allow_zero: bool = True) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise GeneralizedDeleteError(f"{label} must be an integer")
+    if value < 0 or value > 0xFFFFFFFF or (not allow_zero and value == 0):
+        raise GeneralizedDeleteError(f"{label} is outside the uint32 range")
+    return value
+
+
+def _require_fixed_hashes(value: Any, label: str) -> tuple[str, ...]:
+    if not isinstance(value, tuple) or len(value) != len(FIXED_STATE_COMMANDS):
+        raise GeneralizedDeleteError(
+            f"{label} must contain exactly {len(FIXED_STATE_COMMANDS)} hashes"
+        )
+    return tuple(_require_hash(item, f"{label}[{index}]") for index, item in enumerate(value))
+
+
 def _read_object(backup: VerifiedBackup, key: str) -> bytes:
     filename = backup.object_filename(key)
     expected = backup.object_sha256(key)
@@ -304,6 +320,12 @@ class GeneralizedDeleteAuthorization:
     transaction_sha256: str
     fixed_state_before_sha256: tuple[str, ...]
     fixed_state_after_sha256: tuple[str, ...]
+    baseline_model_length: int
+    candidate_model_length: int
+    metadata_start: int
+    record_size: int
+    transaction_variable_n: int
+    transaction_variable_m: int
     confirmation_phrase: str
     baseline: VerifiedBackup
 
@@ -322,10 +344,29 @@ class GeneralizedDeleteAuthorization:
             _require_hash(value, label)
         if not isinstance(self.target_path, str) or not self.target_path or "\x00" in self.target_path:
             raise GeneralizedDeleteError("authorized target path is invalid")
-        if isinstance(self.target_record_offset, bool) or not isinstance(self.target_record_offset, int):
-            raise GeneralizedDeleteError("authorized target record offset is invalid")
-        if len(self.fixed_state_before_sha256) != 5 or len(self.fixed_state_after_sha256) != 5:
-            raise GeneralizedDeleteError("authorization must bind all five fixed-state hashes")
+        _require_u32(self.target_record_offset, "authorized target record offset")
+        before_length = _require_u32(self.baseline_model_length, "baseline model length", allow_zero=False)
+        after_length = _require_u32(self.candidate_model_length, "candidate model length", allow_zero=False)
+        metadata_start = _require_u32(self.metadata_start, "metadata start", allow_zero=False)
+        record_size = _require_u32(self.record_size, "record size", allow_zero=False)
+        if metadata_start % 4 or record_size % 4:
+            raise GeneralizedDeleteError("metadata start and record size must be aligned")
+        if self.target_record_offset < metadata_start:
+            raise GeneralizedDeleteError("authorized target record offset precedes metadata")
+        if (self.target_record_offset - metadata_start) % record_size:
+            raise GeneralizedDeleteError("authorized target record offset is not record-aligned")
+        if self.target_record_offset + record_size > before_length:
+            raise GeneralizedDeleteError("authorized target record exceeds baseline model")
+        if after_length >= before_length:
+            raise GeneralizedDeleteError("candidate model must be smaller than baseline model")
+        variable_n = _require_u32(self.transaction_variable_n, "transaction variable N")
+        variable_m = _require_u32(self.transaction_variable_m, "transaction variable M", allow_zero=False)
+        if variable_n != 0:
+            raise GeneralizedDeleteError("delete transaction variable N must be zero")
+        if variable_m != after_length:
+            raise GeneralizedDeleteError("transaction variable M must equal candidate model length")
+        _require_fixed_hashes(self.fixed_state_before_sha256, "fixed-state before")
+        _require_fixed_hashes(self.fixed_state_after_sha256, "fixed-state after")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -342,6 +383,12 @@ class GeneralizedDeleteAuthorization:
             "target_payload_sha256": self.target_payload_sha256,
             "candidate_blob_sha256": self.candidate_blob_sha256,
             "transaction_sha256": self.transaction_sha256,
+            "baseline_model_length": self.baseline_model_length,
+            "candidate_model_length": self.candidate_model_length,
+            "metadata_start": self.metadata_start,
+            "record_size": self.record_size,
+            "transaction_variable_n": self.transaction_variable_n,
+            "transaction_variable_m": self.transaction_variable_m,
             "fixed_state_before_sha256": list(self.fixed_state_before_sha256),
             "fixed_state_after_sha256": list(self.fixed_state_after_sha256),
             "confirmation_phrase": self.confirmation_phrase,
@@ -361,6 +408,12 @@ class GeneralizedDeleteAuthorization:
             (candidate.transaction_sha256, self.transaction_sha256, "transaction"),
             (candidate.fixed_state.before_hashes, self.fixed_state_before_sha256, "fixed-state before"),
             (candidate.fixed_state.after_hashes, self.fixed_state_after_sha256, "fixed-state after"),
+            (len(candidate.baseline.data), self.baseline_model_length, "baseline model length"),
+            (len(candidate.candidate_blob), self.candidate_model_length, "candidate model length"),
+            (candidate.baseline.header.metadata_start, self.metadata_start, "metadata start"),
+            (candidate.baseline.header.record_size, self.record_size, "record size"),
+            (candidate.transaction.variable_n, self.transaction_variable_n, "transaction variable N"),
+            (candidate.transaction.variable_m, self.transaction_variable_m, "transaction variable M"),
         )
         for actual, expected, label in checks:
             if actual != expected:
@@ -414,6 +467,12 @@ def authorize_generalized_delete(
         transaction_sha256=candidate.transaction_sha256,
         fixed_state_before_sha256=candidate.fixed_state.before_hashes,
         fixed_state_after_sha256=candidate.fixed_state.after_hashes,
+        baseline_model_length=len(candidate.baseline.data),
+        candidate_model_length=len(candidate.candidate_blob),
+        metadata_start=candidate.baseline.header.metadata_start,
+        record_size=candidate.baseline.header.record_size,
+        transaction_variable_n=candidate.transaction.variable_n,
+        transaction_variable_m=candidate.transaction.variable_m,
         confirmation_phrase=confirmation,
         baseline=candidate.backup,
     )

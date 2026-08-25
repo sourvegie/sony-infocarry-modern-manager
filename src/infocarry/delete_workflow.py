@@ -11,8 +11,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import math
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional
+import time
+from typing import Any, Callable, ClassVar, Mapping, Optional
 
 from .delete_generalized import (
     DELETE_GENERALIZED_CONFIRMATION_PHRASE,
@@ -24,15 +26,51 @@ from .delete_generalized import (
     build_generalized_delete_candidate,
     verify_generalized_delete_readback,
 )
-from .protocol import TransferCancelledError
+from .protocol import TransferCancelledError, TransferTimeoutError
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, capture_and_verify_fresh_backup
-from .write_protocol import WriteFailureAssessment, assess_write_failure
 
 
 ProgressCallback = Callable[[str, int, int], None]
 CancelledCallback = Callable[[], bool]
 CaptureCallback = Callable[..., None]
 SendCallback = Callable[..., int]
+
+
+@dataclass(frozen=True)
+class FakeDeleteTransport:
+    """Explicit capability wrapper for the offline delete workflow.
+
+    The wrapper is intentionally a test/simulation boundary, not a security
+    boundary.  It has no USB imports or discovery path.  Requiring this
+    concrete type at the workflow boundary makes accidentally passing the
+    production sender harder and makes the simulated call auditable.
+    """
+
+    sender: SendCallback
+    capability: ClassVar[str] = "infocarry-fake-delete-transport-v1"
+
+    def __post_init__(self) -> None:
+        if not callable(self.sender):
+            raise TypeError("fake delete transport requires a callable sender")
+
+    def send(
+        self,
+        transaction: Any,
+        binding: Any,
+        *,
+        deadline: float,
+        cancelled: Optional[CancelledCallback],
+        progress: Optional[ProgressCallback],
+    ) -> int:
+        if not isinstance(deadline, (int, float)) or isinstance(deadline, bool) or not math.isfinite(deadline):
+            raise ValueError("fake delete transport requires a finite deadline")
+        return self.sender(
+            transaction,
+            binding,
+            deadline=deadline,
+            cancelled=cancelled,
+            progress=progress,
+        )
 
 
 class GeneralizedDeleteWorkflowError(RuntimeError):
@@ -96,11 +134,20 @@ def _safe_cancel_error(exc: BaseException, stage: str) -> GeneralizedDeleteWorkf
 class GuardedGeneralizedDeleteWorkflow:
     """Run one complete fake deletion sequence with no live transport access."""
 
-    def __init__(self, capture: CaptureCallback, send: SendCallback) -> None:
-        if not callable(capture) or not callable(send):
-            raise TypeError("capture and send callbacks are required")
+    def __init__(
+        self,
+        capture: CaptureCallback,
+        transport: FakeDeleteTransport,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if not callable(capture) or not isinstance(transport, FakeDeleteTransport):
+            raise TypeError("capture and an explicit FakeDeleteTransport are required")
+        if not callable(clock):
+            raise TypeError("fake workflow clock must be callable")
         self._capture = capture
-        self._send = send
+        self._transport = transport
+        self._clock = clock
 
     def run(
         self,
@@ -116,7 +163,19 @@ class GuardedGeneralizedDeleteWorkflow:
         progress: Optional[ProgressCallback] = None,
         now: Optional[datetime] = None,
         max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+        timeout_seconds: float = 30.0,
     ) -> GeneralizedDeleteWorkflowResult:
+        if (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(timeout_seconds)
+            or timeout_seconds <= 0
+        ):
+            raise GeneralizedDeleteWorkflowError(
+                "fake delete workflow requires a finite positive timeout",
+                stage="transport",
+                state="failed",
+            )
         if fake_transport is not True:
             raise GeneralizedDeleteWorkflowError(
                 "guarded generalized delete requires fake_transport=True",
@@ -205,9 +264,29 @@ class GuardedGeneralizedDeleteWorkflow:
         if progress is not None:
             progress("Delete authorized; sending once through fake transport", 0, current.transaction.payload_length)
         try:
-            completion = self._send(
+            deadline = self._clock() + timeout_seconds
+            if not math.isfinite(deadline) or self._clock() > deadline:
+                raise TransferTimeoutError("delete transaction deadline expired before transmission")
+        except Exception as exc:
+            raise GeneralizedDeleteWorkflowError(
+                f"delete transfer did not start before its deadline: {exc}",
+                stage="write",
+                state="failed",
+                write_started=False,
+                audit={
+                    "state": "failed",
+                    "stage": "write",
+                    "device_change": "none_started",
+                    "write_started": False,
+                    "primary_error": str(exc),
+                    "automatic_retry_allowed": False,
+                },
+            ) from exc
+        try:
+            completion = self._transport.send(
                 current.transaction,
                 binding,
+                deadline=deadline,
                 cancelled=cancelled,
                 progress=progress,
             )
@@ -215,12 +294,15 @@ class GuardedGeneralizedDeleteWorkflow:
                 raise RuntimeError("fake sender returned missing or malformed completion")
             if completion != 0:
                 raise RuntimeError(f"fake sender returned nonzero completion 0x{completion:04x}")
+            if self._clock() > deadline:
+                raise TransferTimeoutError("delete transaction exceeded its finite deadline")
         except Exception as exc:
-            assessment: WriteFailureAssessment = assess_write_failure(exc)
+            assessment = getattr(exc, "write_failure_assessment", None)
+            has_assessment = assessment is not None
             # A callback was invoked after authorization.  Unless it explicitly
             # proves that the first request was not issued, its device outcome
             # is conservatively indeterminate.
-            started = assessment.write_started or not hasattr(exc, "write_failure_assessment")
+            started = bool(getattr(assessment, "write_started", False)) if has_assessment else True
             state = "indeterminate_after_transaction_start" if started else "failed"
             raise GeneralizedDeleteWorkflowError(
                 f"fake delete transfer stopped; no automatic retry: {exc}",
@@ -230,9 +312,9 @@ class GuardedGeneralizedDeleteWorkflow:
                 audit={
                     "state": state,
                     "stage": "write",
-                    "device_change": assessment.device_outcome if not started else "indeterminate",
+                    "device_change": getattr(assessment, "device_outcome", "indeterminate" if started else "not_started"),
                     "write_started": started,
-                    "primary_error": assessment.primary_error,
+                    "primary_error": getattr(assessment, "primary_error", str(exc)),
                     "automatic_retry_allowed": False,
                     "candidate": current.to_dict(),
                     "authorization": authorization.to_dict(),
@@ -308,6 +390,7 @@ class GuardedGeneralizedDeleteWorkflow:
 
 
 __all__ = [
+    "FakeDeleteTransport",
     "GuardedGeneralizedDeleteWorkflow",
     "GeneralizedDeleteWorkflowError",
     "GeneralizedDeleteWorkflowResult",

@@ -128,6 +128,45 @@ class GeneralizedDeleteTests(unittest.TestCase):
                 with self.assertRaises(GeneralizedDeleteError):
                     authorization.require_same_candidate(altered_candidate)
 
+    def test_authorization_rejects_malformed_hashes_and_numeric_geometry(self):
+        temporary, _root, _backup, candidate = self._case()
+        self.addCleanup(temporary.cleanup)
+        authorization = authorize_generalized_delete(
+            candidate,
+            confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE,
+        )
+        invalid = (
+            ("baseline_manifest_sha256", "A" * 64),
+            ("fixed_state_before_sha256", ("0" * 64,) * 4 + ("g" * 64,)),
+            ("fixed_state_after_sha256", ("0" * 64,) * 4),
+            ("target_record_offset", -1),
+            ("baseline_model_length", 0),
+            ("candidate_model_length", authorization.baseline_model_length + 1),
+            ("metadata_start", 3),
+            ("record_size", 3),
+            ("transaction_variable_n", 1),
+            ("transaction_variable_m", 0),
+        )
+        for field, value in invalid:
+            with self.subTest(field=field):
+                with self.assertRaises(GeneralizedDeleteError):
+                    replace(authorization, **{field: value})
+
+    def test_authorization_rejects_candidate_length_or_transaction_geometry_mutation(self):
+        temporary, _root, _backup, candidate = self._case()
+        self.addCleanup(temporary.cleanup)
+        authorization = authorize_generalized_delete(
+            candidate,
+            confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE,
+        )
+        altered_model = replace(
+            candidate.candidate_model,
+            candidate_blob=candidate.candidate_blob + b"\x00",
+        )
+        altered_candidate = replace(candidate, candidate_model=altered_model)
+        with self.assertRaisesRegex(GeneralizedDeleteError, "candidate (blob|model length)"):
+            authorization.require_same_candidate(altered_candidate)
+
     def test_exact_post_readback_is_verified(self):
         temporary, root, _backup, candidate = self._case(stateful=True)
         self.addCleanup(temporary.cleanup)
