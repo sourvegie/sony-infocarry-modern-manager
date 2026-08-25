@@ -59,8 +59,8 @@ source-bound multiple-TXT logical model with strict authoring and no device
 candidate. I.9 now provides typed offline TXT/BMP validation with no device
 candidate. I.10 now provides a flat manifest-driven representative ebook plan
 that rejects nested sections. Protocol generalization remains the active
-objective for offline evidence review and H.2; H.2
-deletion generalization remains a separate fail-closed offline track. These
+objective for offline evidence review and H.2; H.2 deletion generalization is
+now the active offline track, while live deletion remains fail-closed. These
 milestones may proceed independently of the parked H.1 blocker.
 Milestone I.0 evidence audit, I.1 logical package model, and I.2 blocked
 transfer preview are complete in commits `5a3c55b`, `0db6593`, and `05e29cb`;
@@ -105,8 +105,9 @@ ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
 portable suite of **408 tests** (three evidence-dependent skips). The current
 I.7 preparation slice adds nine focused offline tests and the timestamp
 validator slice adds twelve synthetic tests. The bookmark-byte correction and
-stateful-delete regression now bring the suite to **435 tests** with the same
-three intentional skips. The operator-ready
+stateful-delete regression brought the suite to **435 tests**; the offline H.2
+generalization slices now bring it to **455 tests** with the same three
+intentional skips. The operator-ready
 protocol is `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`;
 the read-only support module and separate support command only prepare and
 ingest evidence. The approved add-01 evidence is synthesized in
@@ -124,8 +125,12 @@ deletion remains separately gated. The separately approved
 deletion effect for that target. Its sanitized synthesis is
 `analysis/phase-13-milestone-i7-legacy-delete-20260825.md`; raw evidence
 remains outside Git. Request-4 completion, the general timestamp rule,
-physical recovery, and generalized deletion remain unresolved. No further
-capture, modern delete, or normal GUI/CLI delete action is authorized.
+physical recovery, and generalized deletion remain unresolved. The offline
+generalization slices are recorded in
+`analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md` and
+commits `2145360`, `83a5b41`, `b746347`, and `7f9d417`; the current suite is
+**455 tests** with three intentional skips. These commits do not authorize a
+live delete, another capture, or a normal GUI/CLI delete action.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
@@ -157,10 +162,10 @@ visual refinement, advanced rendering, packaging, or other aesthetic work:
    authorization, verification, and fake-transport failure gates. Preserve
    both attempts as evidence, do not request another legacy capture, and keep
    modern delete and product exposure disabled.
-8. Keep H.1 parked pending new independent evidence. Proceed with Milestone I's
-   offline evidence, constrained package safety, native-capacity binding, and
-   fake-only readiness only; do not generalize the capture-7 fixture into a
-   live or normal GUI/CLI package action.
+8. Keep H.1 parked pending new independent evidence. Proceed with H.2's
+   offline fail-closed deletion model and fake-only safety tests without
+   presenting them as live readiness. Do not generalize captured legacy
+   timestamps or fixed-state blocks into a live or normal GUI/CLI action.
 9. Only after create/delete/package primitives are proven, connect local
    Library, Prepare, selected transfer, and batch queue workflows. An early
    interface may remain crude and engineering-focused.
@@ -226,7 +231,9 @@ Milestone H is complete when:
 - no normal GUI/CLI delete control or modern live delete is enabled before a
   separate explicit approval; and
 - the complete canonical offline suite passes; the captured-fixture H gate had
-  279 tests and the H.1 readiness slice now passes **283 tests**.
+  279 tests, the historical H.1 readiness slice had 283 tests, and the
+  current H.2 offline boundary passes **455 tests** with three intentional
+  skips.
 
 Milestone G remains closed for its narrow root-level TXT scope. It does not
 authorize general new files, expose a normal write control, or prove
@@ -249,6 +256,16 @@ the smallest safe evidence needed to resolve it:
 - only if those gates pass, a fake-only guarded workflow and an unexecuted
   owner protocol are prepared. No live transport, modern delete, or normal
   GUI/CLI action is enabled by H.1 documentation or tests.
+
+H.2 offline generalization is active without closing H.1. The modern
+provisional model preserves surviving timestamps, derives fixed state from the
+fresh backup, clears only exact proven target-reference forms, binds the
+candidate and transaction, and verifies fake read-back with exact `0x0000`
+completion and no retry. It remains limited to one existing reachable ordinary
+TXT record and rejects unfamiliar state, malformed data, unresolved
+references, and unsupported record types. See
+`analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md` and
+commits `2145360`, `83a5b41`, `b746347`, and `7f9d417`.
 
 Milestone I remains active for protocol generalization. I.6 has one separately
 approved constrained live smoke with exact full read-back; this does not prove
