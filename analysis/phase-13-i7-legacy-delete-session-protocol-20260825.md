@@ -26,7 +26,7 @@ The fresh macOS backup must prove all of these values before owner approval:
 The current fixed-state bytes must match the preserved post-bookmark state
 exactly: `0x001b` and `0x001c` each contain count 1 and reference `0x340`,
 `0x001d` and `0x001e` contain all-zero state, and the first `0x001f` group is
-`(0x340, 0, 0, 0x80000000, 0)` with the second group all zero. Any mismatch
+`(0x340, 0, 0x80000000, 0, 0)` with the second group all zero. Any mismatch
 blocks the session; do not rebuild the protocol around a changed device.
 
 ## Non-overwriting session

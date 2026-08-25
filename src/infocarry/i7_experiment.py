@@ -85,7 +85,7 @@ def _expected_i7_delete_fixed_state() -> dict[int, bytes]:
     display_or_mark[8:12] = I7_DELETE_TARGET_METADATA_REFERENCE.to_bytes(4, "big")
     bookmark = bytearray(64)
     bookmark[0:4] = I7_DELETE_TARGET_METADATA_REFERENCE.to_bytes(4, "big")
-    bookmark[12:16] = (0x80000000).to_bytes(4, "big")
+    bookmark[8:12] = (0x80000000).to_bytes(4, "big")
     return {
         0x001B: bytes(display_or_mark),
         0x001C: bytes(display_or_mark),

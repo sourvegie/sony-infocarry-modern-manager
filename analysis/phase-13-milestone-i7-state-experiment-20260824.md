@@ -35,12 +35,12 @@ value maps to absolute record offset `0x380` after adding the metadata start
 | Baseline | count 0 | count 0 | count 0 | count 0 | `(0, 0, 0, 0, 0)` |
 | After opening | count 1, offset `0x340` | count 0 | count 0 | count 0 | `(0, 0, 0, 0, 0)` |
 | After Mark 1 | count 1, offset `0x340` | count 1, offset `0x340` | count 0 | count 0 | `(0, 0, 0, 0, 0)` |
-| After Bookmark 1 | count 1, offset `0x340` | count 1, offset `0x340` | count 0 | count 0 | `(0x340, 0, 0, 0x80000000, 0)` |
+| After Bookmark 1 | count 1, offset `0x340` | count 1, offset `0x340` | count 0 | count 0 | `(0x340, 0, 0x80000000, 0, 0)` |
 
 The second bookmark group remained all zero. Unused tails were preserved and
 are not interpreted as active entries. The exact bookmark tuple is recorded
-as an observation; the semantics of its second and third dwords remain
-unresolved for this record and must not be generalized from this one case.
+as an observation; the semantics of its non-reference dwords remain unresolved
+for this record and must not be generalized from this one case.
 
 ## Dynamic-record changes
 
@@ -65,7 +65,7 @@ for the observed operations rather than requiring dynamic-model growth.
   `0x001c`, and Bookmark 1 uses the first `0x001f` group, consistently with
   earlier isolated state evidence.
 - **Observed in this target:** the display-history wrapper transition and the
-  Bookmark 1 tuple `(0x340, 0, 0x80000000, 0)`.
+  Bookmark 1 tuple `(0x340, 0, 0x80000000, 0, 0)`.
 - **Unresolved:** the general timestamp-generation rule, general rebasing or
   removal of nonzero references, the complete semantics of bookmark dwords,
   and the operation-wide delete transformation.

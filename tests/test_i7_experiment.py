@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from infocarry.backup import parse_grouped_values_response
 from infocarry.backup_format import calculate_backup_checksum, parse_backup_blob
 from infocarry.i7_experiment import (
     I7_DELETE_SESSION_STAGES,
@@ -126,6 +127,27 @@ def _synthetic_target_expectation(blob: bytes) -> I7DeleteTargetExpectation:
 
 
 class I7ExperimentTests(unittest.TestCase):
+    def test_bookmark_one_expected_object_has_authoritative_byte_layout_and_hash(self):
+        expected = bytearray(64)
+        expected[0:4] = (0x340).to_bytes(4, "big")
+        expected[8:12] = (0x80000000).to_bytes(4, "big")
+        expected = bytes(expected)
+
+        self.assertEqual(len(expected), 64)
+        self.assertEqual(
+            expected.hex(),
+            "0000034000000000800000000000000000000000" + "00" * 44,
+        )
+        self.assertEqual(
+            hashlib.sha256(expected).hexdigest(),
+            "4f25288fce201441c85256cde9e9ab4649946a73b6ef07e348224fe5de8f7273",
+        )
+        parsed = parse_grouped_values_response(expected)
+        self.assertEqual(
+            [list(group) for group in parsed.groups],
+            [[0x340, 0, 0x80000000, 0, 0], [0, 0, 0, 0, 0]],
+        )
+
     def test_fixture_is_exact_ascii_cp932_source_and_non_overwriting(self):
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / I7_TARGET_FILENAME
