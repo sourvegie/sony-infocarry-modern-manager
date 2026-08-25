@@ -164,7 +164,10 @@ def build_one_txt_delete_model(
         raise DeleteModelError("target path must be a non-empty NUL-free string")
     if isinstance(target_record_offset, bool) or not isinstance(target_record_offset, int):
         raise DeleteModelError("target record offset must be an integer")
-    if target_record_offset % parsed.header.record_size:
+    if (
+        target_record_offset < parsed.header.metadata_start
+        or (target_record_offset - parsed.header.metadata_start) % parsed.header.record_size
+    ):
         raise DeleteModelError("target record offset is not metadata-record aligned")
     try:
         target = parsed.record_at(target_record_offset)

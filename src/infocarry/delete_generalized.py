@@ -77,6 +77,16 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _require_hash(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise GeneralizedDeleteError(f"{label} hash must be a lowercase SHA-256 digest")
+    return value
+
+
 def _read_object(backup: VerifiedBackup, key: str) -> bytes:
     filename = backup.object_filename(key)
     expected = backup.object_sha256(key)
@@ -309,8 +319,7 @@ class GeneralizedDeleteAuthorization:
             (self.candidate_blob_sha256, "candidate blob"),
             (self.transaction_sha256, "transaction"),
         ):
-            if not isinstance(value, str) or len(value) != 64:
-                raise GeneralizedDeleteError(f"{label} hash must be SHA-256")
+            _require_hash(value, label)
         if not isinstance(self.target_path, str) or not self.target_path or "\x00" in self.target_path:
             raise GeneralizedDeleteError("authorized target path is invalid")
         if isinstance(self.target_record_offset, bool) or not isinstance(self.target_record_offset, int):
