@@ -26,7 +26,7 @@ class TextAuthoringTests(unittest.TestCase):
         self.assertEqual(result.payload, result.normalized_text.encode("cp932"))
 
     def test_rejects_unsupported_characters_and_nul(self):
-        with self.assertRaisesRegex(TextAuthoringError, "U\+1F600"):
+        with self.assertRaisesRegex(TextAuthoringError, r"U\+1F600"):
             encode_cp932_text("unsupported 😀")
         with self.assertRaises(TextAuthoringError):
             encode_cp932_text("has\x00nul")
