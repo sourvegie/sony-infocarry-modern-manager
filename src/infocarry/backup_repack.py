@@ -246,13 +246,13 @@ def delete_existing_file(
     The operation is intentionally narrower than a general filesystem
     mutator: directories, parent markers, unknown records, and record order
     are preserved; only the selected file record and its native content
-    segment are removed. Metadata pointers are remapped by one fixed record
-    size, and the selected parent's child table is shortened by one record.
-    A complete parse and payload/path invariant check is performed before the
-    candidate is returned. When ``metadata_timestamps`` is supplied, it must
-    contain one explicit opaque timestamp value for every surviving metadata
-    record. This supports the attempt-02 observed timestamp normalization
-    without inventing a general timestamp rule.
+    segment are removed. Metadata pointers are remapped by the validated
+    header record size, and the selected parent's child table is shortened by
+    one record. A complete parse and payload/path invariant check is performed
+    before the candidate is returned. When ``metadata_timestamps`` is
+    supplied, it overrides the surviving record timestamps for legacy golden
+    reproduction. When omitted, surviving timestamps are preserved exactly;
+    no timestamp rule is inferred.
     """
 
     if not isinstance(parsed, ParsedBackupBlob):
@@ -390,7 +390,11 @@ def delete_existing_file(
     for old_offset, old_path in parsed.paths.items():
         if old_offset == record_offset:
             continue
-        expected_offset = old_offset if old_offset < record_offset else old_offset - record_size
+        expected_offset = (
+            old_offset
+            if old_offset < record_offset
+            else old_offset - parsed.header.record_size
+        )
         if rebuilt.paths.get(expected_offset) != old_path:
             raise BackupRepackError("deletion changed an unrelated reachable path")
         old_record = parsed.record_at(old_offset)
