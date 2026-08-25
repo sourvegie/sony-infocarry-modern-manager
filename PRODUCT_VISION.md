@@ -25,6 +25,10 @@ side are redesigned around backup, preview, confirmation, and verification.
 7. Describe device-changing operations as experimental while commit atomicity
    and interrupted-write recovery remain unproven. Never turn an uncertain
    outcome into an automatic retry.
+8. Distinguish logical selection from physical transfer scope: a selected item
+   is the only intended content change, but the device protocol rewrites a
+   complete candidate library image. Explain that timing is not proportional
+   to the selected file size.
 
 ## Release Scope
 
@@ -107,6 +111,12 @@ The batch label is **Transfer all ready items**, not “full transfer.” It mea
 queue every compatible prepared item. It never means synchronize, delete
 unmatched device content, restore a side, or reproduce the legacy send-all
 operation. Unsupported queued items remain preview-only and cannot be sent.
+
+For both single-item and future queued operations, selection describes the
+logical change set. The underlying ordinary write can still transmit the
+complete candidate InfoCarry model, so the UI must describe the operation as
+library-image preparation, transfer, and full read-back verification rather
+than a file-size-proportional copy.
 
 ### v1.0 — General content manager
 

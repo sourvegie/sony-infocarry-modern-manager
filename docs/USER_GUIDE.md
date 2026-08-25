@@ -83,6 +83,16 @@ client never retries an interrupted or failed write automatically.
 The status line and progress bar report completion, cancellation, and
 verification. Keep the original backup unchanged as the recovery source.
 
+### Why a selected transfer can take as long as a larger transfer
+
+Selecting one item limits the intended library change; it does not make the
+USB operation a small per-file copy. The InfoCarry ordinary-write protocol
+transmits a complete candidate library image even when only one selected item
+is added, replaced, or removed. Transfer time is therefore governed mainly by
+the complete device model and USB speed, not by the selected TXT or BMP size.
+Do not disconnect the device merely because a small selected file appears to
+be taking longer than expected.
+
 ## Recovery and troubleshooting
 
 - **Device not detected:** close the legacy manager, reconnect the device,

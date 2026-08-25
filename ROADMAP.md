@@ -136,6 +136,10 @@ and normal GUI/CLI package/delete actions remain prohibited.
 - `VicTwo.dll` contains explicit VNW-V15 paths and transfer logic.
 - Configuration and hardware-information command IDs are `0x18` and `0x19`.
 - The legacy application uses bounded/chunked bulk transfers; a 128 KiB limit is present in `VicTwo.dll`.
+- A selected operation is a logical change to one item, but the ordinary
+  `0x101b` path carries the complete candidate dynamic model. The owner's
+  legacy-Manager same-duration warning corroborates the capture evidence;
+  progress and timing must not be described as a selected-payload-sized copy.
 
 ## Phase 0 — Preserve and Inventory Evidence
 
@@ -1319,6 +1323,10 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    rejecting unfamiliar fixed state. Keep the legacy timestamp rule,
    request-4 completion semantics, physical recovery, and live modern delete
    eligibility unresolved.
+   Before any live-readiness decision, validate the provisional builder against
+   the preserved full pre/post deletion evidence, extend realistic structural
+   and alignment coverage, verify actual transport timeout enforcement, and
+   harden the fake-only capability boundary.
 3. Keep I.8–I.10 device candidates, J.3 transfer planning, normal GUI/CLI
    package/delete controls, and all broad or interrupted-write operations
    blocked until their separate evidence gates close.

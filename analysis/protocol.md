@@ -214,6 +214,24 @@ host code. A command `0x101d` found in the distinct unlock workflow is not a
 proven general commit. See `analysis/phase-8-write-transaction.md` for the
 evidence, cancellation boundary, and remaining safety blockers.
 
+### Selected operation versus physical transfer scope
+
+The owner reports that the legacy Manager warns that a selected-file transfer
+takes approximately the same time as an all-file transfer. The exact Japanese
+wording is not preserved, so this remains a corroborating UI observation rather
+than a verbatim software artifact. It agrees with the captured ordinary-write
+structure: selection determines the logical mutation, while `0x101b` carries
+the complete prospective dynamic model in its model-dependent ranges rather
+than only the selected file payload.
+
+Accordingly, **selected** describes the intended content change, not a
+payload-sized physical patch. A modern selected add, replacement, or delete
+must be presented as rebuilding and writing one complete candidate library
+image, followed by a complete read-back verification. Transfer duration and
+progress must not be estimated from the selected source-file size alone. This
+also reinforces the fresh-backup, indeterminate-interruption, and no-automatic-
+retry requirements for every ordinary write.
+
 ## Cancellation and errors
 
 **Verified:** `VICStopTransfer` sets a flag at offset `0x18` in the open-device
