@@ -128,7 +128,7 @@ remains outside Git. Request-4 completion, the general timestamp rule,
 physical recovery, and generalized deletion remain unresolved. The offline
 generalization slices are recorded in
 `analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md` and
-commits `2145360`, `83a5b41`, `b746347`, and `7f9d417`; the current suite is
+commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc`; the current suite is
 **455 tests** with three intentional skips. These commits do not authorize a
 live delete, another capture, or a normal GUI/CLI delete action.
 Keep package transfer disconnected from the Library and keep all normal
@@ -265,7 +265,7 @@ completion and no retry. It remains limited to one existing reachable ordinary
 TXT record and rejects unfamiliar state, malformed data, unresolved
 references, and unsupported record types. See
 `analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md` and
-commits `2145360`, `83a5b41`, `b746347`, and `7f9d417`.
+commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc`.
 
 Milestone I remains active for protocol generalization. I.6 has one separately
 approved constrained live smoke with exact full read-back; this does not prove

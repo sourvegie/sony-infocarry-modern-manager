@@ -44,6 +44,7 @@ rebasing rule is synthesized.
 | `83a5b41` | `delete_state.py` and focused tests | Fresh fixed-state parsing and exact supported reference clearing; authoritative Bookmark 1 byte order; malformed/unfamiliar-state rejection. |
 | `b746347` | `delete_generalized.py` and focused tests | Fresh-backup candidate construction, exact device/backup/target/payload/candidate/transaction/fixed-state binding, strict post-readback verifier. |
 | `7f9d417` | `delete_workflow.py` and focused tests | Fake-only guarded sequence, one send maximum, bounded progress callback, safe pre-start cancellation, indeterminate post-start interruption, strict completion, no retry. |
+| `1ddaffc` | deletion hardening | Metadata alignment is relative to the parsed metadata start and authorization hashes are strict lowercase SHA-256 values. |
 
 The complete suite at this boundary is **455 passing tests with three
 intentional evidence-dependent skips**.

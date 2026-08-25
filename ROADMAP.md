@@ -1063,7 +1063,8 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`.
 - [ ] **Milestone H.2 — deletion generalization:** the captured legacy effect
   is complete and offline modern generalization is active, but live eligibility
-  remains blocked. Commits `2145360`, `83a5b41`, `b746347`, and `7f9d417` add
+  remains blocked. Commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and
+  `1ddaffc` add
   the one-existing-ordinary-TXT model, provisional surviving-timestamp
   preservation, fail-closed fresh-state derivation, exact binding, independent
   read-back, and fake-only failure workflow. The model accepts exact all-zero
