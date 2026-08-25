@@ -149,8 +149,10 @@ eligibility still fails closed. I.8 now
 provides an ordered source-bound multiple-TXT logical model with strict
 authoring and no device candidate. I.9 now provides typed offline TXT/BMP
 validation with no device candidate. I.10 now provides a flat manifest-driven
-representative ebook plan that fails closed on nested sections; H.2 deletion generalization remains a separate fail-closed
-track. J.0–J.2 local Library foundations are complete, while J.3
+representative ebook plan that fails closed on nested sections; H.2 deletion
+generalization and preserved-evidence hardening remain a separate fail-closed
+track, with twelve unexplained non-timestamp parent-marker differences after
+timestamp normalization. J.0–J.2 local Library foundations are complete, while J.3
 device-aware planning remains deferred. Arbitrary package transfer, normal
 GUI/CLI exposure, generalized deletion, and interrupted-write recovery remain
 unproven or prohibited.

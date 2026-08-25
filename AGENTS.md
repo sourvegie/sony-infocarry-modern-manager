@@ -59,9 +59,10 @@ source-bound multiple-TXT logical model with strict authoring and no device
 candidate. I.9 now provides typed offline TXT/BMP validation with no device
 candidate. I.10 now provides a flat manifest-driven representative ebook plan
 that rejects nested sections. Protocol generalization remains the active
-objective for offline evidence review and H.2; H.2 deletion generalization is
-now the active offline track, while live deletion remains fail-closed. These
-milestones may proceed independently of the parked H.1 blocker.
+objective for offline evidence review and H.2; H.2 offline deletion hardening
+is now active, while the preserved-evidence comparison remains fail-closed for
+live deletion. These milestones may proceed independently of the parked H.1
+blocker.
 Milestone I.0 evidence audit, I.1 logical package model, and I.2 blocked
 transfer preview are complete in commits `5a3c55b`, `0db6593`, and `05e29cb`;
 the suite now passes **294 tests** at that checkpoint. The owner-approved
@@ -128,8 +129,10 @@ remains outside Git. Request-4 completion, the general timestamp rule,
 physical recovery, and generalized deletion remain unresolved. The offline
 generalization slices are recorded in
 `analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md` and
-commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc`; the current suite is
-**455 tests** with three intentional skips. These commits do not authorize a
+commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc`; the current
+hardening suite is **467 tests** with three intentional skips. The preserved
+comparison still has twelve unexplained non-timestamp parent-marker
+differences after timestamp normalization. These commits do not authorize a
 live delete, another capture, or a normal GUI/CLI delete action.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
@@ -257,15 +260,18 @@ the smallest safe evidence needed to resolve it:
   owner protocol are prepared. No live transport, modern delete, or normal
   GUI/CLI action is enabled by H.1 documentation or tests.
 
-H.2 offline generalization is active without closing H.1. The modern
+H.2 offline generalization and hardening are active without closing H.1. The modern
 provisional model preserves surviving timestamps, derives fixed state from the
 fresh backup, clears only exact proven target-reference forms, binds the
 candidate and transaction, and verifies fake read-back with exact `0x0000`
 completion and no retry. It remains limited to one existing reachable ordinary
 TXT record and rejects unfamiliar state, malformed data, unresolved
 references, and unsupported record types. See
-`analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md` and
-commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc`.
+`analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md`,
+`analysis/phase-13-milestone-h2-offline-delete-hardening-20260826.md`, and
+commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc`. The current
+suite is **467 tests** with three intentional skips; the remaining structural
+difference keeps live eligibility fail-closed.
 
 Milestone I remains active for protocol generalization. I.6 has one separately
 approved constrained live smoke with exact full read-back; this does not prove
