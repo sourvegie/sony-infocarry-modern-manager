@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01 and the later isolated display-history/Mark-1/Bookmark-1 state experiment are independently verified but remain a fail-closed negative result for general timestamp/fixed-state construction; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline; H.2 remains blocked and parked | Arbitrary package behavior, generalized deletion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; general timestamp/fixed-state construction and H.2 deletion generalization remain fail-closed; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | Arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7 status: native capacity semantics are resolved offline,
@@ -103,8 +103,8 @@ capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
-complete suite is **433 tests** with three intentional evidence-dependent
-skips after the read-only I.7 experiment-support slice. The operator protocol
+complete suite is **435 tests** with three intentional evidence-dependent
+skips after the read-only I.7 experiment-support and bookmark-correction slices. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
 evidence is synthesized in
@@ -113,15 +113,14 @@ companion. The self-contained Windows 2000 timestamp tool is
 `support/windows2000-timestamp/`; its logs are ignored and validated only by
 `scripts/validate_timestamp_logs.py`. The harmless two-stamp dry run passed,
 and the separately approved state experiment completed with isolated
-display-history, Mark-1, and Bookmark-1 backups. No deletion experiment has
-been performed, and the later delete stage remains separately gated. Arbitrary package transfer,
-live delete, and normal GUI/CLI package/delete actions remain prohibited.
-The offline preparation slice for a separate legacy delete observation of
-`root\\IC_I7_CLOCK_01.txt` is recorded in
-`analysis/phase-13-i7-legacy-delete-session-protocol-20260825.md`; it requires
-the authoritative fresh nonzero-state backup and validated timestamp-tool
-dry-run before the owner approval boundary. It is not a live-delete model or
-authorization.
+display-history, Mark-1, and Bookmark-1 backups. The separately approved I7
+legacy-delete observation is synthesized in
+`analysis/phase-13-milestone-i7-legacy-delete-20260825.md`: exactly one
+persisted path was removed, no path was added, all surviving payloads were
+preserved, and the native candidate exactly matched the post-delete blob.
+Request-4 completion and the general timestamp/fresh-state rules remain
+unresolved. Arbitrary package transfer, modern delete, and normal GUI/CLI
+package/delete actions remain prohibited.
 
 ## Verified Starting Facts
 
@@ -1022,8 +1021,20 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   passed, followed by the separately approved display-history, Mark-1, and
   Bookmark-1 state experiment on the disposable record. Its raw evidence is
   local-only and its synthesis is recorded in
-  `analysis/phase-13-milestone-i7-state-experiment-20260824.md`; no deletion
-  is authorized by it.
+  `analysis/phase-13-milestone-i7-state-experiment-20260824.md`; deletion was
+  separately gated and is now synthesized below.
+- [x] **Milestone I.7 controlled legacy stateful deletion observation — attempt
+  01:** the separately approved deletion of `root\\IC_I7_CLOCK_01.txt` is
+  verified from complete pre/post backups, one isolated native `0x101b`, and
+  complete Manager BEFORE/AFTER files. Exactly one path was removed, no path
+  was added, all 255 surviving file payloads were byte-identical, the three
+  active target references were cleared, and the native range-5 plus range-8
+  candidate exactly matched the post-delete dynamic blob. All 314 shared
+  timestamps were regenerated; the causal rule and request-4 completion remain
+  unresolved. This closes only the one captured persisted-effect boundary and
+  does not authorize generalized or modern deletion. The sanitized synthesis
+  is `analysis/phase-13-milestone-i7-legacy-delete-20260825.md`; the suite is
+  **435 tests** with three intentional skips.
 - [x] **Milestone I.8 — multiple-TXT package:** the logical model now supports
   at least two explicitly ordered TXT children with strict authoring, conflict
   rejection, source/payload hashes, lower-bound growth accounting, and
@@ -1047,12 +1058,13 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   rejected rather than flattened because their native construction is not
   proven. Six focused tests bring the suite to **408 tests**. See
   `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`.
-- [ ] **Milestone H.2 — deletion generalization:** blocked and parked. I.7 does
-  not establish fresh-backup timestamp or `0x001b`–`0x001f` derivation without
-  attempt-specific constants. Keep eligibility fail-closed, accept only
-  `0x0000`, and keep live delete/protocol/UI exposure prohibited. The blocker
-  and smallest unexecuted evidence procedure are recorded in
-  `analysis/phase-13-milestone-h2-delete-generalization-blocker-20260823.md`.
+- [ ] **Milestone H.2 — deletion generalization:** blocked and parked. The I7
+  stateful deletion observation closes the captured persisted-effect evidence
+  boundary, but does not establish fresh-backup timestamp or
+  `0x001b`–`0x001f` derivation, trustworthy request-4 completion, or physical
+  recovery. Keep eligibility fail-closed, accept only `0x0000`, and keep live
+  delete/protocol/UI exposure prohibited. The blocker and addendum are
+  recorded in `analysis/phase-13-milestone-h2-delete-generalization-blocker-20260823.md`.
 
 The owner-provided external source library may be used only in ignored local
 exploration. Tracked tests use synthetic data, generated fixtures, hashes, and
@@ -1287,19 +1299,17 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Preserve the validated two-stamp Windows 2000 dry-run logs outside Git and
-   retain the non-overwriting validation report.
-2. Execute only the macOS-owned fresh pre-delete backup and offline preflight
-   for the prepared I7 legacy-delete session; stop before USB ownership change
-   until the owner supplies `APPROVE I7 LEGACY DELETE 01`.
-3. If separately approved, preserve one isolated legacy deletion capture and
-   complete post-delete backup; otherwise keep the session preparation as
-   evidence only. Never retry or perform a modern delete.
-4. Continue offline H.2/J.3 evidence review, while keeping timestamp
+1. Preserve the validated I7 deletion intake, complete pre/post backups,
+   transaction artifact, Manager snapshots, timestamp logs, and derived
+   reports under the external evidence root; never add them to Git.
+2. Maintain H.2 as blocked and parked. Use the new stateful deletion result to
+   refine offline comparisons only; do not infer a generalized timestamp rule,
+   request-4 completion, or modern delete eligibility.
+3. Continue offline H.2/J.3 evidence review, while keeping timestamp
    generation, generalized deletion, I.8–I.10 device candidates, J.3 transfer
    planning, normal GUI/CLI package/delete controls, and all broad or
    interrupted-write operations blocked.
-5. Push every verified sanitized commit normally to `origin/main` after the
+4. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions

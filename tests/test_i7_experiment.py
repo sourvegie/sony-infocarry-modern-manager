@@ -8,6 +8,7 @@ import unittest
 from infocarry.backup import parse_grouped_values_response
 from infocarry.backup_format import calculate_backup_checksum, parse_backup_blob
 from infocarry.i7_experiment import (
+    I7_DELETE_EXPECTED_FIXED_STATE,
     I7_DELETE_SESSION_STAGES,
     I7DeleteTargetExpectation,
     I7_SESSION_STAGES,
@@ -127,6 +128,16 @@ def _synthetic_target_expectation(blob: bytes) -> I7DeleteTargetExpectation:
 
 
 class I7ExperimentTests(unittest.TestCase):
+    def test_delete_expectation_emits_authoritative_bookmark_one_bytes(self):
+        expected = bytearray(64)
+        expected[0:4] = (0x340).to_bytes(4, "big")
+        expected[8:12] = (0x80000000).to_bytes(4, "big")
+        self.assertEqual(I7_DELETE_EXPECTED_FIXED_STATE[0x001F], bytes(expected))
+        self.assertEqual(
+            hashlib.sha256(I7_DELETE_EXPECTED_FIXED_STATE[0x001F]).hexdigest(),
+            "4f25288fce201441c85256cde9e9ab4649946a73b6ef07e348224fe5de8f7273",
+        )
+
     def test_bookmark_one_expected_object_has_authoritative_byte_layout_and_hash(self):
         expected = bytearray(64)
         expected[0:4] = (0x340).to_bytes(4, "big")

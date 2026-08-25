@@ -30,3 +30,28 @@ procedure already drafted in
 `analysis/phase-13-milestone-i7-timestamp-fixed-state-characterization-20260823.md`.
 It is not being executed or requested automatically. Separate explicit owner
 approval would be required for any device-changing capture.
+
+## Post-I.7 stateful deletion addendum — 2026-08-25
+
+The separately approved `I7-LEGACY-DELETE-01` session has now supplied the
+smallest missing stateful legacy-effect observation. A complete pre-delete
+backup, one isolated native `0x101b`, complete Manager BEFORE/AFTER files, and
+a complete post-delete backup establish that exactly
+`root\\IC_I7_CLOCK_01.txt` was removed, no path was added, every surviving file
+payload was unchanged, and the native range-5 plus range-8 candidate exactly
+matches the post-delete dynamic blob. The target was referenced by display
+history, Mark 1, and Bookmark 1; all three references were cleared in the
+post-delete fixed state. The four relevant Manager sidecars were
+byte-identical before and after.
+
+This closes the captured stateful deletion-effect evidence gap for the one
+disposable target. It does **not** close H.2 generalized eligibility. All 314
+shared timestamps were regenerated, but the post-delete values align with the
+restart/initialization interval rather than the pre-delete timestamp event;
+the causal timestamp rule remains unresolved. The current offline parser does
+not recover a trustworthy request-4 completion value, and physical atomicity
+or recovery remains unproven. H.2 therefore remains blocked and parked. No
+modern delete builder, sender, GUI/CLI control, or new live capture is
+authorized. See
+`analysis/phase-13-milestone-i7-legacy-delete-20260825.md` and keep the raw
+session under `EVIDENCE_ROOT` only.

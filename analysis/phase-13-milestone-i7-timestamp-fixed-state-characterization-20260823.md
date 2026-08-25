@@ -104,5 +104,8 @@ action is enabled. The add-01 disposable record remains on the device. A later
 separately approved state experiment on that record completed after this
 analysis was written; it is synthesized in
 `analysis/phase-13-milestone-i7-state-experiment-20260824.md`. That experiment
-did not resolve the general timestamp or fresh-state rule, and no deletion
-experiment has been performed.
+did not resolve the general timestamp or fresh-state rule. The later approved
+stateful deletion observation is synthesized separately in
+`analysis/phase-13-milestone-i7-legacy-delete-20260825.md`; it verifies one
+persisted legacy deletion effect but does not establish generalized timestamp,
+completion, or fresh-state construction rules.

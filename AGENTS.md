@@ -104,8 +104,9 @@ non-destructive local Library foundation, offline Prepare workflow, and crude
 ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
 portable suite of **408 tests** (three evidence-dependent skips). The current
 I.7 preparation slice adds nine focused offline tests and the timestamp
-validator slice adds twelve synthetic tests, bringing the suite to
-**433 tests** with the same three intentional skips. The operator-ready
+validator slice adds twelve synthetic tests. The bookmark-byte correction and
+stateful-delete regression now bring the suite to **435 tests** with the same
+three intentional skips. The operator-ready
 protocol is `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`;
 the read-only support module and separate support command only prepare and
 ingest evidence. The approved add-01 evidence is synthesized in
@@ -117,14 +118,14 @@ and the separately approved state experiment on `root\\IC_I7_CLOCK_01.txt`
 completed with isolated display-history, Mark 1, and Bookmark 1 backups. Its
 derived report is `analysis/phase-13-milestone-i7-state-experiment-20260824.md`;
 the raw evidence remains outside Git. This state evidence does not resolve
-general timestamp generation or fresh fixed-state derivation, and deletion
-remains separately gated.
-The next evidence preparation is a separate, unexecuted legacy deletion session
-for that same target, documented in
-`analysis/phase-13-i7-legacy-delete-session-protocol-20260825.md`. Its offline
-preflight requires the authoritative fresh backup, exact nonzero state, and
-timestamp-tool dry-run before any owner approval. It does not authorize a
-device mutation, modern delete, or normal GUI/CLI action.
+general timestamp generation or fresh fixed-state derivation, and generalized
+deletion remains separately gated. The separately approved
+`I7-LEGACY-DELETE-01` session now verifies one persisted stateful legacy
+deletion effect for that target. Its sanitized synthesis is
+`analysis/phase-13-milestone-i7-legacy-delete-20260825.md`; raw evidence
+remains outside Git. Request-4 completion, the general timestamp rule,
+physical recovery, and generalized deletion remain unresolved. No further
+capture, modern delete, or normal GUI/CLI delete action is authorized.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,
@@ -264,9 +265,11 @@ for offline characterization and one approved legacy add-01 evidence case, but
 found no safe general rule; the add result is recorded in
 `analysis/phase-13-milestone-i7-legacy-add-01-results-20260823.md`. The state
 result is recorded in
-`analysis/phase-13-milestone-i7-state-experiment-20260824.md`. No deletion
-experiment has been performed. The next sequence is offline H.2/J.3 evidence
-review. I.8's offline model, I.9's typed model,
+`analysis/phase-13-milestone-i7-state-experiment-20260824.md`. The approved
+stateful deletion observation is recorded in
+`analysis/phase-13-milestone-i7-legacy-delete-20260825.md` and closes only the
+one captured persisted-effect boundary. The next sequence is offline H.2/J.3
+evidence review. I.8's offline model, I.9's typed model,
 and I.10's flat ebook plan are
 recorded in `analysis/phase-13-milestone-i8-multiple-txt-offline-20260823.md`,
 `analysis/phase-13-milestone-i9-mixed-txt-bmp-offline-20260823.md`, and
