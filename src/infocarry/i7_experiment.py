@@ -23,6 +23,7 @@ from .backup import parse_grouped_values_response, parse_offset_list_response
 from .backup_format import BackupFormatError, parse_backup_blob
 from .usblog import UsblogParseError, extract_101b, find_101b_headers
 from .usblog_report import summarize_capture
+from .timestamp_validator import validate_timestamp_logs
 from .write_gate import VerifiedBackup, WriteGateError, verify_fresh_backup
 
 
@@ -53,6 +54,48 @@ REQUIRED_MANAGER_BASENAMES = (
     "VICLV.bin",
     "order.vnw",
 )
+
+I7_DELETE_EXPERIMENT_ID = "I7-LEGACY-DELETE-01"
+I7_DELETE_SESSION_STAGES = (
+    "00-timestamps",
+    "01-pre-delete-backup",
+    "02-manager-before-delete",
+    "03-snoopypro-delete-capture",
+    "04-manager-after-delete",
+    "05-post-delete-backup",
+    "06-analysis",
+)
+I7_DELETE_TARGET_RECORD_OFFSET = 0x00000380
+I7_DELETE_TARGET_METADATA_REFERENCE = 0x00000340
+I7_DELETE_TARGET_PAYLOAD_LENGTH = 1_863
+I7_DELETE_TARGET_PAYLOAD_SHA256 = (
+    "3aa626dc1e0dbd2fe13b59fbea7eddf43358a522b9f55ed15ac18556b2a69d4b"
+)
+I7_DELETE_TARGET_RECORD_COUNT = 374
+I7_DELETE_TARGET_BLOB_SHA256 = (
+    "5b081faf7cc733e9c63c13250d689d6e7beb52bcf10470503dd68684471ab61b"
+)
+
+
+def _expected_i7_delete_fixed_state() -> dict[int, bytes]:
+    """Return the exact preserved current state, without reading evidence."""
+
+    display_or_mark = bytearray(64)
+    display_or_mark[0:4] = (1).to_bytes(4, "big")
+    display_or_mark[8:12] = I7_DELETE_TARGET_METADATA_REFERENCE.to_bytes(4, "big")
+    bookmark = bytearray(64)
+    bookmark[0:4] = I7_DELETE_TARGET_METADATA_REFERENCE.to_bytes(4, "big")
+    bookmark[12:16] = (0x80000000).to_bytes(4, "big")
+    return {
+        0x001B: bytes(display_or_mark),
+        0x001C: bytes(display_or_mark),
+        0x001D: bytes(64),
+        0x001E: bytes(64),
+        0x001F: bytes(bookmark),
+    }
+
+
+I7_DELETE_EXPECTED_FIXED_STATE = _expected_i7_delete_fixed_state()
 
 
 class I7ExperimentError(ValueError):
@@ -140,6 +183,253 @@ class SyntheticFixtureReport:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class I7DeleteTargetExpectation:
+    """Authoritative target identity for the one planned legacy delete."""
+
+    path: str = I7_TARGET_PATH
+    record_offset: int = I7_DELETE_TARGET_RECORD_OFFSET
+    metadata_relative_reference: int = I7_DELETE_TARGET_METADATA_REFERENCE
+    payload_length: int = I7_DELETE_TARGET_PAYLOAD_LENGTH
+    payload_sha256: str = I7_DELETE_TARGET_PAYLOAD_SHA256
+    record_count: int = I7_DELETE_TARGET_RECORD_COUNT
+    dynamic_blob_sha256: str = I7_DELETE_TARGET_BLOB_SHA256
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "record_offset": f"0x{self.record_offset:08x}",
+            "metadata_relative_reference": f"0x{self.metadata_relative_reference:08x}",
+            "payload_length": self.payload_length,
+            "payload_sha256": self.payload_sha256,
+            "record_count": self.record_count,
+            "dynamic_blob_sha256": self.dynamic_blob_sha256,
+        }
+
+
+def _delete_session_manifest(root: Path) -> dict[str, Any]:
+    """Read and validate a prepared deletion-session manifest."""
+
+    manifest_path = root / "session-manifest.json"
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise I7ExperimentError(f"deletion session manifest is unreadable: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise I7ExperimentError("deletion session manifest is not an object")
+    if payload.get("format") != "infocarry-i7-legacy-delete-session-v1":
+        raise I7ExperimentError("unsupported deletion session manifest format")
+    if payload.get("experiment_id") != I7_DELETE_EXPERIMENT_ID:
+        raise I7ExperimentError("deletion session experiment identifier differs")
+    if payload.get("usb_operation_performed") is not False:
+        raise I7ExperimentError("deletion session is not marked offline-only")
+    if payload.get("stages") != list(I7_DELETE_SESSION_STAGES):
+        raise I7ExperimentError("deletion session stage layout differs")
+    for stage in I7_DELETE_SESSION_STAGES:
+        stage_path = root / stage
+        if not stage_path.is_dir() or stage_path.is_symlink():
+            raise I7ExperimentError(f"deletion session stage is missing: {stage}")
+    return payload
+
+
+def create_i7_delete_session(destination: Path) -> Path:
+    """Create a new offline deletion-session skeleton, refusing reuse."""
+
+    root = Path(destination).expanduser().resolve()
+    try:
+        root.mkdir(parents=True, exist_ok=False)
+    except FileExistsError as exc:
+        raise I7ExperimentError(f"refusing to reuse deletion session root: {root}") from exc
+    except OSError as exc:
+        raise I7ExperimentError(f"could not create deletion session root: {exc}") from exc
+    for stage in I7_DELETE_SESSION_STAGES:
+        (root / stage).mkdir()
+    manifest = {
+        "format": "infocarry-i7-legacy-delete-session-v1",
+        "experiment_id": I7_DELETE_EXPERIMENT_ID,
+        "state": "prepared_offline_no_hardware_operation",
+        "usb_operation_performed": False,
+        "target": I7DeleteTargetExpectation().to_dict(),
+        "supported_device": dict(SUPPORTED_DEVICE),
+        "stages": list(I7_DELETE_SESSION_STAGES),
+        "non_overwriting_policy": True,
+        "no_automatic_retry": True,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    _write_json_exclusive(root / "session-manifest.json", manifest)
+    return root
+
+
+def _preflight_fixed_state(
+    report: Mapping[str, Any], expected_state: Mapping[int, bytes]
+) -> tuple[bool, list[str]]:
+    """Require exact state bytes; do not normalize or infer unknown fields."""
+
+    errors: list[str] = []
+    observed = report.get("fixed_state")
+    if not isinstance(observed, Mapping):
+        return False, ["complete fixed-state inventory is missing"]
+    for command, expected in expected_state.items():
+        key = f"0x{command:04x}"
+        entry = observed.get(key)
+        if not isinstance(entry, Mapping):
+            errors.append(f"fixed-state object {key} is missing")
+            continue
+        raw_hex = entry.get("raw_hex")
+        if raw_hex != expected.hex():
+            errors.append(f"fixed-state bytes differ at {key}")
+    return not errors, errors
+
+
+def preflight_i7_legacy_delete(
+    backup_directory: Path,
+    *,
+    timestamp_directory: Optional[Path] = None,
+    session_root: Optional[Path] = None,
+    target: I7DeleteTargetExpectation = I7DeleteTargetExpectation(),
+    expected_fixed_state: Optional[Mapping[int, bytes]] = None,
+) -> dict[str, Any]:
+    """Build a hash-only, fail-closed preflight for owner review.
+
+    This function validates only a saved complete backup and optional saved
+    timestamp-tool dry-run output. It never opens USB and never authorizes or
+    constructs a deletion transaction.
+    """
+
+    session_layout_ok = session_root is None
+    if session_root is not None:
+        session = Path(session_root).expanduser().resolve()
+        _delete_session_manifest(session)
+        session_layout_ok = True
+    backup_report = validate_complete_backup(backup_directory)
+    errors: list[str] = []
+    device = backup_report.get("device", {})
+    if device != dict(SUPPORTED_DEVICE):
+        errors.append("device identity differs from supported 054c:001e")
+    if backup_report.get("record_count") != target.record_count:
+        errors.append("record count differs from the authoritative pre-delete value")
+    if backup_report.get("blob_sha256") != target.dynamic_blob_sha256:
+        errors.append("dynamic blob hash differs from the authoritative pre-delete value")
+
+    try:
+        verified = verify_fresh_backup(
+            Path(backup_directory), now=datetime.now(timezone.utc), max_age_seconds=None
+        )
+        blob = _backup_object(verified, "0x8004:backup-blob")
+        parsed = parse_backup_blob(blob)
+        path_index = _path_index(parsed)
+        record = parsed.record_at(target.record_offset)
+        observed_path = _record_path(parsed, record)
+        prefix, payload = parsed.payload_parts(record)
+    except (BackupFormatError, WriteGateError, I7ExperimentError) as exc:
+        raise I7ExperimentError(f"authoritative target preflight failed: {exc}") from exc
+
+    target_observed = {
+        "path": observed_path,
+        "record_offset": f"0x{record.offset:08x}",
+        "metadata_relative_reference": f"0x{record.offset - parsed.header.metadata_start:08x}",
+        "kind": record.kind,
+        "extension": record.extension,
+        "payload_length": len(payload),
+        "payload_sha256": _sha256(payload),
+        "prefix_length": len(prefix),
+        "prefix_sha256": _sha256(prefix),
+        "timestamp_be32": f"0x{record.timestamp_be32:08x}",
+    }
+    if observed_path != target.path:
+        errors.append("authoritative record offset resolves to a different path")
+    if record.kind != "file" or record.extension.lower() != "txt":
+        errors.append("authoritative target is not a TXT file record")
+    if observed_path not in path_index or sum(path == target.path for path in path_index) != 1:
+        errors.append("authoritative target path is missing or duplicated")
+    if record.offset - parsed.header.metadata_start != target.metadata_relative_reference:
+        errors.append("metadata-relative target reference differs")
+    if len(payload) != target.payload_length:
+        errors.append("target payload length differs")
+    if _sha256(payload) != target.payload_sha256:
+        errors.append("target payload hash differs")
+
+    fixed_state_ok, fixed_state_errors = _preflight_fixed_state(
+        backup_report, expected_fixed_state or I7_DELETE_EXPECTED_FIXED_STATE
+    )
+    errors.extend(fixed_state_errors)
+
+    timestamp_report: dict[str, Any]
+    if timestamp_directory is None:
+        timestamp_report = {
+            "supplied": False,
+            "valid": False,
+            "reason": "timestamp-tool dry-run directory was not supplied",
+        }
+        errors.append("timestamp-tool dry-run validity is not established")
+    else:
+        timestamp_report = validate_timestamp_logs(Path(timestamp_directory))
+        timestamp_report = {
+            "supplied": True,
+            "valid": bool(timestamp_report.get("valid")) and timestamp_report.get("valid_file_count", 0) >= 2,
+            "source_directory": timestamp_report.get("source_directory"),
+            "file_count": timestamp_report.get("file_count"),
+            "valid_file_count": timestamp_report.get("valid_file_count"),
+            "sequence_numbers": timestamp_report.get("sequence_numbers"),
+            "errors": timestamp_report.get("errors", []),
+            "warnings": timestamp_report.get("warnings", []),
+        }
+        if not timestamp_report["valid"]:
+            errors.append("timestamp-tool dry-run is missing, invalid, or incomplete")
+
+    checks = {
+        "supported_device_identity": device == dict(SUPPORTED_DEVICE),
+        "complete_backup": backup_report.get("object_count") == 8,
+        "target_path": observed_path == target.path,
+        "target_record_offset": record.offset == target.record_offset,
+        "target_metadata_reference": record.offset - parsed.header.metadata_start == target.metadata_relative_reference,
+        "target_payload": len(payload) == target.payload_length and _sha256(payload) == target.payload_sha256,
+        "record_count": backup_report.get("record_count") == target.record_count,
+        "dynamic_blob": backup_report.get("blob_sha256") == target.dynamic_blob_sha256,
+        "fixed_state_exact": fixed_state_ok,
+        "timestamp_tool_dry_run": bool(timestamp_report["valid"]),
+        "session_layout": session_layout_ok,
+        "no_device_operation": True,
+    }
+    return {
+        "format": "infocarry-i7-legacy-delete-preflight-v1",
+        "experiment_id": I7_DELETE_EXPERIMENT_ID,
+        "state": "ready_for_owner_review_no_authorization" if not errors else "blocked_fail_closed",
+        "usb_operation_performed": False,
+        "no_automatic_retry": True,
+        "eligible_for_live_capture": not errors,
+        "checks": checks,
+        "reasons": errors,
+        "target_expected": target.to_dict(),
+        "target_observed": target_observed,
+        "backup": {
+            "directory": backup_report["directory"],
+            "manifest_sha256": backup_report["manifest_sha256"],
+            "blob_sha256": backup_report["blob_sha256"],
+            "blob_length": backup_report["blob_length"],
+            "record_count": backup_report["record_count"],
+            "object_count": backup_report["object_count"],
+            "object_sha256_by_key": backup_report["object_sha256_by_key"],
+        },
+        "fixed_state": backup_report["fixed_state"],
+        "timestamp_tool_dry_run": timestamp_report,
+        "expected_effect": {
+            "removed_paths": [target.path],
+            "added_paths": [],
+            "shared_payloads": "must remain byte-identical",
+            "operation": "one legacy Manager Delete Selected only",
+        },
+        "hypotheses": [
+            "state references may be removed, rebased, or transformed",
+            "unused state tails may retain stale values",
+            "shared metadata timestamps may be regenerated",
+            "model capacity may be recovered",
+            "Manager-local sidecars may remain unchanged",
+            "request-4 completion may remain unavailable in the native log",
+        ],
+    }
 
 
 def validate_synthetic_fixture(path: Path) -> SyntheticFixtureReport:
@@ -677,17 +967,23 @@ def compare_i7_backups(
 __all__ = [
     "I7_EXPERIMENT_ID",
     "I7_SESSION_STAGES",
+    "I7_DELETE_EXPERIMENT_ID",
+    "I7_DELETE_SESSION_STAGES",
+    "I7_DELETE_EXPECTED_FIXED_STATE",
+    "I7DeleteTargetExpectation",
     "I7_TARGET_FILENAME",
     "I7_TARGET_PATH",
     "I7ExperimentError",
     "SUPPORTED_DEVICE",
     "SyntheticFixtureReport",
     "compare_i7_backups",
+    "create_i7_delete_session",
     "create_i7_session",
     "create_synthetic_fixture",
     "hash_manager_snapshot",
     "ingest_snoopy_log",
     "record_host_clock",
+    "preflight_i7_legacy_delete",
     "synthetic_i7_fixture_bytes",
     "validate_complete_backup",
     "validate_synthetic_fixture",

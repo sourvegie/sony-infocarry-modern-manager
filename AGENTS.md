@@ -105,7 +105,7 @@ ttk Library section are complete in `35f4406`, `7650aaa`, and `9dada7b` with a
 portable suite of **408 tests** (three evidence-dependent skips). The current
 I.7 preparation slice adds nine focused offline tests and the timestamp
 validator slice adds twelve synthetic tests, bringing the suite to
-**429 tests** with the same three intentional skips. The operator-ready
+**433 tests** with the same three intentional skips. The operator-ready
 protocol is `analysis/phase-13-milestone-i7-legacy-add-clock-state-experiment-20260823.md`;
 the read-only support module and separate support command only prepare and
 ingest evidence. The approved add-01 evidence is synthesized in
@@ -119,6 +119,12 @@ derived report is `analysis/phase-13-milestone-i7-state-experiment-20260824.md`;
 the raw evidence remains outside Git. This state evidence does not resolve
 general timestamp generation or fresh fixed-state derivation, and deletion
 remains separately gated.
+The next evidence preparation is a separate, unexecuted legacy deletion session
+for that same target, documented in
+`analysis/phase-13-i7-legacy-delete-session-protocol-20260825.md`. Its offline
+preflight requires the authoritative fresh backup, exact nonzero state, and
+timestamp-tool dry-run before any owner approval. It does not authorize a
+device mutation, modern delete, or normal GUI/CLI action.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
 Functional parity with the legacy Manager takes priority over Library polish,

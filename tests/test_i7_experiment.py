@@ -5,22 +5,28 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from infocarry.backup_format import calculate_backup_checksum
+from infocarry.backup_format import calculate_backup_checksum, parse_backup_blob
 from infocarry.i7_experiment import (
+    I7_DELETE_SESSION_STAGES,
+    I7DeleteTargetExpectation,
     I7_SESSION_STAGES,
     I7_TARGET_FILENAME,
     I7ExperimentError,
     compare_i7_backups,
     create_i7_session,
+    create_i7_delete_session,
     create_synthetic_fixture,
     hash_manager_snapshot,
     ingest_snoopy_log,
+    preflight_i7_legacy_delete,
     record_host_clock,
     synthetic_i7_fixture_bytes,
     validate_complete_backup,
     validate_synthetic_fixture,
     write_manager_snapshot_manifest,
 )
+
+from infocarry.timestamp_validator import TIMESTAMP_FORMAT
 
 try:
     from test_backup_format import make_text_blob
@@ -75,6 +81,50 @@ def _write_complete_backup(root: Path, blob: bytes) -> None:
     )
 
 
+def _write_timestamp_dry_run(root: Path) -> None:
+    root.mkdir()
+    base = datetime(2026, 6, 25, tzinfo=timezone.utc)
+    for sequence, epoch_ms in ((1, int(base.timestamp() * 1000)), (2, int(base.timestamp() * 1000) + 500)):
+        (root / f"stamp-{sequence:04d}.txt").write_text(
+            "\r\n".join(
+                (
+                    f"format={TIMESTAMP_FORMAT}",
+                    f"sequence={sequence:04d}",
+                    "local_timestamp=2026-06-25T00:00:00.000+00:00"
+                    if sequence == 1
+                    else "local_timestamp=2026-06-25T00:00:00.500+00:00",
+                    "utc_timestamp=2026-06-25T00:00:00.000Z"
+                    if sequence == 1
+                    else "utc_timestamp=2026-06-25T00:00:00.500Z",
+                    f"epoch_ms={epoch_ms}",
+                    "timezone_offset_minutes=0",
+                    "computer_name=TEST",
+                    "tool_version=1.0.0",
+                    "",
+                )
+            ),
+            encoding="utf-8",
+            newline="",
+        )
+
+
+def _synthetic_target_expectation(blob: bytes) -> I7DeleteTargetExpectation:
+    parsed = parse_backup_blob(blob)
+    record = next(
+        item for item in parsed.records if item.kind == "file" and item.offset in parsed.paths
+    )
+    payload = parsed.payload_parts(record)[1]
+    return I7DeleteTargetExpectation(
+        path="\\".join(parsed.paths[record.offset]) + "." + record.extension,
+        record_offset=record.offset,
+        metadata_relative_reference=record.offset - parsed.header.metadata_start,
+        payload_length=len(payload),
+        payload_sha256=hashlib.sha256(payload).hexdigest(),
+        record_count=len(parsed.records),
+        dynamic_blob_sha256=hashlib.sha256(blob).hexdigest(),
+    )
+
+
 class I7ExperimentTests(unittest.TestCase):
     def test_fixture_is_exact_ascii_cp932_source_and_non_overwriting(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -111,6 +161,73 @@ class I7ExperimentTests(unittest.TestCase):
                 self.assertTrue((session / stage).is_dir())
             with self.assertRaises(I7ExperimentError):
                 create_i7_session(session)
+
+    def test_delete_session_is_new_and_has_separate_non_overwriting_stages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            session = create_i7_delete_session(Path(temporary) / "delete-session")
+            manifest = json.loads((session / "session-manifest.json").read_text())
+            self.assertEqual(manifest["experiment_id"], "I7-LEGACY-DELETE-01")
+            self.assertFalse(manifest["usb_operation_performed"])
+            self.assertTrue(manifest["no_automatic_retry"])
+            self.assertEqual(manifest["stages"], list(I7_DELETE_SESSION_STAGES))
+            self.assertTrue(all((session / stage).is_dir() for stage in I7_DELETE_SESSION_STAGES))
+            with self.assertRaises(I7ExperimentError):
+                create_i7_delete_session(session)
+
+    def test_delete_preflight_accepts_exact_synthetic_backup_and_timestamp_dry_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            blob = make_text_blob()
+            backup = root / "backup"
+            _write_complete_backup(backup, blob)
+            target = _synthetic_target_expectation(blob)
+            timestamps = root / "timestamps"
+            _write_timestamp_dry_run(timestamps)
+            report = preflight_i7_legacy_delete(
+                backup,
+                timestamp_directory=timestamps,
+                target=target,
+                expected_fixed_state={command: bytes(64) for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)},
+            )
+            self.assertTrue(report["eligible_for_live_capture"])
+            self.assertEqual(report["target_observed"]["path"], target.path)
+            self.assertEqual(report["backup"]["blob_sha256"], target.dynamic_blob_sha256)
+            self.assertEqual(report["timestamp_tool_dry_run"]["valid_file_count"], 2)
+            self.assertTrue(report["checks"]["fixed_state_exact"])
+            self.assertFalse(report["usb_operation_performed"])
+
+    def test_delete_preflight_is_blocked_without_timestamp_dry_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            blob = make_text_blob()
+            backup = root / "backup"
+            _write_complete_backup(backup, blob)
+            report = preflight_i7_legacy_delete(
+                backup,
+                target=_synthetic_target_expectation(blob),
+                expected_fixed_state={command: bytes(64) for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)},
+            )
+            self.assertFalse(report["eligible_for_live_capture"])
+            self.assertIn("timestamp-tool dry-run", " ".join(report["reasons"]))
+
+    def test_delete_preflight_rejects_changed_authoritative_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            blob = make_text_blob()
+            backup = root / "backup"
+            _write_complete_backup(backup, blob)
+            timestamps = root / "timestamps"
+            _write_timestamp_dry_run(timestamps)
+            expected = {command: bytes(64) for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)}
+            expected[0x001C] = b"\x01" + bytes(63)
+            report = preflight_i7_legacy_delete(
+                backup,
+                timestamp_directory=timestamps,
+                target=_synthetic_target_expectation(blob),
+                expected_fixed_state=expected,
+            )
+            self.assertFalse(report["eligible_for_live_capture"])
+            self.assertIn("fixed-state bytes differ at 0x001c", report["reasons"])
 
     def test_clock_record_is_explicitly_host_only_and_non_overwriting(self):
         with tempfile.TemporaryDirectory() as temporary:

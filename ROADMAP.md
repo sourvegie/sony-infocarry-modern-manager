@@ -103,7 +103,7 @@ capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
-complete suite is **429 tests** with three intentional evidence-dependent
+complete suite is **433 tests** with three intentional evidence-dependent
 skips after the read-only I.7 experiment-support slice. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
@@ -116,6 +116,12 @@ and the separately approved state experiment completed with isolated
 display-history, Mark-1, and Bookmark-1 backups. No deletion experiment has
 been performed, and the later delete stage remains separately gated. Arbitrary package transfer,
 live delete, and normal GUI/CLI package/delete actions remain prohibited.
+The offline preparation slice for a separate legacy delete observation of
+`root\\IC_I7_CLOCK_01.txt` is recorded in
+`analysis/phase-13-i7-legacy-delete-session-protocol-20260825.md`; it requires
+the authoritative fresh nonzero-state backup and validated timestamp-tool
+dry-run before the owner approval boundary. It is not a live-delete model or
+authorization.
 
 ## Verified Starting Facts
 
@@ -1283,14 +1289,17 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 1. Preserve the validated two-stamp Windows 2000 dry-run logs outside Git and
    retain the non-overwriting validation report.
-2. Retain the completed disposable-record display-history, Mark-1, and
-   Bookmark-1 synthesis while keeping the derived report and raw evidence
-   separate from the source tree.
-3. Continue offline H.2/J.3 evidence review, while keeping timestamp
-   generation, generalized deletion, I.8–I.10 device
-   candidates, J.3 transfer planning, normal GUI/CLI package/delete controls,
-   and all broad or interrupted-write operations blocked.
-4. Push every verified sanitized commit normally to `origin/main` after the
+2. Execute only the macOS-owned fresh pre-delete backup and offline preflight
+   for the prepared I7 legacy-delete session; stop before USB ownership change
+   until the owner supplies `APPROVE I7 LEGACY DELETE 01`.
+3. If separately approved, preserve one isolated legacy deletion capture and
+   complete post-delete backup; otherwise keep the session preparation as
+   evidence only. Never retry or perform a modern delete.
+4. Continue offline H.2/J.3 evidence review, while keeping timestamp
+   generation, generalized deletion, I.8–I.10 device candidates, J.3 transfer
+   planning, normal GUI/CLI package/delete controls, and all broad or
+   interrupted-write operations blocked.
+5. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions
