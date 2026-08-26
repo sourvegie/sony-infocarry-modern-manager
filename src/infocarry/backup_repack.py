@@ -140,9 +140,10 @@ def _parent_marker_field_08_after_delete(
     numeric-value rule: field 08 is shortened only for a marker whose
     pre-delete field 04 names the directory whose direct child table lost the
     selected record.  A zero field 04 is the observed leading-marker form and
-    has no referenced parent.  Other nonzero marker references must resolve to
-    a directory; otherwise the relationship is ambiguous and the mutation
-    fails closed.
+    has no referenced record. Other nonzero marker references must resolve to
+    an aligned metadata record. The record kind is intentionally not assigned
+    a broader meaning here: only exact equality with the selected file's
+    known parent directory authorizes the field 08 shortening.
     """
 
     if getattr(record, "kind", None) != "directory" or getattr(record, "name", None) != "..":
@@ -158,11 +159,6 @@ def _parent_marker_field_08_after_delete(
             f"parent marker at 0x{getattr(record, 'offset'):x} references "
             f"missing record 0x{marker_parent_offset:x}"
         ) from exc
-    if marker_parent.kind != "directory":
-        raise BackupRepackError(
-            f"parent marker at 0x{getattr(record, 'offset'):x} references a "
-            f"non-directory record 0x{marker_parent_offset:x}"
-        )
     if marker_parent_offset != parent_offset:
         return current_field_08
     if current_field_08 < record_size:
