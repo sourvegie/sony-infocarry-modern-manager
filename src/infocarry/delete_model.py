@@ -19,7 +19,11 @@ import hashlib
 from typing import Any, Mapping, Optional
 
 from .backup_format import BackupFormatError, ParsedBackupBlob, parse_backup_blob
-from .backup_repack import BackupRepackError, delete_existing_file
+from .backup_repack import (
+    BackupRepackError,
+    _parent_marker_field_08_after_delete,
+    delete_existing_file,
+)
 
 
 DELETE_MODEL_FORMAT = "infocarry-offline-delete-model-v1"
@@ -120,11 +124,18 @@ def _expected_survivor_raw(
             if record.field_08_be32 < record_size:
                 raise DeleteModelError("parent child table cannot be shortened safely")
             raw[0x08:0x0C] = (record.field_08_be32 - record_size).to_bytes(4, "big")
-        elif record.name == ".." and record.field_08_be32 in {
-            target_offset,
-            target_offset + record_size,
-        }:
-            raw[0x08:0x0C] = (record.field_08_be32 - record_size).to_bytes(4, "big")
+        elif record.name == "..":
+            try:
+                marker_field_08 = _parent_marker_field_08_after_delete(
+                    parsed,
+                    record,
+                    parent_offset=parent_offset,
+                    record_size=record_size,
+                )
+            except BackupRepackError as exc:
+                raise DeleteModelError(str(exc)) from exc
+            if marker_field_08 != record.field_08_be32:
+                raw[0x08:0x0C] = marker_field_08.to_bytes(4, "big")
     elif record.kind == "file" and record.field_04_be32 >= aligned_end:
         raw[0x04:0x08] = (
             record.field_04_be32 - removed_content_length

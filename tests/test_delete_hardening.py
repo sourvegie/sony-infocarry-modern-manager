@@ -57,7 +57,114 @@ def _rechecksum(data):
     return bytes(rebuilt)
 
 
+def _make_target_before_later_folder_blob():
+    """Build a tree whose unrelated trailing marker references a moved folder."""
+
+    target_payload = b"target\r\n"
+    nested_payload = b"nested\r\n"
+    target_start = 0
+    nested_start = 0x40
+    records = b"".join(
+        (
+            make_record(0xD0, "", 0x40, 0xC0, "root"),
+            make_record(0xD0, "", 0, 0xC0, ".."),
+            make_record(0xE0, "txt", target_start, len(target_payload), "target", 0x200),
+            make_record(0xD0, "", 0x100, 0x80, "folder"),
+            make_record(0xD0, "", 0x40, 0x80, ".."),
+            make_record(0xE0, "txt", nested_start, len(nested_payload), "nested", 0x200),
+            # This marker references the folder record, which moves when the
+            # root-level target at 0xc0 is removed.  Its field 08 is an
+            # unrelated coincidental value and must remain unchanged.
+            make_record(0xD0, "", 0x100, 0xC0, ".."),
+            make_record(0xD0, "", 0x40, 0x100, ".."),
+        )
+    )
+    content_start = 0x40 + len(records)
+    content = bytearray(b"\xff" * 0x20)
+    content.extend(target_payload)
+    content.extend(b"\x00" * (-len(content) % 4))
+    content.extend(b"\xff" * (nested_start - len(content)))
+    content.extend(b"\xff" * 0x20)
+    content.extend(nested_payload)
+    content.extend(b"\x00" * (-(content_start + len(content)) % 4))
+    total_length = content_start + len(content) + 4
+    header = bytearray(64)
+    header[:14] = b"infoCarry 2.00"
+    header[14:16] = b"\x01\x00"
+    header[16:18] = (64).to_bytes(2, "big")
+    header[0x14:0x18] = (0x20).to_bytes(4, "big")
+    header[0x18:0x1C] = (total_length - 1).to_bytes(4, "big")
+    header[0x28:0x2C] = (0x40).to_bytes(4, "big")
+    header[0x2C:0x30] = len(records).to_bytes(4, "big")
+    header[0x30:0x34] = content_start.to_bytes(4, "big")
+    header[0x34:0x38] = len(content).to_bytes(4, "big")
+    header[0x38:0x3C] = total_length.to_bytes(4, "big")
+    header[0x3C:0x40] = b"\xff" * 4
+    blob = bytearray(bytes(header) + records + content + b"\xff" * 4)
+    blob[0x1C:0x20] = calculate_backup_checksum(blob).to_bytes(4, "big")
+    return bytes(blob)
+
+
 class DeleteStructuralCoverageTests(unittest.TestCase):
+    def test_related_parent_marker_shortens_field_08(self):
+        parsed = parse_backup_blob(make_nested_blob(b"nested\r\n"))
+        source = parsed.data
+        candidate = parse_backup_blob(delete_existing_file(parsed, 0x140))
+
+        self.assertEqual(parsed.data, source)
+        # The old marker at 0x180 has field 04 == the deleted file's parent
+        # directory 0xc0, so it loses one metadata record from field 08.
+        marker = candidate.record_at(0x140)
+        self.assertEqual(marker.name, "..")
+        self.assertEqual(marker.field_04_be32, 0xC0)
+        self.assertEqual(marker.field_08_be32, 0x40)
+
+    def test_unrelated_coincidental_marker_values_are_preserved(self):
+        parsed = parse_backup_blob(make_aligned_delete_blob())
+        altered = bytearray(parsed.data)
+        # The marker at 0x140 is unrelated to the root parent, but its field
+        # 08 happens to equal the target offset.
+        altered[0x140 + 0x08 : 0x140 + 0x0C] = (0x100).to_bytes(4, "big")
+        # The marker at 0x1c0 is also unrelated, with target + one record.
+        altered[0x1C0 + 0x08 : 0x1C0 + 0x0C] = (0x140).to_bytes(4, "big")
+        parsed = parse_backup_blob(_rechecksum(altered))
+        candidate = parse_backup_blob(delete_existing_file(parsed, 0x100))
+
+        self.assertEqual(candidate.record_at(0x100).field_08_be32, 0x100)
+        self.assertEqual(candidate.record_at(0x180).field_08_be32, 0x140)
+
+    def test_unrelated_marker_field_04_rebases_with_its_referenced_folder(self):
+        parsed = parse_backup_blob(_make_target_before_later_folder_blob())
+        source = parsed.data
+        candidate = parse_backup_blob(delete_existing_file(parsed, 0xC0))
+
+        self.assertEqual(parsed.data, source)
+        # The folder at 0x100 moves to 0xc0, and its trailing marker moves
+        # from 0x1c0 to 0x180.  Only field 04 follows that relation; field 08
+        # remains the unrelated coincidental value 0xc0.
+        marker = candidate.record_at(0x180)
+        self.assertEqual(marker.field_04_be32, 0xC0)
+        self.assertEqual(marker.field_08_be32, 0xC0)
+
+    def test_related_marker_underflow_fails_closed(self):
+        parsed = parse_backup_blob(make_nested_blob(b"nested\r\n"))
+        altered = bytearray(parsed.data)
+        # Marker 0x180 references the target parent 0xc0, but cannot lose a
+        # record from a zero-length field 08.
+        altered[0x180 + 0x08 : 0x180 + 0x0C] = (0).to_bytes(4, "big")
+        malformed = parse_backup_blob(_rechecksum(altered))
+
+        with self.assertRaisesRegex(DeleteModelError, "underflow"):
+            build_one_txt_delete_model(malformed, "root\\folder\\source.txt", 0x140)
+
+    def test_marker_with_unresolved_parent_relationship_fails_closed(self):
+        parsed = parse_backup_blob(make_nested_blob(b"nested\r\n"))
+        altered = bytearray(parsed.data)
+        altered[0x180 + 0x04 : 0x180 + 0x08] = (0xDEAD).to_bytes(4, "big")
+        malformed = parse_backup_blob(_rechecksum(altered))
+
+        with self.assertRaisesRegex(DeleteModelError, "references missing record"):
+            build_one_txt_delete_model(malformed, "root\\folder\\source.txt", 0x140)
     def test_target_at_beginning_middle_and_end_preserves_survivors(self):
         for index, target in enumerate(("a", "b", "c")):
             with self.subTest(target=target):

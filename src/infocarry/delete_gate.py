@@ -356,6 +356,7 @@ def build_delete_candidate(
             before,
             target_record_offset,
             metadata_timestamps=metadata_timestamps,
+            parent_marker_policy="legacy_fixture",
         )
     except BackupRepackError as exc:
         raise DeleteGateError(f"offline delete repacking failed: {exc}") from exc

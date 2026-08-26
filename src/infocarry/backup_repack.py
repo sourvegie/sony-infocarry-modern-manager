@@ -127,6 +127,52 @@ def _aligned_segment_end(segment_start: int, segment_length: int) -> int:
     return end + ((-end) % 4)
 
 
+def _parent_marker_field_08_after_delete(
+    parsed: ParsedBackupBlob,
+    record: object,
+    *,
+    parent_offset: int,
+    record_size: int,
+) -> int | None:
+    """Return a surviving ``..`` marker's post-delete field 08 value.
+
+    The two independent legacy deletion cases support a relation, not a
+    numeric-value rule: field 08 is shortened only for a marker whose
+    pre-delete field 04 names the directory whose direct child table lost the
+    selected record.  A zero field 04 is the observed leading-marker form and
+    has no referenced parent.  Other nonzero marker references must resolve to
+    a directory; otherwise the relationship is ambiguous and the mutation
+    fails closed.
+    """
+
+    if getattr(record, "kind", None) != "directory" or getattr(record, "name", None) != "..":
+        return None
+    marker_parent_offset = getattr(record, "field_04_be32")
+    current_field_08 = getattr(record, "field_08_be32")
+    if marker_parent_offset == 0:
+        return current_field_08
+    try:
+        marker_parent = parsed.record_at(marker_parent_offset)
+    except BackupFormatError as exc:
+        raise BackupRepackError(
+            f"parent marker at 0x{getattr(record, 'offset'):x} references "
+            f"missing record 0x{marker_parent_offset:x}"
+        ) from exc
+    if marker_parent.kind != "directory":
+        raise BackupRepackError(
+            f"parent marker at 0x{getattr(record, 'offset'):x} references a "
+            f"non-directory record 0x{marker_parent_offset:x}"
+        )
+    if marker_parent_offset != parent_offset:
+        return current_field_08
+    if current_field_08 < record_size:
+        raise BackupRepackError(
+            f"parent marker at 0x{getattr(record, 'offset'):x} would underflow "
+            "when shortening its related child-table field"
+        )
+    return current_field_08 - record_size
+
+
 def repack_existing_records(
     parsed: ParsedBackupBlob, replacements: Mapping[int, bytes]
 ) -> bytes:
@@ -240,6 +286,7 @@ def delete_existing_file(
     record_offset: int,
     *,
     metadata_timestamps: Mapping[int, int] | None = None,
+    parent_marker_policy: str = "relation",
 ) -> bytes:
     """Delete one reachable file and rebuild offsets without guessing a tree.
 
@@ -252,13 +299,21 @@ def delete_existing_file(
     before the candidate is returned. When ``metadata_timestamps`` is
     supplied, it overrides the surviving record timestamps for legacy golden
     reproduction. When omitted, surviving timestamps are preserved exactly;
-    no timestamp rule is inferred.
+    no timestamp rule is inferred. ``parent_marker_policy="legacy_fixture"``
+    is retained only for the historical attempt-02 fixture helper, whose
+    captured synthetic boundary rule predates the relation-based generalized
+    rule. The default and all provisional generalized deletion paths use
+    ``"relation"``.
     """
 
     if not isinstance(parsed, ParsedBackupBlob):
         raise BackupRepackError("parsed must be a ParsedBackupBlob")
     if isinstance(record_offset, bool) or not isinstance(record_offset, int):
         raise BackupRepackError("record_offset must be an integer")
+    if parent_marker_policy not in {"relation", "legacy_fixture"}:
+        raise BackupRepackError(
+            "parent_marker_policy must be 'relation' or 'legacy_fixture'"
+        )
     try:
         record = parsed.record_at(record_offset)
     except BackupFormatError as exc:
@@ -330,7 +385,8 @@ def delete_existing_file(
             # Ordinary directory records point to their own offset; parent
             # markers point to the parent directory. Both references shift
             # when the removed record precedes them in metadata.
-            pointer = current.field_04_be32
+            original_field_04 = current.field_04_be32
+            pointer = original_field_04
             # The native delete candidate rebases a metadata pointer equal to
             # the removed record offset as well as pointers after it.  This
             # includes the pointer immediately before the deleted subtree's
@@ -342,18 +398,33 @@ def delete_existing_file(
                 raw[0x08:0x0C] = (
                     current.field_08_be32 - record_size
                 ).to_bytes(4, "big")
-            elif current.name == ".." and current.field_08_be32 in {
-                record_offset,
-                record_offset + record_size,
-            }:
-                # This field is not semantically named. The native candidate
-                # rebased the observed ``..`` marker boundary immediately after
-                # the deleted metadata record. Retain the older helper's exact
-                # boundary case as well for its established synthetic fixture;
-                # no device-facing delete path exists.
-                raw[0x08:0x0C] = (
-                    current.field_08_be32 - record_size
-                ).to_bytes(4, "big")
+            elif current.name == "..":
+                if parent_marker_policy == "legacy_fixture":
+                    # Historical attempt-02 reproduction only.  This
+                    # value-based rule is deliberately unavailable to the
+                    # generalized modern deletion path.
+                    marker_field_08 = current.field_08_be32
+                    if marker_field_08 in {
+                        record_offset,
+                        record_offset + record_size,
+                    }:
+                        if marker_field_08 < record_size:
+                            raise BackupRepackError(
+                                "legacy parent marker field would underflow"
+                            )
+                        marker_field_08 -= record_size
+                else:
+                    # Use the pre-delete field 04 relationship.  field 08 is
+                    # not a generic pointer merely because its numeric value
+                    # happens to equal a moved metadata boundary.
+                    marker_field_08 = _parent_marker_field_08_after_delete(
+                        parsed,
+                        current,
+                        parent_offset=parent_offset,
+                        record_size=record_size,
+                    )
+                if marker_field_08 != current.field_08_be32:
+                    raw[0x08:0x0C] = marker_field_08.to_bytes(4, "big")
         if current.kind == "file":
             content_offset = current.field_04_be32
             if content_offset >= aligned_segment_end:

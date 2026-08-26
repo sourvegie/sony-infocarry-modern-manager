@@ -140,7 +140,10 @@ class BackupRepackTests(unittest.TestCase):
         self.assertNotIn(("root", "target"), rebuilt.paths.values())
         self.assertEqual(rebuilt.header.content_length, 40)
         self.assertEqual(rebuilt.record_at(0xC0).field_04_be32, 0xC0)
-        self.assertEqual(rebuilt.record_at(0x100).field_08_be32, 0xC0)
+        # This marker belongs to the folder at 0xc0, not the root parent of
+        # the deleted record.  Its field 08 is preserved even though the old
+        # value happened to equal the deleted record offset.
+        self.assertEqual(rebuilt.record_at(0x100).field_08_be32, 0x100)
         source = rebuilt.record_at(0x140)
         self.assertEqual(source.field_04_be32, 0)
         self.assertEqual(rebuilt.payload_parts(source)[1], b"source!!")
