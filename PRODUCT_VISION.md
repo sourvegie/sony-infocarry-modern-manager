@@ -150,12 +150,14 @@ provides an ordered source-bound multiple-TXT logical model with strict
 authoring and no device candidate. I.9 now provides typed offline TXT/BMP
 validation with no device candidate. I.10 now provides a flat manifest-driven
 representative ebook plan that fails closed on nested sections; H.2 deletion
-generalization and preserved-evidence hardening remain a separate fail-closed
-track, with twelve unexplained non-timestamp parent-marker differences after
-timestamp normalization. J.0–J.2 local Library foundations are complete, while J.3
-device-aware planning remains deferred. Arbitrary package transfer, normal
-GUI/CLI exposure, generalized deletion, and interrupted-write recovery remain
-unproven or prohibited.
+generalization and preserved-evidence hardening now have a relation-corrected
+offline structural gate with zero unexplained non-timestamp differences after
+timestamp-only normalization. The provisional modern timestamp policy,
+physical recovery risk, absent live delete adapter, and separate owner review
+requirement remain explicit. J.0–J.2 local Library foundations are complete,
+while J.3 device-aware planning remains deferred. Arbitrary package transfer,
+normal GUI/CLI exposure, generalized live deletion, and interrupted-write
+recovery remain unproven or prohibited.
 
 ## Canonical Desktop Workflow
 

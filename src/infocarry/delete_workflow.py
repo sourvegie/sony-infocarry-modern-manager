@@ -4,7 +4,10 @@ The normal CLI and ttk application do not import this module.  A caller must
 inject both backup and sender callbacks and explicitly pass ``fake_transport``
 as the boolean ``True``.  The workflow sends at most once and preserves the
 R15 distinction between safe pre-start cancellation and an indeterminate
-post-start interruption.
+post-start interruption.  Its finite deadline is cooperative: it is checked
+at workflow boundaries and passed to the fake callback, but it cannot forcibly
+interrupt an arbitrary Python callback that never returns.  Bounded USB-call
+timeouts belong to a future isolated live adapter; none is provided here.
 """
 
 from __future__ import annotations
@@ -132,7 +135,11 @@ def _safe_cancel_error(exc: BaseException, stage: str) -> GeneralizedDeleteWorkf
 
 
 class GuardedGeneralizedDeleteWorkflow:
-    """Run one complete fake deletion sequence with no live transport access."""
+    """Run one complete fake deletion sequence with no live transport access.
+
+    The injected fake transport must cooperate with the supplied deadline.
+    This class does not claim to forcibly stop a callback that hangs forever.
+    """
 
     def __init__(
         self,

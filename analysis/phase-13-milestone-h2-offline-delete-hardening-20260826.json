@@ -1,0 +1,60 @@
+{
+  "format": "infocarry-delete-evidence-comparison-v2",
+  "date": "2026-08-26",
+  "evidence_scope": "sanitized derived result; preserved external evidence is read-only",
+  "inputs": {
+    "baseline": "${EVIDENCE_ROOT}/phase-13-i7-legacy-delete-20260825-01/01-pre-delete-backup/archive-01/object-08-command-8004.bin",
+    "post_delete": "${EVIDENCE_ROOT}/phase-13-i7-legacy-delete-20260825-01/05-post-delete-backup/archive-01/object-08-command-8004.bin",
+    "candidate_builder": "delete_existing_file(..., parent_marker_policy=relation)"
+  },
+  "target": {
+    "path": "root\\IC_I7_CLOCK_01.txt",
+    "record_offset_hex": "0x00000380",
+    "parent_record_offset_hex": "0x00000040"
+  },
+  "models": {
+    "baseline": {
+      "record_count": 374,
+      "model_length": 2053380,
+      "sha256": "5b081faf7cc733e9c63c13250d689d6e7beb52bcf10470503dd68684471ab61b"
+    },
+    "candidate": {
+      "record_count": 373,
+      "model_length": 2051420,
+      "sha256": "4a3b57001d72ff4824519464ee648eac47f27a91f9da1bb070babc0698e04e24"
+    },
+    "post_delete": {
+      "record_count": 373,
+      "model_length": 2051420,
+      "sha256": "fbfe0dc9898a0cd6c406bd26542859282a1a410b059b16812c32522a9ce8e450"
+    }
+  },
+  "comparison": {
+    "removed_paths": ["root\\IC_I7_CLOCK_01.txt"],
+    "added_paths": [],
+    "candidate_post_paths_equal": true,
+    "surviving_payload_count": 255,
+    "surviving_payload_mismatches": [],
+    "timestamp_changed_record_count": 373,
+    "timestamp_changed_byte_count": 1119,
+    "masked_bytes": ["each record [0x0c:0x10]", "header [0x1c:0x20] derived checksum"],
+    "remaining_non_timestamp_byte_count": 0,
+    "remaining_non_timestamp_offsets": [],
+    "normalized_structural_match": true,
+    "exact_supported_effect": true
+  },
+  "parent_marker_rule": {
+    "rule": "shorten field_08 only when the marker's pre-delete field_04 equals the exact parent directory whose direct child table lost the target record",
+    "related_case": "four markers with field_04=0x40 changed field_08 from 0x300 to 0x2c0",
+    "i7_case": "twelve markers with field_04=0x3a00 rebased to 0x39c0 preserved field_08=0x380",
+    "coincidental_value_rebasing": "not applied",
+    "classification": "verified across two independent legacy deletion cases; broader marker semantics unresolved"
+  },
+  "policies": {
+    "surviving_timestamps": "preserved by the provisional modern policy; legacy operation-wide regeneration remains unresolved",
+    "fixed_state": "exact supported fresh-state/reference-clearing forms only; unfamiliar nonzero state fails closed",
+    "completion": "modern operation accepts only 0x0000; legacy request-4 value remains unavailable",
+    "timeout": "finite cooperative fake deadline is tested; arbitrary hanging callbacks are not forcibly interrupted",
+    "live_modern_delete": "not executed; separate explicit owner approval required"
+  }
+}

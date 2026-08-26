@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2 offline deletion hardening is active and the preserved comparison remains fail-closed; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | Twelve non-timestamp parent-marker differences remain after timestamp normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's relation-corrected offline structural gate is complete for its supported scope; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized live deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
@@ -103,7 +103,7 @@ capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
-complete suite is **467 tests** with three intentional evidence-dependent
+complete suite is **472 tests** with three intentional evidence-dependent
 skips after the read-only I.7 experiment-support and bookmark-correction slices. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
@@ -124,9 +124,10 @@ are recorded in
 `analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md`.
 The 2026-08-26 hardening comparison is recorded in
 `analysis/phase-13-milestone-h2-offline-delete-hardening-20260826.md`; it
-normalizes only record timestamp fields and retains twelve unexplained
-parent-marker `field_08_be32` differences, so live eligibility remains
-fail-closed. These reports do not authorize a live operation. Arbitrary
+normalizes only surviving record timestamp fields and the derived header
+checksum, and the relation-corrected comparison has zero remaining
+non-timestamp differences. H.2's offline structural gate is complete for its
+supported scope, but these reports do not authorize a live operation. Arbitrary
 package transfer, modern delete, and normal GUI/CLI package/delete actions
 remain prohibited.
 
@@ -1071,22 +1072,25 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   proven. Six focused tests bring the suite to **408 tests**. See
   `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`.
 - [ ] **Milestone H.2 — deletion generalization:** the captured legacy effect
-  is complete and offline modern generalization/hardening is active, but live
-  eligibility remains blocked. Commits `2145360`, `83a5b41`, `b746347`,
-  `7f9d417`, and `1ddaffc` add
+  is complete and the offline modern generalization/hardening gate is complete
+  for its supported structural scope, but live eligibility remains unexecuted.
+  Commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc` add
   the one-existing-ordinary-TXT model, provisional surviving-timestamp
   preservation, fail-closed fresh-state derivation, exact binding, independent
   read-back, and fake-only failure workflow. The model accepts exact all-zero
   state or only proven target-reference clearing forms; it rejects unfamiliar
   nonzero state, unresolved references, malformed records, unsupported record
-  types, nonzero/ambiguous completion, and any retry. Legacy timestamp
-  generation, physical interrupted-write recovery, and a live modern delete
-  sender remain unresolved/prohibited. The preserved comparison additionally
-  retains twelve unexplained non-timestamp parent-marker `field_08_be32`
-  differences after timestamp normalization. The suite is **467 tests** with
-  three intentional skips. See
+  types, nonzero/ambiguous completion, and any retry. Commits `6537649` and
+  `f0ea7e7` correct the parent-marker relation and leave zero unexplained
+  non-timestamp differences after masking only surviving timestamp fields and
+  the derived header checksum. The suite is **472 tests** with three
+  intentional skips. Timestamp generation, trustworthy legacy request-4
+  completion, physical interrupted-write recovery, and a live modern adapter
+  remain unresolved/prohibited. See
   `analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md`,
   `analysis/phase-13-milestone-h2-offline-delete-hardening-20260826.md`, and
+  the unexecuted owner-review boundary in
+  `analysis/phase-13-milestone-h2-modern-live-smoke-readiness-dossier-20260826.md`,
   the earlier blocker
   `analysis/phase-13-milestone-h2-delete-generalization-blocker-20260823.md`.
 
@@ -1326,13 +1330,13 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 1. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
-2. Continue H.2 offline hardening from the fresh-backup model, using timestamp
-   preservation as an explicit provisional modern policy and rejecting
-   unfamiliar fixed state. The preserved comparison has passed path/count/
-   payload checks but remains fail-closed because twelve parent-marker
-   `field_08_be32` differences remain after timestamp normalization. Keep the
-   legacy timestamp rule, request-4 completion semantics, physical recovery,
-   and live modern delete eligibility unresolved.
+2. H.2's corrected normalized offline structural gate is complete for its
+   supported model: it preserves surviving timestamps, uses the relation-based
+   parent-marker rule, and leaves zero unexplained non-timestamp differences
+   against the preserved I7 result. Keep the legacy timestamp rule, request-4
+   completion semantics, physical recovery, and live modern delete eligibility
+   unresolved; owner review of an unexecuted, narrowly scoped modern smoke is
+   the next decision gate.
 3. Keep I.8–I.10 device candidates, J.3 transfer planning, normal GUI/CLI
    package/delete controls, and all broad or interrupted-write operations
    blocked until their separate evidence gates close.

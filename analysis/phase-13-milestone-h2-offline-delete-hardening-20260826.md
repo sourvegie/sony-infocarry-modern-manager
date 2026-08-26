@@ -1,7 +1,8 @@
 # H.2 offline deletion hardening — preserved-evidence comparison
 
 Date: 2026-08-26
-Status: **offline hardening active; modern live deletion remains fail-closed**
+Status: **offline structural hardening complete; modern live deletion remains
+unexecuted and requires separate owner review**
 
 This report contains derived hashes and structural results only. The complete
 backups, USB log, Manager files, and transaction ranges remain in the local
@@ -22,7 +23,7 @@ the current one-existing-ordinary-TXT model, target
 | Result | Derived value | Classification |
 | --- | ---: | --- |
 | Pre-delete model | 374 records; 2,053,380 bytes; SHA-256 `5b081faf7cc733e9c63c13250d689d6e7beb52bcf10470503dd68684471ab61b` | verified preserved input |
-| Modern candidate | 373 records; 2,051,420 bytes; SHA-256 `74bdf2887430357a6d08fb0cbaccaec0d15cc1c6c35d720c696b27ee39d58f9e` | derived offline |
+| Modern candidate | 373 records; 2,051,420 bytes; SHA-256 `4a3b57001d72ff4824519464ee648eac47f27a91f9da1bb070babc0698e04e24` | derived offline with relation-based marker handling |
 | Legacy post-delete model | 373 records; 2,051,420 bytes; SHA-256 `fbfe0dc9898a0cd6c406bd26542859282a1a410b059b16812c32522a9ce8e450` | verified preserved input |
 | Path delta | exactly the target removed; no path added | verified |
 | Candidate/post path equality | true | verified |
@@ -38,19 +39,14 @@ timestamp fields and 1,119 changed timestamp bytes. The four-byte header
 checksum also differs; it is reported as a derived consequence of the model
 timestamp changes, not accepted as an independent structural allowance.
 
-After that timestamp-only normalization, twelve non-timestamp bytes remain
-different. They are the last byte of `field_08_be32` in twelve parent-marker
-records at these post-operation offsets:
-
-`0x00003d80`, `0x00003ec0`, `0x00004180`, `0x00004440`,
-`0x00004700`, `0x000049c0`, `0x00004c80`, `0x00004f40`,
-`0x00005200`, `0x000054c0`, `0x00005780`, `0x00005a40`.
-
-The modern candidate retains the rebased value `0x00000340` in those fields;
-the legacy post-delete model contains `0x00000380`. This is a real
-non-timestamp structural difference, not a permitted normalization. The
-normalized comparison therefore fails closed. No rule has been inferred from
-this difference and no builder bytes were changed to imitate it.
+After the relation-based correction, timestamp-only normalization leaves zero
+non-timestamp bytes different. The twelve disputed I7 markers now preserve
+`field_08_be32=0x380` while their independently moved `field_04_be32` values
+rebase from `0x3a00` to `0x39c0`, matching the legacy post-delete model. The
+earlier case independently supports shortening `field_08` only where the
+marker's pre-delete `field_04` equals the exact parent directory whose direct
+child table lost the target. This is a relation-based result, not a broader
+semantic name for the marker fields.
 
 The machine-readable comparison contract is implemented in
 `src/infocarry/delete_evidence_compare.py`. It reports hashes, path/count
@@ -77,7 +73,27 @@ remaining structural offsets without emitting payload bytes.
   control.
 - A finite timeout/deadline is passed through the fake transport contract.
   Deterministic fake-clock tests classify pre-start expiry as safe with no
-  send, and post-entry expiry as indeterminate with no retry.
+  send, and post-entry expiry as indeterminate with no retry. This is
+  cooperative enforcement: the workflow cannot forcibly interrupt an
+  arbitrary Python callback that hangs forever. Actual bounded USB calls and
+  low-level transport timeouts remain responsibilities of a future isolated
+  live adapter; none is present here.
+
+## Corrected relation-based evidence gate
+
+The full I7 comparison was rerun from the preserved 374-record pre-delete
+backup and compared with the preserved 373-record post-delete model. Only
+surviving record timestamp bytes `[0x0c:0x10]` and the header checksum derived
+from those timestamp differences were masked. No marker, pointer, flag, name,
+payload, padding, unknown field, or other byte was normalized.
+
+The result is exact for the supported structural scope: one target path was
+removed, no path was added, both models contain 373 records, 255 surviving
+payloads match, pointers parse independently, and the remaining
+non-timestamp difference count is zero. The machine-readable result is
+`analysis/phase-13-milestone-h2-offline-delete-hardening-20260826.json`; the
+two-case relation matrix is
+`analysis/phase-13-milestone-h2-parent-marker-two-case-matrix-20260826.md`.
 
 ## Supported and rejected boundary
 
@@ -89,21 +105,28 @@ unsupported targets, unfamiliar fixed-state bytes, unresolved references,
 nonzero/missing/malformed completion, read-back mismatch, and every condition
 that would require retry.
 
-The captured comparison does **not** close H.2 live readiness because the
-twelve parent-marker differences are unexplained after timestamp normalization.
-R2 and R15 remain open: legacy request-4 completion is not trustworthy in the
-preserved capture, and physical interrupted-write atomicity/recovery is not
-proven. The normal GUI/CLI remains disconnected and no live delete operation
-is prepared or authorized by this report.
+The corrected comparison closes the normalized structural evidence gate for
+this offline scope. It does not prove a general legacy timestamp rule,
+arbitrary fixed-state rebasing, trustworthy legacy request-4 completion, or
+physical interrupted-write atomicity/recovery. The provisional modern policy
+preserves surviving timestamps and accepts only the existing supported
+fixed-state/reference forms. The normal GUI/CLI remains disconnected and no
+live delete adapter or transaction has been prepared or executed by this
+report. A future disposable modern smoke requires separate explicit owner
+approval.
 
 ## Verification checkpoint
 
-- Complete suite: **467 passing tests, 3 intentional skips**.
-- Focused deletion suite: **32 passing tests**.
+- Complete suite: **472 passing tests, 3 intentional skips**.
+- Focused deletion suite (`test_backup_repack`, `test_delete_model`,
+  `test_delete_hardening`, `test_delete_generalized`, and
+  `test_delete_workflow`): **40 passing tests**.
 - `git diff --check`: required before commit and push.
 - No external evidence, device backup, raw capture, Manager file, or live
   operation artifact is tracked.
 
-The exact next step is offline review of the twelve parent-marker
-`field_08_be32` differences or a documented decision to keep that boundary
-fail-closed. No live-USB approval is requested from this checkpoint.
+The exact next step is owner review of an unexecuted, narrowly scoped modern
+delete smoke decision. Any such smoke would require a fresh complete backup,
+exact target/candidate binding, one transaction, completion `0x0000`, complete
+read-back, and no automatic retry. No live-USB approval is requested or
+executed from this offline checkpoint.
