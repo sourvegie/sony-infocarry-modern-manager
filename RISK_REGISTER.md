@@ -133,3 +133,21 @@ After a stop condition, preserve the error and current evidence, perform only
 read-only detection/backup checks, and never automatically repeat the write.
 If the stop occurs after `0x101b` begins, describe the device state as
 indeterminate until a complete read-only backup can be obtained and assessed.
+
+## H.2 isolated-delete runner checkpoint (2026-08-27)
+
+The new unregistered `delete_smoke` support module is limited to one
+owner-selected reachable root-level ordinary TXT record. It provides a
+read-only eligible-target listing and a sealed, hash-bound preflight; it does
+not select a target, include raw candidate bytes, or connect the normal CLI or
+ttk application to deletion. Its optional execute phase requires a separate
+owner approval, the exact delete phrase, fresh read-only revalidation, one
+injected sender call at most, strict `0x0000` completion, and independent
+post-operation read-back. The slice has **483 passing tests and three
+intentional skips** and performed no hardware operation.
+
+This reduces accidental integration risk but does not resolve R15: the live
+adapter is not supplied or executed, and physical interrupted-write
+atomicity/recovery remain unproven. A future preflight is not write
+authorization; a separate explicit approval is still required for any live
+delete transaction.

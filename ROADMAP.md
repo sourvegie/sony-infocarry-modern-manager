@@ -1435,3 +1435,28 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
     restore, bulk delete/synchronization, firmware, and alternate service modes
     remain outside the core critical path until their gates are deliberately
     opened.
+
+## H.2 isolated modern-delete smoke runner checkpoint (2026-08-27)
+
+The offline H.2 structural gate remains complete for its supported one-record
+model. A separate unregistered support runner now provides an eligible-target
+listing, target-specific candidate construction, non-overwriting external
+session skeleton, and sealed preflight artifact. The artifact binds the
+verified device identity, complete backup and dynamic-model hashes, exact
+target/payload/prefix identity, candidate and transaction hashes and lengths,
+fixed-state hashes, path delta, capacity effect, timestamp policy, completion
+policy, and no-retry rule without carrying candidate bytes.
+
+The execute phase is present only behind the sealed artifact, the exact
+`DELETE ONE INFOCARRY ITEM` phrase, and the separate
+`APPROVE H2 MODERN DELETE SMOKE 01` approval. It revalidates the backup and
+device identity, sends at most once through an injected sender, accepts only
+`0x0000`, and requires independent complete read-back. It was not called
+against hardware; no device operation occurred. Normal GUI/CLI deletion,
+hardware detection, backup, and live execution remain outside this checkpoint.
+
+Verification at this checkpoint: **483 passing tests and three intentional
+evidence-dependent skips**; focused isolated-runner coverage: **11 passing
+tests**. Next decision gate is owner-requested read-only preflight only. After
+the sealed preflight is reviewed, a separate explicit owner approval is
+required before any modern delete transaction. R15 remains open.

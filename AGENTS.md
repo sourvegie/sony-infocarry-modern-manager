@@ -486,3 +486,29 @@ The application must:
 - Make small, reviewable changes that address root causes.
 - Preserve unrelated user changes and avoid destructive Git operations.
 - Ask before adding a large production dependency or changing the application stack.
+
+## H.2 isolated modern-delete smoke boundary (2026-08-27)
+
+The offline H.2 deletion gate is complete only for its documented supported
+model. `src/infocarry/delete_smoke.py` is an isolated owner/developer support
+boundary, not a normal product feature. It lists eligible root-level ordinary
+TXT targets without selecting one, builds a candidate from a verified fresh
+backup, and can seal a human-reviewable preflight without embedding raw
+candidate bytes or payload contents.
+
+The execute phase is not part of the normal CLI or ttk imports. It requires a
+separately sealed matching preflight, the exact delete phrase, a separate
+operation-specific owner approval, fresh read-only revalidation, one injected
+sender call at most, completion `0x0000`, and independent complete read-back.
+No automatic retry is permitted. The implementation commit was verified with
+**483 passing tests and three intentional evidence-dependent skips**. No
+hardware operation occurred in that slice.
+
+After this commit, a separately approved owner may request only the guided
+read-only preflight: one supported device, a new external evidence session,
+one complete fresh backup, eligible-target listing, and a target-specific
+sealed preflight. A preflight is not write authorization. Do not detect or
+back up hardware merely because the support module exists. Do not execute a
+delete transaction until the owner reviews the final preflight and provides a
+new explicit approval for that exact transaction. Keep R15 physical
+interrupted-write atomicity and recovery unresolved.
