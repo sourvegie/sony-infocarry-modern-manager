@@ -29,5 +29,5 @@ sender; it cannot forcibly interrupt an arbitrary callback that hangs forever.
 
 This slice does not claim multi-child legacy or live compatibility. Nested
 folders, arbitrary record types, normal CLI/GUI actions, and any live package
-operation remain prohibited. The portable suite is **503 passing tests with
+operation remain prohibited. The portable suite is **507 passing tests with
 three intentional evidence-dependent skips**.
