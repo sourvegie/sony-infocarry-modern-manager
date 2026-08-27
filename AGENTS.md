@@ -61,9 +61,11 @@ candidate. I.10 now provides a flat manifest-driven representative ebook plan
 that rejects nested sections. Protocol generalization remains the active
 objective for offline evidence review and H.2. H.2 offline deletion hardening
 now has a corrected relation-based parent-marker rule and a zero-difference
-normalized comparison against the preserved I7 result; a future modern live
-smoke remains unexecuted and requires separate owner review. These milestones
-may proceed independently of the parked H.1 blocker.
+normalized comparison against the preserved I7 result. One constrained modern
+root-level TXT deletion smoke also completed with `0x0000` completion and
+independent full read-back; this is a narrow verified scope, not generalized
+deletion compatibility. These milestones may proceed independently of the
+parked H.1 blocker.
 Milestone I.0 evidence audit, I.1 logical package model, and I.2 blocked
 transfer preview are complete in commits `5a3c55b`, `0db6593`, and `05e29cb`;
 the suite now passes **294 tests** at that checkpoint. The owner-approved
@@ -195,9 +197,10 @@ The browser and Qt/PySide options remain explicitly deferred. See
 - Do not intentionally test an interrupted write on the only valuable unit.
   Device commit atomicity is unknown; deliberate interruption/recovery testing
   requires a second or sacrificial VNW-V15 and its own approved protocol.
-- Keep new-file creation and delete absent from the normal GUI/CLI. A separate
-  explicit approval is required before any modern live-delete smoke; no live
-  delete is authorized by this offline closure.
+- Keep new-file creation and delete absent from the normal GUI/CLI. The one
+  constrained modern root-level TXT deletion smoke is evidence for its exact
+  tested scope only; every broader live deletion remains separately gated and
+  requires explicit approval.
 - Do not interpret **Transfer all ready items** as synchronize, delete, replace
   unmatched device content, or legacy send-all. It is an additive queue concept
   and remains preview-only until every queued operation has its own proven gate.

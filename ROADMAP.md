@@ -1457,13 +1457,14 @@ The execute phase is present only behind the sealed artifact, the exact
 device identity, sends at most once through an injected sender, accepts only
 `0x0000`, and requires independent complete read-back. It was not called
 against hardware; no device operation occurred. Normal GUI/CLI deletion,
-hardware detection, backup, and live execution remain outside this checkpoint.
+hardware detection, generalized deletion, and broader hardware mutation remain
+outside this checkpoint.
 
 Verification at this checkpoint: **483 passing tests and three intentional
 evidence-dependent skips**; focused isolated-runner coverage: **11 passing
-tests**. Next decision gate is owner-requested read-only preflight only. After
-the sealed preflight is reviewed, a separate explicit owner approval is
-required before any modern delete transaction. R15 remains open.
+tests**. The later owner-approved constrained root-level TXT smoke completed
+with `0x0000` and exact independent read-back; it does not generalize to other
+targets or states. R15 remains open.
 
 ## H.2 target-specific read-only preflight result (2026-08-27)
 

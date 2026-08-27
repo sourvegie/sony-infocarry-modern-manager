@@ -152,9 +152,11 @@ validation with no device candidate. I.10 now provides a flat manifest-driven
 representative ebook plan that fails closed on nested sections; H.2 deletion
 generalization and preserved-evidence hardening now have a relation-corrected
 offline structural gate with zero unexplained non-timestamp differences after
-timestamp-only normalization. The provisional modern timestamp policy,
-physical recovery risk, absent live delete adapter, and separate owner review
-requirement remain explicit. J.0–J.2 local Library foundations are complete,
+timestamp-only normalization. One constrained modern root-level TXT deletion
+smoke has also completed with `0x0000` and exact independent read-back. That
+result is limited to its tested scope; the provisional modern timestamp
+policy, physical recovery risk, generalized deletion, and separate owner
+review requirement remain explicit. J.0–J.2 local Library foundations are complete,
 while J.3 device-aware planning remains deferred. Arbitrary package transfer,
 normal GUI/CLI exposure, generalized live deletion, and interrupted-write
 recovery remain unproven or prohibited.
