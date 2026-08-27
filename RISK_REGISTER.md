@@ -151,3 +151,12 @@ adapter is not supplied or executed, and physical interrupted-write
 atomicity/recovery remain unproven. A future preflight is not write
 authorization; a separate explicit approval is still required for any live
 delete transaction.
+
+The owner-approved read-only preflight subsequently completed for
+`root\\IC_TEST_01.txt`. It used a new complete backup and sealed the exact
+device, backup, target, payload, candidate, fixed-state, transaction, path,
+capacity, completion, and no-retry bindings. No `0x101b` request was issued and
+no device change occurred. Raw artifacts remain external and the sanitized
+preflight summary contains hashes and lengths only. The next boundary is a new
+explicit owner approval for exactly one live delete; R15 physical atomicity and
+recovery remain unproven.

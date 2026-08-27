@@ -1460,3 +1460,31 @@ evidence-dependent skips**; focused isolated-runner coverage: **11 passing
 tests**. Next decision gate is owner-requested read-only preflight only. After
 the sealed preflight is reviewed, a separate explicit owner approval is
 required before any modern delete transaction. R15 remains open.
+
+## H.2 target-specific read-only preflight result (2026-08-27)
+
+The owner-approved read-only preflight completed against one supported device
+and a new external evidence session. The owner selected exactly
+`root\\IC_TEST_01.txt`; no target was selected automatically. The complete
+backup has manifest SHA-256
+`39323d69d27c55d342dd1c3c4129268ddad1a43c614d01be513c7100d67775c8` and
+dynamic-model SHA-256
+`fbfe0dc9898a0cd6c406bd26542859282a1a410b059b16812c32522a9ce8e450`.
+
+The sealed preflight binds record offset `0x000001c0`, metadata-relative offset
+`0x00000180`, payload length 41, payload SHA-256
+`85c8e82f3547ace5c72f3f2c1c3817788cd134e4e6bbf4dca9032d4ca11e4c08`, candidate
+SHA-256
+`d4e4fa74e4338c18aa366e016ba9cb756d0af4e84b3bd19045993553d3526f20`, and
+transaction SHA-256
+`78636328fc7f386fcaf5a565421cd7feae0525a675a740019e7e1813aa148298`.
+The candidate is 2,051,280 bytes and 372 records versus 2,051,420 bytes and
+373 records before deletion; the modeled reduction is 140 bytes. All five
+fixed-state objects remain the exact supported all-zero bytes.
+
+No `0x101b` request was issued and no device change occurred. The raw session
+and sealed artifact remain outside Git; the external checksum manifest covers
+10 files with zero verification mismatches. This preflight is not write
+authorization. A new explicit approval is required before any modern delete,
+followed by the exact `DELETE ONE INFOCARRY ITEM` phrase. Normal GUI/CLI
+deletion remains absent and R15 remains open.

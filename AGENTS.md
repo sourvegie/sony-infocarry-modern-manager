@@ -512,3 +512,22 @@ back up hardware merely because the support module exists. Do not execute a
 delete transaction until the owner reviews the final preflight and provides a
 new explicit approval for that exact transaction. Keep R15 physical
 interrupted-write atomicity and recovery unresolved.
+
+## H.2 read-only preflight result (2026-08-27)
+
+The owner-approved read-only stage completed against one detected device
+(`0x054c:0x001e`, bus 2, address 3). A new external session captured and
+verified one complete backup. The owner explicitly selected
+`root\\IC_TEST_01.txt`; the sealed target-specific preflight binds its exact
+path, offset, payload/prefix hashes, parent, fixed-state hashes, candidate and
+transaction hashes, lengths, path delta, capacity effect, and no-retry policy.
+The sanitized details are in
+`analysis/phase-13-milestone-h2-modern-delete-preflight-20260827.md`; raw
+artifacts remain under the external `EVIDENCE_ROOT` only.
+
+The candidate removes one 41-byte root TXT payload and produces a 372-record,
+2,051,280-byte model from the 373-record, 2,051,420-byte backup. No `0x101b`
+request was issued and no device change occurred. The preflight is for owner
+review only. Require a new explicit owner approval for exactly one live delete
+after this review, followed by the exact operation phrase
+`DELETE ONE INFOCARRY ITEM`. Keep normal CLI/GUI deletion absent and R15 open.
