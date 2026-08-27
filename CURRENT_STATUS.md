@@ -29,7 +29,7 @@ No native multi-child before/transaction/post evidence currently proves multiple
 
 The minimum evidence gate is an isolated native multi-child operation with preserved pre-operation state, exact transaction evidence, complete post-operation state, source/before/after snapshots, and a clear result. Any such device-changing operation requires a new operation-specific owner approval; none is authorized by this status document.
 
-Relevant record: `analysis/phase-14-multi-child-live-readiness.md`.
+Relevant record: `analysis/phase-14-multi-child-live-readiness-blocker-20260828.md`.
 
 ## Current product safety boundary
 

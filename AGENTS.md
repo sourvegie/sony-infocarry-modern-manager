@@ -35,6 +35,15 @@ Never intentionally test interrupted-write recovery on the only valuable VNW-V15
 
 Never automatically retry a device-changing operation after transfer start if completion is missing, malformed, ambiguous, nonzero, interrupted, timed out, disconnected, or otherwise indeterminate.
 
+## Preserved device and evidence safeguards
+
+- Treat `samples/reference/`, legacy installers, ISO images, Windows executables/DLLs/drivers, and captured reference traffic as read-only evidence. Never edit, rename, move, normalize, or overwrite them; keep generated output and environments out of release artifacts.
+- Default every hardware-facing command to read-only behavior. Never send an unknown command or undocumented control request merely to see what happens.
+- Require an explicit write-enabling option and interactive confirmation before the first device-changing request. Before any write, create and verify a full backup unless the user explicitly stops the operation.
+- Use bounded transfer sizes, finite timeouts, bounded retry limits, and cancellation handling. Preserve raw received bytes before parsing and never discard the only copy after a parse failure.
+- Do not run the legacy Windows Manager and modern client against the device simultaneously. Keep hardware tests opt-in and separate from ordinary automated tests.
+- Complete a phase's exit gate before starting device-changing work from a later phase. Label protocol facts as `verified`, `observed`, or `inferred`; never promote an inference silently or fill an unresolved question with a guess.
+
 ## Task execution
 
 Use one main coding conversation as the Dispatcher for each meaningful task when practical. Start from the approved task brief and inspect repository state before editing.
