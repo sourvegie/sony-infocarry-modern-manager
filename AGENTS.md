@@ -155,8 +155,9 @@ authorization, cooperative deadline, completion, and independent fake
 read-back boundaries. The read-only package readiness preview reports ordered
 TXT/BMP contents, sizes, conflicts, candidate/capacity hashes, and no-device
 status without adding a package action. The complete offline path remains
-fake/offline-only. The current suite is **507 passing tests** with three
-intentional skips.
+fake/offline-only. No native multi-child before/transaction/post evidence
+exists, so live multi-child transfer remains blocked. The current suite is
+**507 passing tests** with three intentional skips.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
 

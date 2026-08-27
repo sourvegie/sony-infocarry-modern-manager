@@ -1542,4 +1542,6 @@ tests with three intentional evidence-dependent skips**. The flat I.10 ebook
 plan is now connected to this offline candidate path while nested sections
 remain rejected. Multi-child authorization is now covered offline and fake
 only; the fake workflow and read-only package readiness preview are now
-complete for the offline candidate boundary. No hardware operation occurred.
+complete for the offline candidate boundary. No native multi-child
+before/transaction/post sequence exists, so live multi-child transfer remains
+blocked and no hardware operation occurred.

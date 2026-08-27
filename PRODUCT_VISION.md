@@ -173,7 +173,8 @@ transaction hashes. The fake-only guarded workflow exercises fresh-backup
 rebuild, one-shot semantics, cooperative deadline, completion, and independent
 read-back failure boundaries. The read-only readiness preview presents ordered
 TXT/BMP contents, sizes, conflicts, candidate/capacity hashes, and no-device
-status without a package action. These remain disconnected from live and
+status without a package action. No native multi-child capture currently
+supports the generalized candidate, so these remain disconnected from live and
 product-facing transfer actions.
 
 ## Canonical Desktop Workflow
