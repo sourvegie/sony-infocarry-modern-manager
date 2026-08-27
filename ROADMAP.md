@@ -94,7 +94,7 @@ milestone is not complete merely because exploratory code exists.
 | 9. Build the desktop workflow | Complete for constrained v0.2 | Read-only manager and guarded existing-text GUI workflow verified |
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
-| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's relation-corrected offline structural gate is complete for its supported scope; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized live deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
+| 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's corrected offline gate and one constrained modern root-TXT delete smoke are complete for their supported scopes; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
 | 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
@@ -103,7 +103,7 @@ capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
-complete suite is **472 tests** with three intentional evidence-dependent
+complete suite is **483 tests** with three intentional evidence-dependent
 skips after the read-only I.7 experiment-support and bookmark-correction slices. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
@@ -127,9 +127,11 @@ The 2026-08-26 hardening comparison is recorded in
 normalizes only surviving record timestamp fields and the derived header
 checksum, and the relation-corrected comparison has zero remaining
 non-timestamp differences. H.2's offline structural gate is complete for its
-supported scope, but these reports do not authorize a live operation. Arbitrary
-package transfer, modern delete, and normal GUI/CLI package/delete actions
-remain prohibited.
+supported scope, but these reports do not authorize arbitrary live operations.
+Arbitrary package transfer, generalized delete, and normal GUI/CLI
+package/delete actions remain prohibited. One separately approved modern
+delete smoke is recorded below for its exact target and all-zero fixed-state
+scope only.
 
 ## Verified Starting Facts
 
@@ -1073,7 +1075,8 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   `analysis/phase-13-milestone-i10-ebook-plan-offline-20260823.md`.
 - [ ] **Milestone H.2 — deletion generalization:** the captured legacy effect
   is complete and the offline modern generalization/hardening gate is complete
-  for its supported structural scope, but live eligibility remains unexecuted.
+  for its supported structural scope. One constrained modern live smoke has
+  now passed; broader live eligibility remains unproven.
   Commits `2145360`, `83a5b41`, `b746347`, `7f9d417`, and `1ddaffc` add
   the one-existing-ordinary-TXT model, provisional surviving-timestamp
   preservation, fail-closed fresh-state derivation, exact binding, independent
@@ -1083,10 +1086,11 @@ modified. See `analysis/phase-11-offline-conversion.md`.
   types, nonzero/ambiguous completion, and any retry. Commits `6537649` and
   `f0ea7e7` correct the parent-marker relation and leave zero unexplained
   non-timestamp differences after masking only surviving timestamp fields and
-  the derived header checksum. The suite is **472 tests** with three
+  the derived header checksum. The suite is **483 tests** with three
   intentional skips. Timestamp generation, trustworthy legacy request-4
-  completion, physical interrupted-write recovery, and a live modern adapter
-  remain unresolved/prohibited. See
+  completion, and physical interrupted-write recovery remain unresolved; a
+  live modern adapter remains isolated and normal product deletion remains
+  prohibited. See
   `analysis/phase-13-milestone-h2-offline-generalized-delete-20260825.md`,
   `analysis/phase-13-milestone-h2-offline-delete-hardening-20260826.md`, and
   the unexecuted owner-review boundary in
@@ -1488,3 +1492,25 @@ and sealed artifact remain outside Git; the external checksum manifest covers
 authorization. A new explicit approval is required before any modern delete,
 followed by the exact `DELETE ONE INFOCARRY ITEM` phrase. Normal GUI/CLI
 deletion remains absent and R15 remains open.
+
+## H.2 constrained modern-delete smoke result (2026-08-27)
+
+After the sealed preflight, the owner supplied the exact phrases
+`DELETE ONE INFOCARRY ITEM` and `APPROVE H2 MODERN DELETE SMOKE 01`. The
+isolated runner issued exactly one modern `0x101b` transaction for
+`root\\IC_TEST_01.txt`, accepted completion `0x0000`, and issued no retry.
+The complete post-delete backup and independent verifier passed: 373 → 372
+records, exactly one removed path, no added path, candidate/post dynamic-blob
+equality, byte-identical surviving payloads, unchanged supported all-zero
+fixed state, and no unrelated object change outside the documented
+payload-dependent objects.
+
+The sanitized synthesis is
+`analysis/phase-13-milestone-h2-modern-delete-smoke-20260827.md`. Raw before
+and after backups remain outside Git at the external session root. Its final
+21-file checksum manifest is
+`checksums/SHA256SUMS-post-delete-01.txt`, SHA-256
+`baa348b18ef0d2665baf861a7e980aad93021b187a5397479a231f5482036f87`, with
+zero verification mismatches. This is one constrained live smoke, not
+generalized deletion compatibility. R15 physical interrupted-write atomicity
+and recovery remain unresolved; normal GUI/CLI deletion remains disabled.

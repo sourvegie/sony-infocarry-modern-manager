@@ -20,8 +20,9 @@ is complete as a fail-closed negative result: no safe general rule was
 established. I.8's ordered multiple-TXT logical model and I.9's typed TXT/BMP
 model are complete offline; I.10's flat ebook plan is complete offline, while
 H.2 deletion generalization is complete for its supported offline structural
-scope while live eligibility remains unexecuted and J.3 device-aware Library
-planning remains deferred. The current portable suite is **472 tests** with three
+scope, and one constrained modern delete smoke has passed; broader live
+eligibility remains unproven. J.3 device-aware Library
+planning remains deferred. The current portable suite is **483 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The I.7 controlled legacy add protocol was approved and completed as
@@ -73,8 +74,8 @@ while preserving future-timestamp rejection. Attempt 02 used a new evidence
 destination and one approved transaction; its initial terminal audit remains
 preserved, and the corrected offline verifier confirms the constrained result.
 | R1 | Device data can be corrupted or lost by an incomplete or incorrect write. | Critical | Keep v0.1 read-only. For every later write: verify a fresh immutable backup, limit the target, preview the exact change, require explicit authorization, never retry an interrupted write automatically, and verify by full read-back. Do not expose legacy send-all. | Constrained existing-text replacement and one narrow root-level-TXT add each passed one approved live smoke on 2026-08-22 with preserved before/after archives and full read-back verification; broader writes remain blocked. |
-| R2 | Restore, delete, and recovery after an actual partial device commit are not proven. | Critical | Keep restore absent. For selective delete, preserve the completed legacy deletion-effect fixture, generalize only from independently supported fresh-backup rules, add failure-injection tests and recovery guidance, then require a separate approved modern smoke only after the live gate closes. Never combine delete proof with creation proof. | The separately approved `I7-LEGACY-DELETE-01` session adds a verified stateful persisted-effect fixture: exactly one target removed, no path added, all surviving file payloads preserved, all three active target references cleared, and the native candidate exactly matching the post-delete dynamic blob. The corrected offline H.2 comparison now has zero unexplained non-timestamp differences after masking only surviving timestamp fields and the derived checksum. The modern model preserves surviving timestamps, derives only supported fixed-state forms, binds the fresh backup/target/candidate/transaction, and verifies fake read-back with no retry. The causal legacy timestamp rule, trustworthy request-4 completion, physical atomicity/recovery, and live modern delete remain unresolved; modern delete and normal GUI/CLI actions remain prohibited. |
-| R3 | Arbitrary new files require proven metadata/state construction, capacity handling, and guarded execution. | Critical | Use clean capture 04 as the golden legacy add fixture and capture 7 as the exact folder/package golden fixture. Require exact or documented normalized offline equivalence, unrelated-byte preservation, fail-closed capacity, exact operation binding, one-shot failure behavior, and full read-back before any approved live modern package smoke. | I.6 completed one approved constrained folder/TXT smoke with `0x0000`, exact candidate read-back, preserved shared records/payloads/timestamps, and fixed-state equality after offline verifier correction. I.7 add-01 and the stateful delete observation independently verified narrow legacy effects, but neither resolved a general timestamp or fresh-state rule. I.8, I.9, and I.10 remain offline-only. The relation-corrected offline H.2 deletion model and fake-only workflow are complete for their supported structural scope; the suite is **472 tests** with three intentional skips. Arbitrary packages, modern deletion, normal GUI/CLI package action, and interrupted-write recovery remain blocked. |
+| R2 | Restore, delete, and recovery after an actual partial device commit are not proven. | Critical | Keep restore absent. For selective delete, preserve the completed legacy deletion-effect fixture, generalize only from independently supported fresh-backup rules, add failure-injection tests and recovery guidance, then require a separate approved modern smoke only after the live gate closes. Never combine delete proof with creation proof. | The separately approved `I7-LEGACY-DELETE-01` session adds a verified stateful persisted-effect fixture: exactly one target removed, no path added, all surviving file payloads preserved, all three active target references cleared, and the native candidate exactly matching the post-delete dynamic blob. The corrected offline H.2 comparison now has zero unexplained non-timestamp differences after masking only surviving timestamp fields and the derived checksum. The modern model preserves surviving timestamps, derives only supported fixed-state forms, binds the fresh backup/target/candidate/transaction, and verifies fake read-back with no retry. One constrained modern root-TXT/all-zero-state smoke also passed with `0x0000` and complete independent read-back. The causal legacy timestamp rule, trustworthy request-4 completion, physical atomicity/recovery, and generalized modern deletion remain unresolved; normal GUI/CLI actions remain prohibited. |
+| R3 | Arbitrary new files require proven metadata/state construction, capacity handling, and guarded execution. | Critical | Use clean capture 04 as the golden legacy add fixture and capture 7 as the exact folder/package golden fixture. Require exact or documented normalized offline equivalence, unrelated-byte preservation, fail-closed capacity, exact operation binding, one-shot failure behavior, and full read-back before any approved live modern package smoke. | I.6 completed one approved constrained folder/TXT smoke with `0x0000`, exact candidate read-back, preserved shared records/payloads/timestamps, and fixed-state equality after offline verifier correction. I.7 add-01 and the stateful delete observation independently verified narrow legacy effects, but neither resolved a general timestamp or fresh-state rule. I.8, I.9, and I.10 remain offline-only. The relation-corrected offline H.2 deletion model and fake-only workflow are complete for their supported structural scope; the suite is **483 tests** with three intentional skips. Arbitrary packages, generalized deletion, normal GUI/CLI package action, and interrupted-write recovery remain blocked. |
 | R4 | Development could continue in the evidence-bearing research archive instead of the sanitized source-of-truth checkout. | Critical | Commit product changes only in this sanitized repository, push each verified commit normally to `origin/main`, and keep the sibling research archive read-only. Preserve the complete local research bundle separately. | Mitigated for the migration checkpoint: sanitized commit `02df1fb` is pushed to the private `sourvegie/sony-infocarry-modern-manager` repository; the original research checkout remains read-only. |
 | R5 | The prototype GUI uses macOS system Python 3.9 and deprecated Tk 8.5; it already renders incorrectly. | High | Select a supported runtime/UI stack, pin dependencies, and reproduce backup loading and browsing without layout defects. Do not spend release effort polishing the deprecated Tk 8.5 rendering path. | Mitigated on 2026-08-22: Tkinter/ttk with Python 3.12.13 and Tcl/Tk 9.0 is approved, guarded by `src/infocarry/runtime.py`, and the backup browser, text preview, and BMP preview passed the hobby-release usability test. |
 | R6 | Rare original hardware and obsolete Windows software make evidence difficult to recreate. | High | Preserve original ISO, captures, raw backups, fixtures, hashes, and manifests. Keep live tests opt-in and use offline fixtures for routine development. | Mitigated; ongoing. Milestone G live-smoke and Milestone H attempt-01/02 raw and derived artifacts were copied without modifying their originals into stable evidence roots and verified by SHA-256 manifests on 2026-08-22. |
@@ -104,12 +105,11 @@ preserved, and the corrected offline verifier confirms the constrained result.
    accept only `0x0000`, do not retry missing/ambiguous/malformed/nonzero
    completion, and keep restore deferred. Physical interrupted-write recovery
    remains open.
-4. Keep H.2 live eligibility unexecuted while its corrected offline structural
-   gate remains limited to the supported model. The I7 stateful deletion
-   observation closes only the one captured persisted-effect boundary; the
-   modern model does not resolve legacy timestamp generation, request-4
-   completion, or physical recovery. Do not request another capture
-   automatically and do not authorize a modern delete.
+4. Keep H.2 limited to its supported model after the one constrained modern
+   delete smoke. The I7 stateful deletion observation and modern smoke do not
+   resolve legacy timestamp generation, request-4 completion, or physical
+   recovery. Do not treat the smoke as generalized live eligibility or normal
+   product authorization.
 5. Keep R14's batch queue disabled until single-item create/delete operations
    and every queued content type have individual proof.
 7. Retain both completed constrained-write and narrow new-TXT live-smoke
@@ -160,3 +160,21 @@ no device change occurred. Raw artifacts remain external and the sanitized
 preflight summary contains hashes and lengths only. The next boundary is a new
 explicit owner approval for exactly one live delete; R15 physical atomicity and
 recovery remain unproven.
+
+## H.2 constrained modern-delete smoke result (2026-08-27)
+
+The owner then supplied `DELETE ONE INFOCARRY ITEM` and the separate approval
+`APPROVE H2 MODERN DELETE SMOKE 01`. The isolated runner issued exactly one
+modern `0x101b` transaction for `root\\IC_TEST_01.txt`, accepted completion
+`0x0000`, and issued no retry. The complete post-delete backup and independent
+verifier passed: 373 → 372 records, exactly one removed path, no added path,
+candidate/post dynamic-blob equality, byte-identical surviving payloads,
+unchanged supported all-zero fixed state, and no unrelated object change
+outside the documented payload-dependent objects.
+
+This reduces R2 for the exact disposable root-TXT/all-zero-state smoke but does
+not close it. Physical interrupted-write atomicity, rollback, recovery,
+nonzero-state handling, arbitrary target compatibility, and generalized delete
+remain unproven. Normal GUI/CLI deletion remains disabled. The sanitized
+result is `analysis/phase-13-milestone-h2-modern-delete-smoke-20260827.md`;
+the 21-file external evidence manifest was verified with zero mismatches.

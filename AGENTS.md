@@ -531,3 +531,27 @@ request was issued and no device change occurred. The preflight is for owner
 review only. Require a new explicit owner approval for exactly one live delete
 after this review, followed by the exact operation phrase
 `DELETE ONE INFOCARRY ITEM`. Keep normal CLI/GUI deletion absent and R15 open.
+
+## H.2 constrained modern-delete smoke result (2026-08-27)
+
+Following the sealed preflight, the owner supplied both the exact operation
+phrase `DELETE ONE INFOCARRY ITEM` and the separate approval
+`APPROVE H2 MODERN DELETE SMOKE 01`. The isolated runner then issued exactly one
+modern `0x101b` transaction for `root\\IC_TEST_01.txt`; it accepted completion
+`0x0000`, created a complete independent post-delete backup, and passed the
+full read-back verifier. No retry was issued.
+
+The post-delete result verified 373 → 372 records, exactly one removed path,
+no added path, a post-delete dynamic blob equal to the authorized candidate,
+byte-identical surviving payloads, unchanged supported all-zero fixed state,
+and no unrelated backup-object change outside the documented
+payload-dependent objects. The sanitized synthesis is
+`analysis/phase-13-milestone-h2-modern-delete-smoke-20260827.md`; raw evidence
+and the complete 21-file external checksum manifest remain outside Git.
+
+This is one constrained live smoke, not generalized deletion compatibility.
+Normal GUI/CLI deletion remains absent. Arbitrary targets, nonzero or
+unresolved fixed state, recursive/bulk deletion, restore, synchronization,
+physical interrupted-write atomicity, and recovery remain outside the proven
+scope. R15 remains open, and any future device-changing deletion requires a
+new exact preflight and separate approval.
