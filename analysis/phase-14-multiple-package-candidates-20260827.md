@@ -28,9 +28,11 @@ additional children beyond the explicitly ordered package, GUI/CLI transfer,
 and live hardware operations remain outside this slice.
 
 Focused synthetic coverage is in
-`tests/test_prepared_package_multi_candidate.py`: ordered multi-TXT and
-TXT/BMP candidate construction, exact BMP payload preservation, explicit
-kind-template requirements, native-capacity-only construction, source-change
-rejection, record/timestamp preservation, deterministic output, and source
-immutability. At this checkpoint the portable suite is **487 passing tests
-with three intentional evidence-dependent skips**.
+`tests/test_prepared_package_multi_candidate.py` and
+`tests/test_prepared_package_multi_verify.py`: ordered multi-TXT and TXT/BMP
+candidate construction, exact BMP payload preservation, explicit kind-template
+requirements, native-capacity-only construction, source-change rejection,
+record/timestamp preservation, deterministic output, independent child-order
+and type verification, complete backup-object comparison, terminal completion
+handling, and source immutability. At this checkpoint the portable suite is
+**495 passing tests with three intentional evidence-dependent skips**.
