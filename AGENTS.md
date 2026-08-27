@@ -149,9 +149,11 @@ ordered multi-child candidate is offline-only and requires a validated native
 template for each child kind; the flat representative ebook plan now connects
 to that candidate path while nested sections remain fail-closed. Its exact
 offline authorization binds ordered sources, target record identities, native
-capacity evidence, fixed state, candidate, and transaction hashes; it remains
-fake/offline-only. The current suite is **497 passing tests** with three
-intentional skips.
+capacity evidence, fixed state, candidate, and transaction hashes; the
+explicit `PreparedMultiFakeTransport` workflow now exercises one-shot
+authorization, cooperative deadline, completion, and independent fake
+read-back boundaries. It remains fake/offline-only. The current suite is
+**503 passing tests** with three intentional skips.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
 

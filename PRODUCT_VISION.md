@@ -170,7 +170,10 @@ transfer is live-eligible and no package action is exposed in the normal
 interface. Its exact offline authorization binds ordered sources, target
 record identities, native capacity evidence, fixed state, candidate, and
 transaction hashes; it remains disconnected from live and product-facing
-actions.
+transaction hashes; the fake-only guarded workflow now exercises fresh-backup
+rebuild, one-shot semantics, cooperative deadline, completion, and independent
+read-back failure boundaries. It remains disconnected from live and
+product-facing actions.
 
 ## Canonical Desktop Workflow
 

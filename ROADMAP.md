@@ -1529,14 +1529,17 @@ record bytes outside the proven offset/length fields, timestamps, prefixes, and
 payloads. This is an offline candidate only; it is not a live multi-child
 compatibility claim. Its exact offline authorization binds ordered sources,
 target record identities, native capacity evidence, fixed state, candidate,
-and transaction hashes, but remains disconnected from all live actions.
+and transaction hashes, but remains disconnected from all live actions. The
+fake-only guarded workflow now covers fresh-backup rebuild, one-shot sending,
+finite cooperative deadline checks, exact completion, and independent fake
+read-back failure boundaries.
 
 Commit `8e4641c` corrected the current constrained-delete documentation. The
 candidate implementation and synthetic regression slice is recorded in
 `phase-14-multiple-package-candidates-20260827.md`; it adds candidate and
-independent read-back coverage and brings the portable suite to **497 passing
+independent read-back coverage and brings the portable suite to **503 passing
 tests with three intentional evidence-dependent skips**. The flat I.10 ebook
 plan is now connected to this offline candidate path while nested sections
 remain rejected. Multi-child authorization is now covered offline and fake
-only; the fake workflow and product preview remain subsequent offline slices.
-No hardware operation occurred.
+only; the fake workflow is now complete for the offline candidate boundary and
+the product preview remains subsequent. No hardware operation occurred.
