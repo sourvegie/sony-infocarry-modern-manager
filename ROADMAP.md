@@ -1537,9 +1537,9 @@ read-back failure boundaries.
 Commit `8e4641c` corrected the current constrained-delete documentation. The
 candidate implementation and synthetic regression slice is recorded in
 `phase-14-multiple-package-candidates-20260827.md`; it adds candidate and
-independent read-back coverage and brings the portable suite to **503 passing
+independent read-back coverage and brings the portable suite to **507 passing
 tests with three intentional evidence-dependent skips**. The flat I.10 ebook
 plan is now connected to this offline candidate path while nested sections
 remain rejected. Multi-child authorization is now covered offline and fake
-only; the fake workflow is now complete for the offline candidate boundary and
-the product preview remains subsequent. No hardware operation occurred.
+only; the fake workflow and read-only package readiness preview are now
+complete for the offline candidate boundary. No hardware operation occurred.

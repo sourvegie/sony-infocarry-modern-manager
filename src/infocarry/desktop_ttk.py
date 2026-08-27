@@ -237,6 +237,54 @@ def format_library_preparation_audit(report: Dict[str, Any]) -> str:
     )
 
 
+def format_prepared_package_readiness_preview(report: Dict[str, Any]) -> str:
+    """Render an ordered package readiness report without enabling transfer."""
+
+    if not isinstance(report, dict):
+        raise ValueError("package readiness report must be a mapping")
+    package = report.get("package", {})
+    items = package.get("ordered_items", [])
+    capacity = report.get("capacity", {})
+    candidate = report.get("candidate", {})
+    conflicts = report.get("conflicts", [])
+    reasons = report.get("eligibility", {}).get("reasons", [])
+    lines = [
+        "OFFLINE PACKAGE READINESS PREVIEW — no device change occurred",
+        "",
+        f"Folder: {package.get('folder_path', 'unknown')}",
+        f"Prepared manifest SHA-256: {package.get('prepared_manifest_sha256', 'unknown')}",
+        "",
+        "Ordered contents:",
+    ]
+    for item in items:
+        lines.append(
+            f"  {item.get('order', '?')}: {item.get('kind', '?').upper()} "
+            f"{item.get('path', 'unknown')} — "
+            f"source {item.get('source_bytes', '?')} B, "
+            f"encoded/payload {item.get('encoded_or_payload_bytes', '?')} B, "
+            f"aligned {item.get('aligned_content_bytes', '?')} B"
+        )
+    lines.extend(
+        (
+            "",
+            f"Capacity: {capacity.get('status', 'unknown')} "
+            f"(baseline {capacity.get('baseline_model_bytes', 'unknown')}, "
+            f"candidate {capacity.get('candidate_model_bytes', 'unknown')}, "
+            f"growth {capacity.get('growth_bytes', 'unknown')}, "
+            f"limit {capacity.get('capacity_limit_bytes', 'unknown')})",
+            f"Native 0x0019 response SHA-256: {capacity.get('native_capacity_response_sha256', 'none')}",
+            f"Candidate SHA-256: {candidate.get('candidate_blob_sha256', 'not constructed')}",
+            f"Transaction SHA-256: {candidate.get('transaction_sha256', 'not constructed')}",
+            f"Conflicts: {', '.join(conflicts) if conflicts else 'none'}",
+            f"Eligibility: {'offline preview ready' if report.get('eligibility', {}).get('offline_preview_ready') else 'blocked'}",
+            f"Reasons: {'; '.join(reasons) if reasons else 'none'}",
+            "USB operation performed: no",
+            "Package transfer control: disabled",
+        )
+    )
+    return "\n".join(lines)
+
+
 def launch_ttk_desktop() -> None:
     """Launch the supported no-write ttk desktop workflow."""
 
@@ -1215,6 +1263,7 @@ def launch_ttk_desktop() -> None:
 
 __all__ = [
     "format_library_preparation_audit",
+    "format_prepared_package_readiness_preview",
     "format_text_replacement_preview",
     "format_post_write_verification",
     "friendly_error_message",

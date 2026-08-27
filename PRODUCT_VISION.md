@@ -169,11 +169,12 @@ fields. This remains an offline candidate boundary; no multi-child package
 transfer is live-eligible and no package action is exposed in the normal
 interface. Its exact offline authorization binds ordered sources, target
 record identities, native capacity evidence, fixed state, candidate, and
-transaction hashes; it remains disconnected from live and product-facing
-transaction hashes; the fake-only guarded workflow now exercises fresh-backup
+transaction hashes. The fake-only guarded workflow exercises fresh-backup
 rebuild, one-shot semantics, cooperative deadline, completion, and independent
-read-back failure boundaries. It remains disconnected from live and
-product-facing actions.
+read-back failure boundaries. The read-only readiness preview presents ordered
+TXT/BMP contents, sizes, conflicts, candidate/capacity hashes, and no-device
+status without a package action. These remain disconnected from live and
+product-facing transfer actions.
 
 ## Canonical Desktop Workflow
 
