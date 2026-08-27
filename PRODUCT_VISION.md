@@ -161,6 +161,14 @@ while J.3 device-aware planning remains deferred. Arbitrary package transfer,
 normal GUI/CLI exposure, generalized live deletion, and interrupted-write
 recovery remain unproven or prohibited.
 
+The post-smoke offline expansion is now active: the ordered multi-child
+candidate builder accepts the existing multiple-TXT and typed TXT/BMP logical
+models, uses explicit native child templates and parsed `0x0019` capacity
+evidence, and preserves shared records byte-for-byte outside proven layout
+fields. This remains an offline candidate boundary; no multi-child package
+transfer is live-eligible and no package action is exposed in the normal
+interface.
+
 ## Canonical Desktop Workflow
 
 The primary workflow is:

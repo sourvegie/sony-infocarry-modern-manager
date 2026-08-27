@@ -140,6 +140,14 @@ checksum. This closes the normalized offline structural gate but does not
 authorize a live delete, another capture, or a normal GUI/CLI delete action.
 Keep package transfer disconnected from the Library and keep all normal
 GUI/CLI write and delete actions absent.
+
+The constrained modern-delete smoke recorded in `ef50d42` and the later
+documentation correction in `8e4641c` establish one exact live-supported
+root-level TXT deletion scope only. It does not make generalized deletion,
+multi-child package transfer, or normal GUI/CLI actions eligible. Phase 14's
+ordered multi-child candidate is offline-only and requires a validated native
+template for each child kind; the current suite is **487 passing tests** with
+three intentional skips.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
 
@@ -208,8 +216,9 @@ The browser and Qt/PySide options remain explicitly deferred. See
 - Restore, firmware/unlock, alternate modes, and destructive synchronization
   remain excluded. Milestone H.1 is blocked and parked pending new independent
   evidence. I.7–I.10 have completed their defined offline slices; H.2's
-  normalized offline structural gate is complete, but live modern deletion
-  remains a separate unexecuted decision gate. None can authorize a live
+  normalized offline structural gate and one constrained modern root-level TXT
+  deletion smoke are complete for their exact scopes. Generalized live
+  deletion remains a separate decision gate. None can authorize a live
   transfer or product exposure. J.0–J.2 are complete;
   J.3 device-aware Library planning and aesthetic GUI work remain deferred.
 

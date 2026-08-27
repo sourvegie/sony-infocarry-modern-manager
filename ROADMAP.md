@@ -1334,16 +1334,16 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 1. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
-2. H.2's corrected normalized offline structural gate is complete for its
-   supported model: it preserves surviving timestamps, uses the relation-based
-   parent-marker rule, and leaves zero unexplained non-timestamp differences
-   against the preserved I7 result. Keep the legacy timestamp rule, request-4
-   completion semantics, physical recovery, and live modern delete eligibility
-   unresolved; owner review of an unexecuted, narrowly scoped modern smoke is
-   the next decision gate.
-3. Keep I.8–I.10 device candidates, J.3 transfer planning, normal GUI/CLI
-   package/delete controls, and all broad or interrupted-write operations
-   blocked until their separate evidence gates close.
+2. H.2's corrected normalized offline structural gate and one constrained
+   modern root-level TXT deletion smoke are complete for their exact scopes:
+   surviving timestamps are preserved by policy, the relation-based
+   parent-marker rule leaves zero unexplained non-timestamp differences against
+   the preserved I7 result, and the smoke completed with `0x0000` and full
+   read-back. Keep generalized deletion, physical recovery, and broader state
+   compatibility unresolved.
+3. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
+   GUI/CLI package/delete controls, and all broad or interrupted-write
+   operations blocked until their separate evidence gates close.
 4. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
@@ -1515,3 +1515,24 @@ and after backups remain outside Git at the external session root. Its final
 zero verification mismatches. This is one constrained live smoke, not
 generalized deletion compatibility. R15 physical interrupted-write atomicity
 and recovery remain unresolved; normal GUI/CLI deletion remains disabled.
+
+## Phase 14 — offline ordered package candidates (2026-08-27)
+
+The first general-content slice extends the existing capture-7-shaped folder
+machinery to one new root folder with an explicitly ordered list of at least
+two TXT or typed TXT/BMP children. The builder uses an explicit validated
+native prefix template for every kind, one frozen timestamp for all new
+records, exact source revalidation, parsed native `0x0019` total-capacity
+evidence, capture-7-compatible all-zero fixed state, four-byte aligned content,
+and the existing `0x101b` prospective range artifact. It preserves shared
+record bytes outside the proven offset/length fields, timestamps, prefixes, and
+payloads. This is an offline candidate only; it is not a live multi-child
+compatibility claim.
+
+Commit `8e4641c` corrected the current constrained-delete documentation. The
+candidate implementation and synthetic regression slice is recorded in
+`phase-14-multiple-package-candidates-20260827.md`; it adds four focused tests
+and brings the portable suite to **487 passing tests with three intentional
+evidence-dependent skips**. Multi-child independent read-back, authorization,
+fake workflow, and product preview remain subsequent offline slices. No
+hardware operation occurred.
