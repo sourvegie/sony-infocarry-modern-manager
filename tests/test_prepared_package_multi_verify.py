@@ -8,16 +8,16 @@ from infocarry.prepared_package_multi_verify import (
 )
 
 try:
-    from test_prepared_package_multi_candidate import PreparedMultiCandidateTests
+    import test_prepared_package_multi_candidate as _multi_fixture
     from test_new_txt import _write_archive
 except ModuleNotFoundError:
-    from tests.test_prepared_package_multi_candidate import PreparedMultiCandidateTests
+    import tests.test_prepared_package_multi_candidate as _multi_fixture
     from tests.test_new_txt import _write_archive
 
 
 class PreparedMultiVerifyTests(unittest.TestCase):
     def _case(self):
-        return PreparedMultiCandidateTests()._case(mixed=True)
+        return _multi_fixture.PreparedMultiCandidateTests()._case(mixed=True)
 
     def test_complete_readback_verifies_order_types_and_preservation(self):
         temporary, _package, _backup, candidate, _template = self._case()

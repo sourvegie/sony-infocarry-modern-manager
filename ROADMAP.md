@@ -1532,7 +1532,8 @@ compatibility claim.
 Commit `8e4641c` corrected the current constrained-delete documentation. The
 candidate implementation and synthetic regression slice is recorded in
 `phase-14-multiple-package-candidates-20260827.md`; it adds candidate and
-independent read-back coverage and brings the portable suite to **495 passing
-tests with three intentional evidence-dependent skips**. Multi-child
-authorization, fake workflow, and product preview remain subsequent offline
-slices. No hardware operation occurred.
+independent read-back coverage and brings the portable suite to **493 passing
+tests with three intentional evidence-dependent skips**. The flat I.10 ebook
+plan is now connected to this offline candidate path while nested sections
+remain rejected. Multi-child authorization, fake workflow, and product
+preview remain subsequent offline slices. No hardware operation occurred.

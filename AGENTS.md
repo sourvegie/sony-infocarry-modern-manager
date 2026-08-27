@@ -146,8 +146,9 @@ documentation correction in `8e4641c` establish one exact live-supported
 root-level TXT deletion scope only. It does not make generalized deletion,
 multi-child package transfer, or normal GUI/CLI actions eligible. Phase 14's
 ordered multi-child candidate is offline-only and requires a validated native
-template for each child kind; the current suite is **495 passing tests** with
-three intentional skips.
+template for each child kind; the flat representative ebook plan now connects
+to that candidate path while nested sections remain fail-closed. The current
+suite is **493 passing tests** with three intentional skips.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
 
