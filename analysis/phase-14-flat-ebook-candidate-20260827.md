@@ -19,4 +19,4 @@ was not copied; tests use generated synthetic TXT and BMP inputs only.
 Focused tests cover flat-plan-to-candidate connection, ordered target paths,
 USB neutrality, deterministic candidate identity, and nested-section rejection.
 Together with the ordered candidate and independent verifier, the portable
-suite is **493 passing tests with three intentional evidence-dependent skips**.
+suite is **497 passing tests with three intentional evidence-dependent skips**.

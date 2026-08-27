@@ -147,8 +147,11 @@ root-level TXT deletion scope only. It does not make generalized deletion,
 multi-child package transfer, or normal GUI/CLI actions eligible. Phase 14's
 ordered multi-child candidate is offline-only and requires a validated native
 template for each child kind; the flat representative ebook plan now connects
-to that candidate path while nested sections remain fail-closed. The current
-suite is **493 passing tests** with three intentional skips.
+to that candidate path while nested sections remain fail-closed. Its exact
+offline authorization binds ordered sources, target record identities, native
+capacity evidence, fixed state, candidate, and transaction hashes; it remains
+fake/offline-only. The current suite is **497 passing tests** with three
+intentional skips.
 Functional parity with the legacy Manager takes priority over Library polish,
 visual refinement, advanced rendering, packaging, or other aesthetic work:
 

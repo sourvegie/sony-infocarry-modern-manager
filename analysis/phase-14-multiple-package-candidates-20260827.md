@@ -35,4 +35,7 @@ requirements, native-capacity-only construction, source-change rejection,
 record/timestamp preservation, deterministic output, independent child-order
 and type verification, complete backup-object comparison, terminal completion
 handling, and source immutability. At this checkpoint the portable suite is
-**495 passing tests with three intentional evidence-dependent skips**.
+**497 passing tests with three intentional evidence-dependent skips**. The
+exact offline authorization binds ordered package sources, target record
+identities, native capacity evidence, fixed state, candidate, and transaction
+hashes; it is not a live sender authorization.

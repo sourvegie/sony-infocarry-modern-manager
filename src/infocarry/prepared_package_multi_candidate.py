@@ -446,6 +446,7 @@ def build_prepared_multi_package_candidate(
         "package": {
             "folder_path": package.target_folder_path,
             "paths": [_display_path(folder_path), *[_display_path(path, item.kind) for path, item in zip(child_paths, values)]],
+            "record_offsets": [_hex(folder.offset), *[report["record_offset"] for report in item_reports]],
             "ordered_items": item_reports,
             "prepared_manifest_sha256": package.prepared_manifest_sha256,
         },

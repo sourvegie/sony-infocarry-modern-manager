@@ -167,7 +167,10 @@ models, uses explicit native child templates and parsed `0x0019` capacity
 evidence, and preserves shared records byte-for-byte outside proven layout
 fields. This remains an offline candidate boundary; no multi-child package
 transfer is live-eligible and no package action is exposed in the normal
-interface.
+interface. Its exact offline authorization binds ordered sources, target
+record identities, native capacity evidence, fixed state, candidate, and
+transaction hashes; it remains disconnected from live and product-facing
+actions.
 
 ## Canonical Desktop Workflow
 
