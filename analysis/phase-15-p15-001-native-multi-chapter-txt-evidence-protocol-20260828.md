@@ -1,8 +1,7 @@
 # P15-001 — native multi-chapter TXT evidence protocol
 
 Date: 2026-08-28
-Status: **READY_FOR_HARDWARE_TEST — procedure prepared; no operation
-authorized or performed.**
+Status: **READY_FOR_HARDWARE_TEST — owner-approved; human operation pending.**
 
 This is the operation-specific procedure for one disposable, flat, text-only
 legacy Manager capture. It is the next evidence gate after the Phase 14
@@ -112,8 +111,11 @@ capacity observation is not silently replaced by an estimate.
    APPROVE P15-001 LEGACY MULTI-TXT CAPTURE 01
    ```
 
-   Without that approval, stop at this checkpoint. Approval of this procedure
-   does not authorize a modern `0x101b` transaction.
+   The owner supplied this exact approval in the Dispatcher conversation on
+   2026-08-28. It authorizes only the one legacy Manager operation described
+   here. The human operator must still follow the procedure and preserve the
+   complete external evidence set. It does not authorize a modern `0x101b`
+   transaction.
 
 ## Timestamp observations
 

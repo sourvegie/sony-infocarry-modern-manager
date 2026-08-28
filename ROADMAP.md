@@ -1563,8 +1563,9 @@ It defines the fresh pre-operation and complete post-operation backups, exact
 source and Manager snapshots, the isolated native USB capture, four timestamp
 observations, checksums/preservation manifest, abort conditions, and the
 verified/observed/inferred/unresolved analysis labels. It stops at
-`READY_FOR_HARDWARE_TEST`; no owner approval was supplied and no hardware
-operation occurred.
+`READY_FOR_HARDWARE_TEST`; the owner approved exactly one legacy capture on
+2026-08-28, but no hardware operation occurred. Human evidence intake remains
+pending.
 
 Native evidence intake and any candidate reconciliation remain pending. A
 modern multi-TXT smoke dossier may be prepared only if a supplied native

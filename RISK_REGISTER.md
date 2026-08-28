@@ -15,7 +15,8 @@ absent from this checkout.
 
 Current checkpoint: workflow migration W-001/W-002 is complete at `c1cf621`.
 P15-001 host package/evidence procedure is prepared at
-`READY_FOR_HARDWARE_TEST`; no owner approval or hardware operation has
+`READY_FOR_HARDWARE_TEST`; the owner approved exactly one legacy capture in
+the Dispatcher conversation on 2026-08-28, but no hardware operation has
 occurred. I.4/I.5/I.6 are complete for the constrained policy; I.6
 completed one approved live one-folder/one-TXT package smoke with `0x0000` and
 exact independent read-back. I.7 offline timestamp/fixed-state characterization
