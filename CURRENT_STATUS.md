@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-28
-Canonical checkpoint before workflow migration: `5bd2880` (`Record multi-child live readiness blocker`)
+Canonical checkpoint: `c1cf621` (`Merge workflow migration W-001/W-002`)
 
 ## Portable offline validation
 
-- 507 passing tests
+- 511 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -30,6 +30,25 @@ No native multi-child before/transaction/post evidence currently proves multiple
 The minimum evidence gate is an isolated native multi-child operation with preserved pre-operation state, exact transaction evidence, complete post-operation state, source/before/after snapshots, and a clear result. Any such device-changing operation requires a new operation-specific owner approval; none is authorized by this status document.
 
 Relevant record: `analysis/phase-14-multi-child-live-readiness-blocker-20260828.md`.
+
+## P15-001 native evidence checkpoint
+
+The sanitized four-child package and operation-specific legacy Manager
+procedure are prepared at
+`samples/generated/P15-001-native-multi-chapter-txt/` and
+`analysis/phase-15-p15-001-native-multi-chapter-txt-evidence-protocol-20260828.md`.
+The package is one new root folder with four 120-byte, ASCII/CP932-compatible
+CRLF TXT children in explicit order. Exact source hashes and a preservation
+manifest template are included. No backup, capture, candidate, transaction,
+or private device data is in the repository.
+
+Host preparation is at `READY_FOR_HARDWARE_TEST`. No legacy Manager operation
+has been authorized or performed. A new operation-specific owner approval is
+required before the Manager changes the device, using the exact phrase in the
+procedure. After any supplied capture, raw evidence must remain outside Git,
+be hash-validated first, and be classified as verified, observed, inferred, or
+unresolved. A modern multi-TXT smoke dossier must not be prepared unless the
+native gate closes.
 
 ## Current product safety boundary
 
@@ -57,9 +76,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-Workflow migration `W-001/W-002`: establish concise AI-development governance and portable offline CI without changing application code, historical evidence, product behavior, or hardware behavior.
-
-After this migration is reviewed, select the next product engineering task explicitly. No new hardware operation is authorized by workflow migration.
+P15-001 native evidence intake is the next checkpoint: only the owner may
+approve the exact disposable legacy Manager capture in the procedure. If the
+capture is supplied, ingest it outside Git, validate completeness and hashes,
+and synthesize the native result before considering any modern-smoke dossier.
+No modern `0x101b` transaction is authorized by this status document, and no
+legacy operation is authorized until the separate owner approval is supplied.
 
 ## Canonical reading order
 

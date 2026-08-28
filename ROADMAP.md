@@ -1545,3 +1545,30 @@ only; the fake workflow and read-only package readiness preview are now
 complete for the offline candidate boundary. No native multi-child
 before/transaction/post sequence exists, so live multi-child transfer remains
 blocked and no hardware operation occurred.
+
+## Phase 15 — P15-001 native multi-chapter TXT evidence readiness (2026-08-28)
+
+P15-001 advances the evidence boundary from the proven one-folder/one-TXT
+shape to one explicitly constrained flat text-only package. The sanitized
+source fixture in
+`samples/generated/P15-001-native-multi-chapter-txt/` contains one new root
+folder, four 120-byte ASCII/strict-CP932-compatible CRLF TXT children, explicit
+target order, unique in-file order/end markers, and exact source/manifest
+hashes. The package contains no backup, capture, candidate, transaction, or
+private device data.
+
+The operation-specific legacy Manager procedure is recorded in
+`analysis/phase-15-p15-001-native-multi-chapter-txt-evidence-protocol-20260828.md`.
+It defines the fresh pre-operation and complete post-operation backups, exact
+source and Manager snapshots, the isolated native USB capture, four timestamp
+observations, checksums/preservation manifest, abort conditions, and the
+verified/observed/inferred/unresolved analysis labels. It stops at
+`READY_FOR_HARDWARE_TEST`; no owner approval was supplied and no hardware
+operation occurred.
+
+Native evidence intake and any candidate reconciliation remain pending. A
+modern multi-TXT smoke dossier may be prepared only if a supplied native
+before/transaction/post sequence proves the exact four-child package shape,
+ordering, wrappers, relationships, state, capacity, completion, and unrelated
+content preservation. A separate owner approval is required before any later
+modern `0x101b` transaction.

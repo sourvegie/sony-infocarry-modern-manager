@@ -1,0 +1,62 @@
+{
+  "format": "sony-infocarry-p15-001-native-multi-chapter-txt-v1",
+  "task": "P15-001",
+  "state": "host_prepared_only",
+  "device_change": "none",
+  "usb_accessed": false,
+  "root_folder": "IC_P15_MULTI_20260828_01",
+  "source_encoding": "ASCII subset of CP932",
+  "newline_policy": "CRLF",
+  "ordered_children": [
+    {
+      "order": 1,
+      "target_path": "root\\IC_P15_MULTI_20260828_01\\chapter-01.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_01/chapter-01.txt",
+      "bytes": 120,
+      "sha256": "8c262bd0f7b0ca44770de0c36f7a5a1a0f1c61d8d76f9903a99d3d285b276231",
+      "content_order_marker": "01 of 04",
+      "content_end_marker": "P15-001-01-END"
+    },
+    {
+      "order": 2,
+      "target_path": "root\\IC_P15_MULTI_20260828_01\\chapter-02.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_01/chapter-02.txt",
+      "bytes": 120,
+      "sha256": "075363590fc049ed269a5033686ec727a63e7e1c440735858df8a6d7cba5b533",
+      "content_order_marker": "02 of 04",
+      "content_end_marker": "P15-001-02-END"
+    },
+    {
+      "order": 3,
+      "target_path": "root\\IC_P15_MULTI_20260828_01\\chapter-03.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_01/chapter-03.txt",
+      "bytes": 120,
+      "sha256": "247ecfcdfbb9d778159897c9fc74a789b8533509f4450abaa2614f68df27e730",
+      "content_order_marker": "03 of 04",
+      "content_end_marker": "P15-001-03-END"
+    },
+    {
+      "order": 4,
+      "target_path": "root\\IC_P15_MULTI_20260828_01\\chapter-04.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_01/chapter-04.txt",
+      "bytes": 120,
+      "sha256": "e92b86f6b261800d1ca3c9a4c3c9b3eec7dc20002e16667c2f15eff79f1e9812",
+      "content_order_marker": "04 of 04",
+      "content_end_marker": "P15-001-04-END"
+    }
+  ],
+  "source_count": 4,
+  "total_source_bytes": 480,
+  "preparation": {
+    "strict_cp932": true,
+    "unsupported_characters_replaced": false,
+    "embedded_nul_rejected": true,
+    "flat_package_only": true,
+    "nested_folders": false,
+    "bmp_children": false,
+    "candidate_included": false,
+    "transaction_included": false
+  },
+  "native_evidence_required_before_modern_smoke": true,
+  "status": "READY_FOR_HARDWARE_TEST"
+}
