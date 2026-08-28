@@ -1560,12 +1560,15 @@ private device data.
 The operation-specific legacy Manager procedure is recorded in
 `analysis/phase-15-p15-001-native-multi-chapter-txt-evidence-protocol-20260828.md`.
 It defines the fresh pre-operation and complete post-operation backups, exact
-source and Manager snapshots, the isolated native USB capture, four timestamp
-observations, checksums/preservation manifest, abort conditions, and the
+source and Manager snapshots, the isolated native USB capture, three required
+timestamp observations (initialization idle, pre-send, and completed packet
+idle), an optional ownership-return timestamp, checksums/preservation
+manifest, abort conditions, and the
 verified/observed/inferred/unresolved analysis labels. It stops at
 `READY_FOR_HARDWARE_TEST`; the owner approved exactly one legacy capture on
-2026-08-28, but no hardware operation occurred. Human evidence intake remains
-pending.
+2026-08-28 and reconfirmed that approval on 2026-08-29 under the revised
+three-required-timestamp procedure, but no hardware operation occurred. Human
+evidence intake remains pending.
 
 Native evidence intake and any candidate reconciliation remain pending. A
 modern multi-TXT smoke dossier may be prepared only if a supplied native

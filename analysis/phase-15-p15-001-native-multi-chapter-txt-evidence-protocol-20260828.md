@@ -1,6 +1,6 @@
 # P15-001 — native multi-chapter TXT evidence protocol
 
-Date: 2026-08-28
+Date: 2026-08-28; procedure revision and approval reconfirmed 2026-08-29
 Status: **READY_FOR_HARDWARE_TEST — owner-approved; human operation pending.**
 
 This is the operation-specific procedure for one disposable, flat, text-only
@@ -112,24 +112,31 @@ capacity observation is not silently replaced by an estimate.
    ```
 
    The owner supplied this exact approval in the Dispatcher conversation on
-   2026-08-28. It authorizes only the one legacy Manager operation described
-   here. The human operator must still follow the procedure and preserve the
-   complete external evidence set. It does not authorize a modern `0x101b`
-   transaction.
+   2026-08-28 and reconfirmed it on 2026-08-29 under the revised
+   three-required-timestamp procedure. It authorizes only the one legacy
+   Manager operation described here. The human operator must still follow the
+   procedure and preserve the complete external evidence set. It does not
+   authorize a modern `0x101b` transaction.
 
 ## Timestamp observations
 
 Use the established Windows 2000 timestamp tool when available. Preserve its
 raw numbered output unchanged and use a separate mapping file; do not rename,
-normalize, or overwrite raw timestamp files. Capture and label at least:
+normalize, or overwrite raw timestamp files. Capture and label these three
+required observations:
 
 1. immediately before the isolated SnoopyPro capture/Manager operation is
    armed, after startup and browsing traffic is idle;
 2. immediately before the single Send Selected action;
 3. immediately after Manager reports its result and the correct SnoopyPro
-   row has been idle for approximately 2–3 seconds; and
-4. immediately before stopping the native log / returning ownership, after
-   confirming no second mutation or refresh occurred.
+   row has been idle for approximately 2–3 seconds.
+
+An additional observation immediately before returning USB ownership is
+optional. It may document the administrative cleanup boundary, but it is not
+required for timestamp analysis: the required third observation, stopped
+native log, result screenshot, and post-operation backup already bind the
+completed transfer. Do not delay stopping the isolated native log merely to
+capture this optional observation.
 
 If the tool is unavailable, clocks are inconsistent, or an event cannot be
    distinguished, preserve the partial observation and stop the experiment;
@@ -142,7 +149,8 @@ If the tool is unavailable, clocks are inconsistent, or an event cannot be
 2. Start a new native SnoopyPro log and attach it to the actual InfoCarry row
    `USB\\Vid_054c&Pid_001e`, never a root hub. Record SnoopyPro and Manager
    versions, native-log path, and the row/device identity. Do not begin the
-   operation until unrelated startup and browsing traffic is idle.
+   operation until unrelated startup and browsing traffic is idle. Capture
+   timestamp 1 at that idle boundary.
 3. Copy the exact package folder into the Manager transfer-source location,
    preserving the four target names and their order. Confirm that Manager
    displays exactly the new folder and four children in order.
@@ -177,8 +185,9 @@ for a second attempt.
 ## Return and post-operation preservation
 
 1. Close Manager normally without refresh, receive, browsing, or another
-   mutation. Capture timestamp 4 and preserve the result screenshot and
-   displayed text.
+   mutation. Preserve the result screenshot and displayed text. An optional
+   fourth timestamp may be captured immediately before returning ownership,
+   but its absence does not make an otherwise complete session invalid.
 2. Return USB ownership cleanly to macOS. Do not force-quit, force-eject, or
    change ownership while Manager or SnoopyPro is active.
 3. Create one new complete read-only post-operation backup under

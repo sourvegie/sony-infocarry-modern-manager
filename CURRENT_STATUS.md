@@ -44,11 +44,13 @@ or private device data is in the repository.
 
 Host preparation remains at `READY_FOR_HARDWARE_TEST`. The owner supplied the
 exact operation-specific approval phrase in the Dispatcher conversation on
-2026-08-28; no legacy Manager operation has been performed by this agent. The
-human operator must follow the procedure and supply the external evidence
-session. Raw evidence must remain outside Git, be hash-validated first, and be
-classified as verified, observed, inferred, or unresolved. A modern multi-TXT
-smoke dossier must not be prepared unless the native gate closes.
+2026-08-28 and reconfirmed it on 2026-08-29 under the revised three-required-
+timestamp procedure; no legacy Manager operation has been performed by this
+agent. The human operator must follow the procedure and supply the external
+evidence session. Raw evidence must remain outside Git, be hash-validated
+first, and be classified as verified, observed, inferred, or unresolved. A
+modern multi-TXT smoke dossier must not be prepared unless the native gate
+closes.
 
 ## Current product safety boundary
 
@@ -77,8 +79,9 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 ## Next approved engineering task
 
 P15-001 native evidence intake is the next checkpoint. The owner has approved
-the exact disposable legacy Manager capture; the human operator must execute
-the procedure and supply the external session. Then ingest it outside Git,
+and reconfirmed the exact disposable legacy Manager capture under the revised
+three-required-timestamp procedure; the human operator must execute the
+procedure and supply the external session. Then ingest it outside Git,
 validate completeness and hashes, and synthesize the native result before
 considering any modern-smoke dossier. No modern `0x101b` transaction is
 authorized by this status document.
