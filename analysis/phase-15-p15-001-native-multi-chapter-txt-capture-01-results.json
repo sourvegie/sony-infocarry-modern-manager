@@ -1,0 +1,25 @@
+{
+  "format": "sony-infocarry-p15-001-native-capture-results-v1",
+  "task": "P15-001",
+  "capture": "legacy-multi-txt-capture-01",
+  "status": "BLOCKED_BY_EXTERNAL_EVIDENCE",
+  "external_session": "phase-15-p15-001-native-multi-txt-20260828-01",
+  "package": {
+    "root_folder": "IC_P15_MULTI_20260828_01",
+    "child_count": 4,
+    "child_bytes_each": 120,
+    "total_source_bytes": 480,
+    "children_order": ["chapter-01.txt", "chapter-02.txt", "chapter-03.txt", "chapter-04.txt"]
+  },
+  "device": {"vendor_id": "0x054c", "product_id": "0x001e"},
+  "pre": {"model_bytes": 2051280, "model_sha256": "d4e4fa74e4338c18aa366e016ba9cb756d0af4e84b3bd19045993553d3526f20", "reachable_paths": 313},
+  "post": {"model_bytes": 2052272, "model_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99", "reachable_paths": 318},
+  "native_transaction": {"command": "0x101b", "declared_length": 2117808, "variable_n": 0, "variable_m": 2052272, "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2052208], "range_05_plus_08_equals_post": true, "completion": "not_decoded_by_offline_parser"},
+  "native_structure": {"added_reachable_paths": 5, "added_records_including_parent_marker": 6, "folder_record_offset": "0x00000340", "child_record_offsets": ["0x000003c0", "0x00000400", "0x00000440", "0x00000480"], "native_prefix_bytes": 32, "payload_bytes_each": 120, "all_source_payload_hashes_match": true, "relationships_and_order_verified": true},
+  "capacity": {"command": "0x0019", "field_offset": "0x08", "limit_bytes": 3145728, "growth_bytes": 992, "fits": true},
+  "unchanged": {"shared_file_payloads": true, "shared_timestamp_count": 313, "fixed_objects_001b_through_001f": true, "object_count": true},
+  "timestamp_model": {"new_record_values": ["0x6a91a907", "0x6a91a908"], "one_frozen_value_compatible": false, "shared_timestamp_preservation_compatible": false},
+  "missing_or_unresolved": ["timestamp event mapping", "explicit Manager result or decoded request-4 completion", "reviewed explanation/model decision for shared timestamp rewrite"],
+  "modern_smoke_dossier": false,
+  "modern_0x101b_performed": false
+}

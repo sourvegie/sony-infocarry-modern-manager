@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-08-28
+Date: 2026-08-29
 Canonical checkpoint: `c1cf621` (`Merge workflow migration W-001/W-002`)
 
 ## Portable offline validation
@@ -25,7 +25,13 @@ These are host/offline results only. They do not claim physical-device verificat
 
 `BLOCKED_BY_EXTERNAL_EVIDENCE`: live multi-child package transfer is not ready.
 
-No native multi-child before/transaction/post evidence currently proves multiple child records, mixed child ordering, or a newly constructed BMP wrapper. Fake transport success and deterministic offline reconstruction cannot establish physical compatibility.
+Legacy Capture 01 is now preserved outside Git and proves the observed exact
+four-child TXT post-state for this operation, but it does not close the native
+gate. The comparison observes timestamp changes in all 313 shared reachable
+records, and the fourth new child has a one-second-different timestamp from the
+other new records. The timestamp event mapping and explicit Manager/request-4
+completion evidence are missing. Fake transport success and deterministic
+offline reconstruction cannot resolve these native discrepancies.
 
 The minimum evidence gate is an isolated native multi-child operation with preserved pre-operation state, exact transaction evidence, complete post-operation state, source/before/after snapshots, and a clear result. Any such device-changing operation requires a new operation-specific owner approval; none is authorized by this status document.
 
@@ -34,7 +40,7 @@ Relevant record: `analysis/phase-14-multi-child-live-readiness-blocker-20260828.
 ## P15-001 native evidence checkpoint
 
 The sanitized four-child package and operation-specific legacy Manager
-procedure are prepared at
+procedure are recorded at
 `samples/generated/P15-001-native-multi-chapter-txt/` and
 `analysis/phase-15-p15-001-native-multi-chapter-txt-evidence-protocol-20260828.md`.
 The package is one new root folder with four 120-byte, ASCII/CP932-compatible
@@ -42,15 +48,15 @@ CRLF TXT children in explicit order. Exact source hashes and a preservation
 manifest template are included. No backup, capture, candidate, transaction,
 or private device data is in the repository.
 
-Host preparation remains at `READY_FOR_HARDWARE_TEST`. The owner supplied the
-exact operation-specific approval phrase in the Dispatcher conversation on
-2026-08-28 and reconfirmed it on 2026-08-29 under the revised three-required-
-timestamp procedure; no legacy Manager operation has been performed by this
-agent. The human operator must follow the procedure and supply the external
-evidence session. Raw evidence must remain outside Git, be hash-validated
-first, and be classified as verified, observed, inferred, or unresolved. A
-modern multi-TXT smoke dossier must not be prepared unless the native gate
-closes.
+Capture 01 was supplied from the approved owner path and preserved at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/`.
+The four child payloads, folder/parent-marker relationships, capacity fit,
+fixed-state objects, and native range-to-post-blob equality are verified in
+`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results-20260829.md`.
+The native gate remains open because the shared timestamp rewrite is
+unexplained and conflicts with the offline policy, child timestamps are not
+uniform, and completion/event mapping evidence is incomplete. Raw evidence
+remains outside Git and no modern multi-TXT smoke dossier is prepared.
 
 ## Current product safety boundary
 
@@ -78,13 +84,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P15-001 native evidence intake is the next checkpoint. The owner has approved
-and reconfirmed the exact disposable legacy Manager capture under the revised
-three-required-timestamp procedure; the human operator must execute the
-procedure and supply the external session. Then ingest it outside Git,
-validate completeness and hashes, and synthesize the native result before
-considering any modern-smoke dossier. No modern `0x101b` transaction is
-authorized by this status document.
+Resolve the P15-001 Capture 01 evidence gate: obtain the missing timestamp
+event mapping and Manager/request-4 completion evidence, then obtain an
+independent R3 review of the shared timestamp rewrite and the per-record
+timestamp model. Do not change the candidate or prepare a modern-smoke
+dossier until those discrepancies are resolved. No modern `0x101b`
+transaction is authorized by this status document.
 
 ## Canonical reading order
 

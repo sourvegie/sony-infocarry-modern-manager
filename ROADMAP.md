@@ -1331,20 +1331,24 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Preserve the validated I7 deletion intake, complete pre/post backups,
+1. Resolve the P15-001 Capture 01 native evidence gate: obtain the missing
+   timestamp event mapping and Manager/request-4 completion evidence, then
+   complete independent R3 review of the shared timestamp rewrite before
+   changing the candidate model or preparing a modern dossier.
+2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
-2. H.2's corrected normalized offline structural gate and one constrained
+3. H.2's corrected normalized offline structural gate and one constrained
    modern root-level TXT deletion smoke are complete for their exact scopes:
    surviving timestamps are preserved by policy, the relation-based
    parent-marker rule leaves zero unexplained non-timestamp differences against
    the preserved I7 result, and the smoke completed with `0x0000` and full
    read-back. Keep generalized deletion, physical recovery, and broader state
    compatibility unresolved.
-3. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
+4. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
    GUI/CLI package/delete controls, and all broad or interrupted-write
    operations blocked until their separate evidence gates close.
-4. Push every verified sanitized commit normally to `origin/main` after the
+5. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions
@@ -1567,12 +1571,17 @@ manifest, abort conditions, and the
 verified/observed/inferred/unresolved analysis labels. It stops at
 `READY_FOR_HARDWARE_TEST`; the owner approved exactly one legacy capture on
 2026-08-28 and reconfirmed that approval on 2026-08-29 under the revised
-three-required-timestamp procedure, but no hardware operation occurred. Human
-evidence intake remains pending.
+three-required-timestamp procedure. Capture 01 was then supplied and preserved
+outside Git. The exact four-child native structure, payloads, relationships,
+capacity fit, fixed state, and native range-to-post-blob equality are verified.
+However, all 313 shared reachable record timestamps changed between the
+supplied pre/post blobs, child 4 has a distinct new timestamp, the timestamp
+event mapping is absent, and request-4 completion is not decoded. The native
+gate therefore remains `BLOCKED_BY_EXTERNAL_EVIDENCE`.
 
-Native evidence intake and any candidate reconciliation remain pending. A
-modern multi-TXT smoke dossier may be prepared only if a supplied native
-before/transaction/post sequence proves the exact four-child package shape,
-ordering, wrappers, relationships, state, capacity, completion, and unrelated
-content preservation. A separate owner approval is required before any later
-modern `0x101b` transaction.
+The sanitized intake record is
+`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results-20260829.md`.
+The shared timestamp rewrite and per-record timestamp behavior require a
+reviewed model decision before candidate reconciliation. No modern multi-TXT
+smoke dossier is prepared; a separate owner approval remains required before
+any later modern `0x101b` transaction.
