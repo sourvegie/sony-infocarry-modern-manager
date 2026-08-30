@@ -2,7 +2,7 @@
   "format": "sony-infocarry-p15-001-native-capture-results-v2",
   "task": "P15-001",
   "capture": "legacy-multi-txt-capture-01",
-  "status": "READY_FOR_HARDWARE_TEST",
+  "status": "IMPLEMENTATION_READY",
   "risk": "R3",
   "external_session": "phase-15-p15-001-native-multi-txt-20260828-01",
   "external_preservation_manifest_file_count": 119,
@@ -31,7 +31,8 @@
   "owner_observations": {"stamp_0001": "manager_snoopypro_initialized_idle", "stamp_0002": "immediately_before_send_selected", "stamp_0003": "transfer_completed_packets_idle", "manager_returned_normal_without_observed_error_or_ambiguity": true},
   "modern_candidate": {"produced_offline": true, "blob_bytes": 2052272, "blob_sha256": "12cf167f1c6486ac166d2cc95d6285c7bfdbffe143875ed8c6ddc30f836ec6f9", "transaction_sha256": "63b2c991f87599a5d30b0649c06e9eb697abf2154bacab4d3d2f1bdf96f13286", "fake_only_readback": "verified"},
   "modern_smoke_dossier": true,
-  "modern_smoke_status": "READY_FOR_HARDWARE_TEST",
+  "modern_smoke_status": "IMPLEMENTATION_READY",
+  "modern_smoke_status_reason": "Historical dossier superseded by P15-002 because it reused the stale Capture 01 pre-backup and had no executable live runner.",
   "modern_0x101b_performed": false,
   "separate_owner_approval_required": true,
   "unresolved": ["native numeric request-4 completion word is not exposed by the supplied SnoopyPro representation; future modern operation must accept only explicit 0x0000 and never retry"]

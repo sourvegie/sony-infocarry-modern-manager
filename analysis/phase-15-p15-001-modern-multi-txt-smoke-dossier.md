@@ -1,12 +1,14 @@
 # P15-001 — modern multi-TXT smoke-test dossier
 
 Date: 2026-08-30
-Status: **READY_FOR_HARDWARE_TEST**
+Status: **IMPLEMENTATION_READY — superseded by P15-002**
 Risk: **R3 — device/safety critical**
 
-This is an offline dossier only. No modern `0x101b` transaction was
-performed. A separate operation-specific owner approval is required before a
-later hardware test; the legacy Capture 01 approval cannot be reused.
+This is a historical offline dossier only. It is not executable because it
+reuses the stale Capture 01 pre-backup and has no isolated live runner. No
+modern `0x101b` transaction was performed. Use the corrected P15-002 dossier
+for any future hardware consideration; its separate operation-specific owner
+approval is still required and the legacy Capture 01 approval cannot be reused.
 
 ## Exact constrained operation
 
@@ -97,9 +99,10 @@ retry is disabled. This is host-only validation and is not physical proof.
 
 ## Hardware stop
 
-`READY_FOR_HARDWARE_TEST` is the final state for this task. Before any later
-operation, the owner must issue a new, separate operation-specific approval,
-the operator must obtain a new complete fresh pre-operation backup and
-revalidate every binding, and the exact constrained package must still pass
-the preflight. A missing, ambiguous, malformed, or nonzero completion is a
-terminal outcome with no retry. This task performs no modern device change.
+`IMPLEMENTATION_READY` is the final state of this historical dossier. It must
+not be used to authorize a device operation. P15-002 is the active corrected
+boundary; before any later operation, the owner must issue a new, separate
+operation-specific approval, the operator must obtain a new complete fresh
+pre-operation backup and revalidate every binding, and the exact constrained
+package must pass the isolated preflight. A missing, ambiguous, malformed, or
+nonzero completion is terminal with no retry.

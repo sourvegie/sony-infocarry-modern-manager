@@ -1,7 +1,7 @@
 # P15-001 — native multi-chapter TXT evidence protocol
 
 Date: 2026-08-28; procedure revision and approval reconfirmed 2026-08-29; offline reconciliation completed 2026-08-30
-Status: **READY_FOR_HARDWARE_TEST — Capture 01 reconciled; no modern transaction performed.**
+Status: **IMPLEMENTATION_READY — historical Capture 01 procedure; no modern transaction performed.**
 
 This is the operation-specific procedure for one disposable, flat, text-only
 legacy Manager capture. It is the next evidence gate after the Phase 14
@@ -297,13 +297,13 @@ independent verifier now pass under that policy.
 ## Modern-smoke boundary
 
 The native gate is closed only for the exact constrained flat one-folder,
-four-ordered-TXT shape. The reviewed modern dossier is
-`analysis/phase-15-p15-001-modern-multi-txt-smoke-dossier.md` and is
-`READY_FOR_HARDWARE_TEST`. It binds a fresh Capture 01 pre-backup, device
-identity, exact sources and paths/order, capacity evidence, fixed state,
-reconciled candidate, prospective transaction, strict completion handling, and
-no-retry policy. The fake workflow performed one simulated `0x0000` completion
-and independent read-back only; it did not access USB.
+four-ordered-TXT shape. The reviewed P15-001 modern dossier is retained as
+historical `IMPLEMENTATION_READY` material, not as an executable operation:
+it binds the stale Capture 01 pre-backup and predates the isolated live runner.
+P15-002 is the corrected modern path and rebuilds every binding from a new
+absent `_02` destination against the latest preserved post-state. The fake
+workflow performed one simulated `0x0000` completion and independent read-back
+only; it did not access USB.
 
 Before any modern `0x101b`, obtain a new fresh complete backup, revalidate all
 bindings, and request separate explicit operation-specific owner approval.

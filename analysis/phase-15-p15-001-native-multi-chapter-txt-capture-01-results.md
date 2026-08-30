@@ -1,16 +1,18 @@
 # P15-001 — legacy multi-TXT Capture 01 results
 
 Date: 2026-08-30
-Status: **READY_FOR_HARDWARE_TEST**
+Status: **IMPLEMENTATION_READY — historical Capture 01 findings**
 Risk: **R3 — device/safety critical**
 
 ## Outcome
 
 Capture 01 is preserved outside Git and supports the exact constrained native
 shape: one new root folder containing four ordered TXT children. The timestamp
-mapping and Project Lead policy now permit a bounded offline modern candidate.
-The modern dossier is ready for a later hardware test, but no modern
-`0x101b` transaction was performed or authorized by this record.
+mapping and Project Lead policy permit a bounded offline modern candidate. The
+old modern dossier is retained as historical `IMPLEMENTATION_READY` material,
+not as an executable hardware operation, because it reused the stale Capture
+01 pre-backup and had no isolated live runner. P15-002 is the corrected active
+path; no modern `0x101b` transaction was performed.
 
 The external session is:
 
@@ -132,11 +134,10 @@ folder with four ordered TXT children, the verified capacity/state envelope,
 and the approved modern timestamp policy. The unresolved native request-4 word
 is explicitly bounded and has no contradictory Manager or post-backup result.
 
-The modern multi-TXT smoke dossier is **READY_FOR_HARDWARE_TEST**. It binds the
-exact fresh Capture 01 pre-backup, device identity, source manifest and hashes,
-paths/order, native capacity response, fixed state, candidate, transaction,
-completion policy, and no-retry rule. The captured backup is an offline
-evidence binding; a later live operation must recapture a fresh complete
+The old modern multi-TXT smoke dossier is **IMPLEMENTATION_READY** only and is
+superseded by P15-002. Its captured backup remains an evidence binding, but it
+is not a live-operation baseline. A later live operation must use the isolated
+P15-002 runner, a new absent `_02` destination, and a newly captured complete
 backup immediately before any send.
 
 A separate operation-specific owner approval is required before any modern
@@ -148,5 +149,6 @@ not perform a modern transaction.
 The external derived synthesis is
 `07-analysis/capture11-native-evidence-synthesis-01.json`; the external
 preservation manifest records the current 119-file session and its hashes.
-The sanitized modern dossier is
-`analysis/phase-15-p15-001-modern-multi-txt-smoke-dossier.md`.
+The sanitized historical modern dossier is
+`analysis/phase-15-p15-001-modern-multi-txt-smoke-dossier.md`; the active
+corrected dossier is `analysis/phase-15-p15-002-modern-multi-txt-readiness.md`.

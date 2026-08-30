@@ -1,0 +1,115 @@
+{
+  "format": "sony-infocarry-p15-002-modern-multi-txt-readiness-v1",
+  "task": "P15-002",
+  "risk": "R3",
+  "status": "READY_FOR_HARDWARE_TEST",
+  "usb_transmission_performed": false,
+  "hardware_access_performed": false,
+  "operation": "one_additive_root_folder_with_exactly_four_ordered_txt_children",
+  "scope": {
+    "root_level_only": true,
+    "child_count": 4,
+    "txt_only": true,
+    "nested_folders": false,
+    "bmp_children": false,
+    "batch": false,
+    "delete": false,
+    "retry": false
+  },
+  "target": {
+    "folder": "IC_P15_MULTI_20260828_02",
+    "distinct_from_preserved_capture01_folder": true,
+    "absent_from_latest_preserved_post_state": true,
+    "latest_preserved_post_manifest_sha256": "03c54dd799933367d34f8b96baab276bc54e2cbb1ba8cfa3ba3c8d8dbf2d0dec",
+    "latest_preserved_post_blob_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99"
+  },
+  "device": {
+    "vendor_id": "0x054c",
+    "product_id": "0x001e",
+    "identity_source": "latest preserved Capture 01 post backup plus parsed native 0x0019 response"
+  },
+  "sources_and_order": {
+    "source_tree": "samples/generated/P15-002-modern-multi-chapter-txt/source/IC_P15_MULTI_20260828_02/",
+    "committed_manifest_sha256": "e6143502a393385ecbc9b62bd9a831917f758dfdcd1e83456321a5af3a37a044",
+    "prepared_logical_manifest_sha256": "22041bae59033a228a1d20577fea973c28c4d18f78916884e71610b525d9b8be",
+    "newline_policy": "CRLF",
+    "encoding_policy": "strict CP932; sources are ASCII subset",
+    "children": [
+      {"order": 1, "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-01.txt", "bytes": 121, "sha256": "ef18d78999b9ec2ab276ffc697ba5a866cf21d171c7b39f2f6037bb9fc32c2de"},
+      {"order": 2, "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-02.txt", "bytes": 121, "sha256": "0323580a5e02206cc0b06d85744a8ef78b449e30d184cef3867152ca4792671a"},
+      {"order": 3, "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-03.txt", "bytes": 121, "sha256": "711c1235f8fe04c6e31a6c152b5e983320a5d1c21a1729a595d630685b8a6598"},
+      {"order": 4, "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-04.txt", "bytes": 121, "sha256": "7688a1fed893b3ad3a24d7531bbb4c27ead68709881d31f06c73b7b943f574b7"}
+    ],
+    "total_source_bytes": 484
+  },
+  "baseline_binding": {
+    "offline_derivation_source": "/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/05-post-operation/post-backup-20260829-01/",
+    "manifest_sha256": "03c54dd799933367d34f8b96baab276bc54e2cbb1ba8cfa3ba3c8d8dbf2d0dec",
+    "dynamic_blob_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99",
+    "dynamic_blob_bytes": 2052272,
+    "reused_for_offline_derivation_only": true,
+    "fresh_backup_required_again_before_hardware_execution": true,
+    "stale_capture01_pre_backup_reused": false
+  },
+  "capacity_binding": {
+    "response_command": "0x0019",
+    "field_offset": "0x08",
+    "response_sha256": "c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a",
+    "capacity_limit_bytes": 3145728,
+    "baseline_model_bytes": 2052272,
+    "candidate_model_bytes": 2053280,
+    "candidate_growth_bytes": 1008,
+    "remaining_growth_bytes": 1093456,
+    "result": "sufficient"
+  },
+  "timestamp_policy": {
+    "existing_records": "preserve_exactly",
+    "new_records": "one explicit operation timestamp",
+    "new_record_timestamp_be32": "0x6a91a907",
+    "legacy_operation_wide_rewrite_reproduced": false,
+    "native_child4_one_second_difference_required": false,
+    "native_child4_difference_classification": "observed sequential legacy serialization"
+  },
+  "candidate_binding": {
+    "candidate_blob_sha256": "70ea314d015e0a0f5de6e35814df8418c42c2faf188849ee88aea309fb226368",
+    "candidate_blob_bytes": 2053280,
+    "record_offsets": ["0x00000380", "0x00000400", "0x00000440", "0x00000480", "0x000004c0"],
+    "paths": ["root\\IC_P15_MULTI_20260828_02", "root\\IC_P15_MULTI_20260828_02\\chapter-01.txt", "root\\IC_P15_MULTI_20260828_02\\chapter-02.txt", "root\\IC_P15_MULTI_20260828_02\\chapter-03.txt", "root\\IC_P15_MULTI_20260828_02\\chapter-04.txt"],
+    "transaction_command": "0x101b",
+    "transaction_sha256": "8d6dfe86f82d735a1fe725fca6a76e7e4b09f13eef684c6853bd37bcc4eb10b9",
+    "transaction_payload_length": 2118816,
+    "transaction_range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2053216],
+    "fixed_state_sha256": ["f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b", "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b", "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b", "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b", "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"]
+  },
+  "runner": {
+    "module": "src/infocarry/prepared_multi_package_live_smoke.py",
+    "format": "infocarry-p15-002-modern-multi-txt-live-runner-v1",
+    "normal_cli_or_gui_exposed": false,
+    "preflight_default_read_only": true,
+    "preflight": ["detect device identity", "query and bind parsed 0x0019 capacity", "capture and verify fresh complete backup", "verify source hashes and exact absent _02 target", "rebuild candidate and preview", "seal exact preflight"],
+    "execution": ["require separate owner approval", "require exact confirmation phrase", "re-detect identity and re-query capacity", "re-verify sealed fresh backup and candidate", "send at most one transaction", "accept only integer completion 0x0000", "capture complete post backup", "independently verify read-back"],
+    "automatic_retry": false,
+    "post_start_interruption_policy": "indeterminate; no retry",
+    "sender_boundary": "PreparedMultiPackageLiveSender over injected WriteBackend; no USB setup or normal product import"
+  },
+  "fake_host_validation": {
+    "external_root": "/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-002-modern-multi-txt-20260830-02/",
+    "derived_artifact_directory": "07-analysis/p15-002-offline-binding-01/",
+    "fake_backend_sender_calls": 1,
+    "fake_capture_calls": 2,
+    "completion": "0x0000",
+    "independent_readback": "verified",
+    "failure_coverage": ["seal tampering", "cancellation before start", "interruption after start", "timeout after start", "disconnect before and after start", "malformed completion", "nonzero completion", "post-readback mismatch", "second transaction refusal"],
+    "hardware_transaction": "not performed"
+  },
+  "hardware_stop": {
+    "state": "READY_FOR_HARDWARE_TEST",
+    "new_operation_specific_owner_approval_required": true,
+    "required_owner_approval": "APPROVE P15-002 MODERN MULTI-TXT SMOKE 01",
+    "required_confirmation": "ADD ONE INFOCARRY MULTI-CHILD PACKAGE",
+    "no_hardware_authorized_by_this_record": true,
+    "fresh_complete_backup_required_immediately_before_execution": true,
+    "completion_rule": "accept only explicit 0x0000; missing, ambiguous, malformed, or nonzero is terminal",
+    "stop_after_host_readiness": true
+  }
+}

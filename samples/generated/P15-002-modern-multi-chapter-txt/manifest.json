@@ -1,0 +1,76 @@
+{
+  "format": "sony-infocarry-p15-002-modern-multi-chapter-txt-v1",
+  "task": "P15-002",
+  "state": "host_prepared_only",
+  "status": "IMPLEMENTATION_READY",
+  "device_change": "none",
+  "usb_accessed": false,
+  "root_folder": "IC_P15_MULTI_20260828_02",
+  "source_encoding": "ASCII subset of CP932",
+  "newline_policy": "CRLF",
+  "ordered_children": [
+    {
+      "order": 1,
+      "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-01.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_02/chapter-01.txt",
+      "bytes": 121,
+      "sha256": "ef18d78999b9ec2ab276ffc697ba5a866cf21d171c7b39f2f6037bb9fc32c2de",
+      "content_order_marker": "01 of 04",
+      "content_end_marker": "P15-002-01-END"
+    },
+    {
+      "order": 2,
+      "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-02.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_02/chapter-02.txt",
+      "bytes": 121,
+      "sha256": "0323580a5e02206cc0b06d85744a8ef78b449e30d184cef3867152ca4792671a",
+      "content_order_marker": "02 of 04",
+      "content_end_marker": "P15-002-02-END"
+    },
+    {
+      "order": 3,
+      "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-03.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_02/chapter-03.txt",
+      "bytes": 121,
+      "sha256": "711c1235f8fe04c6e31a6c152b5e983320a5d1c21a1729a595d630685b8a6598",
+      "content_order_marker": "03 of 04",
+      "content_end_marker": "P15-002-03-END"
+    },
+    {
+      "order": 4,
+      "target_path": "root\\IC_P15_MULTI_20260828_02\\chapter-04.txt",
+      "source_path": "source/IC_P15_MULTI_20260828_02/chapter-04.txt",
+      "bytes": 121,
+      "sha256": "7688a1fed893b3ad3a24d7531bbb4c27ead68709881d31f06c73b7b943f574b7",
+      "content_order_marker": "04 of 04",
+      "content_end_marker": "P15-002-04-END"
+    }
+  ],
+  "source_count": 4,
+  "total_source_bytes": 484,
+  "preparation": {
+    "strict_cp932": true,
+    "unsupported_characters_replaced": false,
+    "embedded_nul_rejected": true,
+    "flat_package_only": true,
+    "nested_folders": false,
+    "bmp_children": false,
+    "candidate_included": false,
+    "transaction_included": false
+  },
+  "baseline_binding": {
+    "source": "P15-001 Capture 01 complete post-operation backup",
+    "external_session": "/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/",
+    "post_backup_manifest_sha256": "03c54dd799933367d34f8b96baab276bc54e2cbb1ba8cfa3ba3c8d8dbf2d0dec",
+    "post_dynamic_blob_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99",
+    "capture_01_folder_preserved": "IC_P15_MULTI_20260828_01",
+    "target_absent_from_latest_preserved_post": true
+  },
+  "modern_policy": {
+    "preserve_existing_timestamps": true,
+    "one_explicit_timestamp_for_new_records": true,
+    "native_legacy_timestamp_rewrite_reproduced": false,
+    "child_04_one_second_difference_required": false
+  },
+  "modern_live_hardware_test": "not_performed"
+}

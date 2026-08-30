@@ -2,7 +2,8 @@
   "format": "sony-infocarry-p15-001-modern-multi-txt-smoke-dossier-v1",
   "task": "P15-001",
   "risk": "R3",
-  "status": "READY_FOR_HARDWARE_TEST",
+  "status": "IMPLEMENTATION_READY",
+  "superseded_by": "P15-002",
   "usb_transmission_performed": false,
   "operation": "one_additive_root_folder_with_four_ordered_txt_children",
   "scope": {"root_level_only": true, "child_count": 4, "txt_only": true, "nested_folders": false, "bmp_children": false, "batch": false, "retry": false},
@@ -32,5 +33,5 @@
   "candidate_binding": {"external_directory": "07-analysis/capture11-modern-candidate-01/", "blob_sha256": "12cf167f1c6486ac166d2cc95d6285c7bfdbffe143875ed8c6ddc30f836ec6f9", "blob_bytes": 2052272, "transaction_sha256": "63b2c991f87599a5d30b0649c06e9eb697abf2154bacab4d3d2f1bdf96f13286", "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2052208], "record_offsets": ["0x340", "0x3c0", "0x400", "0x440", "0x480"]},
   "authorization_binding": {"external_file": "07-analysis/capture11-modern-candidate-01/authorization.json", "state": "authorized_for_fake_transport_only", "confirmation_phrase": "ADD ONE INFOCARRY MULTI-CHILD PACKAGE", "one_transaction_maximum": true},
   "verifier_binding": {"external_fake_before": "07-analysis/capture11-modern-candidate-01/fake-before-backup-01/", "external_fake_after": "07-analysis/capture11-modern-fake-post-backup-01/", "workflow_audit": "07-analysis/capture11-modern-candidate-01/fake-workflow-audit.json", "fake_transport": true, "fake_transport_calls": 1, "completion": "0x0000 simulated only", "independent_readback": "verified", "shared_timestamps_unchanged": true, "fixed_state_exact": true, "automatic_retry": false},
-  "hardware_stop": {"state": "READY_FOR_HARDWARE_TEST", "modern_transaction_performed": false, "new_owner_approval_required": true, "approval_text_required": "APPROVE P15-001 MODERN MULTI-TXT SMOKE 01", "fresh_backup_required_immediately_before_send": true, "completion_rule": "accept only explicit 0x0000; missing/ambiguous/nonzero is terminal; never retry"}
+  "hardware_stop": {"state": "IMPLEMENTATION_READY", "modern_transaction_performed": false, "new_owner_approval_required": true, "approval_text_required": "APPROVE P15-001 MODERN MULTI-TXT SMOKE 01", "fresh_backup_required_immediately_before_send": true, "completion_rule": "accept only explicit 0x0000; missing/ambiguous/nonzero is terminal; never retry", "not_executable": true, "not_executable_reason": "Stale pre-Capture-01 baseline and no isolated live runner; use P15-002 instead."}
 }

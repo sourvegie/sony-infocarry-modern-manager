@@ -5,7 +5,7 @@ Canonical checkpoint: `c1cf621` (`Merge workflow migration W-001/W-002`)
 
 ## Portable offline validation
 
-- 512 passing tests
+- 524 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -21,22 +21,26 @@ These are host/offline results only. They do not claim physical-device verificat
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
 
-## P15-001 status boundary
+## P15 status boundary
 
-The exact constrained flat one-folder/four-ordered-TXT native shape is
-reconciled and the reviewed modern dossier is **READY_FOR_HARDWARE_TEST**.
-Capture 01 remains preserved outside Git. Its native legacy operation-wide
-timestamp rewrite and child-4 one-second serialization are recorded as
-observed behavior, not normalized into the modern candidate policy. The native
-numeric request-4 word remains unresolved after offline investigation, while
-the owner-supplied normal Manager return and complete post-backup persistence
-are explicitly recorded as non-contradictory observed/verified evidence.
+Capture 01 remains preserved outside Git as historical native evidence. The
+earlier P15-001 modern dossier was prematurely classified and is now retained
+as **IMPLEMENTATION_READY** historical material; it must not be used as an
+executable operation. Its native legacy operation-wide timestamp rewrite and
+child-4 one-second serialization remain observed behavior, not normalized into
+the modern candidate policy. The native numeric request-4 word remains
+unresolved, while the owner-supplied normal Manager return and complete
+post-backup persistence remain explicitly recorded as non-contradictory
+observed/verified evidence.
 
-No modern `0x101b` transaction has been performed. Any hardware test requires
-a new fresh complete backup, revalidation of all exact bindings, and a new
+P15-002 now has a distinct `_02` root destination, rebuilt source/path/order,
+capacity, candidate, authorization, transaction, and verification bindings
+from the latest preserved Capture 01 post-state. Its isolated live runner is
+host-tested only through injected fake hardware boundaries, is not exposed by
+the normal CLI or GUI, and is **READY_FOR_HARDWARE_TEST** after R3 review.
+No modern `0x101b` transaction has been performed. Any later hardware test
+requires a new complete backup, revalidation of all exact bindings, and a new
 operation-specific owner approval; this status document does not authorize it.
-
-Relevant record: `analysis/phase-14-multi-child-live-readiness-blocker-20260828.md`.
 
 ## P15-001 native evidence checkpoint
 
@@ -85,11 +89,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-Review the constrained P15-001 modern smoke dossier and, only if separately
-approved by the Project Owner for that exact operation, perform the required
-fresh-backup/revalidation preflight. Accept only explicit modern completion
-`0x0000`; stop on missing, ambiguous, malformed, or nonzero completion and do
-not retry. No modern `0x101b` transaction is authorized by this status document.
+Obtain a separate operation-specific owner approval for the exact P15-002
+`_02` modern smoke, then perform only its read-only fresh-backup preflight and
+revalidation. A later write may send at most one `0x101b` transaction, accepts
+only explicit `0x0000`, and treats interruption, timeout, disconnect, missing,
+ambiguous, malformed, or nonzero completion as terminal with no retry. No
+modern `0x101b` transaction is authorized by this status document.
 
 ## Canonical reading order
 

@@ -1331,10 +1331,10 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Keep the constrained P15-001 modern dossier at
-   `READY_FOR_HARDWARE_TEST`; obtain separate operation-specific owner approval
-   before any modern hardware test, then recapture a fresh complete backup and
-   revalidate every exact binding immediately before a possible send.
+1. Keep the corrected P15-001 historical dossier at `IMPLEMENTATION_READY` and
+   the P15-002 `_02` dossier at `READY_FOR_HARDWARE_TEST`; obtain separate
+   operation-specific owner approval before any modern hardware test, then
+   execute only the isolated runner's fresh-backup/revalidation boundary.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1581,8 +1581,12 @@ observations remain unnormalized. The owner-supplied event mapping and Project
 Lead timestamp decision now bound the modern policy. The native numeric
 request-4 word remains explicitly unresolved after offline log-tail
 investigation, without contradicting the owner normal-return observation or
-independently verified persistence. The constrained native gate is closed and
-the modern dossier is `READY_FOR_HARDWARE_TEST` for this exact shape only.
+independently verified persistence. The constrained native gate is closed.
+The earlier P15-001 modern dossier was prematurely classified because it
+reused the stale pre-capture baseline and had no executable live boundary; it
+is retained as historical `IMPLEMENTATION_READY` material. P15-002 now
+provides a distinct absent `_02` destination and an isolated host-tested
+runner for the exact four-TXT shape.
 
 The sanitized intake record is
 `analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results.md`.
@@ -1591,7 +1595,11 @@ modern policy: preserve all existing timestamps, assign one explicit timestamp
 to all new records, and do not reproduce the legacy operation-wide rewrite or
 child-4 sequential increment. The native numeric request-4 word remains
 explicitly unresolved after offline log-tail investigation. The constrained
-modern candidate, exact authorization, fake-only workflow, independent
-read-back, and R3 review are complete; the dossier is
-`READY_FOR_HARDWARE_TEST`. A separate owner approval remains required before
-any later modern `0x101b` transaction.
+P15-001 candidate, exact authorization, fake-only workflow, and independent
+read-back remain preserved as historical evidence, but its modern dossier is
+corrected to `IMPLEMENTATION_READY`. P15-002 completes the host boundary for
+the new `_02` destination with rebuilt bindings, an isolated one-shot
+approval-gated runner, fake-hardware coverage, independent read-back, and R3
+review. Its dossier is `READY_FOR_HARDWARE_TEST`; a separate owner approval
+remains required before any later modern `0x101b` transaction, and no such
+transaction has occurred.
