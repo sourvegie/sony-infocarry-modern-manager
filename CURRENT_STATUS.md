@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: P16-001 Capture 01 post-backup reconciliation complete; native mixed gate remains blocked by unresolved operation evidence
+Canonical checkpoint: P16-001 Capture 01 is COMPLETE for the exact constrained native TXT/BMP/TXT evidence scope
 
 ## Portable offline validation
 
@@ -26,11 +26,12 @@ These are host/offline results only. They do not claim physical-device verificat
   transaction-model and post-state five-record addition, exact TXT/BMP
   payloads, folder/marker/child order, 16-byte BMP prefix, unchanged shared
   file payloads, and unchanged 0x001b–0x001f fixed-state objects are verified.
-  The evidence still lacks a separate Manager result/owner observation,
-  timestamp event mapping, operation-specific capacity semantics, and a
-  decoded numeric completion, so the native mixed gate remains
-  **BLOCKED_BY_EXTERNAL_EVIDENCE**. No modern mixed-package dossier or
-  hardware transaction has been prepared.
+  The owner confirms the three timestamp meanings, normal Manager completion
+  without an error, and device accessibility of the transferred package.
+  P16-001 is **COMPLETE** for this exact native evidence scope. Native numeric
+  completion decoding and operation-specific capacity response semantics
+  remain explicit non-blocking observations; no modern mixed-package dossier
+  or hardware transaction has been prepared.
 
 ## P15 status boundary
 
@@ -104,11 +105,16 @@ A new complete post-operation backup is preserved under
 `05-post-operation/backup-20260830-02/`; it matches the transaction model
 byte-for-byte and verifies persistence, exact source payloads, unchanged
 shared file payloads, and unchanged fixed-state objects. The post-backup
-verification and version-02 preservation manifest remain outside Git.
-Timestamp event mapping, operation-specific capacity semantics, the separate
-Manager result/owner observation, and an explicit numeric completion remain
-unresolved, so P16-001 is still **BLOCKED_BY_EXTERNAL_EVIDENCE**. No modern
-transaction is authorized by this task. See
+verification, owner confirmation, and version-03 preservation manifest remain
+outside Git. The owner confirms stamp-0001 idle initialization, stamp-0002
+immediately before Send Selected, stamp-0003 completed/packet-idle, normal
+Manager completion without an error, and device accessibility. The five new
+records carry 0x6a942449 (2026-08-30T12:38:33Z), within the confirmed send
+interval; the legacy global timestamp rewrite remains observed and is not a
+modern rule. P16-001 is **COMPLETE** only for this exact native evidence
+scope. Numeric completion decoding and operation-specific capacity response
+remain unresolved/non-blocking, and no modern transaction is authorized by
+this task. See
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
 
 ## Current product safety boundary
@@ -137,14 +143,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P16-001 Capture 01 post-backup reconciliation is complete, but the task
-remains **BLOCKED_BY_EXTERNAL_EVIDENCE** for the unresolved Manager
-result/observation, timestamp mapping, operation-specific capacity semantics,
-and numeric completion. If those facts are available from existing evidence,
-they may be supplied for a new non-overwriting external intake or offline
-decoding review. Do not repeat the legacy operation automatically. Any later
-modern transaction would require a separate task, fresh R3 review, a fresh
-complete backup, and new operation-specific approval.
+P16-001 is **COMPLETE** for the exact native flat TXT/BMP/TXT evidence scope.
+The next separately briefed task is P16-002 modern mixed-package host
+readiness. It must independently obtain and validate fresh 0x0019 capacity
+evidence during preflight and must not treat the native global timestamp
+rewrite or unresolved numeric completion as modern rules. No modern runner,
+dossier, or device-changing transaction is authorized by this checkpoint.
 
 ## Canonical reading order
 

@@ -1,7 +1,7 @@
 # P16-001 — Capture 01 independent R3 review
 
 Date: 2026-08-30
-Disposition: **PASS — post-backup correction reconciled; native gate remains blocked for explicit unresolved evidence**
+Disposition: **PASS — COMPLETE for the exact constrained native mixed evidence scope**
 Risk: **R3 — device/safety critical**
 
 This second-pass review covers the newly obtained complete post-operation
@@ -27,9 +27,11 @@ operation or any modern device transaction.
 | Fixed-state comparison | Pass for 0x001b through 0x001f; each unchanged and all zero |
 | Timestamp behavior | Observed and retained; all 323 shared timestamps changed |
 | Manager-local before/after comparison | Pass as local bookkeeping; no device-state claim from it |
-| Manager result/owner outcome observation | Unresolved; no separate verbatim observation supplied |
-| Operation-specific capacity evidence | Unresolved; 0x0024/probe differences are retained without interpretation |
-| Numeric completion decoding | Unresolved; no explicit 0x0000 is claimed |
+| Manager result/owner outcome observation | Pass; owner confirms normal completion without an error and device accessibility; no dialog text invented |
+| Timestamp event mapping | Pass; owner confirms idle, immediately pre-send, and completed/packet-idle meanings |
+| New-record timestamp placement | Pass; 0x6a942449 = 2026-08-30T12:38:33Z within the confirmed Send Selected interval |
+| Operation-specific capacity evidence | Unresolved and non-blocking for this native structural gate; future modern preflight must validate fresh 0x0019 evidence |
+| Numeric completion decoding | Unresolved and non-blocking; normal Manager completion plus persistent post-state are independently established |
 | Modern mixed candidate, authorization, or hardware action | Correctly not prepared or performed |
 | Normal GUI/CLI transfer exposure | Unchanged and disabled |
 
@@ -45,17 +47,19 @@ transaction model.
 
 The corrected evidence therefore verifies device persistence of the exact
 three-child TXT/BMP/TXT shape and preservation of shared payloads and fixed
-objects. It does not fill the remaining evidence gaps. The 0x0024 response,
-0x8004 probe, timestamp rewrites, and raw transaction tail remain recorded as
-observations; none is normalized into capacity, event meaning, or completion.
+objects. The owner-supplied outcome confirms normal Manager completion and
+device accessibility, and the three timestamp events are now mapped. The
+0x0024 response, 0x8004 probe, global timestamp rewrites, and raw transaction
+tail remain recorded as observations; none is normalized into capacity or
+numeric completion.
 
 ## R3 decision
 
-The post-backup correction is accepted for the exact constrained native mixed
-package. The native gate remains **BLOCKED_BY_EXTERNAL_EVIDENCE** because the
-required Manager result/owner observation, timestamp event mapping,
-operation-specific capacity semantics, and explicit numeric completion are
-still unresolved. No modern mixed candidate, dossier, or device transaction
-may proceed from this record. Any later evidence intake must be
-non-overwriting, separately reviewed, and must not trigger a repeat write
-automatically.
+The post-backup correction and owner confirmation are accepted for the exact
+constrained native mixed package. P16-001 is **COMPLETE** for this native
+evidence scope. Operation-specific capacity semantics and numeric completion
+decoding remain explicit non-blocking unresolved observations; any future
+modern runner must independently obtain and validate fresh 0x0019 capacity
+evidence during preflight. No modern mixed candidate, dossier, or device
+transaction is prepared by this task, and no conclusion is generalized
+beyond this exact package shape.

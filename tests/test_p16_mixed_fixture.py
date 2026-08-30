@@ -54,6 +54,10 @@ class P16MixedFixtureTests(unittest.TestCase):
             package.manifest_dict()["items"][1]["native_wrapper"]["length_bytes"],
             NATIVE_BMP_PREFIX_LENGTH,
         )
+        self.assertEqual(
+            package.manifest_dict()["items"][1]["native_wrapper"]["source"],
+            "P16-001 native transaction observation; exact Capture 01 post-operation persistence verified; not a generalized compatibility claim",
+        )
         self.assertFalse(package.manifest_dict()["usb_accessed"])
 
     def test_txt_markers_and_crlf_are_exact(self):

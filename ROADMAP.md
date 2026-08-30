@@ -1334,12 +1334,13 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 1. Keep the corrected P15-001 dossier historical at `IMPLEMENTATION_READY` and
    the P15-002 readiness dossier as the host preparation record. P15-003 has
    completed the exact separately approved `_02` four-TXT smoke with explicit
-   `0x0000` and independent read-back. P16-001 Capture 01 is preserved and
-   partially reconciled, but remains `BLOCKED_BY_EXTERNAL_EVIDENCE` because
-   the complete post-operation raw backup, Manager result/owner observation,
-   timestamp mapping, operation-specific capacity/fixed-state evidence, and
-   decoded numeric completion were not supplied. Do not repeat the legacy
-   operation automatically.
+   `0x0000` and independent read-back. P16-001 Capture 01 is complete for
+   the exact native flat TXT/BMP/TXT evidence scope, including complete
+   post-backup persistence, source equality, mapped timestamps, normal Manager
+   completion, and owner-confirmed device accessibility. Native numeric
+   completion decoding and operation-specific capacity response remain
+   unresolved/non-blocking and must not be generalized. Do not repeat the
+   legacy operation automatically.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1350,8 +1351,8 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    the preserved I7 result, and the smoke completed with `0x0000` and full
    read-back. Keep generalized deletion, physical recovery, and broader state
    compatibility unresolved.
-4. Keep I.8–I.10 multi-child device candidates, P16 mixed native/BMP
-   behavior, J.3 transfer planning, normal GUI/CLI package/delete controls,
+4. Keep I.8–I.10 multi-child device candidates, P16-002 modern mixed/BMP
+   readiness, J.3 transfer planning, normal GUI/CLI package/delete controls,
    and all broad or interrupted-write operations blocked until their separate
    evidence gates close.
 5. Push every verified sanitized commit normally to `origin/main` after the
@@ -1663,14 +1664,21 @@ The owner supplied Capture 01 after the operation-specific approval. The raw
 capture is preserved outside Git and its single native `0x101b` transaction
 contains a checksum-valid five-record TXT/BMP/TXT addition with exact source
 payloads, expected folder/marker/child order, and an observed 16-byte BMP
-prefix. A new complete read-only post-operation backup is now preserved at
+prefix. A new complete read-only post-operation backup is preserved at
 `05-post-operation/backup-20260830-02/`; all eight object hashes validate and
 its dynamic blob exactly matches the native transaction model. The post state
-therefore verifies target persistence, exact source payloads, unchanged shared
-file payloads, and unchanged `0x001b`–`0x001f` fixed-state objects.
-Timestamp mapping, Manager result/owner observation, operation-specific
-capacity semantics, and decoded numeric completion remain unresolved. The
-native gate remains `BLOCKED_BY_EXTERNAL_EVIDENCE`; no modern transaction is
-authorized by P16-001. The external post-backup verification and version-02
-preservation manifest are not committed. See
+therefore verifies target persistence, exact source payloads, the persisted
+16-byte BMP prefix, unchanged shared file payloads, and unchanged
+`0x001b`–`0x001f` fixed-state objects.
+
+The owner confirms the three timestamp events, normal legacy Manager
+completion without an error, and device accessibility of the transferred
+mixed-package files. The five new records carry `0x6a942449`, decoded as
+2026-08-30T12:38:33Z, within the confirmed Send Selected interval. The
+legacy global timestamp rewrite remains an observed behavior and is not a
+modern rule. P16-001 is `COMPLETE` for this exact native evidence scope.
+Native numeric completion decoding and operation-specific capacity response
+remain explicit unresolved, non-blocking observations; any future modern
+preflight must independently validate fresh `0x0019` evidence. No modern
+mixed-package runner or dossier is created by this correction. See
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.

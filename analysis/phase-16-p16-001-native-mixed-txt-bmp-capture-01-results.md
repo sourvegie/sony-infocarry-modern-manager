@@ -1,7 +1,7 @@
 # P16-001 — native mixed TXT/BMP Capture 01 results
 
 Date: 2026-08-30
-Status: **BLOCKED_BY_EXTERNAL_EVIDENCE**  
+Status: **COMPLETE — exact constrained native evidence scope**
 Risk: **R3 — device/safety critical**
 
 ## Outcome
@@ -13,19 +13,24 @@ hashes validate, its device identity is 054c:001e, and its dynamic blob
 exactly equals the native transaction model extracted from the preserved
 SnoopyPro log.
 
-This resolves the previously reported missing-post-backup blocker. The
-complete post state now verifies persistence of the exact flat TXT/BMP/TXT
-package, the folder and marker structure, source payload equality, and
+The owner confirms that stamp-0001 was Manager/SnoopyPro initialized and idle,
+stamp-0002 was immediately before Send Selected, stamp-0003 was transfer
+completed with packets idle, the legacy Manager finished normally without an
+error, and the transferred mixed-package files are accessible on the
+InfoCarry device. This confirmation is recorded as owner-observed evidence;
+no verbatim Manager dialog text is invented.
+
+The exact native gate is now **COMPLETE** for the constrained flat TXT/BMP/TXT
+package. The complete post state verifies persistence of the folder and marker
+structure, source payload equality, child order, the 16-byte BMP prefix, and
 unchanged shared file payloads and fixed-state objects. The native transaction
 and post-backup model contain no unexplained structural or payload difference.
 
-The overall native gate remains **BLOCKED_BY_EXTERNAL_EVIDENCE** because the
-preserved evidence still has no separate Manager success/failure observation,
-no event mapping for the three raw timestamp logs, no validated
-operation-specific capacity response, and no independently decoded explicit
-0x0000 completion. These are retained as unresolved; they are not inferred
-from persistence. No modern mixed-package dossier or device transaction is
-prepared.
+Native numeric completion decoding and operation-specific capacity response
+semantics remain unresolved, non-blocking observations. They must be
+independently obtained and validated by any future modern preflight. No
+modern mixed-package dossier or device transaction is prepared by this task,
+and the conclusion is not generalized beyond this exact package shape.
 
 ## External preservation and post-operation backup
 
@@ -65,13 +70,19 @@ with a valid InfoCarry checksum as 389 records and 327 reachable paths.
 
 The independent post-backup verification is recorded outside Git at
 07-analysis/capture12-post-backup-verification-01.json with SHA-256
-b66dd234013f55286a41f1de2233e2327610d9cc0a6d60043ce8375e6af05f52. The
-version-02 preservation manifest is
-preservation-manifest-02.json with 68 verified entries, entry-list hash
-e0c5ebec6004b4f6fba2330f4a6c0fcfada30dfe48f7e0de3a2dd9e6ee95c420, and
+b66dd234013f55286a41f1de2233e2327610d9cc0a6d60043ce8375e6af05f52. Its
+timestamp and owner-outcome supplement is
+07-analysis/capture12-post-backup-verification-02.json with SHA-256
+60ae9bc987f9f2594311c3f8368d48baaa02792c68f287471b2f84dd163acb36. The
+owner confirmation is
+07-analysis/capture12-owner-confirmation-01.json with SHA-256
+0ae8b960b77fdd822e729ae8c95dc4bded48cf0871eec309670d80a18e652634.
+The version-03 preservation manifest is preservation-manifest-03.json with
+71 verified entries, entry-list hash
+eaa804e6caf58189bbdc6d6b4a7466b4f7a4e006aeca245731b6c644f9dcdfac, and
 manifest SHA-256
-56477f6714469eb4f73ae8b5b5d14d4574dbc2489bdbe2ea81e82d2eba264b4b. It
-supersedes the historical intake manifest without modifying raw evidence.
+a89914477b2d95fc12628b8db2723c0475c51d68248df7f8d2cafe66270e8595. It
+supersedes the historical intake manifests without modifying raw evidence.
 
 ## Native transaction and post-backup equality
 
@@ -138,8 +149,11 @@ to include the new folder.
 All 323 shared records have changed timestamp fields. The observed pre-to-post
 timestamp pairs are retained in the external verification JSON; they include
 several legacy values rewritten to 0x6a942348, 0x6a942349, or 0x6a94234a.
-The target folder, marker, and all three children use 0x6a942449. This is
-observed legacy behavior, not a rule to reproduce in a modern candidate.
+The five newly added records use 0x6a942449, decoded as
+2026-08-30T12:38:33Z. That value falls 7.219 seconds after stamp-0002 and
+40.437 seconds before stamp-0003, so it is within the confirmed 47.656-second
+Send Selected interval. This is observed legacy timestamp placement, not a
+rule to reproduce in a modern candidate; the global rewrite remains unnormalized.
 
 The post 0x001b, 0x001c, 0x001d, 0x001e, and 0x001f objects are each
 byte-identical to the pre-operation objects, each has SHA-256
@@ -159,17 +173,21 @@ differences are not normalized or assigned an unverified capacity meaning.
 The before/after Manager-local fixture reports remain valid observations:
 VICDATA.bin, VICMEM.bin, and VICLV.bin are byte-identical; order.vnw changed
 from 253 to 279 bytes and gained the target root name. The complete post
-backup independently verifies device persistence, but no separate verbatim
-Manager success/failure result or owner result observation is present in the
-preserved evidence.
+backup independently verifies device persistence. The owner additionally
+confirms normal Manager completion without an error and accessibility of the
+transferred mixed-package files on the device. No verbatim Manager dialog text
+is asserted.
 
-The three raw timestamp logs remain preserved with their sequence identities
-and exact values. No event-mapping file was supplied, so their meanings are
-unresolved. No native 0x0019 capacity response was captured or decoded for
-this operation. The 0x0024 and 0x8004 probe changes are retained without
-calling them capacity evidence. The request-4/result portion of the USB log
-has not been independently decoded as explicit 0x0000; no completion value
-is normalized into success.
+The three raw timestamp logs remain preserved with the confirmed event
+mapping in the external owner-confirmation record. The five new-record
+timestamps are within the confirmed Send Selected interval as described
+above. The legacy rewrite of all shared timestamps is retained as an observed
+legacy behavior and is not adopted as a modern rule. No native 0x0019 capacity
+response was captured or decoded for this operation. The 0x0024 and 0x8004
+probe changes are retained without calling them capacity evidence. The
+request-4/result portion of the USB log has not been independently decoded as
+explicit 0x0000; numeric completion remains unresolved but non-blocking for
+this native evidence conclusion.
 
 ## Evidence classifications
 
@@ -187,6 +205,10 @@ is normalized into success.
 - Shared file payloads and prefixes are unchanged.
 - Objects 0x001b through 0x001f are unchanged all-zero fixed-state objects.
 - The 16-byte BMP prefix and 32-byte TXT prefixes persist in the post state.
+- The owner-confirmed normal Manager outcome and device accessibility are
+  recorded without inventing dialog text.
+- The three raw timestamp logs have the confirmed event mapping, and the five
+  new-record timestamps fall within the confirmed send interval.
 
 ### Observed
 
@@ -204,10 +226,10 @@ is normalized into success.
 
 ### Unresolved
 
-- Operation-specific capacity response semantics.
-- Separate Manager success/failure owner observation.
-- Explicit numeric 0x0000 completion.
-- Mapping of raw timestamp sequences to the three procedure events.
+- Operation-specific capacity response semantics; non-blocking for this native
+  evidence gate and required for any future modern preflight.
+- Explicit numeric 0x0000 completion decoding; non-blocking because normal
+  Manager completion and persistent post-state are independently established.
 
 ## Offline reconciliation and safety gate
 
@@ -218,10 +240,11 @@ growth estimate, matching the native model. Focused regression coverage
 continues to verify BMP wrapper length, mixed size accounting, exact source
 payloads, and the type-specific candidate template boundary.
 
-No timestamp, fixed-state, capacity, completion, or public transfer behavior
-was generalized from the newly obtained backup. No modern mixed candidate,
-authorization, smoke dossier, or hardware transaction is prepared. The
-normal GUI/CLI transfer boundary remains disabled. The native gate stays
-closed until the remaining required evidence gaps are resolved through
-offline decoding or a separately authorized evidence intake; no repeat write
-is requested.
+No legacy global timestamp rewrite, capacity behavior, completion decoding, or
+public transfer behavior was generalized from the newly obtained backup. No
+modern mixed candidate, authorization, smoke dossier, or hardware transaction
+is prepared. The normal GUI/CLI transfer boundary remains disabled. P16-001
+is **COMPLETE** only for this exact native flat TXT/BMP/TXT evidence scope;
+P16-002 must independently obtain and validate fresh 0x0019 capacity evidence
+before any modern readiness decision. No repeat legacy write is requested or
+authorized.

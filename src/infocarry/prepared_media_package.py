@@ -2,9 +2,10 @@
 
 The model validates the conservative 237x320 one-bit Windows BMP profile and
 reuses the strict TXT authoring boundary.  The 16-byte BMP record prefix is
-the narrow wrapper observed in the P16-001 native transaction; post-operation
-device persistence is still an evidence gate.  This module intentionally
-stops before live authorization or USB transport.
+the narrow wrapper observed in the P16-001 native transaction; the complete
+Capture 01 post-backup verifies persistence for that exact package, while
+other packages remain evidence-gated.  This module intentionally stops before
+live authorization or USB transport.
 """
 
 from __future__ import annotations
@@ -161,7 +162,7 @@ class PreparedBitmapSourceItem:
                 "required": True,
                 "length_bytes": NATIVE_BMP_PREFIX_LENGTH,
                 "bytes_included": False,
-                "source": "P16-001 native transaction observation; post-operation persistence remains unverified",
+                "source": "P16-001 native transaction observation; exact Capture 01 post-operation persistence verified; not a generalized compatibility claim",
             },
         }
 
