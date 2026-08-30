@@ -4,7 +4,10 @@ import json
 import unittest
 
 from infocarry.bitmap import decode_monochrome_bmp
-from infocarry.prepared_media_package import build_prepared_media_package
+from infocarry.prepared_media_package import (
+    NATIVE_BMP_PREFIX_LENGTH,
+    build_prepared_media_package,
+)
 
 
 FIXTURE = Path(__file__).parents[1] / "samples/generated/P16-001-native-mixed-txt-bmp"
@@ -45,8 +48,12 @@ class P16MixedFixtureTests(unittest.TestCase):
         self.assertEqual(package.manifest_dict(), repeat.manifest_dict())
         self.assertEqual([item.kind for item in package.items], ["txt", "bmp", "txt"])
         self.assertEqual(package.prepared_payload_bytes, 10585)
-        self.assertEqual(package.aligned_content_bytes, 10684)
-        self.assertEqual(package.estimated_growth_lower_bound, 11004)
+        self.assertEqual(package.aligned_content_bytes, 10668)
+        self.assertEqual(package.estimated_growth_lower_bound, 10988)
+        self.assertEqual(
+            package.manifest_dict()["items"][1]["native_wrapper"]["length_bytes"],
+            NATIVE_BMP_PREFIX_LENGTH,
+        )
         self.assertFalse(package.manifest_dict()["usb_accessed"])
 
     def test_txt_markers_and_crlf_are_exact(self):

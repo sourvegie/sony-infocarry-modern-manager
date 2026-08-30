@@ -1334,9 +1334,12 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 1. Keep the corrected P15-001 dossier historical at `IMPLEMENTATION_READY` and
    the P15-002 readiness dossier as the host preparation record. P15-003 has
    completed the exact separately approved `_02` four-TXT smoke with explicit
-   `0x0000` and independent read-back. P16-001 is host-prepared and stopped at
-   `READY_FOR_HARDWARE_TEST` for one legacy TXT/BMP/TXT capture; require the
-   exact owner approval in its procedure before any Manager send.
+   `0x0000` and independent read-back. P16-001 Capture 01 is preserved and
+   partially reconciled, but remains `BLOCKED_BY_EXTERNAL_EVIDENCE` because
+   the complete post-operation raw backup, Manager result/owner observation,
+   timestamp mapping, operation-specific capacity/fixed-state evidence, and
+   decoded numeric completion were not supplied. Do not repeat the legacy
+   operation automatically.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1637,7 +1640,7 @@ and the full preservation manifest remain outside Git. P15-003 is complete
 only for this exact constrained shape; BMP, mixed, nested, batch, arbitrary,
 recovery, and normal GUI/CLI transfer behavior remain unproven.
 
-## Phase 16 — P16-001 native mixed TXT/BMP evidence readiness (2026-08-30)
+## Phase 16 — P16-001 native mixed TXT/BMP evidence (2026-08-30)
 
 P16-001 prepares the next evidence gate without changing the device. The
 sanitized fixture in
@@ -1656,9 +1659,13 @@ It defines the new external non-overwriting session root
 `/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`,
 the complete source/Manager/backup/USB/timestamp/preservation evidence set,
 the three required timestamp observations, and explicit abort conditions.
-Host-only fixture/model validation and independent R3 review stop at
-`READY_FOR_HARDWARE_TEST`. The exact approval phrase
-`APPROVE P16-001 LEGACY MIXED TXT BMP CAPTURE 01` is required before the
-legacy Manager send. Native BMP wrapper/record construction, mixed ordering,
-capacity, fixed-state, completion, and post-state behavior remain unresolved;
-no modern transaction is authorized by P16-001.
+The owner supplied Capture 01 after the operation-specific approval. The raw
+capture is preserved outside Git and its single native `0x101b` transaction
+contains a checksum-valid five-record TXT/BMP/TXT addition with exact source
+payloads, expected folder/marker/child order, and an observed 16-byte BMP
+prefix. The complete post-operation raw backup, Manager result/owner
+observation, timestamp mapping, operation-specific capacity/fixed-state
+evidence, and decoded numeric completion were not supplied. The native gate
+is therefore `BLOCKED_BY_EXTERNAL_EVIDENCE`; no modern transaction is
+authorized by P16-001. See
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.

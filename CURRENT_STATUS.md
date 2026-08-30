@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: P16-001 mixed TXT/BMP host evidence procedure prepared in this update
+Canonical checkpoint: P16-001 Capture 01 ingested; native mixed gate is blocked by incomplete external evidence
 
 ## Portable offline validation
 
@@ -20,7 +20,15 @@ These are host/offline results only. They do not claim physical-device verificat
 - Selective-delete modeling/hardening has completed its supported offline structural scope, and one constrained modern root-level TXT delete smoke has passed with independent read-back.
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
-- P16-001 has a sanitized, hash-bound three-child TXT/BMP/TXT fixture, host-only validation, and a reviewed native evidence procedure; no mixed-package hardware operation has occurred.
+- P16-001 Capture 01 is preserved outside Git and its native transaction is
+  parseable. The transaction-model five-record addition, exact TXT/BMP
+  payloads, folder/marker/child order, and 16-byte BMP prefix are recorded as
+  bounded native observations. The supplied evidence lacks a complete
+  post-operation raw backup, timestamp event mapping, Manager result/owner
+  observation, operation-specific capacity/fixed-state evidence, and a
+  decoded numeric completion, so the native mixed gate is
+  **BLOCKED_BY_EXTERNAL_EVIDENCE**. No modern mixed-package dossier or
+  hardware transaction has been prepared.
 
 ## P15 status boundary
 
@@ -87,12 +95,16 @@ complete post-operation backup, three mapped timestamps, and a preservation
 manifest under the non-overwriting external root
 `/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`.
 
-P16-001 is stopped at **READY_FOR_HARDWARE_TEST** for this one legacy capture
-only. The exact approval phrase
-`APPROVE P16-001 LEGACY MIXED TXT BMP CAPTURE 01` is still required before
-the Manager send. Native BMP wrapper/record behavior, mixed child ordering,
-and all resulting device semantics remain unproven; no modern transaction is
-authorized by this task.
+The owner supplied `capture12`, which is preserved byte-for-byte under
+`08-supplied-capture12-raw/`. The parsed native `0x101b` contains the exact
+three-child TXT/BMP/TXT transaction model and exposes a 16-byte BMP wrapper,
+but the supplied tree has no complete post-operation raw backup, no separate
+timestamp mapping, and no Manager result/owner outcome observation. P16-001
+therefore remains **BLOCKED_BY_EXTERNAL_EVIDENCE**. Native persistence,
+capacity, fixed state, completion, unrelated-data preservation, and modern
+mixed compatibility remain unproven. No modern transaction is authorized by
+this task. See
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
 
 ## Current product safety boundary
 
@@ -120,12 +132,13 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P16-001 host preparation is complete and stopped at **READY_FOR_HARDWARE_TEST**
-for one legacy Manager mixed TXT/BMP capture. It is not a device-changing
-approval. The owner must provide the exact operation-specific phrase in the
-P16-001 procedure before the single legacy send; any later modern transaction
-would require a separate task, fresh R3 review, fresh complete backup, and new
-operation-specific approval.
+P16-001 Capture 01 intake is **BLOCKED_BY_EXTERNAL_EVIDENCE**. If the owner
+already has the missing complete post-operation raw backup, Manager
+result/observation, timestamp mapping, or operation-specific capacity/fixed-
+state evidence, supply it for a new non-overwriting external intake. Do not
+repeat the legacy operation automatically. Any later modern transaction
+would require a separate task, fresh R3 review, a fresh complete backup, and
+new operation-specific approval.
 
 ## Canonical reading order
 
