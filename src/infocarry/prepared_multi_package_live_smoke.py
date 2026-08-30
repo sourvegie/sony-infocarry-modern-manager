@@ -191,6 +191,20 @@ def _backup_identity(backup: VerifiedBackup) -> tuple[Any, ...]:
     )
 
 
+def _sealed_backup_dict(backup: VerifiedBackup) -> dict[str, Any]:
+    """Return stable backup facts for a cross-process preflight seal.
+
+    ``verified_at_utc`` records when this process re-hashed an unchanged
+    archive.  It is useful audit metadata, but it is not device state and
+    must not make a valid sealed preflight fail when the archive is reloaded
+    and independently verified later.
+    """
+
+    result = backup.to_dict()
+    result.pop("verified_at_utc", None)
+    return result
+
+
 def _seal_payload(
     *,
     candidate: PreparedMultiPackageCandidate,
@@ -204,7 +218,7 @@ def _seal_payload(
 ) -> dict[str, Any]:
     return {
         "candidate": candidate.audit_dict(),
-        "before_backup": before_backup.to_dict(),
+        "before_backup": _sealed_backup_dict(before_backup),
         "capacity_response": capacity_response.to_dict(),
         "template_sha256": _sha256(template.data),
         "template_folder_path": list(template_folder_path),

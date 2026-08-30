@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: `c1cf621` (`Merge workflow migration W-001/W-002`)
+Canonical checkpoint: `02dc39e` (`Merge pull request #2`); P15-003 task branch pending
 
 ## Portable offline validation
 
-- 524 passing tests
+- 525 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -33,14 +33,22 @@ unresolved, while the owner-supplied normal Manager return and complete
 post-backup persistence remain explicitly recorded as non-contradictory
 observed/verified evidence.
 
-P15-002 now has a distinct `_02` root destination, rebuilt source/path/order,
-capacity, candidate, authorization, transaction, and verification bindings
-from the latest preserved Capture 01 post-state. Its isolated live runner is
-host-tested only through injected fake hardware boundaries, is not exposed by
-the normal CLI or GUI, and is **READY_FOR_HARDWARE_TEST** after R3 review.
-No modern `0x101b` transaction has been performed. Any later hardware test
-requires a new complete backup, revalidation of all exact bindings, and a new
-operation-specific owner approval; this status document does not authorize it.
+P15-002 prepared a distinct `_02` root destination with rebuilt
+source/path/order, capacity, candidate, authorization, transaction, and
+verification bindings from the latest preserved Capture 01 post-state. Its
+isolated live runner was host-tested through injected fake hardware boundaries,
+was not exposed by the normal CLI or GUI, and passed R3 review at
+**READY_FOR_HARDWARE_TEST**. The exact operation was then executed separately
+under P15-003 and is recorded as complete only for that constrained shape.
+
+P15-003 performed exactly one approved modern `0x101b` transaction for the
+four-TXT `_02` package. The device returned explicit `0x0000`; a fresh complete
+post-operation backup and independent read-back verified the folder, four
+ordered children, exact payloads and wrappers, preserved timestamps/fixed state,
+and unchanged unrelated content. The result is recorded in
+`analysis/phase-15-p15-003-exact-modern-four-txt-hardware-smoke-20260830.md`.
+No broader hardware behavior is proven, and this status document does not
+authorize another device-changing operation.
 
 ## P15-001 native evidence checkpoint
 
@@ -77,7 +85,7 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 
 ## External/hardware boundaries still unresolved
 
-- physical modern multi-child compatibility beyond the prepared dossier;
+- physical modern multi-child compatibility beyond the exact verified four-TXT `_02` smoke;
 - newly constructed mixed TXT/BMP live compatibility;
 - generalized deletion beyond the exact supported smoke scope;
 - physical interrupted-write atomicity, rollback, and recovery;
@@ -89,12 +97,10 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-Obtain a separate operation-specific owner approval for the exact P15-002
-`_02` modern smoke, then perform only its read-only fresh-backup preflight and
-revalidation. A later write may send at most one `0x101b` transaction, accepts
-only explicit `0x0000`, and treats interruption, timeout, disconnect, missing,
-ambiguous, malformed, or nonzero completion as terminal with no retry. No
-modern `0x101b` transaction is authorized by this status document.
+There is no currently approved follow-on device-changing task. P15-003
+completed the exact `_02` four-TXT smoke with one transaction and independent
+read-back. Any broader or different operation requires a new task, fresh R3
+review, a new complete backup, and a new operation-specific owner approval.
 
 ## Canonical reading order
 
