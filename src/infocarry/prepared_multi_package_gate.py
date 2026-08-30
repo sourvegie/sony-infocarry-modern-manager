@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from .capacity_evidence import NATIVE_CAPACITY_EVIDENCE_SOURCE, NATIVE_CAPACITY_EVIDENCE_VERSION, NATIVE_CAPACITY_FIELD_OFFSET
 from .prepared_fixed_state import assess_prepared_fixed_state
@@ -44,6 +44,9 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         allocation = audit["allocation"]
         evidence = audit["capacity_evidence"]
         transaction = audit["transaction"]
+        template = audit["template"]
+        policy = audit["policy"]
+        expected_post = audit["expected_post_operation"]
         items = tuple(package["ordered_items"])
         values = {
             "device_identity": (device["vendor_id"], device["product_id"]),
@@ -51,12 +54,23 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
             "baseline_blob_sha256": baseline["blob_sha256"],
             "prepared_manifest_sha256": package["prepared_manifest_sha256"],
             "source_sha256": tuple(item["source_sha256"] for item in items),
+            "source_paths": tuple(item["source_path"] for item in items),
             "target_paths": tuple(package["paths"]),
             "target_kinds": ("directory", *(item["kind"] for item in items)),
             "target_record_offsets": tuple(int(value, 16) for value in package["record_offsets"]),
             "new_record_timestamp_be32": int(candidate_data["new_record_timestamp_be32"], 16),
             "candidate_blob_sha256": candidate_data["blob_sha256"],
             "candidate_transaction_sha256": transaction["sha256"],
+            "template_blob_sha256": template["blob_sha256"],
+            "template_folder_path": template["folder_path"],
+            "template_item_paths": tuple(sorted(template["item_paths"].items())),
+            "template_item_record_offsets": tuple(sorted(template["item_record_offsets"].items())),
+            "template_prefix_sha256": tuple(sorted(template["prefix_sha256"].items())),
+            "timestamp_policy": policy["timestamp"],
+            "expected_added_paths": tuple(expected_post["added_paths"]),
+            "expected_removed_paths": tuple(expected_post["removed_paths"]),
+            "expected_ordered_kinds": tuple(expected_post["ordered_kinds"]),
+            "expected_new_payload_sha256": tuple(expected_post["new_payload_sha256"]),
             "fixed_state_sha256": tuple(transaction["fixed_state_hashes"]),
             "capacity_response_sha256": evidence["raw_response_sha256"],
             "capacity_response_command": int(evidence["response_command"], 16),
@@ -74,11 +88,25 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         raise PreparedMultiPackageGateError("candidate audit is missing multi-package binding fields") from exc
     if len(values["device_identity"]) != 2 or any(not isinstance(value, str) or not value for value in values["device_identity"]):
         raise PreparedMultiPackageGateError("candidate device identity is invalid")
-    for key in ("baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "candidate_blob_sha256", "candidate_transaction_sha256", "capacity_response_sha256"):
+    for key in ("baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "candidate_blob_sha256", "candidate_transaction_sha256", "capacity_response_sha256", "template_blob_sha256"):
         values[key] = _digest(values[key], key)
     if len(values["source_sha256"]) < 2:
         raise PreparedMultiPackageGateError("candidate must bind at least two source hashes")
     values["source_sha256"] = tuple(_digest(value, "source hash") for value in values["source_sha256"])
+    if any(not isinstance(path, str) or not path for path in (values["template_folder_path"], *[path for _kind, path in values["template_item_paths"]])):
+        raise PreparedMultiPackageGateError("candidate template path binding is invalid")
+    if any(kind not in {"txt", "bmp"} or not isinstance(path, str) or not path for kind, path in values["template_item_paths"]):
+        raise PreparedMultiPackageGateError("candidate template item binding is invalid")
+    for _kind, digest in values["template_prefix_sha256"]:
+        _digest(digest, "template prefix hash")
+    for digest in values["expected_new_payload_sha256"]:
+        _digest(digest, "expected payload hash")
+    if values["timestamp_policy"] != "one_explicit_frozen_value_for_new_records_only":
+        raise PreparedMultiPackageGateError("candidate timestamp policy is not the reviewed modern policy")
+    if len(values["source_paths"]) != len(values["source_sha256"]) or any(
+        not isinstance(value, str) or not value for value in values["source_paths"]
+    ):
+        raise PreparedMultiPackageGateError("candidate source path binding is invalid")
     fixed = values["fixed_state_sha256"]
     if len(fixed) != 5:
         raise PreparedMultiPackageGateError("candidate must bind five fixed-state hashes")
@@ -89,6 +117,13 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         raise PreparedMultiPackageGateError("candidate target paths are invalid")
     if values["target_kinds"][0] != "directory" or len(values["target_kinds"]) != len(values["target_paths"]):
         raise PreparedMultiPackageGateError("candidate target kinds are invalid")
+    if values["expected_added_paths"] != values["target_paths"] or values["expected_removed_paths"]:
+        raise PreparedMultiPackageGateError("candidate expected post-operation path delta is invalid")
+    if (
+        values["expected_ordered_kinds"] != values["target_kinds"]
+        or len(values["expected_new_payload_sha256"]) != len(values["source_sha256"])
+    ):
+        raise PreparedMultiPackageGateError("candidate expected post-operation payload delta is invalid")
     numeric = ("new_record_timestamp_be32", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_response_command", "capacity_response_field_offset")
     for key in numeric:
         value = values[key]
@@ -110,9 +145,17 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         raise PreparedMultiPackageGateError("candidate backup binding does not match the verified backup")
     if values["prepared_manifest_sha256"] != candidate.package.prepared_manifest_sha256:
         raise PreparedMultiPackageGateError("candidate package manifest binding does not match the package")
+    candidate_template = candidate.audit.get("template")
+    if not isinstance(candidate_template, Mapping) or candidate_template.get("blob_sha256") != values["template_blob_sha256"]:
+        raise PreparedMultiPackageGateError("candidate template blob binding does not match")
+    if candidate.audit.get("policy", {}).get("timestamp") != values["timestamp_policy"]:
+        raise PreparedMultiPackageGateError("candidate timestamp policy binding does not match")
     actual_sources = tuple(item.source_sha256 for item in candidate.package.items)
     if actual_sources != values["source_sha256"]:
         raise PreparedMultiPackageGateError("candidate source binding does not match package order")
+    actual_source_paths = tuple(str(item.source_path) for item in candidate.package.items)
+    if actual_source_paths != values["source_paths"]:
+        raise PreparedMultiPackageGateError("candidate source path binding does not match package order")
     actual_fixed = tuple(_sha256(block) for block in candidate.fixed_state.raw_blocks)
     if actual_fixed != values["fixed_state_sha256"]:
         raise PreparedMultiPackageGateError("candidate fixed-state binding does not match preserved bytes")
@@ -151,6 +194,17 @@ class PreparedMultiPackageAuthorization:
     baseline_blob_sha256: str
     prepared_manifest_sha256: str
     source_sha256: tuple[str, ...]
+    source_paths: tuple[str, ...]
+    template_blob_sha256: str
+    template_folder_path: str
+    template_item_paths: tuple[tuple[str, str], ...]
+    template_item_record_offsets: tuple[tuple[str, str], ...]
+    template_prefix_sha256: tuple[tuple[str, str], ...]
+    timestamp_policy: str
+    expected_added_paths: tuple[str, ...]
+    expected_removed_paths: tuple[str, ...]
+    expected_ordered_kinds: tuple[str, ...]
+    expected_new_payload_sha256: tuple[str, ...]
     target_paths: tuple[str, ...]
     target_kinds: tuple[str, ...]
     target_record_offsets: tuple[int, ...]
@@ -176,12 +230,28 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError("wrong multi-package confirmation phrase")
         if len(self.device_identity) != 2 or any(not isinstance(value, str) or not value for value in self.device_identity):
             raise PreparedMultiPackageGateError("authorization device identity is invalid")
-        for label, value in (("baseline manifest", self.baseline_manifest_sha256), ("baseline blob", self.baseline_blob_sha256), ("prepared manifest", self.prepared_manifest_sha256), ("candidate blob", self.candidate_blob_sha256), ("candidate transaction", self.candidate_transaction_sha256), ("capacity response", self.capacity_response_sha256)):
+        for label, value in (("baseline manifest", self.baseline_manifest_sha256), ("baseline blob", self.baseline_blob_sha256), ("prepared manifest", self.prepared_manifest_sha256), ("candidate blob", self.candidate_blob_sha256), ("candidate transaction", self.candidate_transaction_sha256), ("capacity response", self.capacity_response_sha256), ("template blob", self.template_blob_sha256)):
             _digest(value, label)
-        if len(self.source_sha256) < 2 or len(self.target_kinds) != len(self.source_sha256) + 1 or len(self.target_record_offsets) != len(self.source_sha256) + 1 or len(self.target_paths) != len(self.source_sha256) + 1:
+        if len(self.source_sha256) < 2 or len(self.source_paths) != len(self.source_sha256) or len(self.target_kinds) != len(self.source_sha256) + 1 or len(self.target_record_offsets) != len(self.source_sha256) + 1 or len(self.target_paths) != len(self.source_sha256) + 1:
             raise PreparedMultiPackageGateError("authorization item bindings are inconsistent")
         for index, value in enumerate(self.source_sha256):
             _digest(value, f"source hash {index}")
+        if any(not isinstance(value, str) or not value for value in self.source_paths):
+            raise PreparedMultiPackageGateError("authorization source path binding is invalid")
+        if not self.template_folder_path or not self.template_item_paths or not self.template_item_record_offsets:
+            raise PreparedMultiPackageGateError("authorization template binding is incomplete")
+        if any(kind not in {"txt", "bmp"} or not path for kind, path in self.template_item_paths):
+            raise PreparedMultiPackageGateError("authorization template item path binding is invalid")
+        for _kind, digest in self.template_prefix_sha256:
+            _digest(digest, "template prefix hash")
+        for digest in self.expected_new_payload_sha256:
+            _digest(digest, "expected payload hash")
+        if self.timestamp_policy != "one_explicit_frozen_value_for_new_records_only":
+            raise PreparedMultiPackageGateError("authorization timestamp policy is invalid")
+        if self.expected_added_paths != self.target_paths or self.expected_removed_paths or self.expected_ordered_kinds != self.target_kinds:
+            raise PreparedMultiPackageGateError("authorization expected post-operation path binding is invalid")
+        if len(self.expected_new_payload_sha256) != len(self.source_sha256):
+            raise PreparedMultiPackageGateError("authorization expected payload binding is invalid")
         if len(self.fixed_state_sha256) != 5:
             raise PreparedMultiPackageGateError("authorization must bind five fixed-state hashes")
         for index, value in enumerate(self.fixed_state_sha256):
@@ -199,7 +269,7 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError("authorization capacity binding is inconsistent")
 
     def _expected(self) -> dict[str, Any]:
-        return {key: getattr(self, key) for key in ("device_identity", "baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "source_sha256", "target_paths", "target_kinds", "target_record_offsets", "new_record_timestamp_be32", "candidate_blob_sha256", "candidate_transaction_sha256", "fixed_state_sha256", "capacity_response_sha256", "capacity_response_command", "capacity_response_field_offset", "capacity_evidence_source", "capacity_evidence_version", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_result")}
+        return {key: getattr(self, key) for key in ("device_identity", "baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "source_sha256", "source_paths", "template_blob_sha256", "template_folder_path", "template_item_paths", "template_item_record_offsets", "template_prefix_sha256", "timestamp_policy", "expected_added_paths", "expected_removed_paths", "expected_ordered_kinds", "expected_new_payload_sha256", "target_paths", "target_kinds", "target_record_offsets", "new_record_timestamp_be32", "candidate_blob_sha256", "candidate_transaction_sha256", "fixed_state_sha256", "capacity_response_sha256", "capacity_response_command", "capacity_response_field_offset", "capacity_evidence_source", "capacity_evidence_version", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_result")}
 
     def require_same_candidate(self, candidate: PreparedMultiPackageCandidate) -> None:
         actual = _candidate_binding(candidate)
@@ -229,6 +299,14 @@ class PreparedMultiPackageAuthorization:
         result = {"format": PREPARED_MULTI_PACKAGE_GATE_FORMAT, "state": "authorized_for_fake_transport_only", "usb_transmission_performed": False, "operation": "add_one_root_folder_ordered_package", "confirmation_phrase": self.confirmation_phrase}
         result.update(self._expected())
         result["source_sha256"] = list(self.source_sha256)
+        result["source_paths"] = list(self.source_paths)
+        result["template_item_paths"] = {key: value for key, value in self.template_item_paths}
+        result["template_item_record_offsets"] = {key: value for key, value in self.template_item_record_offsets}
+        result["template_prefix_sha256"] = {key: value for key, value in self.template_prefix_sha256}
+        result["expected_added_paths"] = list(self.expected_added_paths)
+        result["expected_removed_paths"] = list(self.expected_removed_paths)
+        result["expected_ordered_kinds"] = list(self.expected_ordered_kinds)
+        result["expected_new_payload_sha256"] = list(self.expected_new_payload_sha256)
         result["target_paths"] = list(self.target_paths)
         result["target_kinds"] = list(self.target_kinds)
         result["target_record_offsets"] = [f"0x{value:08x}" for value in self.target_record_offsets]

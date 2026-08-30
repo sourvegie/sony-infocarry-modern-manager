@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: P16-001 Capture 01 is COMPLETE for the exact constrained native TXT/BMP/TXT evidence scope
+Canonical checkpoint: P16-002 host preparation is READY_FOR_HARDWARE_TEST for the exact constrained modern TXT/BMP/TXT scope; no hardware operation is authorized by this checkpoint
 
 ## Portable offline validation
 
-- 529 passing tests
+- 539 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -30,8 +30,20 @@ These are host/offline results only. They do not claim physical-device verificat
   without an error, and device accessibility of the transferred package.
   P16-001 is **COMPLETE** for this exact native evidence scope. Native numeric
   completion decoding and operation-specific capacity response semantics
-  remain explicit non-blocking observations; no modern mixed-package dossier
-  or hardware transaction has been prepared.
+  remain explicit non-blocking observations. No modern mixed-package hardware
+  transaction was performed.
+
+- P16-002 is **READY_FOR_HARDWARE_TEST** for one exact host-prepared modern
+  flat TXT/BMP/TXT package at the distinct destination
+  `IC_P16_MIXED_20260830_02`. Its candidate, source paths and hashes, native
+  TXT/BMP templates, record offsets, fixed-state hashes, offline capacity
+  reference, approved modern timestamp policy, prospective `0x101b`
+  transaction, and expected post-operation delta are bound and independently
+  reviewed. The isolated one-shot runner is host-tested only through injected
+  fake hardware boundaries; it is not exposed through the normal GUI or CLI.
+  A future live task must capture a fresh complete backup and fresh native
+  `0x0019` capacity response, then obtain separate operation-specific approval.
+  No device was detected, queried, backed up, or written during P16-002.
 
 ## P15 status boundary
 
@@ -143,12 +155,14 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P16-001 is **COMPLETE** for the exact native flat TXT/BMP/TXT evidence scope.
-The next separately briefed task is P16-002 modern mixed-package host
-readiness. It must independently obtain and validate fresh 0x0019 capacity
-evidence during preflight and must not treat the native global timestamp
-rewrite or unresolved numeric completion as modern rules. No modern runner,
-dossier, or device-changing transaction is authorized by this checkpoint.
+P16-002 completion is included by this status update: it is
+**READY_FOR_HARDWARE_TEST** for the exact constrained modern flat TXT/BMP/TXT
+host scope. The next separately briefed task is a live-execution task; it must
+independently obtain and validate fresh `0x0019` capacity evidence, preserve a
+fresh complete backup, and obtain new operation-specific owner approval. The
+native global timestamp rewrite and unresolved numeric completion remain
+unresolved observations, not modern rules. No device-changing transaction is
+authorized by this checkpoint.
 
 ## Canonical reading order
 

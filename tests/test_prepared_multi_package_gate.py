@@ -1,5 +1,6 @@
 from copy import deepcopy
 from dataclasses import replace
+from pathlib import Path
 import unittest
 
 try:
@@ -28,6 +29,10 @@ class PreparedMultiPackageGateTests(unittest.TestCase):
         )
         self.assertEqual(authorization.target_kinds, ("directory", "txt", "bmp", "txt"))
         self.assertEqual(len(authorization.target_paths), 4)
+        self.assertEqual(
+            tuple(Path(value).name for value in authorization.source_paths),
+            ("one.txt", "page.bmp", "two.txt"),
+        )
         self.assertEqual(len(authorization.target_record_offsets), 4)
         self.assertEqual(authorization.capacity_response_command, 0x0019)
         self.assertEqual(authorization.capacity_response_field_offset, 0x08)
@@ -58,6 +63,9 @@ class PreparedMultiPackageGateTests(unittest.TestCase):
             ("allocation", "remaining_growth_bytes", 1),
             ("capacity_evidence", "raw_response_sha256", "0" * 64),
             ("transaction", "sha256", "0" * 64),
+            ("template", "blob_sha256", "0" * 64),
+            ("policy", "timestamp", "legacy_global_rewrite"),
+            ("expected_post_operation", "removed_paths", ["root\\unexpected"]),
         )
         for section, key, value in mutations:
             with self.subTest(section=section, key=key):
