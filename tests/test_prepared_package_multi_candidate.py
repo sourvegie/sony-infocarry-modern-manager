@@ -52,11 +52,12 @@ def _template_blobs() -> tuple[bytes, bytes]:
     first = b"template one\r\n"
     second = b"template two\r\n"
     bmp = make_profile_bmp()
-    prefix = b"\x01" + b"\xff" * 31
-    old_segment = prefix + old
-    first_segment = prefix + first
-    second_segment = prefix + second
-    bmp_segment = prefix + bmp
+    text_prefix = b"\x01" + b"\xff" * 31
+    bmp_prefix = b"\xff" * 16
+    old_segment = text_prefix + old
+    first_segment = text_prefix + first
+    second_segment = text_prefix + second
+    bmp_segment = bmp_prefix + bmp
     old_aligned = old_segment + b"\xff" * ((-len(old_segment)) % 4)
     first_aligned = first_segment + b"\xff" * ((-len(first_segment)) % 4)
     second_aligned = second_segment + b"\xff" * ((-len(second_segment)) % 4)
@@ -83,7 +84,7 @@ def _template_blobs() -> tuple[bytes, bytes]:
                 len(old_aligned) + len(first_aligned),
                 len(bmp),
                 "page",
-                0x200,
+                0x100,
             ),
             make_record(0xD0, "", 0x40, 0xC0, ".."),
         )
@@ -179,6 +180,7 @@ class PreparedMultiCandidateTests(unittest.TestCase):
             if path == ("root", "NewBook", "page")
         )
         self.assertEqual(candidate.candidate.payload_parts(bmp_record)[1], make_profile_bmp())
+        self.assertEqual(len(candidate.candidate.payload_parts(bmp_record)[0]), 16)
         self.assertEqual(candidate.audit["allocation"]["metadata_records_added"], 5)
 
     def test_requires_each_kind_template_and_native_capacity(self):

@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: P15-003 exact modern four-TXT smoke completion recorded in this update
+Canonical checkpoint: P16-001 Capture 01 is COMPLETE for the exact constrained native TXT/BMP/TXT evidence scope
 
 ## Portable offline validation
 
-- 525 passing tests
+- 529 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -20,6 +20,18 @@ These are host/offline results only. They do not claim physical-device verificat
 - Selective-delete modeling/hardening has completed its supported offline structural scope, and one constrained modern root-level TXT delete smoke has passed with independent read-back.
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
+- P16-001 Capture 01 is preserved outside Git and its native transaction is
+  parseable. A new complete read-only post-operation backup is preserved
+  outside Git and exactly matches the native transaction model. The
+  transaction-model and post-state five-record addition, exact TXT/BMP
+  payloads, folder/marker/child order, 16-byte BMP prefix, unchanged shared
+  file payloads, and unchanged 0x001b–0x001f fixed-state objects are verified.
+  The owner confirms the three timestamp meanings, normal Manager completion
+  without an error, and device accessibility of the transferred package.
+  P16-001 is **COMPLETE** for this exact native evidence scope. Native numeric
+  completion decoding and operation-specific capacity response semantics
+  remain explicit non-blocking observations; no modern mixed-package dossier
+  or hardware transaction has been prepared.
 
 ## P15 status boundary
 
@@ -71,6 +83,40 @@ the constrained candidate/authorization/verifier dossier is reviewed
 offline. Raw evidence remains outside Git and no modern hardware transaction
 was performed.
 
+## P16-001 native mixed-package evidence boundary
+
+The new sanitized fixture and operation-specific legacy Manager procedure are
+recorded at
+`samples/generated/P16-001-native-mixed-txt-bmp/` and
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-evidence-protocol-20260830.md`.
+The fixture is one new root folder containing exactly an introduction TXT, one
+generated 237x320 one-bit BMP page, and an ending TXT in explicit order. Its
+source hashes, CRLF/CP932 policy, BMP profile, visual sentinels, and manifest
+are tested offline. The procedure requires a fresh complete pre-operation
+backup, exact Manager/SnoopyPro before/after evidence, native USB capture,
+complete post-operation backup, three mapped timestamps, and a preservation
+manifest under the non-overwriting external root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`.
+
+The owner supplied `capture12`, which is preserved byte-for-byte under
+`08-supplied-capture12-raw/`. The parsed native `0x101b` contains the exact
+three-child TXT/BMP/TXT transaction model and exposes a 16-byte BMP wrapper.
+A new complete post-operation backup is preserved under
+`05-post-operation/backup-20260830-02/`; it matches the transaction model
+byte-for-byte and verifies persistence, exact source payloads, unchanged
+shared file payloads, and unchanged fixed-state objects. The post-backup
+verification, owner confirmation, and version-03 preservation manifest remain
+outside Git. The owner confirms stamp-0001 idle initialization, stamp-0002
+immediately before Send Selected, stamp-0003 completed/packet-idle, normal
+Manager completion without an error, and device accessibility. The five new
+records carry 0x6a942449 (2026-08-30T12:38:33Z), within the confirmed send
+interval; the legacy global timestamp rewrite remains observed and is not a
+modern rule. P16-001 is **COMPLETE** only for this exact native evidence
+scope. Numeric completion decoding and operation-specific capacity response
+remain unresolved/non-blocking, and no modern transaction is authorized by
+this task. See
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
+
 ## Current product safety boundary
 
 Normal product-facing controls remain disabled for:
@@ -97,10 +143,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-There is no currently approved follow-on device-changing task. P15-003
-completed the exact `_02` four-TXT smoke with one transaction and independent
-read-back. Any broader or different operation requires a new task, fresh R3
-review, a new complete backup, and a new operation-specific owner approval.
+P16-001 is **COMPLETE** for the exact native flat TXT/BMP/TXT evidence scope.
+The next separately briefed task is P16-002 modern mixed-package host
+readiness. It must independently obtain and validate fresh 0x0019 capacity
+evidence during preflight and must not treat the native global timestamp
+rewrite or unresolved numeric completion as modern rules. No modern runner,
+dossier, or device-changing transaction is authorized by this checkpoint.
 
 ## Canonical reading order
 

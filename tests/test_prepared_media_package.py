@@ -6,6 +6,7 @@ import unittest
 from infocarry.prepared_media_package import (
     EXPECTED_BMP_HEIGHT,
     EXPECTED_BMP_WIDTH,
+    NATIVE_BMP_PREFIX_LENGTH,
     PREPARED_MEDIA_CONFIRMATION,
     PreparedBitmapSourceItem,
     PreparedMediaPackageError,
@@ -75,6 +76,7 @@ class PreparedMediaPackageTests(unittest.TestCase):
             self.assertEqual(entry["bmp"]["pixel_offset"], 62)
             self.assertEqual(entry["bmp"]["row_stride"], 32)
             self.assertEqual(entry["bmp"]["payload_sha256"], bmp.payload_sha256)
+            self.assertEqual(entry["native_wrapper"]["length_bytes"], NATIVE_BMP_PREFIX_LENGTH)
 
     def test_size_accounting_is_a_lower_bound_not_a_device_candidate(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -13,6 +13,9 @@ samples/generated/*
 # P15-002 is a sanitized, reviewable source fixture rather than runtime output.
 !samples/generated/P15-002-modern-multi-chapter-txt/
 !samples/generated/P15-002-modern-multi-chapter-txt/**
+# P16-001 is a sanitized, reviewable source fixture rather than runtime output.
+!samples/generated/P16-001-native-mixed-txt-bmp/
+!samples/generated/P16-001-native-mixed-txt-bmp/**
 
 # Evidence and live-operation material (keep outside this source repository)
 /evidence/

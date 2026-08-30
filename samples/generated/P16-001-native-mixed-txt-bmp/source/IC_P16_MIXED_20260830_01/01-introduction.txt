@@ -1,0 +1,4 @@
+P16-001 MIXED PACKAGE INTRODUCTION
+ORDER MARKER: 01 TXT INTRODUCTION
+The next child is one generated monochrome BMP page.
+P16-001-INTRO-END

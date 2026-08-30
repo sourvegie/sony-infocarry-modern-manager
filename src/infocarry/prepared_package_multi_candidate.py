@@ -16,7 +16,11 @@ from .backup_format import BackupFormatError, BackupRecord, ParsedBackupBlob, pa
 from .capacity import CapacitySemanticsError, assess_total_capacity
 from .capacity_evidence import NativeCapacityEvidence, NativeCapacityResponse, NativeCapacityEvidenceError
 from .prepared_fixed_state import PreparedFixedStateAssessment, PreparedFixedStateError, PreparedFixedStateSnapshot, assess_prepared_fixed_state
-from .prepared_media_package import PreparedBitmapSourceItem, PreparedMediaPackage
+from .prepared_media_package import (
+    NATIVE_BMP_PREFIX_LENGTH,
+    PreparedBitmapSourceItem,
+    PreparedMediaPackage,
+)
 from .prepared_multi_text import PreparedTextPackageSet, PreparedTextSourceItem
 from .prepared_folder import PreparedFolderError, _aligned_segment_length, _encode_component, _raw_record, _replace_name
 from .write_artifact import ProspectiveWriteTransaction, WriteArtifactError, build_staging_range
@@ -26,6 +30,7 @@ from .write_gate import VerifiedBackup
 PREPARED_MULTI_CANDIDATE_FORMAT = "infocarry-modern-ordered-package-candidate-v1"
 _RECORD_SIZE = 0x40
 _TEXT_PREFIX_SIZE = 0x20
+_BMP_PREFIX_SIZE = NATIVE_BMP_PREFIX_LENGTH
 _DYNAMIC_BLOB_KEY = "0x8004:backup-blob"
 
 
@@ -134,9 +139,11 @@ def _template_records(
             raise PreparedMultiCandidateError(
                 f"template {kind.upper()} record is not a direct child of the template folder"
             )
-        if record.payload_prefix_length != _TEXT_PREFIX_SIZE:
+        expected_prefix_size = _TEXT_PREFIX_SIZE if kind == "txt" else _BMP_PREFIX_SIZE
+        if record.payload_prefix_length != expected_prefix_size:
             raise PreparedMultiCandidateError(
-                f"template {kind.upper()} record does not have the validated 32-byte native prefix"
+                f"template {kind.upper()} record does not have the validated "
+                f"{expected_prefix_size}-byte native prefix"
             )
         result[kind] = record
     return folder, leading, result
@@ -375,7 +382,11 @@ def build_prepared_multi_package_candidate(
             "kind": item.kind,
             "path": _display_path(child_paths[index], item.kind),
             "record_offset": _hex(item_metadata_offset),
-            "payload_offset": _hex(baseline.header.content_start + content_cursor + _TEXT_PREFIX_SIZE),
+            "payload_offset": _hex(
+                baseline.header.content_start
+                + content_cursor
+                + len(template.payload_parts(prefix_templates[item.kind])[0])
+            ),
             "payload_length": len(_item_payload(item)),
             "source_sha256": item.source_sha256,
             "payload_sha256": _sha256(_item_payload(item)),

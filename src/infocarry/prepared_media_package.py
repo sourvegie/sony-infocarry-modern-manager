@@ -1,8 +1,11 @@
 """Offline typed package model for an ordered TXT/BMP sequence.
 
 The model validates the conservative 237x320 one-bit Windows BMP profile and
-reuses the strict TXT authoring boundary.  It intentionally stops before
-native record construction, capacity authorization, or USB transport.
+reuses the strict TXT authoring boundary.  The 16-byte BMP record prefix is
+the narrow wrapper observed in the P16-001 native transaction; the complete
+Capture 01 post-backup verifies persistence for that exact package, while
+other packages remain evidence-gated.  This module intentionally stops before
+live authorization or USB transport.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from .text_authoring import TextAuthoringError, encode_cp932_text
 EXPECTED_BMP_WIDTH = 237
 EXPECTED_BMP_HEIGHT = 320
 EXPECTED_BMP_BITS_PER_PIXEL = 1
+NATIVE_BMP_PREFIX_LENGTH = 0x10
 PREPARED_MEDIA_PACKAGE_FORMAT = "infocarry-prepared-typed-media-package-v1"
 PREPARED_MEDIA_CONFIRMATION = "OFFLINE PREPARATION ONLY — NO DEVICE CHANGE"
 
@@ -126,7 +130,7 @@ class PreparedBitmapSourceItem:
 
     @property
     def aligned_content_bytes(self) -> int:
-        return _align4(NATIVE_TEXT_PREFIX_LENGTH + len(self.source_bytes))
+        return _align4(NATIVE_BMP_PREFIX_LENGTH + len(self.source_bytes))
 
     @property
     def kind(self) -> str:
@@ -156,9 +160,9 @@ class PreparedBitmapSourceItem:
             },
             "native_wrapper": {
                 "required": True,
-                "length_bytes": NATIVE_TEXT_PREFIX_LENGTH,
+                "length_bytes": NATIVE_BMP_PREFIX_LENGTH,
                 "bytes_included": False,
-                "source": "existing validated BMP record template required",
+                "source": "P16-001 native transaction observation; exact Capture 01 post-operation persistence verified; not a generalized compatibility claim",
             },
         }
 
@@ -238,7 +242,12 @@ class PreparedMediaPackage:
                 "metadata_record_size": METADATA_RECORD_SIZE,
                 "minimum_metadata_records": self.minimum_metadata_records,
                 "minimum_metadata_bytes": self.minimum_metadata_records * METADATA_RECORD_SIZE,
-                "native_wrapper_bytes_required": len(self.items) * NATIVE_TEXT_PREFIX_LENGTH,
+                "native_wrapper_bytes_required": sum(
+                    NATIVE_TEXT_PREFIX_LENGTH
+                    if isinstance(item, PreparedTextSourceItem)
+                    else NATIVE_BMP_PREFIX_LENGTH
+                    for item in self.items
+                ),
                 "prepared_payload_bytes": self.prepared_payload_bytes,
                 "aligned_content_bytes": self.aligned_content_bytes,
                 "estimated_growth_lower_bound": self.estimated_growth_lower_bound,
@@ -368,6 +377,7 @@ __all__ = [
     "EXPECTED_BMP_BITS_PER_PIXEL",
     "EXPECTED_BMP_HEIGHT",
     "EXPECTED_BMP_WIDTH",
+    "NATIVE_BMP_PREFIX_LENGTH",
     "PREPARED_MEDIA_CONFIRMATION",
     "PREPARED_MEDIA_PACKAGE_FORMAT",
     "PreparedBitmapSourceItem",

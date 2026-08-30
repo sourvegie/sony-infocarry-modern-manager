@@ -1334,8 +1334,13 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 1. Keep the corrected P15-001 dossier historical at `IMPLEMENTATION_READY` and
    the P15-002 readiness dossier as the host preparation record. P15-003 has
    completed the exact separately approved `_02` four-TXT smoke with explicit
-   `0x0000` and independent read-back; require a new task and owner approval
-   before any broader or different hardware operation.
+   `0x0000` and independent read-back. P16-001 Capture 01 is complete for
+   the exact native flat TXT/BMP/TXT evidence scope, including complete
+   post-backup persistence, source equality, mapped timestamps, normal Manager
+   completion, and owner-confirmed device accessibility. Native numeric
+   completion decoding and operation-specific capacity response remain
+   unresolved/non-blocking and must not be generalized. Do not repeat the
+   legacy operation automatically.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1346,9 +1351,10 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    the preserved I7 result, and the smoke completed with `0x0000` and full
    read-back. Keep generalized deletion, physical recovery, and broader state
    compatibility unresolved.
-4. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
-   GUI/CLI package/delete controls, and all broad or interrupted-write
-   operations blocked until their separate evidence gates close.
+4. Keep I.8–I.10 multi-child device candidates, P16-002 modern mixed/BMP
+   readiness, J.3 transfer planning, normal GUI/CLI package/delete controls,
+   and all broad or interrupted-write operations blocked until their separate
+   evidence gates close.
 5. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
@@ -1634,3 +1640,45 @@ and `analysis/phase-15-p15-003-r3-review-20260830.md`. Raw backups, USB audit,
 and the full preservation manifest remain outside Git. P15-003 is complete
 only for this exact constrained shape; BMP, mixed, nested, batch, arbitrary,
 recovery, and normal GUI/CLI transfer behavior remain unproven.
+
+## Phase 16 — P16-001 native mixed TXT/BMP evidence (2026-08-30)
+
+P16-001 prepares the next evidence gate without changing the device. The
+sanitized fixture in
+`samples/generated/P16-001-native-mixed-txt-bmp/` contains one new root folder,
+`IC_P16_MIXED_20260830_01`, with exactly three flat children in explicit order:
+an ASCII/strict-CP932-compatible CRLF introduction TXT, one generated 237x320
+bottom-up 1-bit `BI_RGB` BMP with a 40-byte `BITMAPINFOHEADER` and two-entry
+palette, and an ASCII/strict-CP932-compatible CRLF ending TXT. Exact source
+hashes, sizes, BMP profile, generated visual sentinels, and a preservation
+manifest are committed; no private/copyrighted content, backup, capture,
+candidate, transaction, or device data is included.
+
+The operation-specific procedure is
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-evidence-protocol-20260830.md`.
+It defines the new external non-overwriting session root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`,
+the complete source/Manager/backup/USB/timestamp/preservation evidence set,
+the three required timestamp observations, and explicit abort conditions.
+The owner supplied Capture 01 after the operation-specific approval. The raw
+capture is preserved outside Git and its single native `0x101b` transaction
+contains a checksum-valid five-record TXT/BMP/TXT addition with exact source
+payloads, expected folder/marker/child order, and an observed 16-byte BMP
+prefix. A new complete read-only post-operation backup is preserved at
+`05-post-operation/backup-20260830-02/`; all eight object hashes validate and
+its dynamic blob exactly matches the native transaction model. The post state
+therefore verifies target persistence, exact source payloads, the persisted
+16-byte BMP prefix, unchanged shared file payloads, and unchanged
+`0x001b`–`0x001f` fixed-state objects.
+
+The owner confirms the three timestamp events, normal legacy Manager
+completion without an error, and device accessibility of the transferred
+mixed-package files. The five new records carry `0x6a942449`, decoded as
+2026-08-30T12:38:33Z, within the confirmed Send Selected interval. The
+legacy global timestamp rewrite remains an observed behavior and is not a
+modern rule. P16-001 is `COMPLETE` for this exact native evidence scope.
+Native numeric completion decoding and operation-specific capacity response
+remain explicit unresolved, non-blocking observations; any future modern
+preflight must independently validate fresh `0x0019` evidence. No modern
+mixed-package runner or dossier is created by this correction. See
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.

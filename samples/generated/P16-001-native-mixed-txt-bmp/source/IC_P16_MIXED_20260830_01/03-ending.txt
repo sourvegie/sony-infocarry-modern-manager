@@ -1,0 +1,4 @@
+P16-001 MIXED PACKAGE ENDING
+ORDER MARKER: 03 TXT ENDING
+The preceding child was the generated monochrome BMP page.
+P16-001-ENDING-END
