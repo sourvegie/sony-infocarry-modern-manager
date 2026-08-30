@@ -143,3 +143,9 @@ exact phrase above, a new fresh complete backup, exact binding revalidation,
 and an explicit decision to cross the live execution boundary. No modern
 transaction is part of P15-002. After any transaction starts, no retry is
 allowed.
+
+This dossier remains the P15-002 host-readiness record. The separately
+approved physical execution of this exact `_02` package was performed under
+P15-003 and is documented in
+`analysis/phase-15-p15-003-exact-modern-four-txt-hardware-smoke-20260830.md`;
+the P15-002 preparation task itself did not perform that operation.

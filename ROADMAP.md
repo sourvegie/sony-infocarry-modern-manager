@@ -103,7 +103,7 @@ capacity authorization, ordered fake workflow coverage, and an isolated
 runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
-complete suite is **483 tests** with three intentional evidence-dependent
+complete suite is **525 tests** with three intentional evidence-dependent
 skips after the read-only I.7 experiment-support and bookmark-correction slices. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
@@ -1331,10 +1331,11 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Keep the corrected P15-001 historical dossier at `IMPLEMENTATION_READY` and
-   the P15-002 `_02` dossier at `READY_FOR_HARDWARE_TEST`; obtain separate
-   operation-specific owner approval before any modern hardware test, then
-   execute only the isolated runner's fresh-backup/revalidation boundary.
+1. Keep the corrected P15-001 dossier historical at `IMPLEMENTATION_READY` and
+   the P15-002 readiness dossier as the host preparation record. P15-003 has
+   completed the exact separately approved `_02` four-TXT smoke with explicit
+   `0x0000` and independent read-back; require a new task and owner approval
+   before any broader or different hardware operation.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1603,3 +1604,33 @@ approval-gated runner, fake-hardware coverage, independent read-back, and R3
 review. Its dossier is `READY_FOR_HARDWARE_TEST`; a separate owner approval
 remains required before any later modern `0x101b` transaction, and no such
 transaction has occurred.
+
+## Phase 15 — P15-002/P15-003 exact modern four-TXT smoke (2026-08-30)
+
+P15-002 rebuilt the exact four-child `_02` candidate from the latest
+preserved Capture 01 post-state and added an isolated host-tested live runner.
+The runner remained absent from the normal CLI and GUI, defaulted to a
+read-only preflight, required a fresh complete backup and exact bindings, and
+permitted one transaction only after separate approval and confirmation. Its
+R3 readiness review is preserved in
+`analysis/phase-15-p15-002-r3-review-20260830.md`.
+
+P15-003 then performed the separately approved physical smoke for exactly one
+root-level folder containing the four ordered TXT children. The fresh
+pre-operation backup proved the `_02` destination absent. The operation used
+the Sony `0x054c:0x001e` device, the parsed native `0x0019` capacity evidence,
+the sealed candidate, and one `0x101b` transaction. Completion was explicitly
+`0x0000`; no retry, delete, restore, or corrective write occurred.
+
+The complete post-operation backup and independent verifier proved the exact
+five-path addition, folder/parent-marker relationship, child order, native TXT
+wrappers, exact payloads, preserved timestamps, unchanged fixed state, and
+unchanged unrelated content. The candidate and post-operation dynamic blob
+have SHA-256
+`70ea314d015e0a0f5de6e35814df8418c42c2faf188849ee88aea309fb226368`.
+The sanitized result and independent review are
+`analysis/phase-15-p15-003-exact-modern-four-txt-hardware-smoke-20260830.md`
+and `analysis/phase-15-p15-003-r3-review-20260830.md`. Raw backups, USB audit,
+and the full preservation manifest remain outside Git. P15-003 is complete
+only for this exact constrained shape; BMP, mixed, nested, batch, arbitrary,
+recovery, and normal GUI/CLI transfer behavior remain unproven.

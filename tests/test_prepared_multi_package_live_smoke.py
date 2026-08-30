@@ -154,6 +154,17 @@ class PreparedMultiPackageLiveSmokeTests(unittest.TestCase):
         self.assertEqual(len(setup["captures"]), 1)
         preflight.verify_seal()
 
+    def test_preflight_seal_ignores_reverification_observation_timestamp(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        preflight = setup["preflight"]
+        reverified_backup = replace(
+            preflight.before_backup,
+            verified_at_utc="2026-08-30T12:34:56+00:00",
+        )
+        reloaded = replace(preflight, before_backup=reverified_backup)
+        reloaded.verify_seal()
+
     def test_execution_refuses_a_modified_sealed_preflight(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
