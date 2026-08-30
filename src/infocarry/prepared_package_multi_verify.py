@@ -14,6 +14,7 @@ from .prepared_package_multi_candidate import (
     PreparedMultiPackageCandidate,
     _display_path,
 )
+from .prepared_fixed_state import PreparedFixedStateError, assess_prepared_fixed_state
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, verify_fresh_backup
 
 
@@ -188,6 +189,22 @@ def verify_prepared_multi_package_readback(
             raise PreparedMultiVerificationError("new record native prefix differs from candidate")
     shared_count = _compare_shared(candidate.baseline, parsed)
     fixed_hashes = _compare_fixed(candidate, after)
+    fixed_assessment = assess_prepared_fixed_state(
+        after,
+        allow_verified_display_history=bool(
+            candidate.fixed_state.display_history_record_offsets
+        ),
+    )
+    try:
+        post_fixed = fixed_assessment.require_supported()
+        display_history_verification = post_fixed.validate_display_history_unshifted(
+            candidate.baseline,
+            parsed,
+        )
+    except PreparedFixedStateError as exc:
+        raise PreparedMultiVerificationError(
+            f"post-operation fixed-state/display-history verification failed: {exc}"
+        ) from exc
     ignored_payload_keys = {"0x0024:response-0024", "0x8004:backup-blob-probe", "0x8004:backup-blob"}
     before_hashes = dict(candidate.backup.object_sha256_by_key)
     after_hashes = dict(after.object_sha256_by_key)
@@ -210,6 +227,7 @@ def verify_prepared_multi_package_readback(
             "shared_payloads_unchanged": True,
             "shared_timestamps_unchanged": True,
             "fixed_state_exact": True,
+            "display_history": display_history_verification,
             "automatic_retry": False,
         },
     )

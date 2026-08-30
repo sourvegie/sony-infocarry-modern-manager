@@ -227,6 +227,150 @@ class PreparedMultiCandidateTests(unittest.TestCase):
                 template_item_paths={"txt": ("root", "Template", "chapter")},
             )
 
+    def test_verified_display_history_is_preserved_when_referenced_record_is_unshifted(self):
+        temporary, package, zero_backup, _zero_candidate, template = self._case(mixed=True)
+        self.addCleanup(temporary.cleanup)
+        baseline_blob = _zero_candidate.baseline.data
+        state = {command: b"\x00" * 64 for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)}
+        display_history = bytearray(64)
+        display_history[0:4] = (1).to_bytes(4, "big")
+        # The baseline source file is at absolute 0xc0, so its metadata-
+        # relative display-history reference is 0x80 and remains before the
+        # reviewed root insertion boundary at 0x100.
+        display_history[8:12] = (0x80).to_bytes(4, "big")
+        state[0x001B] = bytes(display_history)
+        backup_path = _write_archive(
+            Path(temporary.name) / "display-history-backup",
+            baseline_blob,
+            datetime(2026, 8, 27, tzinfo=timezone.utc),
+            fixed_state=state,
+        )
+        backup = verify_fresh_backup(
+            backup_path,
+            now=datetime(2026, 8, 27, tzinfo=timezone.utc),
+            max_age_seconds=None,
+        )
+        candidate = build_prepared_multi_package_candidate(
+            package,
+            backup,
+            template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=self._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            },
+        )
+        self.assertEqual(candidate.fixed_state.raw_blocks[0], bytes(display_history))
+        self.assertEqual(
+            candidate.fixed_state.display_history_paths,
+            ((0x80, ("root", "old")),),
+        )
+        self.assertTrue(candidate.audit["display_history_validation"]["references_unshifted"])
+        self.assertEqual(
+            candidate.audit["policy"]["fixed_state"],
+            "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f",
+        )
+        from infocarry.prepared_multi_package_gate import (
+            PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+            authorize_prepared_multi_package,
+        )
+
+        authorization = authorize_prepared_multi_package(
+            candidate,
+            confirmation=PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+        )
+        self.assertEqual(
+            authorization.fixed_state_policy,
+            "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f",
+        )
+        self.assertEqual(authorization.display_history_record_offsets, ("0x00000080",))
+        self.assertEqual(authorization.display_history_paths, ("root\\old",))
+        authorization.require_same_candidate(candidate)
+
+    def test_fresh_baseline_allows_only_verified_template_read_state_flags(self):
+        temporary, package, _zero_backup, _zero_candidate, template = self._case(mixed=True)
+        self.addCleanup(temporary.cleanup)
+        fresh_blob = bytearray(template.data)
+        changed_paths = []
+        for offset, path in template.paths.items():
+            record = template.record_at(offset)
+            if (
+                len(path) == 3
+                and path[:2] == ("root", "Template")
+                and record.kind == "file"
+            ):
+                fresh_blob[offset] = 0x20
+                changed_paths.append("\\".join(path))
+        self.assertEqual(
+            changed_paths,
+            [
+                "root\\Template\\chapter",
+                "root\\Template\\page",
+            ],
+        )
+        fresh_blob[0x1C:0x20] = b"\x00" * 4
+        fresh_blob[0x1C:0x20] = calculate_backup_checksum(fresh_blob).to_bytes(4, "big")
+        state = {command: b"\x00" * 64 for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)}
+        backup_path = _write_archive(
+            Path(temporary.name) / "fresh-read-state-backup",
+            bytes(fresh_blob),
+            datetime(2026, 8, 27, tzinfo=timezone.utc),
+            fixed_state=state,
+        )
+        backup = verify_fresh_backup(
+            backup_path,
+            now=datetime(2026, 8, 27, tzinfo=timezone.utc),
+            max_age_seconds=None,
+        )
+        candidate = build_prepared_multi_package_candidate(
+            package,
+            backup,
+            template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=self._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            },
+        )
+        self.assertEqual(
+            candidate.audit["template_validation"]["allowed_read_state_paths"],
+            changed_paths,
+        )
+        self.assertEqual(candidate.baseline.record_at(0x100).flag, 0xD0)
+
+        altered_blob = bytearray(fresh_blob)
+        altered_blob[0x40 + 0x10] ^= 1
+        altered_blob[0x1C:0x20] = b"\x00" * 4
+        altered_blob[0x1C:0x20] = calculate_backup_checksum(altered_blob).to_bytes(4, "big")
+        altered_path = _write_archive(
+            Path(temporary.name) / "unreviewed-read-state-backup",
+            bytes(altered_blob),
+            datetime(2026, 8, 27, tzinfo=timezone.utc),
+            fixed_state=state,
+        )
+        altered_backup = verify_fresh_backup(
+            altered_path,
+            now=datetime(2026, 8, 27, tzinfo=timezone.utc),
+            max_age_seconds=None,
+        )
+        with self.assertRaisesRegex(PreparedMultiCandidateError, "template changed preserved metadata"):
+            build_prepared_multi_package_candidate(
+                package,
+                altered_backup,
+                template,
+                new_record_timestamp_be32=0x6A8ABA6F,
+                native_capacity_response=self._response(),
+                template_folder_path=("root", "Template"),
+                template_item_paths={
+                    "txt": ("root", "Template", "chapter"),
+                    "bmp": ("root", "Template", "page"),
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

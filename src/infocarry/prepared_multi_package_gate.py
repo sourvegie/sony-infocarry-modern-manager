@@ -47,6 +47,9 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         template = audit["template"]
         policy = audit["policy"]
         expected_post = audit["expected_post_operation"]
+        fixed_state = audit["fixed_state"]
+        fixed_snapshot = fixed_state["snapshot"]
+        display_history = fixed_snapshot["display_history"]
         items = tuple(package["ordered_items"])
         values = {
             "device_identity": (device["vendor_id"], device["product_id"]),
@@ -67,6 +70,16 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
             "template_item_record_offsets": tuple(sorted(template["item_record_offsets"].items())),
             "template_prefix_sha256": tuple(sorted(template["prefix_sha256"].items())),
             "timestamp_policy": policy["timestamp"],
+            "fixed_state_policy": policy["fixed_state"],
+            "display_history_record_offsets": tuple(
+                display_history["relative_record_offsets"]
+            ),
+            "display_history_paths": tuple(
+                entry["path"] for entry in display_history["paths"]
+            ),
+            "display_history_metadata_start": int(
+                display_history["metadata_start"], 16
+            ),
             "expected_added_paths": tuple(expected_post["added_paths"]),
             "expected_removed_paths": tuple(expected_post["removed_paths"]),
             "expected_ordered_kinds": tuple(expected_post["ordered_kinds"]),
@@ -103,6 +116,32 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         _digest(digest, "expected payload hash")
     if values["timestamp_policy"] != "one_explicit_frozen_value_for_new_records_only":
         raise PreparedMultiPackageGateError("candidate timestamp policy is not the reviewed modern policy")
+    if values["fixed_state_policy"] not in {
+        "capture7_exact_all_zero_fixed_state",
+        "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f",
+    }:
+        raise PreparedMultiPackageGateError("candidate fixed-state policy is not supported")
+    if len(values["display_history_record_offsets"]) != len(values["display_history_paths"]):
+        raise PreparedMultiPackageGateError("candidate display-history binding is inconsistent")
+    if (
+        isinstance(values["display_history_metadata_start"], bool)
+        or not isinstance(values["display_history_metadata_start"], int)
+        or values["display_history_metadata_start"] < 0
+        or values["display_history_metadata_start"] % 0x40
+    ):
+        raise PreparedMultiPackageGateError("candidate display-history metadata base is invalid")
+    if any(
+        not isinstance(offset, str) or not offset.startswith("0x")
+        for offset in values["display_history_record_offsets"]
+    ) or any(
+        not isinstance(path, str) or not path
+        for path in values["display_history_paths"]
+    ):
+        raise PreparedMultiPackageGateError("candidate display-history binding is invalid")
+    if values["fixed_state_policy"] == "capture7_exact_all_zero_fixed_state" and values["display_history_record_offsets"]:
+        raise PreparedMultiPackageGateError("zero fixed-state policy cannot contain display history")
+    if values["fixed_state_policy"] == "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f" and not values["display_history_record_offsets"]:
+        raise PreparedMultiPackageGateError("display-history policy has no active references")
     if len(values["source_paths"]) != len(values["source_sha256"]) or any(
         not isinstance(value, str) or not value for value in values["source_paths"]
     ):
@@ -159,6 +198,19 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
     actual_fixed = tuple(_sha256(block) for block in candidate.fixed_state.raw_blocks)
     if actual_fixed != values["fixed_state_sha256"]:
         raise PreparedMultiPackageGateError("candidate fixed-state binding does not match preserved bytes")
+    actual_fixed_snapshot = candidate.fixed_state.to_dict()
+    actual_display_history = actual_fixed_snapshot["display_history"]
+    if (
+        actual_fixed_snapshot["policy"] != values["fixed_state_policy"]
+        or tuple(actual_display_history["relative_record_offsets"])
+        != values["display_history_record_offsets"]
+        or tuple(entry["path"] for entry in actual_display_history["paths"])
+        != values["display_history_paths"]
+        or int(actual_display_history["metadata_start"], 16)
+        != values["display_history_metadata_start"]
+        or actual_display_history["raw_preserved_exactly"] is not True
+    ):
+        raise PreparedMultiPackageGateError("candidate display-history preservation binding does not match")
     evidence_object = candidate.native_capacity_evidence
     if (
         evidence_object.device_identity != tuple(int(value, 16) for value in candidate.backup.device_identity)
@@ -212,6 +264,10 @@ class PreparedMultiPackageAuthorization:
     candidate_blob_sha256: str
     candidate_transaction_sha256: str
     fixed_state_sha256: tuple[str, ...]
+    fixed_state_policy: str
+    display_history_record_offsets: tuple[str, ...]
+    display_history_paths: tuple[str, ...]
+    display_history_metadata_start: int
     capacity_response_sha256: str
     capacity_response_command: int
     capacity_response_field_offset: int
@@ -256,6 +312,31 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError("authorization must bind five fixed-state hashes")
         for index, value in enumerate(self.fixed_state_sha256):
             _digest(value, f"fixed-state hash {index}")
+        if self.fixed_state_policy not in {
+            "capture7_exact_all_zero_fixed_state",
+            "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f",
+        }:
+            raise PreparedMultiPackageGateError("authorization fixed-state policy is not supported")
+        if len(self.display_history_record_offsets) != len(self.display_history_paths):
+            raise PreparedMultiPackageGateError("authorization display-history binding is inconsistent")
+        if (
+            isinstance(self.display_history_metadata_start, bool)
+            or not isinstance(self.display_history_metadata_start, int)
+            or self.display_history_metadata_start < 0
+            or self.display_history_metadata_start % 0x40
+        ):
+            raise PreparedMultiPackageGateError("authorization display-history metadata base is invalid")
+        if any(
+            not isinstance(offset, str) or not offset.startswith("0x")
+            for offset in self.display_history_record_offsets
+        ) or any(
+            not isinstance(path, str) or not path for path in self.display_history_paths
+        ):
+            raise PreparedMultiPackageGateError("authorization display-history binding is invalid")
+        if self.fixed_state_policy == "capture7_exact_all_zero_fixed_state" and self.display_history_record_offsets:
+            raise PreparedMultiPackageGateError("zero fixed-state authorization cannot contain display history")
+        if self.fixed_state_policy == "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f" and not self.display_history_record_offsets:
+            raise PreparedMultiPackageGateError("display-history authorization has no active references")
         if self.target_kinds[0] != "directory" or any(isinstance(value, bool) or not isinstance(value, int) or value < 0 or value % 0x40 for value in self.target_record_offsets):
             raise PreparedMultiPackageGateError("authorization target record binding is invalid")
         if isinstance(self.new_record_timestamp_be32, bool) or not 0 <= self.new_record_timestamp_be32 <= 0xFFFFFFFF:
@@ -269,7 +350,7 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError("authorization capacity binding is inconsistent")
 
     def _expected(self) -> dict[str, Any]:
-        return {key: getattr(self, key) for key in ("device_identity", "baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "source_sha256", "source_paths", "template_blob_sha256", "template_folder_path", "template_item_paths", "template_item_record_offsets", "template_prefix_sha256", "timestamp_policy", "expected_added_paths", "expected_removed_paths", "expected_ordered_kinds", "expected_new_payload_sha256", "target_paths", "target_kinds", "target_record_offsets", "new_record_timestamp_be32", "candidate_blob_sha256", "candidate_transaction_sha256", "fixed_state_sha256", "capacity_response_sha256", "capacity_response_command", "capacity_response_field_offset", "capacity_evidence_source", "capacity_evidence_version", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_result")}
+        return {key: getattr(self, key) for key in ("device_identity", "baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "source_sha256", "source_paths", "template_blob_sha256", "template_folder_path", "template_item_paths", "template_item_record_offsets", "template_prefix_sha256", "timestamp_policy", "fixed_state_policy", "display_history_record_offsets", "display_history_paths", "display_history_metadata_start", "expected_added_paths", "expected_removed_paths", "expected_ordered_kinds", "expected_new_payload_sha256", "target_paths", "target_kinds", "target_record_offsets", "new_record_timestamp_be32", "candidate_blob_sha256", "candidate_transaction_sha256", "fixed_state_sha256", "capacity_response_sha256", "capacity_response_command", "capacity_response_field_offset", "capacity_evidence_source", "capacity_evidence_version", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_result")}
 
     def require_same_candidate(self, candidate: PreparedMultiPackageCandidate) -> None:
         actual = _candidate_binding(candidate)
@@ -292,7 +373,10 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError(f"fresh backup revalidation failed: {exc}") from exc
         if backup.device_identity != self.device_identity:
             raise PreparedMultiPackageGateError("fresh backup device identity differs")
-        assess_prepared_fixed_state(backup).require_supported()
+        assess_prepared_fixed_state(
+            backup,
+            allow_verified_display_history=True,
+        ).require_supported()
         return backup
 
     def to_dict(self) -> dict[str, Any]:
@@ -311,6 +395,9 @@ class PreparedMultiPackageAuthorization:
         result["target_kinds"] = list(self.target_kinds)
         result["target_record_offsets"] = [f"0x{value:08x}" for value in self.target_record_offsets]
         result["fixed_state_sha256"] = list(self.fixed_state_sha256)
+        result["display_history_record_offsets"] = list(self.display_history_record_offsets)
+        result["display_history_paths"] = list(self.display_history_paths)
+        result["display_history_metadata_start"] = f"0x{self.display_history_metadata_start:08x}"
         return result
 
 

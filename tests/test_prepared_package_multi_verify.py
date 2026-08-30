@@ -6,6 +6,8 @@ from infocarry.prepared_package_multi_verify import (
     PreparedMultiVerificationError,
     verify_prepared_multi_package_readback,
 )
+from infocarry.prepared_package_multi_candidate import build_prepared_multi_package_candidate
+from infocarry.write_gate import verify_fresh_backup
 
 try:
     import test_prepared_package_multi_candidate as _multi_fixture
@@ -65,6 +67,55 @@ class PreparedMultiVerifyTests(unittest.TestCase):
             verify_prepared_multi_package_readback(
                 candidate, post, completion=0, now=now, max_age_seconds=None
             )
+
+    def test_readback_verifies_preserved_display_history_and_zero_mark_state(self):
+        temporary, package, _zero_backup, zero_candidate, template = self._case()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        now = datetime(2026, 8, 27, tzinfo=timezone.utc)
+        state = {
+            command: b"\x00" * 64
+            for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)
+        }
+        display_history = bytearray(64)
+        display_history[0:4] = (1).to_bytes(4, "big")
+        display_history[8:12] = (0x80).to_bytes(4, "big")
+        state[0x001B] = bytes(display_history)
+        baseline_path = _write_archive(
+            root / "display-history-before",
+            zero_candidate.baseline.data,
+            now,
+            fixed_state=state,
+        )
+        backup = verify_fresh_backup(baseline_path, now=now, max_age_seconds=None)
+        candidate = build_prepared_multi_package_candidate(
+            package,
+            backup,
+            template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=_multi_fixture.PreparedMultiCandidateTests()._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            },
+        )
+        post = _write_archive(
+            root / "display-history-after",
+            candidate.candidate_blob,
+            now,
+            fixed_state=state,
+        )
+        result = verify_prepared_multi_package_readback(
+            candidate,
+            post,
+            completion=0,
+            now=now,
+            max_age_seconds=None,
+        )
+        self.assertTrue(result.success)
+        self.assertTrue(result.details["display_history"]["references_unshifted"])
+        self.assertEqual(result.details["display_history"]["references_validated"], 1)
 
 
 if __name__ == "__main__":
