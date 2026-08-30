@@ -22,8 +22,8 @@ except ModuleNotFoundError:
 class PreparedMultiPackageWorkflowTests(unittest.TestCase):
     now = datetime(2026, 8, 27, tzinfo=timezone.utc)
 
-    def _setup(self, sender=None, *, after_blob=None, capture_error=False):
-        temporary, package, _backup, candidate, template = _fixture.PreparedMultiCandidateTests()._case(mixed=True)
+    def _setup(self, sender=None, *, after_blob=None, capture_error=False, mixed=True):
+        temporary, package, _backup, candidate, template = _fixture.PreparedMultiCandidateTests()._case(mixed=mixed)
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
         baseline_blob = candidate.baseline.data
@@ -92,6 +92,12 @@ class PreparedMultiPackageWorkflowTests(unittest.TestCase):
                 "independent_readback_verification",
             ],
         )
+
+    def test_txt_only_success_does_not_require_a_bmp_template(self):
+        setup = self._setup(mixed=False)
+        result = self._run(setup)
+        self.assertTrue(result.verification.success)
+        self.assertEqual(setup["transport"].calls, 1)
 
     def test_unmarked_sender_and_missing_fake_assertion_are_blocked(self):
         temporary, _package, _backup, candidate, template = _fixture.PreparedMultiCandidateTests()._case(mixed=True)

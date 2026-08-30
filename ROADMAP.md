@@ -1331,20 +1331,24 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Preserve the validated I7 deletion intake, complete pre/post backups,
+1. Keep the corrected P15-001 historical dossier at `IMPLEMENTATION_READY` and
+   the P15-002 `_02` dossier at `READY_FOR_HARDWARE_TEST`; obtain separate
+   operation-specific owner approval before any modern hardware test, then
+   execute only the isolated runner's fresh-backup/revalidation boundary.
+2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
-2. H.2's corrected normalized offline structural gate and one constrained
+3. H.2's corrected normalized offline structural gate and one constrained
    modern root-level TXT deletion smoke are complete for their exact scopes:
    surviving timestamps are preserved by policy, the relation-based
    parent-marker rule leaves zero unexplained non-timestamp differences against
    the preserved I7 result, and the smoke completed with `0x0000` and full
    read-back. Keep generalized deletion, physical recovery, and broader state
    compatibility unresolved.
-3. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
+4. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
    GUI/CLI package/delete controls, and all broad or interrupted-write
    operations blocked until their separate evidence gates close.
-4. Push every verified sanitized commit normally to `origin/main` after the
+5. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions
@@ -1542,6 +1546,60 @@ tests with three intentional evidence-dependent skips**. The flat I.10 ebook
 plan is now connected to this offline candidate path while nested sections
 remain rejected. Multi-child authorization is now covered offline and fake
 only; the fake workflow and read-only package readiness preview are now
-complete for the offline candidate boundary. No native multi-child
-before/transaction/post sequence exists, so live multi-child transfer remains
-blocked and no hardware operation occurred.
+complete for the offline candidate boundary. Before P15-001, no native
+multi-child before/transaction/post sequence existed; Capture 01 now supplies
+that evidence for its exact four-TXT shape, while no modern hardware operation
+has occurred.
+
+## Phase 15 — P15-001 native multi-chapter TXT evidence readiness (2026-08-28)
+
+P15-001 advances the evidence boundary from the proven one-folder/one-TXT
+shape to one explicitly constrained flat text-only package. The sanitized
+source fixture in
+`samples/generated/P15-001-native-multi-chapter-txt/` contains one new root
+folder, four 120-byte ASCII/strict-CP932-compatible CRLF TXT children, explicit
+target order, unique in-file order/end markers, and exact source/manifest
+hashes. The package contains no backup, capture, candidate, transaction, or
+private device data.
+
+The operation-specific legacy Manager procedure is recorded in
+`analysis/phase-15-p15-001-native-multi-chapter-txt-evidence-protocol-20260828.md`.
+It defines the fresh pre-operation and complete post-operation backups, exact
+source and Manager snapshots, the isolated native USB capture, three required
+timestamp observations (initialization idle, pre-send, and completed packet
+idle), an optional ownership-return timestamp, checksums/preservation
+manifest, abort conditions, and the
+verified/observed/inferred/unresolved analysis labels. It stops at
+`READY_FOR_HARDWARE_TEST`; the owner approved exactly one legacy capture on
+2026-08-28 and reconfirmed that approval on 2026-08-29 under the revised
+three-required-timestamp procedure. Capture 01 was then supplied and preserved
+outside Git. The exact four-child native structure, payloads, relationships,
+capacity fit, fixed state, and native range-to-post-blob equality are verified.
+All 313 shared reachable record timestamps changed between the supplied
+pre/post blobs, and child 4 has a distinct new timestamp; these native legacy
+observations remain unnormalized. The owner-supplied event mapping and Project
+Lead timestamp decision now bound the modern policy. The native numeric
+request-4 word remains explicitly unresolved after offline log-tail
+investigation, without contradicting the owner normal-return observation or
+independently verified persistence. The constrained native gate is closed.
+The earlier P15-001 modern dossier was prematurely classified because it
+reused the stale pre-capture baseline and had no executable live boundary; it
+is retained as historical `IMPLEMENTATION_READY` material. P15-002 now
+provides a distinct absent `_02` destination and an isolated host-tested
+runner for the exact four-TXT shape.
+
+The sanitized intake record is
+`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results.md`.
+The owner-supplied timestamp mapping and Project Lead decision reconcile the
+modern policy: preserve all existing timestamps, assign one explicit timestamp
+to all new records, and do not reproduce the legacy operation-wide rewrite or
+child-4 sequential increment. The native numeric request-4 word remains
+explicitly unresolved after offline log-tail investigation. The constrained
+P15-001 candidate, exact authorization, fake-only workflow, and independent
+read-back remain preserved as historical evidence, but its modern dossier is
+corrected to `IMPLEMENTATION_READY`. P15-002 completes the host boundary for
+the new `_02` destination with rebuilt bindings, an isolated one-shot
+approval-gated runner, fake-hardware coverage, independent read-back, and R3
+review. Its dossier is `READY_FOR_HARDWARE_TEST`; a separate owner approval
+remains required before any later modern `0x101b` transaction, and no such
+transaction has occurred.

@@ -299,6 +299,19 @@ class GuardedPreparedMultiPackageWorkflow:
         try:
             _check_cancelled(cancelled)
             _check_deadline(clock, deadline)
+            template_item_paths = {}
+            known_template_paths = {
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            }
+            available_template_paths = set(getattr(self._template, "paths", {}).values())
+            for kind, path in known_template_paths.items():
+                if any(item.kind == kind for item in package.items) or path in available_template_paths:
+                    template_item_paths[kind] = path
+            if any(item.kind == "txt" for item in package.items) and "txt" not in template_item_paths:
+                template_item_paths["txt"] = ("root", "Template", "chapter")
+            if any(item.kind == "bmp" for item in package.items) and "bmp" not in template_item_paths:
+                template_item_paths["bmp"] = ("root", "Template", "page")
             current = build_prepared_multi_package_candidate(
                 package,
                 before,
@@ -306,10 +319,7 @@ class GuardedPreparedMultiPackageWorkflow:
                 new_record_timestamp_be32=new_record_timestamp_be32,
                 native_capacity_response=response,
                 template_folder_path=("root", "Template"),
-                template_item_paths={
-                    "txt": ("root", "Template", "chapter"),
-                    "bmp": ("root", "Template", "page"),
-                },
+                template_item_paths=template_item_paths,
             )
             sequence.append("candidate_reconstructed")
             if current.audit_dict() != preview.audit_dict():

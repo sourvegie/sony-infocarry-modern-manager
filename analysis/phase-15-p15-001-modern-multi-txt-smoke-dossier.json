@@ -1,0 +1,37 @@
+{
+  "format": "sony-infocarry-p15-001-modern-multi-txt-smoke-dossier-v1",
+  "task": "P15-001",
+  "risk": "R3",
+  "status": "IMPLEMENTATION_READY",
+  "superseded_by": "P15-002",
+  "usb_transmission_performed": false,
+  "operation": "one_additive_root_folder_with_four_ordered_txt_children",
+  "scope": {"root_level_only": true, "child_count": 4, "txt_only": true, "nested_folders": false, "bmp_children": false, "batch": false, "retry": false},
+  "native_basis": {
+    "external_session": "/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/",
+    "post_blob_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99",
+    "exact_structure_verified": true,
+    "path_order_payload_prefix_and_alignment_verified": true,
+    "native_completion_word": "unresolved",
+    "owner_result_observation": "Manager returned to normal without observed error or ambiguity",
+    "post_persistence": "independently verified",
+    "timestamp_difference_preserved_as_evidence": true,
+    "native_legacy_timestamp_policy_reproduced": false
+  },
+  "device": {"vendor_id": "0x054c", "product_id": "0x001e", "identity_source": "Capture 01 complete backups and native capacity response"},
+  "sources_and_order": {
+    "committed_package_manifest_sha256": "c03ccc0feb3bebb4314d6f748c227a19ba37bd4e56db08c04bec474e398dade1",
+    "source_tree": "samples/generated/P15-001-native-multi-chapter-txt/source/IC_P15_MULTI_20260828_01/",
+    "paths": ["root\\IC_P15_MULTI_20260828_01\\chapter-01.txt", "root\\IC_P15_MULTI_20260828_01\\chapter-02.txt", "root\\IC_P15_MULTI_20260828_01\\chapter-03.txt", "root\\IC_P15_MULTI_20260828_01\\chapter-04.txt"],
+    "source_sha256": ["8c262bd0f7b0ca44770de0c36f7a5a1a0f1c61d8d76f9903a99d3d285b276231", "075363590fc049ed269a5033686ec727a63e7e1c440735858df8a6d7cba5b533", "247ecfcdfbb9d778159897c9fc74a789b8533509f4450abaa2614f68df27e730", "e92b86f6b261800d1ca3c9a4c3c9b3eec7dc20002e16667c2f15eff79f1e9812"],
+    "prepared_manifest_sha256": "5ac76777af5c36538b20d95d261e15fc9ebd1d64395af6493fca4bddf4f474ab"
+  },
+  "fresh_backup_binding": {"captured_external_directory": "01-pre-operation/pre-backup-20260828-01/", "manifest_sha256": "1e9c3000d6c0a881667dacb3cf76b3d04a854f6f80f4526be09e2600b5cb7c9d", "blob_sha256": "d4e4fa74e4338c18aa366e016ba9cb756d0af4e84b3bd19045993553d3526f20", "blob_bytes": 2051280, "target_absent": true, "live_revalidation_required": true},
+  "capacity_binding": {"response_command": "0x0019", "response_sha256": "c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a", "field_offset": "0x08", "capacity_limit_bytes": 3145728, "candidate_model_bytes": 2052272, "growth_bytes": 992, "remaining_growth_bytes": 1094448, "result": "sufficient"},
+  "fixed_state_binding": {"policy": "capture7_exact_all_zero_fixed_state", "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b", "blocks": 5},
+  "timestamp_policy": {"existing_records": "preserve_exactly", "new_records": "one_explicit_operation_timestamp", "value": "0x6a91a907", "legacy_operation_wide_rewrite": "not_reproduced", "native_child4_one_second_difference": "observed_legacy_serialization_not_invariant"},
+  "candidate_binding": {"external_directory": "07-analysis/capture11-modern-candidate-01/", "blob_sha256": "12cf167f1c6486ac166d2cc95d6285c7bfdbffe143875ed8c6ddc30f836ec6f9", "blob_bytes": 2052272, "transaction_sha256": "63b2c991f87599a5d30b0649c06e9eb697abf2154bacab4d3d2f1bdf96f13286", "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2052208], "record_offsets": ["0x340", "0x3c0", "0x400", "0x440", "0x480"]},
+  "authorization_binding": {"external_file": "07-analysis/capture11-modern-candidate-01/authorization.json", "state": "authorized_for_fake_transport_only", "confirmation_phrase": "ADD ONE INFOCARRY MULTI-CHILD PACKAGE", "one_transaction_maximum": true},
+  "verifier_binding": {"external_fake_before": "07-analysis/capture11-modern-candidate-01/fake-before-backup-01/", "external_fake_after": "07-analysis/capture11-modern-fake-post-backup-01/", "workflow_audit": "07-analysis/capture11-modern-candidate-01/fake-workflow-audit.json", "fake_transport": true, "fake_transport_calls": 1, "completion": "0x0000 simulated only", "independent_readback": "verified", "shared_timestamps_unchanged": true, "fixed_state_exact": true, "automatic_retry": false},
+  "hardware_stop": {"state": "IMPLEMENTATION_READY", "modern_transaction_performed": false, "new_owner_approval_required": true, "approval_text_required": "APPROVE P15-001 MODERN MULTI-TXT SMOKE 01", "fresh_backup_required_immediately_before_send": true, "completion_rule": "accept only explicit 0x0000; missing/ambiguous/nonzero is terminal; never retry", "not_executable": true, "not_executable_reason": "Stale pre-Capture-01 baseline and no isolated live runner; use P15-002 instead."}
+}

@@ -1,0 +1,39 @@
+{
+  "format": "sony-infocarry-p15-001-native-capture-results-v2",
+  "task": "P15-001",
+  "capture": "legacy-multi-txt-capture-01",
+  "status": "IMPLEMENTATION_READY",
+  "risk": "R3",
+  "external_session": "phase-15-p15-001-native-multi-txt-20260828-01",
+  "external_preservation_manifest_file_count": 119,
+  "package": {
+    "root_folder": "IC_P15_MULTI_20260828_01",
+    "child_count": 4,
+    "child_bytes_each": 120,
+    "total_source_bytes": 480,
+    "children_order": ["chapter-01.txt", "chapter-02.txt", "chapter-03.txt", "chapter-04.txt"],
+    "manifest_sha256": "c03ccc0feb3bebb4314d6f748c227a19ba37bd4e56db08c04bec474e398dade1",
+    "source_sha256": [
+      "8c262bd0f7b0ca44770de0c36f7a5a1a0f1c61d8d76f9903a99d3d285b276231",
+      "075363590fc049ed269a5033686ec727a63e7e1c440735858df8a6d7cba5b533",
+      "247ecfcdfbb9d778159897c9fc74a789b8533509f4450abaa2614f68df27e730",
+      "e92b86f6b261800d1ca3c9a4c3c9b3eec7dc20002e16667c2f15eff79f1e9812"
+    ]
+  },
+  "device": {"vendor_id": "0x054c", "product_id": "0x001e"},
+  "pre": {"model_bytes": 2051280, "model_sha256": "d4e4fa74e4338c18aa366e016ba9cb756d0af4e84b3bd19045993553d3526f20", "reachable_paths": 313},
+  "post": {"model_bytes": 2052272, "model_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99", "reachable_paths": 318, "persistence_independently_verified": true},
+  "native_transaction": {"command": "0x101b", "declared_length": 2117808, "variable_n": 0, "variable_m": 2052272, "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2052208], "range_05_plus_08_equals_post": true, "completion": "unresolved_numeric_request4_word_owner_normal_return_and_post_persistence_non_contradictory"},
+  "native_structure": {"added_reachable_paths": 5, "added_records_including_parent_marker": 6, "folder_record_offset": "0x00000340", "child_record_offsets": ["0x000003c0", "0x00000400", "0x00000440", "0x00000480"], "native_prefix_bytes": 32, "payload_bytes_each": 120, "all_source_payload_hashes_match": true, "relationships_and_order_verified": true},
+  "capacity": {"command": "0x0019", "field_offset": "0x08", "limit_bytes": 3145728, "growth_bytes": 992, "fits": true},
+  "unchanged": {"shared_file_payloads": true, "shared_timestamp_count": 313, "fixed_objects_001b_through_001f": true, "object_count": true},
+  "timestamp_model": {"native_shared_timestamp_changed_count": 313, "native_new_record_values": ["0x6a91a907", "0x6a91a908"], "modern_new_record_timestamp": "0x6a91a907", "modern_preserves_shared_timestamps": true, "child4_one_second_difference_required": false},
+  "owner_observations": {"stamp_0001": "manager_snoopypro_initialized_idle", "stamp_0002": "immediately_before_send_selected", "stamp_0003": "transfer_completed_packets_idle", "manager_returned_normal_without_observed_error_or_ambiguity": true},
+  "modern_candidate": {"produced_offline": true, "blob_bytes": 2052272, "blob_sha256": "12cf167f1c6486ac166d2cc95d6285c7bfdbffe143875ed8c6ddc30f836ec6f9", "transaction_sha256": "63b2c991f87599a5d30b0649c06e9eb697abf2154bacab4d3d2f1bdf96f13286", "fake_only_readback": "verified"},
+  "modern_smoke_dossier": true,
+  "modern_smoke_status": "IMPLEMENTATION_READY",
+  "modern_smoke_status_reason": "Historical dossier superseded by P15-002 because it reused the stale Capture 01 pre-backup and had no executable live runner.",
+  "modern_0x101b_performed": false,
+  "separate_owner_approval_required": true,
+  "unresolved": ["native numeric request-4 completion word is not exposed by the supplied SnoopyPro representation; future modern operation must accept only explicit 0x0000 and never retry"]
+}
