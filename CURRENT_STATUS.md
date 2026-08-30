@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: P15-003 exact modern four-TXT smoke completion recorded in this update
+Canonical checkpoint: P16-001 mixed TXT/BMP host evidence procedure prepared in this update
 
 ## Portable offline validation
 
-- 525 passing tests
+- 529 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -20,6 +20,7 @@ These are host/offline results only. They do not claim physical-device verificat
 - Selective-delete modeling/hardening has completed its supported offline structural scope, and one constrained modern root-level TXT delete smoke has passed with independent read-back.
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
+- P16-001 has a sanitized, hash-bound three-child TXT/BMP/TXT fixture, host-only validation, and a reviewed native evidence procedure; no mixed-package hardware operation has occurred.
 
 ## P15 status boundary
 
@@ -71,6 +72,28 @@ the constrained candidate/authorization/verifier dossier is reviewed
 offline. Raw evidence remains outside Git and no modern hardware transaction
 was performed.
 
+## P16-001 native mixed-package evidence boundary
+
+The new sanitized fixture and operation-specific legacy Manager procedure are
+recorded at
+`samples/generated/P16-001-native-mixed-txt-bmp/` and
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-evidence-protocol-20260830.md`.
+The fixture is one new root folder containing exactly an introduction TXT, one
+generated 237x320 one-bit BMP page, and an ending TXT in explicit order. Its
+source hashes, CRLF/CP932 policy, BMP profile, visual sentinels, and manifest
+are tested offline. The procedure requires a fresh complete pre-operation
+backup, exact Manager/SnoopyPro before/after evidence, native USB capture,
+complete post-operation backup, three mapped timestamps, and a preservation
+manifest under the non-overwriting external root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`.
+
+P16-001 is stopped at **READY_FOR_HARDWARE_TEST** for this one legacy capture
+only. The exact approval phrase
+`APPROVE P16-001 LEGACY MIXED TXT BMP CAPTURE 01` is still required before
+the Manager send. Native BMP wrapper/record behavior, mixed child ordering,
+and all resulting device semantics remain unproven; no modern transaction is
+authorized by this task.
+
 ## Current product safety boundary
 
 Normal product-facing controls remain disabled for:
@@ -97,10 +120,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-There is no currently approved follow-on device-changing task. P15-003
-completed the exact `_02` four-TXT smoke with one transaction and independent
-read-back. Any broader or different operation requires a new task, fresh R3
-review, a new complete backup, and a new operation-specific owner approval.
+P16-001 host preparation is complete and stopped at **READY_FOR_HARDWARE_TEST**
+for one legacy Manager mixed TXT/BMP capture. It is not a device-changing
+approval. The owner must provide the exact operation-specific phrase in the
+P16-001 procedure before the single legacy send; any later modern transaction
+would require a separate task, fresh R3 review, fresh complete backup, and new
+operation-specific approval.
 
 ## Canonical reading order
 

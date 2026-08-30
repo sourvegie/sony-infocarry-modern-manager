@@ -1,0 +1,71 @@
+{
+  "format": "sony-infocarry-p16-001-native-mixed-txt-bmp-v1",
+  "task": "P16-001",
+  "state": "host_prepared_only",
+  "device_change": "none",
+  "usb_accessed": false,
+  "root_folder": "IC_P16_MIXED_20260830_01",
+  "target_root_path": "root\\IC_P16_MIXED_20260830_01",
+  "source_encoding": "UTF-8 source; strict CP932-compatible content",
+  "newline_policy": "CRLF for TXT; BMP byte-preserved",
+  "ordered_children": [
+    {
+      "order": 1,
+      "kind": "txt",
+      "target_path": "root\\IC_P16_MIXED_20260830_01\\01-introduction.txt",
+      "source_path": "source/IC_P16_MIXED_20260830_01/01-introduction.txt",
+      "bytes": 144,
+      "sha256": "d16567039a003110d246cc6a0a4d0b2042efa9f2240485f6a5facbb09c00dcb",
+      "content_order_marker": "01 TXT INTRODUCTION",
+      "content_end_marker": "P16-001-INTRO-END"
+    },
+    {
+      "order": 2,
+      "kind": "bmp",
+      "target_path": "root\\IC_P16_MIXED_20260830_01\\02-page-01.bmp",
+      "source_path": "source/IC_P16_MIXED_20260830_01/02-page-01.bmp",
+      "bytes": 10302,
+      "sha256": "f795a8e1466c3988b804f344645a6208bdcfa27e9d51d8b314c99d9a5973aadd",
+      "profile": {
+        "signature": "BM",
+        "dib_header": "BITMAPINFOHEADER-40",
+        "width": 237,
+        "height": 320,
+        "orientation": "bottom-up",
+        "planes": 1,
+        "bits_per_pixel": 1,
+        "compression": "BI_RGB",
+        "palette_entries": 2,
+        "pixel_offset": 62,
+        "row_stride": 32,
+        "pixel_bytes": 10240,
+        "resolution_ppm": [3780, 3780]
+      },
+      "visual_sentinel": "black border, center cross, and two diagonals on white"
+    },
+    {
+      "order": 3,
+      "kind": "txt",
+      "target_path": "root\\IC_P16_MIXED_20260830_01\\03-ending.txt",
+      "source_path": "source/IC_P16_MIXED_20260830_01/03-ending.txt",
+      "bytes": 139,
+      "sha256": "a31b66d8b27676dc0af07d32ba4d17b90c54ffa39f406c37a9475672e9e46eec",
+      "content_order_marker": "03 TXT ENDING",
+      "content_end_marker": "P16-001-ENDING-END"
+    }
+  ],
+  "source_count": 3,
+  "total_source_bytes": 10585,
+  "preparation": {
+    "strict_cp932": true,
+    "unsupported_characters_replaced": false,
+    "embedded_nul_rejected": true,
+    "flat_package_only": true,
+    "nested_folders": false,
+    "multiple_bmp_pages": false,
+    "candidate_included": false,
+    "transaction_included": false
+  },
+  "native_evidence_required_before_modern_implementation": true,
+  "status": "READY_FOR_HARDWARE_TEST"
+}

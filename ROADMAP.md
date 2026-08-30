@@ -1334,8 +1334,9 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 1. Keep the corrected P15-001 dossier historical at `IMPLEMENTATION_READY` and
    the P15-002 readiness dossier as the host preparation record. P15-003 has
    completed the exact separately approved `_02` four-TXT smoke with explicit
-   `0x0000` and independent read-back; require a new task and owner approval
-   before any broader or different hardware operation.
+   `0x0000` and independent read-back. P16-001 is host-prepared and stopped at
+   `READY_FOR_HARDWARE_TEST` for one legacy TXT/BMP/TXT capture; require the
+   exact owner approval in its procedure before any Manager send.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1346,9 +1347,10 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    the preserved I7 result, and the smoke completed with `0x0000` and full
    read-back. Keep generalized deletion, physical recovery, and broader state
    compatibility unresolved.
-4. Keep I.8–I.10 multi-child device candidates, J.3 transfer planning, normal
-   GUI/CLI package/delete controls, and all broad or interrupted-write
-   operations blocked until their separate evidence gates close.
+4. Keep I.8–I.10 multi-child device candidates, P16 mixed native/BMP
+   behavior, J.3 transfer planning, normal GUI/CLI package/delete controls,
+   and all broad or interrupted-write operations blocked until their separate
+   evidence gates close.
 5. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
@@ -1634,3 +1636,29 @@ and `analysis/phase-15-p15-003-r3-review-20260830.md`. Raw backups, USB audit,
 and the full preservation manifest remain outside Git. P15-003 is complete
 only for this exact constrained shape; BMP, mixed, nested, batch, arbitrary,
 recovery, and normal GUI/CLI transfer behavior remain unproven.
+
+## Phase 16 — P16-001 native mixed TXT/BMP evidence readiness (2026-08-30)
+
+P16-001 prepares the next evidence gate without changing the device. The
+sanitized fixture in
+`samples/generated/P16-001-native-mixed-txt-bmp/` contains one new root folder,
+`IC_P16_MIXED_20260830_01`, with exactly three flat children in explicit order:
+an ASCII/strict-CP932-compatible CRLF introduction TXT, one generated 237x320
+bottom-up 1-bit `BI_RGB` BMP with a 40-byte `BITMAPINFOHEADER` and two-entry
+palette, and an ASCII/strict-CP932-compatible CRLF ending TXT. Exact source
+hashes, sizes, BMP profile, generated visual sentinels, and a preservation
+manifest are committed; no private/copyrighted content, backup, capture,
+candidate, transaction, or device data is included.
+
+The operation-specific procedure is
+`analysis/phase-16-p16-001-native-mixed-txt-bmp-evidence-protocol-20260830.md`.
+It defines the new external non-overwriting session root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`,
+the complete source/Manager/backup/USB/timestamp/preservation evidence set,
+the three required timestamp observations, and explicit abort conditions.
+Host-only fixture/model validation and independent R3 review stop at
+`READY_FOR_HARDWARE_TEST`. The exact approval phrase
+`APPROVE P16-001 LEGACY MIXED TXT BMP CAPTURE 01` is required before the
+legacy Manager send. Native BMP wrapper/record construction, mixed ordering,
+capacity, fixed-state, completion, and post-state behavior remain unresolved;
+no modern transaction is authorized by P16-001.
