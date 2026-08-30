@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: P16-001 Capture 01 ingested; native mixed gate is blocked by incomplete external evidence
+Canonical checkpoint: P16-001 Capture 01 post-backup reconciliation complete; native mixed gate remains blocked by unresolved operation evidence
 
 ## Portable offline validation
 
@@ -21,12 +21,14 @@ These are host/offline results only. They do not claim physical-device verificat
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
-  parseable. The transaction-model five-record addition, exact TXT/BMP
-  payloads, folder/marker/child order, and 16-byte BMP prefix are recorded as
-  bounded native observations. The supplied evidence lacks a complete
-  post-operation raw backup, timestamp event mapping, Manager result/owner
-  observation, operation-specific capacity/fixed-state evidence, and a
-  decoded numeric completion, so the native mixed gate is
+  parseable. A new complete read-only post-operation backup is preserved
+  outside Git and exactly matches the native transaction model. The
+  transaction-model and post-state five-record addition, exact TXT/BMP
+  payloads, folder/marker/child order, 16-byte BMP prefix, unchanged shared
+  file payloads, and unchanged 0x001b–0x001f fixed-state objects are verified.
+  The evidence still lacks a separate Manager result/owner observation,
+  timestamp event mapping, operation-specific capacity semantics, and a
+  decoded numeric completion, so the native mixed gate remains
   **BLOCKED_BY_EXTERNAL_EVIDENCE**. No modern mixed-package dossier or
   hardware transaction has been prepared.
 
@@ -97,13 +99,16 @@ manifest under the non-overwriting external root
 
 The owner supplied `capture12`, which is preserved byte-for-byte under
 `08-supplied-capture12-raw/`. The parsed native `0x101b` contains the exact
-three-child TXT/BMP/TXT transaction model and exposes a 16-byte BMP wrapper,
-but the supplied tree has no complete post-operation raw backup, no separate
-timestamp mapping, and no Manager result/owner outcome observation. P16-001
-therefore remains **BLOCKED_BY_EXTERNAL_EVIDENCE**. Native persistence,
-capacity, fixed state, completion, unrelated-data preservation, and modern
-mixed compatibility remain unproven. No modern transaction is authorized by
-this task. See
+three-child TXT/BMP/TXT transaction model and exposes a 16-byte BMP wrapper.
+A new complete post-operation backup is preserved under
+`05-post-operation/backup-20260830-02/`; it matches the transaction model
+byte-for-byte and verifies persistence, exact source payloads, unchanged
+shared file payloads, and unchanged fixed-state objects. The post-backup
+verification and version-02 preservation manifest remain outside Git.
+Timestamp event mapping, operation-specific capacity semantics, the separate
+Manager result/owner observation, and an explicit numeric completion remain
+unresolved, so P16-001 is still **BLOCKED_BY_EXTERNAL_EVIDENCE**. No modern
+transaction is authorized by this task. See
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
 
 ## Current product safety boundary
@@ -132,13 +137,14 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P16-001 Capture 01 intake is **BLOCKED_BY_EXTERNAL_EVIDENCE**. If the owner
-already has the missing complete post-operation raw backup, Manager
-result/observation, timestamp mapping, or operation-specific capacity/fixed-
-state evidence, supply it for a new non-overwriting external intake. Do not
-repeat the legacy operation automatically. Any later modern transaction
-would require a separate task, fresh R3 review, a fresh complete backup, and
-new operation-specific approval.
+P16-001 Capture 01 post-backup reconciliation is complete, but the task
+remains **BLOCKED_BY_EXTERNAL_EVIDENCE** for the unresolved Manager
+result/observation, timestamp mapping, operation-specific capacity semantics,
+and numeric completion. If those facts are available from existing evidence,
+they may be supplied for a new non-overwriting external intake or offline
+decoding review. Do not repeat the legacy operation automatically. Any later
+modern transaction would require a separate task, fresh R3 review, a fresh
+complete backup, and new operation-specific approval.
 
 ## Canonical reading order
 

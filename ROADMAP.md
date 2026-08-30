@@ -1663,9 +1663,14 @@ The owner supplied Capture 01 after the operation-specific approval. The raw
 capture is preserved outside Git and its single native `0x101b` transaction
 contains a checksum-valid five-record TXT/BMP/TXT addition with exact source
 payloads, expected folder/marker/child order, and an observed 16-byte BMP
-prefix. The complete post-operation raw backup, Manager result/owner
-observation, timestamp mapping, operation-specific capacity/fixed-state
-evidence, and decoded numeric completion were not supplied. The native gate
-is therefore `BLOCKED_BY_EXTERNAL_EVIDENCE`; no modern transaction is
-authorized by P16-001. See
+prefix. A new complete read-only post-operation backup is now preserved at
+`05-post-operation/backup-20260830-02/`; all eight object hashes validate and
+its dynamic blob exactly matches the native transaction model. The post state
+therefore verifies target persistence, exact source payloads, unchanged shared
+file payloads, and unchanged `0x001b`–`0x001f` fixed-state objects.
+Timestamp mapping, Manager result/owner observation, operation-specific
+capacity semantics, and decoded numeric completion remain unresolved. The
+native gate remains `BLOCKED_BY_EXTERNAL_EVIDENCE`; no modern transaction is
+authorized by P16-001. The external post-backup verification and version-02
+preservation manifest are not committed. See
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
