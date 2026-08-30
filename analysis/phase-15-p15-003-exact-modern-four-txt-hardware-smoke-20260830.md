@@ -1,7 +1,7 @@
 # P15-003 — exact modern four-TXT hardware smoke
 
-Date: 2026-08-30  
-Status: **COMPLETE — exact constrained smoke verified**  
+Date: 2026-08-30
+Status: **COMPLETE — exact constrained smoke verified**
 Risk: **R3 — device/safety critical**
 
 This record covers one owner-approved modern operation for the exact P15-002

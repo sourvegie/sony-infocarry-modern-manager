@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-08-30
-Canonical checkpoint: `02dc39e` (`Merge pull request #2`); P15-003 task branch pending
+Canonical checkpoint: P15-003 exact modern four-TXT smoke completion recorded in this update
 
 ## Portable offline validation
 
