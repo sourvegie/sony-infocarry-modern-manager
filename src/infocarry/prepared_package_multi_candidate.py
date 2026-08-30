@@ -381,6 +381,7 @@ def build_prepared_multi_package_candidate(
             "order": index,
             "kind": item.kind,
             "path": _display_path(child_paths[index], item.kind),
+            "source_path": str(item.source_path),
             "record_offset": _hex(item_metadata_offset),
             "payload_offset": _hex(
                 baseline.header.content_start
@@ -449,6 +450,24 @@ def build_prepared_multi_package_candidate(
         raise PreparedMultiCandidateError("transaction model length does not match candidate")
     if len(candidate.records) != len(baseline.records) + 2 + len(values):
         raise PreparedMultiCandidateError("candidate record count is inconsistent with ordered package")
+    template_report = {
+        "blob_sha256": _sha256(template.data),
+        "folder_path": _display_path(template_folder_path),
+        "folder_record_offset": _hex(folder_template.offset),
+        "item_paths": {
+            kind: _display_path(path)
+            for kind, path in sorted(template_item_paths.items())
+        },
+        "item_record_offsets": {
+            kind: _hex(prefix_templates[kind].offset)
+            for kind in sorted(prefix_templates)
+        },
+        "prefix_sha256": {
+            kind: _sha256(template.payload_parts(prefix_templates[kind])[0])
+            for kind in sorted(prefix_templates)
+        },
+    }
+    added_paths = [_display_path(folder_path), *[_display_path(path, item.kind) for path, item in zip(child_paths, values)]]
     audit = {
         "format": PREPARED_MULTI_CANDIDATE_FORMAT,
         "state": "offline_only",
@@ -456,7 +475,7 @@ def build_prepared_multi_package_candidate(
         "device_identity": {"vendor_id": backup.device_identity[0], "product_id": backup.device_identity[1]},
         "package": {
             "folder_path": package.target_folder_path,
-            "paths": [_display_path(folder_path), *[_display_path(path, item.kind) for path, item in zip(child_paths, values)]],
+            "paths": added_paths,
             "record_offsets": [_hex(folder.offset), *[report["record_offset"] for report in item_reports]],
             "ordered_items": item_reports,
             "prepared_manifest_sha256": package.prepared_manifest_sha256,
@@ -467,9 +486,11 @@ def build_prepared_multi_package_candidate(
         "capacity_evidence": evidence.to_dict(),
         "fixed_state": fixed_assessment.to_dict(),
         "transaction": {"command": "0x101b", "sha256": transaction.concatenated_sha256, "payload_length": transaction.payload_length, "range_lengths": [len(value) for value in transaction.ranges], "fixed_state_hashes": [_sha256(value) for value in fixed.raw_blocks]},
+        "template": template_report,
         "template_validation": template_validation,
         "preservation": preservation,
-        "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "fixed_state": "exact_fresh_capture7_all_zero_bytes_preserved", "manager_sidecars": "not part of device transaction"},
+        "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "existing_timestamps": "preserve_exactly", "legacy_global_timestamp_rewrite_reproduced": False, "fixed_state": "exact_fresh_capture7_all_zero_bytes_preserved", "manager_sidecars": "not part of device transaction"},
+        "expected_post_operation": {"added_paths": added_paths, "removed_paths": [], "ordered_kinds": ["directory", *[item.kind for item in values]], "new_payload_sha256": [_sha256(_item_payload(item)) for item in values], "shared_payloads_preserved": True, "shared_timestamps_preserved": True},
         "assumptions": ["The folder and each child wrapper are copied from explicitly supplied validated native templates.", "The captured root insertion geometry is reused for this offline candidate only.", "This is not proof of arbitrary package or nested-folder compatibility."],
     }
     return PreparedMultiPackageCandidate(package, backup, baseline, candidate, candidate_blob, fixed, fixed_assessment, transaction, capacity.capacity_limit_bytes, capacity.baseline_model_bytes, capacity.candidate_model_bytes, capacity.remaining_growth_bytes, evidence, audit)

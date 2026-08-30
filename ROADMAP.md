@@ -1351,10 +1351,13 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    the preserved I7 result, and the smoke completed with `0x0000` and full
    read-back. Keep generalized deletion, physical recovery, and broader state
    compatibility unresolved.
-4. Keep I.8–I.10 multi-child device candidates, P16-002 modern mixed/BMP
-   readiness, J.3 transfer planning, normal GUI/CLI package/delete controls,
-   and all broad or interrupted-write operations blocked until their separate
-   evidence gates close.
+4. Record P16-002 as **READY_FOR_HARDWARE_TEST** for its exact host-only
+   modern TXT/BMP/TXT preparation and stop before any device access. The next
+   live task must obtain a fresh complete backup, fresh `0x0019` capacity
+   evidence, and new operation-specific owner approval. Keep mixed-package
+   physical compatibility, J.3 transfer planning, normal GUI/CLI
+   package/delete controls, and all broad or interrupted-write operations
+   blocked until their separate evidence gates close.
 5. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
@@ -1682,3 +1685,44 @@ remain explicit unresolved, non-blocking observations; any future modern
 preflight must independently validate fresh `0x0019` evidence. No modern
 mixed-package runner or dossier is created by this correction. See
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
+
+## Phase 16 — P16-002 modern mixed TXT/BMP package host readiness (2026-08-30)
+
+P16-002 is **READY_FOR_HARDWARE_TEST** for one exact modern, flat,
+root-level package at the new destination
+`IC_P16_MIXED_20260830_02`:
+
+```text
+root\IC_P16_MIXED_20260830_02
+├── 01-introduction.txt
+├── 02-page-01.bmp
+└── 03-ending.txt
+```
+
+The sanitized fixture is derived byte-for-byte from the P16-001 sources and
+preserves TXT → BMP → TXT order. The candidate is built offline from the
+latest complete P16-001 post-operation backup, never from the stale
+pre-Capture-01 state. It preserves existing record bytes/timestamps, uses the
+approved one-explicit-timestamp policy for new records, reuses only the
+validated native 32-byte TXT and 16-byte all-`FF` BMP prefixes, and binds the
+exact sources, paths, offsets, template identity, fixed state, capacity
+reference, candidate, transaction, and expected additive post-state.
+
+The dedicated dossier is
+`analysis/phase-16-p16-002-modern-mixed-txt-bmp-readiness.md`. The isolated
+runner in `src/infocarry/prepared_mixed_package_live_smoke.py` is not imported
+by the normal GUI or CLI. It defaults to a read-only preflight, requires a
+fresh complete backup and fresh parsed `0x0019` capacity response for any
+future live task, seals the exact bindings, permits at most one `0x101b`,
+accepts only explicit `0x0000`, never retries, and requires complete
+post-operation read-back. Injected fake-host tests cover drift, tampering,
+conflict, cancellation before and after transmission start, timeout,
+disconnect, malformed/missing/nonzero completion, post-backup/read-back
+failure, and second-send refusal.
+
+No device was detected, backed up, queried, or written in P16-002. Native
+numeric completion decoding, operation-specific capacity semantics, physical
+acceptance of this newly constructed mixed package, and interrupted-write
+recovery remain unresolved. A separately briefed live-execution task and new
+operation-specific owner approval are required; this readiness checkpoint does
+not authorize a modern transaction.
