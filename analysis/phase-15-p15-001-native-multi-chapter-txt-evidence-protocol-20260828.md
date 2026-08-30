@@ -1,7 +1,7 @@
 # P15-001 — native multi-chapter TXT evidence protocol
 
-Date: 2026-08-28; procedure revision and approval reconfirmed 2026-08-29
-Status: **BLOCKED_BY_EXTERNAL_EVIDENCE — Capture 01 ingested; native gate open.**
+Date: 2026-08-28; procedure revision and approval reconfirmed 2026-08-29; offline reconciliation completed 2026-08-30
+Status: **READY_FOR_HARDWARE_TEST — Capture 01 reconciled; no modern transaction performed.**
 
 This is the operation-specific procedure for one disposable, flat, text-only
 legacy Manager capture. It is the next evidence gate after the Phase 14
@@ -268,39 +268,45 @@ reconcile it away or produce a modern smoke dossier.
 
 The owner-supplied Capture 01 was preserved outside Git at
 `/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/`.
-The preservation manifest covers 82 files and records the unresolved missing
-event mapping, explicit Manager result/completion evidence, and timestamp-model
-decision. The raw source remains unchanged under
+The preservation manifest covers 119 files and records the owner-supplied event
+mapping, Project Lead timestamp decision, offline completion-tail investigation,
+and derived modern candidate artifacts. The raw source remains unchanged under
 `08-supplied-capture11-raw/`; role-staged copies are byte-identical.
 
 The sanitized synthesis is
-`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results-20260829.md`.
+`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results.md`.
 Host verification establishes the exact four-child payload/order and
 folder/parent-marker structure, a 992-byte model growth from 2,051,280 to
 2,052,272 bytes, native capacity of 3,145,728 bytes, and byte equality between
 native transaction ranges 05+08 and the complete post-operation dynamic blob.
 The five fixed-state response objects are unchanged and all shared file
-payloads are unchanged.
+payloads are unchanged. The three raw timestamp logs are now mapped from
+owner-supplied observations: initialized idle, immediately before Send
+Selected, and completed transfer with packets idle. The owner also reported a
+normal Manager return without observed error or ambiguity. The native numeric
+request-4 word remains unresolved after an offline scan of the existing USB
+log tail; this is recorded explicitly and is not normalized into success.
 
-The gate remains open. The pre/post comparison observes timestamp changes in
-all 313 shared reachable records, and the new fourth child has timestamp
-`0x6a91a908` while the folder, leading marker, and first three children use
-`0x6a91a907`. This contradicts the current offline policy of preserving shared
-timestamps and applying one frozen value to all new records. The three raw
-timestamp logs are valid and chronological, but no event mapping was supplied;
-the offline native parser also does not decode request-4 completion, and no
-explicit Manager result/screenshot was supplied. These differences are not
-normalized away. No modern candidate or smoke dossier is authorized by this
-intake.
+The Project Lead decision resolves the modern policy boundary: preserve every
+existing record timestamp, assign one explicit timestamp to all newly created
+records, do not reproduce the legacy operation-wide timestamp rewrite, and
+treat child 4's one-second difference as sequential legacy serialization
+rather than a structural invariant. The constrained candidate and fake-only
+independent verifier now pass under that policy.
 
 ## Modern-smoke boundary
 
-No modern multi-TXT smoke dossier is produced by this record because Capture 01
-did not close the native gate. A later dossier may be prepared
-only after the gate above closes and a second strong independent review
-confirms the exact constrained shape. It must bind a new fresh complete
-backup, device identity, exact four sources and target paths/order, capacity
-evidence, fixed state, reconciled candidate, prospective transaction, result
-handling, and no-retry policy. It must stop at
-`READY_FOR_HARDWARE_TEST` and request a separate approval before any modern
-`0x101b`; this legacy capture approval can never be reused for that purpose.
+The native gate is closed only for the exact constrained flat one-folder,
+four-ordered-TXT shape. The reviewed modern dossier is
+`analysis/phase-15-p15-001-modern-multi-txt-smoke-dossier.md` and is
+`READY_FOR_HARDWARE_TEST`. It binds a fresh Capture 01 pre-backup, device
+identity, exact sources and paths/order, capacity evidence, fixed state,
+reconciled candidate, prospective transaction, strict completion handling, and
+no-retry policy. The fake workflow performed one simulated `0x0000` completion
+and independent read-back only; it did not access USB.
+
+Before any modern `0x101b`, obtain a new fresh complete backup, revalidate all
+bindings, and request separate explicit operation-specific owner approval.
+The native Capture 01 approval can never be reused for that purpose. A missing,
+ambiguous, malformed, or nonzero modern completion remains terminal with no
+retry.

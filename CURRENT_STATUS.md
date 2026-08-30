@@ -1,11 +1,11 @@
 # Current Project Status
 
-Date: 2026-08-29
+Date: 2026-08-30
 Canonical checkpoint: `c1cf621` (`Merge workflow migration W-001/W-002`)
 
 ## Portable offline validation
 
-- 511 passing tests
+- 512 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -21,19 +21,20 @@ These are host/offline results only. They do not claim physical-device verificat
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
 
-## Active blocker
+## P15-001 status boundary
 
-`BLOCKED_BY_EXTERNAL_EVIDENCE`: live multi-child package transfer is not ready.
+The exact constrained flat one-folder/four-ordered-TXT native shape is
+reconciled and the reviewed modern dossier is **READY_FOR_HARDWARE_TEST**.
+Capture 01 remains preserved outside Git. Its native legacy operation-wide
+timestamp rewrite and child-4 one-second serialization are recorded as
+observed behavior, not normalized into the modern candidate policy. The native
+numeric request-4 word remains unresolved after offline investigation, while
+the owner-supplied normal Manager return and complete post-backup persistence
+are explicitly recorded as non-contradictory observed/verified evidence.
 
-Legacy Capture 01 is now preserved outside Git and proves the observed exact
-four-child TXT post-state for this operation, but it does not close the native
-gate. The comparison observes timestamp changes in all 313 shared reachable
-records, and the fourth new child has a one-second-different timestamp from the
-other new records. The timestamp event mapping and explicit Manager/request-4
-completion evidence are missing. Fake transport success and deterministic
-offline reconstruction cannot resolve these native discrepancies.
-
-The minimum evidence gate is an isolated native multi-child operation with preserved pre-operation state, exact transaction evidence, complete post-operation state, source/before/after snapshots, and a clear result. Any such device-changing operation requires a new operation-specific owner approval; none is authorized by this status document.
+No modern `0x101b` transaction has been performed. Any hardware test requires
+a new fresh complete backup, revalidation of all exact bindings, and a new
+operation-specific owner approval; this status document does not authorize it.
 
 Relevant record: `analysis/phase-14-multi-child-live-readiness-blocker-20260828.md`.
 
@@ -52,11 +53,11 @@ Capture 01 was supplied from the approved owner path and preserved at
 `/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/`.
 The four child payloads, folder/parent-marker relationships, capacity fit,
 fixed-state objects, and native range-to-post-blob equality are verified in
-`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results-20260829.md`.
-The native gate remains open because the shared timestamp rewrite is
-unexplained and conflicts with the offline policy, child timestamps are not
-uniform, and completion/event mapping evidence is incomplete. Raw evidence
-remains outside Git and no modern multi-TXT smoke dossier is prepared.
+`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results.md`.
+The owner event mapping and Project Lead timestamp decision are recorded, and
+the constrained candidate/authorization/verifier dossier is reviewed
+offline. Raw evidence remains outside Git and no modern hardware transaction
+was performed.
 
 ## Current product safety boundary
 
@@ -72,7 +73,7 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 
 ## External/hardware boundaries still unresolved
 
-- generalized multi-child package compatibility;
+- physical modern multi-child compatibility beyond the prepared dossier;
 - newly constructed mixed TXT/BMP live compatibility;
 - generalized deletion beyond the exact supported smoke scope;
 - physical interrupted-write atomicity, rollback, and recovery;
@@ -84,12 +85,11 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-Resolve the P15-001 Capture 01 evidence gate: obtain the missing timestamp
-event mapping and Manager/request-4 completion evidence, then obtain an
-independent R3 review of the shared timestamp rewrite and the per-record
-timestamp model. Do not change the candidate or prepare a modern-smoke
-dossier until those discrepancies are resolved. No modern `0x101b`
-transaction is authorized by this status document.
+Review the constrained P15-001 modern smoke dossier and, only if separately
+approved by the Project Owner for that exact operation, perform the required
+fresh-backup/revalidation preflight. Accept only explicit modern completion
+`0x0000`; stop on missing, ambiguous, malformed, or nonzero completion and do
+not retry. No modern `0x101b` transaction is authorized by this status document.
 
 ## Canonical reading order
 

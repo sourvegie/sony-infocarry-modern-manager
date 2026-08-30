@@ -1331,10 +1331,10 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
 
 ## Current Next Actions
 
-1. Resolve the P15-001 Capture 01 native evidence gate: obtain the missing
-   timestamp event mapping and Manager/request-4 completion evidence, then
-   complete independent R3 review of the shared timestamp rewrite before
-   changing the candidate model or preparing a modern dossier.
+1. Keep the constrained P15-001 modern dossier at
+   `READY_FOR_HARDWARE_TEST`; obtain separate operation-specific owner approval
+   before any modern hardware test, then recapture a fresh complete backup and
+   revalidate every exact binding immediately before a possible send.
 2. Preserve the validated I7 deletion intake, complete pre/post backups,
    transaction artifact, Manager snapshots, timestamp logs, and derived
    reports under the external evidence root; never add them to Git.
@@ -1546,9 +1546,10 @@ tests with three intentional evidence-dependent skips**. The flat I.10 ebook
 plan is now connected to this offline candidate path while nested sections
 remain rejected. Multi-child authorization is now covered offline and fake
 only; the fake workflow and read-only package readiness preview are now
-complete for the offline candidate boundary. No native multi-child
-before/transaction/post sequence exists, so live multi-child transfer remains
-blocked and no hardware operation occurred.
+complete for the offline candidate boundary. Before P15-001, no native
+multi-child before/transaction/post sequence existed; Capture 01 now supplies
+that evidence for its exact four-TXT shape, while no modern hardware operation
+has occurred.
 
 ## Phase 15 — P15-001 native multi-chapter TXT evidence readiness (2026-08-28)
 
@@ -1574,14 +1575,23 @@ verified/observed/inferred/unresolved analysis labels. It stops at
 three-required-timestamp procedure. Capture 01 was then supplied and preserved
 outside Git. The exact four-child native structure, payloads, relationships,
 capacity fit, fixed state, and native range-to-post-blob equality are verified.
-However, all 313 shared reachable record timestamps changed between the
-supplied pre/post blobs, child 4 has a distinct new timestamp, the timestamp
-event mapping is absent, and request-4 completion is not decoded. The native
-gate therefore remains `BLOCKED_BY_EXTERNAL_EVIDENCE`.
+All 313 shared reachable record timestamps changed between the supplied
+pre/post blobs, and child 4 has a distinct new timestamp; these native legacy
+observations remain unnormalized. The owner-supplied event mapping and Project
+Lead timestamp decision now bound the modern policy. The native numeric
+request-4 word remains explicitly unresolved after offline log-tail
+investigation, without contradicting the owner normal-return observation or
+independently verified persistence. The constrained native gate is closed and
+the modern dossier is `READY_FOR_HARDWARE_TEST` for this exact shape only.
 
 The sanitized intake record is
-`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results-20260829.md`.
-The shared timestamp rewrite and per-record timestamp behavior require a
-reviewed model decision before candidate reconciliation. No modern multi-TXT
-smoke dossier is prepared; a separate owner approval remains required before
+`analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results.md`.
+The owner-supplied timestamp mapping and Project Lead decision reconcile the
+modern policy: preserve all existing timestamps, assign one explicit timestamp
+to all new records, and do not reproduce the legacy operation-wide rewrite or
+child-4 sequential increment. The native numeric request-4 word remains
+explicitly unresolved after offline log-tail investigation. The constrained
+modern candidate, exact authorization, fake-only workflow, independent
+read-back, and R3 review are complete; the dossier is
+`READY_FOR_HARDWARE_TEST`. A separate owner approval remains required before
 any later modern `0x101b` transaction.
