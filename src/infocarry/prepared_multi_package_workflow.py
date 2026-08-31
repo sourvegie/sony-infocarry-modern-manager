@@ -40,6 +40,7 @@ CaptureCallback = Callable[..., None]
 FakeSendCallback = Callable[..., Any]
 DetectDeviceCallback = Callable[[], tuple[int, int]]
 CapacityQueryCallback = Callable[[], NativeCapacityResponse]
+CandidateEnricher = Callable[[PreparedMultiPackageCandidate], PreparedMultiPackageCandidate]
 Clock = Callable[[], float]
 
 
@@ -193,6 +194,9 @@ class GuardedPreparedMultiPackageWorkflow:
         *,
         detect_device: DetectDeviceCallback,
         query_capacity: CapacityQueryCallback,
+        template_folder_path: tuple[str, ...] = ("root", "Template"),
+        template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
+        candidate_enricher: Optional[CandidateEnricher] = None,
     ) -> None:
         if not callable(capture):
             raise TypeError("capture callback is required")
@@ -200,11 +204,20 @@ class GuardedPreparedMultiPackageWorkflow:
             raise TypeError("ordered package workflow requires PreparedMultiFakeTransport")
         if not callable(detect_device) or not callable(query_capacity):
             raise TypeError("device detection and parsed capacity query callbacks are required")
+        if candidate_enricher is not None and not callable(candidate_enricher):
+            raise TypeError("candidate_enricher must be callable when supplied")
         self._capture = capture
         self._transport = transport
         self._template = template
         self._detect_device = detect_device
         self._query_capacity = query_capacity
+        self._template_folder_path = tuple(template_folder_path)
+        self._template_item_paths = (
+            None
+            if template_item_paths is None
+            else {key: tuple(value) for key, value in template_item_paths.items()}
+        )
+        self._candidate_enricher = candidate_enricher
 
     def run(
         self,
@@ -299,28 +312,31 @@ class GuardedPreparedMultiPackageWorkflow:
         try:
             _check_cancelled(cancelled)
             _check_deadline(clock, deadline)
-            template_item_paths = {}
-            known_template_paths = {
-                "txt": ("root", "Template", "chapter"),
-                "bmp": ("root", "Template", "page"),
-            }
-            available_template_paths = set(getattr(self._template, "paths", {}).values())
-            for kind, path in known_template_paths.items():
-                if any(item.kind == kind for item in package.items) or path in available_template_paths:
-                    template_item_paths[kind] = path
-            if any(item.kind == "txt" for item in package.items) and "txt" not in template_item_paths:
-                template_item_paths["txt"] = ("root", "Template", "chapter")
-            if any(item.kind == "bmp" for item in package.items) and "bmp" not in template_item_paths:
-                template_item_paths["bmp"] = ("root", "Template", "page")
+            template_item_paths = dict(self._template_item_paths or {})
+            if self._template_item_paths is None:
+                known_template_paths = {
+                    "txt": ("root", "Template", "chapter"),
+                    "bmp": ("root", "Template", "page"),
+                }
+                available_template_paths = set(getattr(self._template, "paths", {}).values())
+                for kind, path in known_template_paths.items():
+                    if any(item.kind == kind for item in package.items) or path in available_template_paths:
+                        template_item_paths[kind] = path
+                if any(item.kind == "txt" for item in package.items) and "txt" not in template_item_paths:
+                    template_item_paths["txt"] = ("root", "Template", "chapter")
+                if any(item.kind == "bmp" for item in package.items) and "bmp" not in template_item_paths:
+                    template_item_paths["bmp"] = ("root", "Template", "page")
             current = build_prepared_multi_package_candidate(
                 package,
                 before,
                 self._template,
                 new_record_timestamp_be32=new_record_timestamp_be32,
                 native_capacity_response=response,
-                template_folder_path=("root", "Template"),
+                template_folder_path=self._template_folder_path,
                 template_item_paths=template_item_paths,
             )
+            if self._candidate_enricher is not None:
+                current = self._candidate_enricher(current)
             sequence.append("candidate_reconstructed")
             if current.audit_dict() != preview.audit_dict():
                 raise ValueError("fresh candidate differs from the displayed preview")

@@ -95,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's corrected offline gate and one constrained modern root-TXT delete smoke are complete for their supported scopes; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
-| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review; device-aware execution remains disabled |
+| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; P17-003 exact single-package candidate/preflight bridge is host-ready; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review. One exact revalidated TXT/BMP/TXT package can be bridged into the reviewed host-only candidate/preflight path; device-aware execution remains disabled |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -1864,3 +1864,25 @@ nesting, synchronization, and normal GUI/CLI transfer remain blocked.
 The focused package/import tests are in
 `tests/test_library_prepared_package.py`; the dedicated boundary analysis is
 `analysis/phase-13-p17-002-explicit-prepared-package-import-20260831.md`.
+
+## Phase 13 — P17-003 guarded single prepared-package candidate and preflight bridge (2026-08-31)
+
+P17-003 is **READY_FOR_HARDWARE_TEST** for host-only preparation of one
+explicitly selected P17-002 package. The bridge revalidates the catalog record
+and signed flat package manifest, requires exactly the named TXT/BMP/TXT
+children in order, and reuses the existing P16 candidate, authorization,
+fixed-state, capacity, independent read-back, and fake-host workflow. The
+catalog identity, manifest/child hashes and paths, device/backup/model hashes,
+native templates, destination, timestamp/state policy, candidate, transaction,
+confirmation phrase, and expected additive post-state are all bound in the
+hash-only preview and seal.
+
+The bridge is not imported by normal GUI/CLI code and adds no live sender or
+owner-approval path. It requires the exact reviewed P16-001 native template
+blob hash, couples top-level and nested Library bindings, rejects catalog
+source/manifest drift, and exposes a recursively immutable sealed report.
+Fake-host coverage exercises the new Library binding and the existing
+one-shot/no-retry failure boundary. No device, USB, external evidence, or
+`InfoCarry-Toolkit` checkout was accessed or modified. A later separately
+briefed task must obtain a new fresh read-only preflight and operation-specific
+owner approval before any hardware operation.
