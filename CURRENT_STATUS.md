@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-005 isolated single Library-package live-execution adapter is READY_FOR_HARDWARE_TEST at the host-only boundary; no device access, approval consumption, or transaction occurred
+Canonical checkpoint: P17-006 fresh read-only Library-package preflight is READY_FOR_HARDWARE_TEST at the owner-approval boundary; no approval phrase was requested or consumed and no transaction occurred
 
 ## Portable offline validation
 
@@ -106,6 +106,24 @@ These are host/offline results only. They do not claim physical-device verificat
   `analysis/phase-13-p17-005-r3-review-20260901.md`. P17-005 is
   **READY_FOR_HARDWARE_TEST** only; a later task must perform a new fresh
   preflight and obtain separate operation-specific approval.
+- P17-006 completed a fresh, in-order read-only preflight for the exact
+  explicitly imported P17-004 Library package at
+  `root\\IC_P17_LIBRARY_20260831_03`. Detection reported Sony `054c:001e`
+  on bus 2/address 3; a fresh parsed `0x0019` response reported a
+  3,145,728-byte capacity limit; and a complete eight-object backup was
+  captured and verified with the target absent. The exact reconstructed
+  candidate is 2,091,292 bytes from a 2,075,256-byte baseline, for 16,036
+  bytes of growth and 1,054,436 bytes of parsed-capacity margin. Candidate,
+  transaction, Library, fixed/display-state, timestamp, expected-post-state,
+  no-retry, and seal bindings are preserved in the external P17-006 session.
+  P17-006 is **READY_FOR_HARDWARE_TEST** only at the owner-approval boundary:
+  no sender was constructed, no approval phrase was requested or consumed,
+  and no `0x101b` request was issued. Physical compatibility, native numeric
+  completion decoding, and operation-specific capacity semantics remain
+  unresolved. The authoritative sanitized record is
+  `analysis/phase-13-p17-006-exact-library-package-live-smoke-preflight-20260901.md`;
+  independent R3 review passes are recorded in
+  `analysis/phase-13-p17-006-r3-review-20260901.md`.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The

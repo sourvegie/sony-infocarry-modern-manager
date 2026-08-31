@@ -1978,3 +1978,29 @@ Independent R3 review passes and is recorded in
 briefed task must perform a new fresh read-only preflight and obtain new exact
 operation-specific approval before any device-changing operation. This
 checkpoint does not authorize a live write.
+
+## Phase 13 — P17-006 exact Library-package live smoke fresh preflight (2026-09-01)
+
+P17-006 completed the authorized read-only preflight for the exact P17-004
+Library package at `root\\IC_P17_LIBRARY_20260831_03`, using the merged P17-005
+adapter and no sender. The authoritative session performed in-order Sony
+`054c:001e` detection, a fresh parsed `0x0019` response reporting a
+3,145,728-byte capacity limit, and a complete eight-object backup with the
+target absent. The 2,075,256-byte fresh baseline produced the reviewed
+2,091,292-byte candidate: 16,036 bytes of growth and 1,054,436 bytes of
+parsed-capacity margin.
+
+The package/catalog, ordered TXT/BMP/TXT sources and hashes, reviewed native
+template, fixed/display-history preservation, timestamp policy, candidate,
+prospective transaction, expected additive paths, and no-retry policy are
+sealed in the external P17-006 evidence root. Raw backup, candidate, and
+transaction artifacts remain outside Git. Two superseded host attempts remain
+preserved and are explicitly documented; no prior evidence was modified.
+P17-006 is **READY_FOR_HARDWARE_TEST** only at the owner-approval boundary:
+no approval phrase was requested or consumed, no sender was constructed, and
+no `0x101b` request was issued. Physical compatibility, native numeric
+completion decoding, operation-specific capacity semantics, and interrupted
+write recovery remain unresolved. A later task must obtain a new fresh
+preflight and both exact operation-specific approval phrases.
+Independent R3 review passes are recorded in
+`analysis/phase-13-p17-006-r3-review-20260901.md`.
