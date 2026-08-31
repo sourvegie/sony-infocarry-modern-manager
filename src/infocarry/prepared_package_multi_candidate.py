@@ -1,14 +1,16 @@
 """Offline candidate construction for one root folder with ordered children.
 
-The builder is deliberately narrower than a general ebook writer.  It reuses
+The builder is deliberately narrower than a general ebook writer. It reuses
 the capture-7 folder geometry and requires an existing native record template
-for every child kind.  It never invents a TXT or BMP wrapper, touches USB, or
-assigns Manager-side state.
+for every child kind. The mixed-package path may preserve one verified
+display-history response only through the separately reviewed semantic-rebase
+rule; it never invents a TXT or BMP wrapper, touches USB, or assigns
+Manager-side state.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 from typing import Any, Mapping, Optional, Sequence
 
@@ -157,6 +159,66 @@ def _compare_template_shared(
 ) -> dict[str, Any]:
     if baseline.data == template.data:
         return {"baseline_template_identical": True, "shared_records_verified": len(baseline.paths)}
+    if (
+        len(baseline.data) == len(template.data)
+        and len(baseline.records) == len(template.records)
+        and set(baseline.paths.items()) == set(template.paths.items())
+    ):
+        allowed_read_state_paths: list[str] = []
+        allowed_offsets: set[int] = set()
+        for offset, path in baseline.paths.items():
+            baseline_record = baseline.record_at(offset)
+            template_record = template.record_at(offset)
+            baseline_raw = bytes.fromhex(baseline_record.raw_hex)
+            template_raw = bytes.fromhex(template_record.raw_hex)
+            if baseline_raw == template_raw:
+                continue
+            direct_child = (
+                len(path) == len(template_folder_path) + 1
+                and path[: len(template_folder_path)] == template_folder_path
+                and baseline_record.kind == "file"
+                and template_record.kind == "file"
+            )
+            if not direct_child:
+                raise PreparedMultiCandidateError(
+                    f"template changed preserved metadata at {_display_path(path)}"
+                )
+            if (
+                template_record.flag != 0xE0
+                or baseline_record.flag != 0x20
+                or baseline_raw[1:] != template_raw[1:]
+            ):
+                raise PreparedMultiCandidateError(
+                    f"template changed preserved bytes at {_display_path(path)}"
+                )
+            allowed_offsets.add(offset)
+            allowed_read_state_paths.append(_display_path(path))
+            baseline_prefix, baseline_payload = baseline.payload_parts(baseline_record)
+            template_prefix, template_payload = template.payload_parts(template_record)
+            if baseline_prefix != template_prefix or baseline_payload != template_payload:
+                raise PreparedMultiCandidateError(
+                    f"template changed preserved content at {_display_path(path)}"
+                )
+        differing_offsets = {
+            index
+            for index, (baseline_byte, template_byte) in enumerate(
+                zip(baseline.data, template.data)
+            )
+            if baseline_byte != template_byte
+        }
+        expected_offsets = allowed_offsets
+        if differing_offsets != expected_offsets:
+            raise PreparedMultiCandidateError(
+                "template differs from the fresh baseline outside verified read-state flags"
+            )
+        return {
+            "baseline_template_identical": False,
+            "same_structure": True,
+            "shared_records_verified": len(baseline.paths),
+            "allowed_read_state_paths": allowed_read_state_paths,
+            "allowed_difference": "fresh baseline 0xe0-to-0x20 file flags only; checksum/header effects must remain valid",
+            "checksum_effect": "unchanged",
+        }
     expected = set(baseline.paths.values()) | {template_folder_path}
     expected.update(template_item_paths.values())
     if set(template.paths.values()) != expected:
@@ -430,11 +492,26 @@ def build_prepared_multi_package_candidate(
     leading = candidate.record_at(folder.offset + _RECORD_SIZE)
     if folder.field_08_be32 != (len(values) + 1) * _RECORD_SIZE or leading.name != ".." or leading.timestamp_be32 != new_record_timestamp_be32:
         raise PreparedMultiCandidateError("candidate folder geometry or timestamp is invalid")
-    fixed_assessment = assess_prepared_fixed_state(backup)
+    fixed_assessment = assess_prepared_fixed_state(
+        backup,
+        allow_verified_display_history=True,
+    )
     try:
         fixed = fixed_assessment.require_supported()
     except PreparedFixedStateError as exc:
         raise PreparedMultiCandidateError(f"fresh fixed state is unsupported: {exc}") from exc
+    try:
+        fixed, display_history_validation = fixed.rebase_display_history(
+            baseline,
+            candidate,
+            insertion_offset=root_marker_offset - baseline.header.metadata_start,
+            metadata_delta=metadata_delta,
+        )
+    except PreparedFixedStateError as exc:
+        raise PreparedMultiCandidateError(
+            f"fresh display-history state cannot be semantically preserved: {exc}"
+        ) from exc
+    fixed_assessment = replace(fixed_assessment, snapshot=fixed)
     try:
         evidence = native_capacity_response.bind_model_lengths(len(baseline_blob), len(candidate_blob))
         capacity = assess_total_capacity(
@@ -485,11 +562,19 @@ def build_prepared_multi_package_candidate(
         "allocation": {"metadata_records_added": 2 + len(values), "metadata_growth_bytes": metadata_delta, "aligned_content_growth_bytes": content_delta, "candidate_growth_bytes": len(candidate_blob) - len(baseline_blob), "capacity_limit_bytes": capacity.capacity_limit_bytes, "baseline_model_bytes": capacity.baseline_model_bytes, "candidate_model_bytes": capacity.candidate_model_bytes, "remaining_growth_bytes": capacity.remaining_growth_bytes, "capacity_result": "sufficient"},
         "capacity_evidence": evidence.to_dict(),
         "fixed_state": fixed_assessment.to_dict(),
-        "transaction": {"command": "0x101b", "sha256": transaction.concatenated_sha256, "payload_length": transaction.payload_length, "range_lengths": [len(value) for value in transaction.ranges], "fixed_state_hashes": [_sha256(value) for value in fixed.raw_blocks]},
+        "transaction": {"command": "0x101b", "sha256": transaction.concatenated_sha256, "payload_length": transaction.payload_length, "range_lengths": [len(value) for value in transaction.ranges], "fixed_state_hashes": [_sha256(value) for value in fixed.candidate_raw_blocks]},
         "template": template_report,
         "template_validation": template_validation,
         "preservation": preservation,
-        "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "existing_timestamps": "preserve_exactly", "legacy_global_timestamp_rewrite_reproduced": False, "fixed_state": "exact_fresh_capture7_all_zero_bytes_preserved", "manager_sidecars": "not part of device transaction"},
+        "display_history_validation": {
+            **display_history_validation,
+            "insertion_offset_absolute": (
+                _hex(root_marker_offset)
+                if display_history_validation.get("insertion_offset") is not None
+                else None
+            ),
+        },
+        "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "existing_timestamps": "preserve_exactly", "legacy_global_timestamp_rewrite_reproduced": False, "fixed_state": fixed.to_dict()["policy"], "manager_sidecars": "not part of device transaction"},
         "expected_post_operation": {"added_paths": added_paths, "removed_paths": [], "ordered_kinds": ["directory", *[item.kind for item in values]], "new_payload_sha256": [_sha256(_item_payload(item)) for item in values], "shared_payloads_preserved": True, "shared_timestamps_preserved": True},
         "assumptions": ["The folder and each child wrapper are copied from explicitly supplied validated native templates.", "The captured root insertion geometry is reused for this offline candidate only.", "This is not proof of arbitrary package or nested-folder compatibility."],
     }

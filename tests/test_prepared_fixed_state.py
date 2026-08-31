@@ -8,6 +8,7 @@ from infocarry.prepared_fixed_state import (
     PreparedFixedStateError,
     assess_prepared_fixed_state,
 )
+from infocarry.backup_format import parse_backup_blob
 from infocarry.write_gate import verify_fresh_backup
 
 try:
@@ -81,6 +82,103 @@ class PreparedFixedStateTests(unittest.TestCase):
         assessment = assess_prepared_fixed_state(backup)
         self.assertFalse(assessment.eligible)
         self.assertIn("expected 64", " ".join(assessment.reasons))
+
+    def test_verified_display_history_is_supported_only_by_explicit_opt_in(self):
+        state = self._zero_state()
+        display_history = bytearray(64)
+        display_history[0:4] = (1).to_bytes(4, "big")
+        # 0x80 is metadata-relative and resolves to the source file at 0xc0.
+        display_history[8:12] = (0x80).to_bytes(4, "big")
+        state[0x001B] = bytes(display_history)
+        temporary, backup = self._backup(state)
+        self.addCleanup(temporary.cleanup)
+
+        rejected = assess_prepared_fixed_state(backup)
+        self.assertFalse(rejected.eligible)
+        self.assertIn("active offset entries", " ".join(rejected.reasons))
+
+        accepted = assess_prepared_fixed_state(
+            backup,
+            allow_verified_display_history=True,
+        )
+        snapshot = accepted.require_supported()
+        self.assertTrue(accepted.eligible)
+        self.assertEqual(snapshot.display_history_record_offsets, (0x80,))
+        self.assertEqual(
+            snapshot.display_history_paths,
+            ((0x80, ("root", "source")),),
+        )
+        parsed = parse_backup_blob(
+            (backup.directory / backup.object_filename("0x8004:backup-blob")).read_bytes()
+        )
+        self.assertEqual(
+            snapshot.validate_display_history_unshifted(parsed, parsed)["references_unshifted"],
+            True,
+        )
+
+    def test_display_history_rejects_dangling_reference_and_mark_activity(self):
+        state = self._zero_state()
+        display_history = bytearray(64)
+        display_history[0:4] = (1).to_bytes(4, "big")
+        display_history[8:12] = (0x400).to_bytes(4, "big")
+        state[0x001B] = bytes(display_history)
+        temporary, backup = self._backup(state)
+        self.addCleanup(temporary.cleanup)
+        assessment = assess_prepared_fixed_state(
+            backup,
+            allow_verified_display_history=True,
+        )
+        self.assertFalse(assessment.eligible)
+        self.assertIn("dangling", " ".join(assessment.reasons))
+
+        mark_state = self._zero_state()
+        mark_state[0x001C] = display_history
+        temporary_mark, mark_backup = self._backup(mark_state)
+        self.addCleanup(temporary_mark.cleanup)
+        mark_assessment = assess_prepared_fixed_state(
+            mark_backup,
+            allow_verified_display_history=True,
+        )
+        self.assertFalse(mark_assessment.eligible)
+        self.assertIn("active offset entries", " ".join(mark_assessment.reasons))
+
+        tail_state = self._zero_state()
+        tail_history = bytearray(display_history)
+        tail_history[8:12] = (0x80).to_bytes(4, "big")
+        tail_history[-1] = 1
+        tail_state[0x001B] = bytes(tail_history)
+        temporary_tail, tail_backup = self._backup(tail_state)
+        self.addCleanup(temporary_tail.cleanup)
+        tail_assessment = assess_prepared_fixed_state(
+            tail_backup,
+            allow_verified_display_history=True,
+        )
+        self.assertFalse(tail_assessment.eligible)
+        self.assertIn("reserved tail", " ".join(tail_assessment.reasons))
+
+    def test_display_history_reference_must_remain_at_the_same_candidate_offset(self):
+        state = self._zero_state()
+        display_history = bytearray(64)
+        display_history[0:4] = (1).to_bytes(4, "big")
+        display_history[8:12] = (0x80).to_bytes(4, "big")
+        state[0x001B] = bytes(display_history)
+        temporary, backup = self._backup(state)
+        self.addCleanup(temporary.cleanup)
+        assessment = assess_prepared_fixed_state(
+            backup,
+            allow_verified_display_history=True,
+        )
+        snapshot = assessment.require_supported()
+        parsed = parse_backup_blob(
+            (backup.directory / backup.object_filename("0x8004:backup-blob")).read_bytes()
+        )
+        shifted_paths = dict(parsed.paths)
+        shifted_paths[0xC0] = ("root", "shifted")
+        from dataclasses import replace
+
+        shifted = replace(parsed, paths=shifted_paths)
+        with self.assertRaisesRegex(PreparedFixedStateError, "shifted"):
+            snapshot.validate_display_history_unshifted(parsed, shifted)
 
 
 if __name__ == "__main__":

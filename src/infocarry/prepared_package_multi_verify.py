@@ -14,6 +14,7 @@ from .prepared_package_multi_candidate import (
     PreparedMultiPackageCandidate,
     _display_path,
 )
+from .prepared_fixed_state import PreparedFixedStateError, assess_prepared_fixed_state
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, verify_fresh_backup
 
 
@@ -83,7 +84,7 @@ def _compare_fixed(candidate: PreparedMultiPackageCandidate, after: VerifiedBack
         key = f"0x{command:04x}:response-{command:04x}"
         data = _object(after, key)
         digest = _sha256(data)
-        expected = _sha256(candidate.fixed_state.raw_blocks[index])
+        expected = _sha256(candidate.fixed_state.candidate_raw_blocks[index])
         if digest != expected:
             raise PreparedMultiVerificationError(f"fixed-state object {key} changed")
         hashes.append(digest)
@@ -188,7 +189,48 @@ def verify_prepared_multi_package_readback(
             raise PreparedMultiVerificationError("new record native prefix differs from candidate")
     shared_count = _compare_shared(candidate.baseline, parsed)
     fixed_hashes = _compare_fixed(candidate, after)
-    ignored_payload_keys = {"0x0024:response-0024", "0x8004:backup-blob-probe", "0x8004:backup-blob"}
+    fixed_assessment = assess_prepared_fixed_state(
+        after,
+        allow_verified_display_history=bool(
+            candidate.fixed_state.display_history_record_offsets
+        ),
+    )
+    try:
+        post_fixed = fixed_assessment.require_supported()
+        if candidate.fixed_state.display_history_record_offsets:
+            insertion_offset = candidate.fixed_state.display_history_insertion_offset
+            metadata_delta = candidate.fixed_state.display_history_metadata_delta
+            if insertion_offset is None or metadata_delta <= 0:
+                raise PreparedFixedStateError(
+                    "candidate display-history rebase geometry is incomplete"
+                )
+            _expected_fixed, display_history_verification = candidate.fixed_state.rebase_display_history(
+                candidate.baseline,
+                parsed,
+                insertion_offset=insertion_offset,
+                metadata_delta=metadata_delta,
+            )
+        else:
+            _expected_fixed, display_history_verification = candidate.fixed_state.rebase_display_history(
+                candidate.baseline,
+                parsed,
+                insertion_offset=0,
+                metadata_delta=0,
+            )
+    except PreparedFixedStateError as exc:
+        raise PreparedMultiVerificationError(
+            f"post-operation fixed-state/display-history verification failed: {exc}"
+        ) from exc
+    ignored_payload_keys = {
+        "0x001b:response-001b",
+        "0x001c:response-001c",
+        "0x001d:response-001d",
+        "0x001e:response-001e",
+        "0x001f:response-001f",
+        "0x0024:response-0024",
+        "0x8004:backup-blob-probe",
+        "0x8004:backup-blob",
+    }
     before_hashes = dict(candidate.backup.object_sha256_by_key)
     after_hashes = dict(after.object_sha256_by_key)
     if set(before_hashes) != set(after_hashes):
@@ -210,6 +252,7 @@ def verify_prepared_multi_package_readback(
             "shared_payloads_unchanged": True,
             "shared_timestamps_unchanged": True,
             "fixed_state_exact": True,
+            "display_history": display_history_verification,
             "automatic_retry": False,
         },
     )

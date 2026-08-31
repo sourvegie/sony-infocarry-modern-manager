@@ -1358,7 +1358,14 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    physical compatibility, J.3 transfer planning, normal GUI/CLI
    package/delete controls, and all broad or interrupted-write operations
    blocked until their separate evidence gates close.
-5. Push every verified sanitized commit normally to `origin/main` after the
+5. P16-003A is **READY_FOR_HARDWARE_TEST** for its exact offline semantic
+   display-history correction. The owner-confirmed fresh `0x001b` references
+   are preserved semantically by the evidence-backed exact metadata-delta
+   rebase, with same-path/same-record verification and all other bytes
+   protected. Do not access hardware or reuse this offline backup for live
+   execution; a later task must obtain a new fresh preflight and new
+   operation-specific approval.
+6. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
 ## Decisions
@@ -1726,3 +1733,36 @@ acceptance of this newly constructed mixed package, and interrupted-write
 recovery remain unresolved. A separately briefed live-execution task and new
 operation-specific owner approval are required; this readiness checkpoint does
 not authorize a modern transaction.
+
+## Phase 16 — P16-003A verified display-history fresh-state correction (2026-08-31)
+
+P16-003A is the narrow offline correction for the owner-confirmed fresh state
+used by P16-003. The three existing P16-001 `_01` child records changed from
+`0xe0` (unread) to `0x20` (read) after the owner opened the transferred files;
+the fresh raw `0x001b` block contains three display-history references. Phase 7
+read-state evidence supports these semantics. The fresh backup is therefore
+authoritative evidence, not corruption, and is preserved outside Git without
+reversion or normalization.
+
+The implementation accepts this state only through an explicit narrow policy:
+`0x001b` must parse, every active reference must resolve to an existing file
+record, and references at or after the exact insertion point must rebase by the
+exact aligned metadata delta. Each rebased reference must resolve to the same
+absolute-path record with preserved bytes, prefix, and payload. Count, header
+words, unused tail, entry order, unshifted references, and `0x001c`–`0x001f`
+all-zero state remain protected. The candidate/template comparison permits
+only the verified `0xe0` → `0x20` child flags and justified derived effects.
+Focused tests cover shifted and unshifted references, malformed/dangling/mark
+rejection, template mutation, candidate binding, exact read-back, and
+unrebased-state failure.
+
+The preserved P16-003 fresh state has relative references `0x0400`, `0x0440`,
+and `0x0480`, which resolve to absolute offsets `0x0440`, `0x0480`, and
+`0x04c0`. The reviewed candidate inserts five records at absolute `0x0400`,
+with relative insertion offset `0x03c0` and metadata delta `0x0140`; the
+candidate references are `0x0540`, `0x0580`, and `0x05c0`, resolving to
+absolute `0x0580`, `0x05c0`, and `0x0600`. The exact candidate, authorization,
+transaction, and independent read-back reconstruction now pass offline.
+P16-003A is therefore **READY_FOR_HARDWARE_TEST** for this exact correction,
+not a live authorization. A later task must obtain a new fresh preflight and
+new operation-specific approval. No device access or transaction occurred.
