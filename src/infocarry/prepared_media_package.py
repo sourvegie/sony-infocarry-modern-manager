@@ -179,6 +179,12 @@ class PreparedMediaPackage:
     folder_name: str
     items: tuple[PreparedMediaItem, ...]
     require_mixed_kinds: bool = True
+    # Imports carry the hash of the signed on-disk manifest.  A loaded package
+    # may use archive-local source paths, so regenerating a manifest from the
+    # imported view is not the same identity as the manifest that was signed
+    # by the exporter.  Keep this binding separate from serialization; the
+    # importer is the only caller that supplies it.
+    manifest_binding_sha256: str | None = None
 
     def __post_init__(self) -> None:
         _validate_component(self.folder_name, label="folder name")
@@ -197,6 +203,21 @@ class PreparedMediaPackage:
             raise PreparedMediaPackageError("typed package contains an unsupported item kind")
         if self.require_mixed_kinds and kinds != {"txt", "bmp"}:
             raise PreparedMediaPackageError("typed package must contain both TXT and BMP items")
+        if self.manifest_binding_sha256 is not None:
+            if (
+                not isinstance(self.manifest_binding_sha256, str)
+                or len(self.manifest_binding_sha256) != 64
+                or self.manifest_binding_sha256.lower() != self.manifest_binding_sha256
+            ):
+                raise PreparedMediaPackageError(
+                    "manifest_binding_sha256 must be a lowercase SHA-256 string"
+                )
+            try:
+                int(self.manifest_binding_sha256, 16)
+            except ValueError as exc:
+                raise PreparedMediaPackageError(
+                    "manifest_binding_sha256 must be a lowercase SHA-256 string"
+                ) from exc
 
     @property
     def target_folder_path(self) -> str:
@@ -279,7 +300,7 @@ class PreparedMediaPackage:
 
     @property
     def prepared_manifest_sha256(self) -> str:
-        return self.manifest_dict()["prepared_manifest_sha256"]
+        return self.manifest_binding_sha256 or self.manifest_dict()["prepared_manifest_sha256"]
 
 
 def _load_txt(path: Path, name: str) -> PreparedTextSourceItem:
@@ -590,7 +611,12 @@ def load_prepared_media_package(root: Path) -> PreparedMediaPackageImport:
     declared_kinds = manifest_object.get("content_kinds")
     if declared_kinds is not None and declared_kinds != sorted(kinds):
         raise PreparedMediaPackageError("prepared package content kinds do not match its children")
-    package = PreparedMediaPackage(folder_name, tuple(items), require_mixed_kinds=False)
+    package = PreparedMediaPackage(
+        folder_name,
+        tuple(items),
+        require_mixed_kinds=False,
+        manifest_binding_sha256=expected_manifest_hash,
+    )
     return PreparedMediaPackageImport(
         root=package_root,
         manifest_path=manifest_path,

@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-31
-Canonical checkpoint: P17-002 explicit prepared-package import and Library grouping is COMPLETE for offline review; no USB access, candidate execution, or new device-changing operation occurred
+Canonical checkpoint: P17-003 guarded single prepared-package candidate and preflight bridge is READY_FOR_HARDWARE_TEST for host validation only; no USB access, candidate execution, or new device-changing operation occurred
 
 ## Portable offline validation
 
-- 569 passing tests
+- 580 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -45,6 +45,23 @@ These are host/offline results only. They do not claim physical-device verificat
   Several unrelated Library rows are still never merged. The ttk Library has
   a directory-based `Import prepared package…` action; preparation and queue
   review remain offline-only and no transfer control is enabled.
+- P17-003 adds a narrowly isolated R3 bridge from exactly one fully
+  revalidated P17-002 Library package into the existing ordered TXT/BMP/TXT
+  candidate, authorization, hash-only preview, independent read-back, and
+  fake-host workflow. It binds the catalog record and full package manifest
+  identity in addition to the existing device, backup, template, capacity,
+  fixed-state, candidate, transaction, timestamp, and additive post-state
+  bindings. The exact profile is one root folder with
+  `01-introduction.txt`, `02-page-01.bmp`, and `03-ending.txt` in that order;
+  stale/tampered packages, profile/order/template-byte/destination conflicts,
+  unsupported state, catalog source/manifest drift, immutable sealed-report
+  tampering, and Library binding drift fail closed. The bridge requires the
+  exact reviewed P16-001 native template blob hash
+  `6c654fe4ec4cd87092b90980471fc32df797c84d7817398c9b81edefcedf796b`. The isolated
+  bridge is not imported by normal GUI/CLI code, uses only injected fake
+  hardware boundaries, and has no live sender or owner-approval path. P17-003
+  is **READY_FOR_HARDWARE_TEST** for this host-only preparation; a later task
+  must obtain a new fresh backup/capacity boundary and separate approval.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -209,8 +226,8 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 - broader arbitrary/nested package behavior.
 - Library batch execution, automatic grouping, and normal GUI/CLI transfer
   exposure remain disabled; P17-001/P17-002 are offline planning and review
-  only. Explicit package grouping is supported at import, not inferred from
-  multi-selection.
+  only, and P17-003 adds no product-facing transfer action. Explicit package
+  grouping is supported at import, not inferred from multi-selection.
 
 ## Development priority
 
@@ -220,13 +237,14 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 No device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
-and P17-001/P17-002 are complete only as offline Library planning/review. Any later hardware
-operation must be separately briefed, use a new fresh read-only preflight and
-evidence root, obtain new operation-specific owner approval, and remain
-outside normal GUI/CLI transfer. Native global timestamp rewriting, numeric
-completion decoding, operation-specific capacity semantics, interrupted-write
-recovery, arbitrary package hardware compatibility, and batch execution remain
-unresolved or disabled.
+P17-001/P17-002 are complete only as offline Library planning/review, and
+P17-003 is host-ready only for the exact single selected package bridge. Any
+later hardware operation must be separately briefed, use a new fresh
+read-only preflight and evidence root, obtain new operation-specific owner
+approval, and remain outside normal GUI/CLI transfer. Native global timestamp
+rewriting, numeric completion decoding, operation-specific capacity semantics,
+interrupted-write recovery, arbitrary package hardware compatibility, and
+batch execution remain unresolved or disabled.
 
 ## Canonical reading order
 
