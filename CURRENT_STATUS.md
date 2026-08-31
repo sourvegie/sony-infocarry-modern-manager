@@ -1,11 +1,11 @@
 # Current Project Status
 
-Date: 2026-08-31
-Canonical checkpoint: P17-004 fresh read-only Library-package preflight is READY_FOR_HARDWARE_TEST at the owner-approval boundary; no candidate execution or device-changing operation occurred
+Date: 2026-09-01
+Canonical checkpoint: P17-005 isolated single Library-package live-execution adapter is READY_FOR_HARDWARE_TEST at the host-only boundary; no device access, approval consumption, or transaction occurred
 
 ## Portable offline validation
 
-- 582 passing tests
+- 591 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -82,6 +82,30 @@ These are host/offline results only. They do not claim physical-device verificat
   phrase was requested or consumed, no sender was invoked, and no `0x101b`
   transaction occurred. Physical compatibility for this new source content
   remains unresolved.
+- P17-005 adds the isolated, unregistered one-shot adapter for the exact
+  P17-004 Library package profile. It reuses the P17-003 bridge, candidate,
+  authorization, and independent read-back verifier; fixes the future
+  preflight order to expected-device detection, parsed native `0x0019`
+  capacity, complete verified backup, exact Library/package reconstruction,
+  hash-only preview, and seal. Its later execution boundary captures and
+  verifies a new complete pre-write backup before reconstructing and sending;
+  a successful result requires a complete post-backup and non-overwriting
+  before/after evidence manifest. The existing sender is constructed only
+  inside the execution function after all gates; its execution-local
+  authorization and one-shot call are not exposed as an adapter object. The
+  success manifest accepts only the exact canonical operation sequence and
+  hash-only result schema. It binds the exact package, state, capacity,
+  candidate, transaction, approval phrases, no-retry policy, and expected
+  post-state. Host tests cover stale/tampered bindings, identity/capacity/
+  fixed-state drift, target conflict, insufficient capacity, cancellation,
+  all material post-start failures, post-operation verification, and
+  at-most-one sender-call enforcement. The adapter is not imported by normal
+  GUI/CLI code.
+  No hardware or external evidence was accessed. Independent R3 review passes
+  and is recorded in
+  `analysis/phase-13-p17-005-r3-review-20260901.md`. P17-005 is
+  **READY_FOR_HARDWARE_TEST** only; a later task must perform a new fresh
+  preflight and obtain separate operation-specific approval.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -258,8 +282,9 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 No device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
 P17-001/P17-002 are complete only as offline Library planning/review, and
-P17-003/P17-004 are host-ready only for their exact constrained package
-bridges and fresh-preflight boundary. Any later hardware operation must be
+P17-003/P17-004/P17-005 are host-ready only for their exact constrained
+package bridges and fresh-preflight/one-shot boundary. Any later hardware
+operation must be
 separately briefed, use a new fresh read-only preflight and evidence root,
 obtain new operation-specific owner approval, and remain outside normal
 GUI/CLI transfer. Native global timestamp rewriting, numeric completion

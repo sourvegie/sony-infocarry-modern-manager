@@ -39,7 +39,7 @@ P17-002 explicit prepared-package import/grouped review are complete for their
 offline-only scopes. P17-003 now bridges one exact revalidated Library package
 into a hash-bound candidate/preflight and fake-host workflow only; normal
 device transfer remains disabled.
-The current portable suite is **582 tests** with three
+The current portable suite is **591 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The original P15-001 modern dossier is now correctly reclassified as
@@ -210,6 +210,29 @@ unresolved.
 | R14 | Selective or “full” batch transfer could amplify an incorrect operation, be misunderstood as destructive synchronization, or imply a payload-sized physical copy when `0x101b` actually carries a complete candidate model. | Critical | Name the batch operation **Transfer all ready items** and define it as an additive logical queue only. Explain that selected items limit the intended change set but do not reduce the physical write to those payload bytes. Preflight every item, destination, conflict, complete candidate size, and capacity result; require a fresh backup and exact authorization; stop on first failure; never retry automatically; verify supported results. Keep unsupported/new-record items preview-only until their individual gates are proven. | Open; blocks general batch execution and any sync/replace semantics. P17-002 makes explicit imported package grouping one queue item but does not enable batch execution or infer grouping from multiple rows. Does not block offline queue planning. The legacy same-duration warning corroborates the captured complete-model write structure. |
 | R15 | The device's commit point and recovery behavior after an interrupted `0x101b` transaction are unknown. A nominal file operation transmits broad device state and may not be atomic. | Critical | Permit ordinary cancellation before the device-changing request starts. After it starts, treat disconnect, timeout, cancellation, or missing completion as an indeterminate outcome; never retry automatically and perform only read-only diagnosis/backup. Keep writes explicitly experimental. Do not intentionally interrupt the owner's only valuable unit; require a second or sacrificial VNW-V15 plus a separate approved recovery protocol for deliberate testing. | Offline sender and new-TXT integration tests now enforce the distinction and no-retry rule. Physical atomicity, rollback, and recovery remain unproven; R15 stays open and blocks any risk-free write claim or broad public write release. |
 | R16 | Proprietary evidence, credentials, or private device data could be accidentally published through a source remote or a complete Git-history push. | Critical | Before every remote checkpoint, audit all tracked files and `git rev-list --objects --all`; reject original Sony software, ISO content, device backups, USB captures, raw live evidence, credentials, private information, generated output, and temporary artifacts. Keep the remote private only as an additional source/history backup, never as the sole evidence backup. Never force-push or upload excluded evidence. | Controlled for this sanitized remote: the candidate history contains no excluded evidence, the remote is private, and the initial commit is pushed. The original research history and bundle remain local-only; re-audit every future commit. |
+
+P17-005 adds the isolated, unregistered one-shot adapter needed to connect a
+future real Sony transport to the exact P17-004 Library package profile. It
+reuses the P17-003 bridge, candidate, authorization, and independent verifier;
+requires the ordered expected-device/capacity/complete-backup preflight;
+captures and verifies a new complete pre-write backup, then revalidates the
+sealed Library package, source, template, target, fixed state, and capacity
+immediately before sending; the existing sender is constructed only inside the
+execution function after all gates, with an execution-local authorization and
+one-shot call; and permits at most one `0x101b`
+transaction with explicit integer `0x0000` only. Cancellation is safe only
+before transmission; timeout, disconnect, missing/malformed/nonzero
+completion, post-backup failure, or read-back mismatch after start is
+terminal/indeterminate with no retry. Injected fake-host tests cover stale or
+  tampered bindings, insufficient capacity, target conflict, state drift, and
+at-most-one sender-call enforcement. A nominal result also requires and persists a
+non-overwriting before/after evidence manifest whose success audit uses an
+exact operation sequence and rejects arbitrary fields. No hardware or external
+evidence was accessed, and the adapter is not reachable from normal GUI/CLI
+imports. Independent R3 review passes and is recorded in
+`analysis/phase-13-p17-005-r3-review-20260901.md`. P17-005 is
+**READY_FOR_HARDWARE_TEST** for host-only readiness, followed by a new fresh
+preflight and separate operation-specific approval in a later task.
 
 ## Immediate Risk Order
 
