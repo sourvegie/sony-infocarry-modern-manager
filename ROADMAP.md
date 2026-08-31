@@ -95,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's corrected offline gate and one constrained modern root-TXT delete smoke are complete for their supported scopes; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
-| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 offline planning complete; enabled transfer remains deferred | The Library import/Prepare UI and offline selected/all-ready queue review are usable; device-aware execution remains disabled |
+| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review; device-aware execution remains disabled |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -1830,3 +1830,37 @@ The owner-supplied P16-003B physical acceptance observation is recorded in the
 P16-003B report and current status only; it does not expand P17-001 scope.
 Opening those files may change read/display-history state, so future hardware
 work requires a new fresh preflight.
+
+## Phase 13 — P17-002 explicit prepared-package import and Library grouping (2026-08-31)
+
+P17-002 is **COMPLETE** for the offline Library/package-planning scope. The
+existing `infocarry-prepared-typed-media-package-v1` contract now includes
+deterministic archive paths and a non-owning importer that verifies the
+canonical manifest hash, flat containment, explicit child order, kind/name
+agreement, source and prepared sizes/hashes, strict TXT authoring, and the
+validated monochrome BMP profile. An explicitly named content-builder mode
+also supports TXT-only or BMP-only multi-child packages; the historical mixed
+builder retains its both-kinds default. Invalid, missing, changed, duplicate,
+unsupported, reordered, or escaping children fail closed. Export remains
+create-new only and original source files are never modified.
+
+The catalog keeps its `infocarry-library-v1` format backward-compatible: old
+source-file records are still loaded and serialized with their existing
+meaning, while package records use an additive `prepared_package` reference
+containing one non-owning root/manifest path and the exact ordered child table.
+Re-import of an unchanged manifest is idempotent; a changed package is stale
+under its original identity rather than silently replaced; Library removal is
+catalog-only.
+
+The P17-001 queue now represents an explicitly imported package as one logical
+item, reports its ordered TXT/BMP contents, destination, hashes, sizes,
+conflicts, lower-bound capacity, and blocked execution status, and continues
+to reject overlap between unrelated items without automatic grouping. The
+ttk Library has a directory picker for prepared package import. No candidate,
+authorization, transaction, USB access, device detection, or transfer
+control was added. Hardware compatibility for arbitrary packages, batching,
+nesting, synchronization, and normal GUI/CLI transfer remain blocked.
+
+The focused package/import tests are in
+`tests/test_library_prepared_package.py`; the dedicated boundary analysis is
+`analysis/phase-13-p17-002-explicit-prepared-package-import-20260831.md`.

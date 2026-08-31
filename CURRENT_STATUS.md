@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-31
-Canonical checkpoint: P17-001 offline device-aware Library transfer planning is COMPLETE; no USB access, candidate execution, or new device-changing operation occurred
+Canonical checkpoint: P17-002 explicit prepared-package import and Library grouping is COMPLETE for offline review; no USB access, candidate execution, or new device-changing operation occurred
 
 ## Portable offline validation
 
-- 559 passing tests
+- 569 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -27,6 +27,24 @@ These are host/offline results only. They do not claim physical-device verificat
   prepared-manifest hashes, compares destinations against a supplied verified
   offline backup when present, reports lower-bound size/capacity, and never
   constructs a candidate, authorization, transaction, or sender action.
+- P17-002 adds the versioned, deterministic
+  `infocarry-prepared-typed-media-package-v1` import/revalidation boundary for
+  one flat ordered TXT/BMP package. Supported TXT and/or BMP children are
+  allowed; the historical mixed builder remains unchanged by default and an
+  explicit content-builder mode handles single-kind packages. The manifest,
+  source archive, prepared children, hashes, sizes, names, kinds, and package
+  containment are checked before persistence. The catalog stores one non-owning grouped package item
+  using an additive optional record, so existing Library source items retain
+  their meaning and legacy catalog records remain loadable without an
+  automatic rewrite. Re-import is idempotent; changed or invalid packages
+  fail closed rather than being silently replaced, and Library removal leaves
+  original files untouched.
+- The P17-001 queue now keeps an explicitly imported package as one logical
+  item and reports its ordered child kinds/names, destinations, hashes,
+  payload sizes, conflicts, lower-bound growth, and blocked execution state.
+  Several unrelated Library rows are still never merged. The ttk Library has
+  a directory-based `Import prepared package…` action; preparation and queue
+  review remain offline-only and no transfer control is enabled.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -189,8 +207,10 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 - generalized deletion beyond the exact supported smoke scope;
 - physical interrupted-write atomicity, rollback, and recovery;
 - broader arbitrary/nested package behavior.
-- Library batch execution, package grouping, and normal GUI/CLI transfer
-  exposure remain disabled; P17-001 is offline planning only.
+- Library batch execution, automatic grouping, and normal GUI/CLI transfer
+  exposure remain disabled; P17-001/P17-002 are offline planning and review
+  only. Explicit package grouping is supported at import, not inferred from
+  multi-selection.
 
 ## Development priority
 
@@ -200,12 +220,13 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 No device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
-and P17-001 is complete only as offline Library planning. Any later hardware
+and P17-001/P17-002 are complete only as offline Library planning/review. Any later hardware
 operation must be separately briefed, use a new fresh read-only preflight and
 evidence root, obtain new operation-specific owner approval, and remain
 outside normal GUI/CLI transfer. Native global timestamp rewriting, numeric
 completion decoding, operation-specific capacity semantics, interrupted-write
-recovery, package grouping, and batch execution remain unresolved or disabled.
+recovery, arbitrary package hardware compatibility, and batch execution remain
+unresolved or disabled.
 
 ## Canonical reading order
 

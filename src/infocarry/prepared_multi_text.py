@@ -81,6 +81,8 @@ class PreparedTextSourceItem:
             "kind": self.kind,
             "name": self.name,
             "path": f"{folder_path}\\{self.name}",
+            "package_path": f"source/{order + 1:04d}_{self.source_path.name}",
+            "prepared_path": f"prepared/{folder_path.split(chr(92), 1)[-1]}/{self.name}",
             "source": {
                 "path": str(self.source_path),
                 "sha256": self.source_sha256,

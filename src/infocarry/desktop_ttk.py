@@ -279,6 +279,7 @@ def format_library_transfer_plan(report: Dict[str, Any]) -> str:
                 f"     Compatibility: {item.get('compatibility_state', 'unknown')}",
                 f"     Destination: {', '.join(destination.get('paths', [])) or 'unknown'}",
                 f"     Order: {', '.join(prepared.get('child_order', [])) or 'unknown'}",
+                f"     Ordered contents: {', '.join(str(child.get('kind')) + ':' + str(child.get('name')) for child in prepared.get('ordered_children', [])) or 'unknown'}",
                 f"     Source SHA-256: {source.get('sha256', 'unknown')}",
                 f"     Prepared manifest SHA-256: "
                 f"{prepared.get('manifest_sha256', 'unknown')}",
@@ -413,7 +414,7 @@ def launch_ttk_desktop() -> None:
         value=(
             f"Library unavailable: {library_catalog_error}"
             if library_catalog_error
-            else "Import a UTF-8 TXT source; no device operation occurs."
+            else "Import a UTF-8 TXT source or prepared flat TXT/BMP package; no device operation occurs."
         )
     )
     library_detail_var = tk.StringVar(value="Select a Library item")
@@ -426,6 +427,9 @@ def launch_ttk_desktop() -> None:
         font=("TkDefaultFont", 14, "bold"),
     ).pack(side="left", padx=(0, 16))
     library_import_button = ttk.Button(library_toolbar, text="Import TXT…")
+    library_package_import_button = ttk.Button(
+        library_toolbar, text="Import prepared package…"
+    )
     library_remove_button = ttk.Button(
         library_toolbar, text="Remove from Library", state="disabled"
     )
@@ -439,6 +443,7 @@ def launch_ttk_desktop() -> None:
         library_toolbar, text="Review all ready (offline)…", state="disabled"
     )
     library_import_button.pack(side="left", padx=3)
+    library_package_import_button.pack(side="left", padx=3)
     library_remove_button.pack(side="left", padx=3)
     library_prepare_button.pack(side="left", padx=3)
     library_selected_queue_button.pack(side="left", padx=3)
@@ -638,6 +643,7 @@ def launch_ttk_desktop() -> None:
         f"Runtime: {runtime.description}\n"
         "Supported device: Sony InfoCarry VNW-V15 (VID 054c, PID 001e)\n"
         "Device Manager writes are limited to the guarded existing-TXT workflow.\n"
+        "Prepared package import is a grouped offline review only; it does not enable transfer.\n"
         "Text Converter and Ebook Renderer are offline-only in this milestone.\n\n"
         "Recovery: preserve any before/after backup, do not retry a started write, "
         "and use only read-only detection or backup checks after a disconnect.\n"
@@ -658,16 +664,20 @@ def launch_ttk_desktop() -> None:
         library_tree_items.clear()
         if library_catalog is None:
             library_import_button.configure(state="disabled")
+            library_package_import_button.configure(state="disabled")
             library_remove_button.configure(state="disabled")
             library_prepare_button.configure(state="disabled")
             library_selected_queue_button.configure(state="disabled")
             library_all_queue_button.configure(state="disabled")
             return
         library_import_button.configure(state="normal")
+        library_package_import_button.configure(state="normal")
         library_all_queue_button.configure(state="normal")
         for item in library_catalog.items:
             target = ""
-            if item.target_folder_name and item.target_child_name:
+            if item.package is not None and item.target_folder_name:
+                target = f"root\\{item.target_folder_name} ({len(item.package.children)} children)"
+            elif item.target_folder_name and item.target_child_name:
                 target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
             tree_item = library_tree.insert(
                 "",
@@ -720,6 +730,7 @@ def launch_ttk_desktop() -> None:
             state=(
                 "normal"
                 if enabled
+                and item.package is None
                 and item.supported
                 and item.state in {"imported", "ready", "blocked"}
                 else "disabled"
@@ -736,7 +747,12 @@ def launch_ttk_desktop() -> None:
             _set_readonly_text(library_report, "")
             return
         target = "not prepared"
-        if item.target_folder_name and item.target_child_name:
+        if item.package is not None and item.target_folder_name:
+            target = (
+                f"root\\{item.target_folder_name}"
+                f" ({len(item.package.children)} ordered children)"
+            )
+        elif item.target_folder_name and item.target_child_name:
             target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
         library_detail_var.set(
             f"{item.source_filename}\n\n"
@@ -777,6 +793,30 @@ def launch_ttk_desktop() -> None:
         except (LibraryError, OSError) as exc:
             library_status_var.set(f"Library import blocked: {exc}")
             messagebox.showerror("Library import", str(exc), parent=root)
+
+    def library_package_import_action() -> None:
+        if library_catalog is None:
+            messagebox.showerror("Library", library_catalog_error or "Library is unavailable", parent=root)
+            return
+        selected = filedialog.askdirectory(
+            title="Import prepared flat TXT/BMP package",
+            parent=root,
+        )
+        if not selected:
+            return
+        try:
+            item = library_catalog.import_prepared_package(Path(selected))
+            refresh_library_view()
+            library_status_var.set(
+                f"Imported grouped package {item.source_filename}; original files unchanged; no device access"
+            )
+            _set_readonly_text(
+                library_report,
+                json.dumps(item.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
+            )
+        except (LibraryError, OSError) as exc:
+            library_status_var.set(f"Prepared package import blocked: {exc}")
+            messagebox.showerror("Prepared package import", str(exc), parent=root)
 
     def library_remove_action() -> None:
         if library_catalog is None:
@@ -888,6 +928,7 @@ def launch_ttk_desktop() -> None:
 
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
     library_import_button.configure(command=library_import_action)
+    library_package_import_button.configure(command=library_package_import_action)
     library_remove_button.configure(command=library_remove_action)
     library_prepare_button.configure(command=library_prepare_action)
     library_selected_queue_button.configure(

@@ -2,9 +2,9 @@
 
 This module connects prepared local Library items to a reviewable queue plan.
 It is deliberately independent of USB, candidate construction, authorization,
-and sender code.  Each prepared Library item remains an independent package;
-the planner never infers that multiple items may be merged into one native
-multi-child package.
+and sender code.  An explicitly imported prepared package remains one grouped
+queue item; several unrelated Library items are never inferred to be one
+native multi-child package.
 """
 
 from __future__ import annotations
@@ -24,6 +24,10 @@ from .library import (
     LibraryItem,
 )
 from .prepared_package import PreparedPackageError, build_prepared_text_package
+from .prepared_media_package import (
+    PreparedMediaPackageError,
+    load_prepared_media_package,
+)
 from .prepared_transfer_plan import (
     PreparedTransferPlanError,
     build_prepared_transfer_plan,
@@ -38,6 +42,7 @@ LIBRARY_TRANSFER_PLAN_NOTICE = (
 SELECTION_SELECTED = "selected"
 SELECTION_ALL_READY = "all_ready"
 PREPARED_ROOT_TXT_OPERATION = "prepared_root_txt_package"
+PREPARED_FLAT_PACKAGE_OPERATION = "prepared_flat_typed_package"
 QUEUE_GROUPING_POLICY = "one_prepared_package_per_library_item_no_automatic_grouping"
 
 
@@ -121,8 +126,42 @@ def _base_item_report(item: LibraryItem) -> dict[str, Any]:
     if item.target_folder_name:
         folder = f"root\\{item.target_folder_name}"
         target_paths.append(folder)
-        if item.target_child_name:
+        if item.package is not None:
+            target_paths.extend(
+                f"{folder}\\{child['name']}"
+                for child in item.package.children
+            )
+        elif item.target_child_name:
             target_paths.append(f"{folder}\\{item.target_child_name}")
+    is_package = item.package is not None
+    prepared_artifact: dict[str, Any] = {
+        "manifest_sha256": item.prepared_manifest_sha256,
+        "manifest_path": item.prepared_manifest_path,
+    }
+    if is_package:
+        prepared_artifact.update(
+            {
+                "package_root": item.package.root_path,
+                "contract": item.package.format,
+                "child_order": [child.get("name") for child in item.package.children],
+                "ordered_children": [
+                    {
+                        "order": child.get("order"),
+                        "kind": child.get("kind"),
+                        "name": child.get("name"),
+                        "path": child.get("path"),
+                        "source_sha256": child.get("source", {}).get("sha256"),
+                        "source_bytes": child.get("source", {}).get("bytes"),
+                        "prepared_payload_sha256": (
+                            child.get("authoring", {}).get("prepared_payload_sha256")
+                            if child.get("kind") == "txt"
+                            else child.get("bmp", {}).get("payload_sha256")
+                        ),
+                    }
+                    for child in item.package.children
+                ],
+            }
+        )
     return {
         "item_id": item.item_id,
         "source": {
@@ -132,16 +171,14 @@ def _base_item_report(item: LibraryItem) -> dict[str, Any]:
             "size_bytes": item.source_size_bytes,
             "status": item.source_status,
         },
-        "prepared_artifact": {
-            "manifest_sha256": item.prepared_manifest_sha256,
-            "manifest_path": item.prepared_manifest_path,
-        },
+        "prepared_artifact": prepared_artifact,
         "destination": {
             "paths": target_paths,
             "folder_path": target_paths[0] if target_paths else None,
             "child_path": target_paths[1] if len(target_paths) > 1 else None,
         },
-        "operation_type": PREPARED_ROOT_TXT_OPERATION,
+        "operation_type": PREPARED_FLAT_PACKAGE_OPERATION if is_package else PREPARED_ROOT_TXT_OPERATION,
+        "execution_eligible": False,
         "compatibility_state": "blocked",
         "conflicts": [],
         "capacity": {
@@ -169,11 +206,120 @@ def _prepare_item_report(
         reasons.append(f"Library source is not current and present ({item.source_status})")
     if item.state != STATE_READY or item.preparation_state != PREPARATION_PREPARED:
         reasons.append("Library item has no current prepared artifact")
-    if not item.target_folder_name or not item.target_child_name:
+    if not item.target_folder_name or (item.package is None and not item.target_child_name):
         reasons.append("prepared destination folder and child are missing")
     if item.prepared_manifest_sha256 is None:
         reasons.append("prepared manifest hash is missing")
     if reasons:
+        return report
+
+    if item.package is not None:
+        try:
+            imported = load_prepared_media_package(Path(item.package.root_path))
+        except (OSError, PreparedMediaPackageError) as exc:
+            reasons.append(f"prepared package could not be revalidated: {exc}")
+            return report
+        if imported.manifest_sha256 != item.package.manifest_sha256:
+            reasons.append("prepared package manifest hash does not match the Library catalog")
+            return report
+        if imported.manifest_sha256 != item.prepared_manifest_sha256:
+            reasons.append("prepared manifest hash does not match the Library catalog")
+            return report
+        if str(imported.manifest_path) != item.package.manifest_path:
+            reasons.append("prepared package manifest path does not match the Library catalog")
+            return report
+        if [dict(child) for child in imported.children] != [dict(child) for child in item.package.children]:
+            reasons.append("prepared package child manifest differs from the Library grouping record")
+            return report
+        package = imported.package
+        report["prepared_artifact"].update(
+            {
+                "manifest_sha256": imported.manifest_sha256,
+                "manifest_path": str(imported.manifest_path),
+                "source_bytes": sum(child.get("source", {}).get("bytes", 0) for child in imported.children),
+                "prepared_payload_bytes": package.prepared_payload_bytes,
+                "aligned_content_bytes": package.aligned_content_bytes,
+                "estimated_growth_lower_bound": package.estimated_growth_lower_bound,
+                "child_order": [child.name for child in package.items],
+                "kind": "flat_txt_bmp_package",
+                "ordered_children": [
+                    {
+                        "order": index,
+                        "kind": child.kind,
+                        "name": child.name,
+                        "path": package.target_item_paths[index],
+                        "source_sha256": child.source_sha256,
+                        "source_bytes": (
+                            len(child.source_bytes)
+                            if child.kind == "bmp"
+                            else len(child.source_bytes)
+                        ),
+                        "prepared_payload_sha256": child.payload_sha256,
+                        "prepared_payload_bytes": (
+                            len(child.source_bytes)
+                            if child.kind == "bmp"
+                            else len(child.authored.payload)
+                        ),
+                    }
+                    for index, child in enumerate(package.items)
+                ],
+            }
+        )
+        report["destination"] = {
+            "paths": [package.target_folder_path, *package.target_item_paths],
+            "folder_path": package.target_folder_path,
+            "child_path": None,
+        }
+        report["compatibility_state"] = "prepared_flat_package_ready_for_offline_review"
+        report["capacity"]["lower_bound_bytes"] = package.estimated_growth_lower_bound
+        if backup is not None:
+            try:
+                display_paths = _backup_display_paths(backup)
+            except LibraryTransferPlanError as exc:
+                reasons.append(f"verified backup comparison failed: {exc}")
+                return report
+            for destination in report["destination"]["paths"]:
+                existing = display_paths.get(destination.casefold())
+                if existing is not None:
+                    report["conflicts"].append(
+                        {
+                            "path": existing["path"],
+                            "record_offset": existing["record_offset"],
+                            "record_kind": existing["record_kind"],
+                            "reason": "proposed Library package destination already exists in the verified backup",
+                        }
+                    )
+            report["capacity"] = {
+                "status": (
+                    "unknown"
+                    if available_capacity_bytes is None
+                    else (
+                        "insufficient_for_lower_bound"
+                        if available_capacity_bytes < package.estimated_growth_lower_bound
+                        else "sufficient_for_lower_bound_only"
+                    )
+                ),
+                "baseline_model_bytes": len(_read_verified_blob(backup)),
+                "candidate_model_bytes": None,
+                "lower_bound_bytes": package.estimated_growth_lower_bound,
+                "available_bytes": available_capacity_bytes,
+                "exact_growth_known": False,
+            }
+            if report["conflicts"]:
+                reasons.append("one or more destination paths conflict with the verified backup")
+            if report["capacity"]["status"] == "insufficient_for_lower_bound":
+                reasons.append("available capacity is below the package lower bound")
+            elif report["capacity"]["status"] == "unknown":
+                reasons.append("available capacity was not supplied for this queue review")
+        else:
+            report["capacity"] = {
+                "status": "not_evaluated_without_verified_backup",
+                "lower_bound_bytes": package.estimated_growth_lower_bound,
+                "available_bytes": None,
+                "exact_growth_known": False,
+            }
+            reasons.append("verified device backup is required for destination and capacity review")
+        report["queue_ready"] = not reasons
         return report
 
     try:
@@ -339,8 +485,14 @@ def build_library_transfer_queue_plan(
                 and item.state == STATE_READY
                 and item.preparation_state == PREPARATION_PREPARED
                 and item.target_folder_name is not None
-                and item.target_child_name is not None
                 and item.prepared_manifest_sha256 is not None
+                and (
+                    item.target_child_name is not None
+                    or (
+                        item.package is not None
+                        and len(item.package.children) >= 2
+                    )
+                )
             )
             if is_ready:
                 selected.append(item)
@@ -558,6 +710,7 @@ build_library_transfer_plan = build_library_transfer_queue_plan
 __all__ = [
     "LIBRARY_TRANSFER_PLAN_FORMAT",
     "LIBRARY_TRANSFER_PLAN_NOTICE",
+    "PREPARED_FLAT_PACKAGE_OPERATION",
     "PREPARED_ROOT_TXT_OPERATION",
     "QUEUE_GROUPING_POLICY",
     "SELECTION_ALL_READY",

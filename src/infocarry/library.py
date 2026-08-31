@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from .prepared_package import PreparedPackageError, _validate_component
+
 
 LIBRARY_FORMAT = "infocarry-library-v1"
 LIBRARY_VERSION = 1
@@ -62,6 +64,8 @@ VALID_SOURCE_STATUS = frozenset(
 )
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+LIBRARY_PACKAGE_ITEM_KIND = "prepared_package"
+PREPARED_MEDIA_PACKAGE_FORMAT = "infocarry-prepared-typed-media-package-v1"
 
 
 class LibraryError(ValueError):
@@ -74,6 +78,96 @@ class LibraryCatalogError(LibraryError):
 
 class LibraryImportError(LibraryError):
     """Raised when a source cannot be inspected for import."""
+
+
+@dataclass(frozen=True)
+class LibraryPackageReference:
+    """Persistent, hash-bound reference to one imported flat package.
+
+    The package directory remains owned by the caller.  The catalog records a
+    non-owning path, the manifest identity, and the manifest's ordered child
+    table so queue planning can show the grouping without guessing it.  The
+    on-disk package is revalidated before every review.
+    """
+
+    format: str
+    root_path: str
+    manifest_path: str
+    manifest_sha256: str
+    folder_name: str
+    children: tuple[dict[str, Any], ...]
+
+    def __post_init__(self) -> None:
+        if self.format != PREPARED_MEDIA_PACKAGE_FORMAT:
+            raise LibraryCatalogError("unsupported prepared package contract")
+        if not self.root_path or not self.manifest_path or not self.folder_name:
+            raise LibraryCatalogError("prepared package reference paths and folder are required")
+        try:
+            _validate_component(self.folder_name, label="prepared package folder name")
+        except PreparedPackageError as exc:
+            raise LibraryCatalogError(str(exc)) from exc
+        _validate_sha256(self.manifest_sha256, "package manifest_sha256")
+        if not isinstance(self.children, tuple) or len(self.children) < 2:
+            raise LibraryCatalogError("prepared package reference requires at least two children")
+        names: set[str] = set()
+        kinds: set[str] = set()
+        for index, child in enumerate(self.children):
+            if not isinstance(child, dict):
+                raise LibraryCatalogError("prepared package children must be objects")
+            if isinstance(child.get("order"), bool) or child.get("order") != index:
+                raise LibraryCatalogError("prepared package child order is not contiguous")
+            kind = child.get("kind")
+            if kind not in {"txt", "bmp"}:
+                raise LibraryCatalogError("prepared package child kind is unsupported")
+            kinds.add(kind)
+            name = child.get("name")
+            if not isinstance(name, str) or name.casefold() in names:
+                raise LibraryCatalogError("prepared package child names must be unique")
+            try:
+                _validate_component(name, label="prepared package child name", extension=f".{kind}")
+            except PreparedPackageError as exc:
+                raise LibraryCatalogError(str(exc)) from exc
+            names.add(name.casefold())
+            if child.get("path") != f"root\\{self.folder_name}\\{name}":
+                raise LibraryCatalogError("prepared package child path is inconsistent")
+            source = child.get("source")
+            if not isinstance(source, dict) or not isinstance(source.get("path"), str):
+                raise LibraryCatalogError("prepared package child source metadata is malformed")
+            _validate_sha256(source.get("sha256"), "package child source sha256")
+            source_size = source.get("bytes", source.get("utf8_bytes"))
+            if isinstance(source_size, bool) or not isinstance(source_size, int) or source_size < 0:
+                raise LibraryCatalogError("package child source size is malformed")
+        if not kinds or kinds - {"txt", "bmp"}:
+            raise LibraryCatalogError("prepared package reference contains unsupported children")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": self.format,
+            "root_path": self.root_path,
+            "manifest_path": self.manifest_path,
+            "manifest_sha256": self.manifest_sha256,
+            "folder_name": self.folder_name,
+            "children": [dict(child) for child in self.children],
+        }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "LibraryPackageReference":
+        if not isinstance(value, dict):
+            raise LibraryCatalogError("package reference must be an object")
+        children = value.get("children")
+        if not isinstance(children, list):
+            raise LibraryCatalogError("package reference children must be a list")
+        try:
+            return cls(
+                format=str(value.get("format")),
+                root_path=str(value.get("root_path")),
+                manifest_path=str(value.get("manifest_path")),
+                manifest_sha256=str(value.get("manifest_sha256")),
+                folder_name=str(value.get("folder_name")),
+                children=tuple(dict(child) for child in children),
+            )
+        except (TypeError, ValueError) as exc:
+            raise LibraryCatalogError("package reference contains invalid fields") from exc
 
 
 def _utc_now() -> str:
@@ -180,6 +274,7 @@ class LibraryItem:
     observed_timestamp_utc: Optional[str] = None
     last_validation_error: Optional[str] = None
     source_observations: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    package: Optional[LibraryPackageReference] = None
 
     def __post_init__(self) -> None:
         if not self.item_id or not self.source_path or not self.source_filename:
@@ -201,9 +296,20 @@ class LibraryItem:
             raise LibraryCatalogError("observed_source_size_bytes must be non-negative")
         if self.prepared_manifest_sha256 is not None:
             _validate_sha256(self.prepared_manifest_sha256, "prepared_manifest_sha256")
+        if self.package is not None:
+            if not self.supported:
+                raise LibraryCatalogError("prepared package item must remain supported")
+            if self.detected_format != "prepared-flat-package":
+                raise LibraryCatalogError("prepared package item has an invalid detected format")
+            if self.target_folder_name != self.package.folder_name or self.target_child_name is not None:
+                raise LibraryCatalogError("prepared package target does not match its package reference")
+            if self.prepared_manifest_sha256 != self.package.manifest_sha256:
+                raise LibraryCatalogError("prepared package manifest identity is inconsistent")
+            if self.prepared_manifest_path != self.package.manifest_path:
+                raise LibraryCatalogError("prepared package manifest path is inconsistent")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "item_id": self.item_id,
             "source_path": self.source_path,
             "source_filename": self.source_filename,
@@ -225,6 +331,13 @@ class LibraryItem:
             "last_validation_error": self.last_validation_error,
             "source_observations": [dict(observation) for observation in self.source_observations],
         }
+        # Keep legacy v1 item serialization unchanged.  Package records are
+        # an additive optional extension, so old catalogs load without being
+        # silently reinterpreted as grouped content.
+        if self.package is not None:
+            value["item_kind"] = LIBRARY_PACKAGE_ITEM_KIND
+            value["package"] = self.package.to_dict()
+        return value
 
     @classmethod
     def from_dict(cls, value: Any) -> "LibraryItem":
@@ -249,6 +362,12 @@ class LibraryItem:
             not isinstance(observation, dict) for observation in observations
         ):
             raise LibraryCatalogError("source_observations must be a list of objects")
+        package_value = value.get("package")
+        package = None if package_value is None else LibraryPackageReference.from_dict(package_value)
+        if package is None and value.get("item_kind") not in (None, "source_file"):
+            raise LibraryCatalogError("unknown Library item kind")
+        if package is not None and value.get("item_kind") != LIBRARY_PACKAGE_ITEM_KIND:
+            raise LibraryCatalogError("prepared package item kind is missing")
         try:
             return cls(
                 item_id=str(value["item_id"]),
@@ -277,6 +396,7 @@ class LibraryItem:
                 observed_timestamp_utc=value.get("observed_timestamp_utc"),
                 last_validation_error=value.get("last_validation_error"),
                 source_observations=tuple(dict(observation) for observation in observations),
+                package=package,
             )
         except (TypeError, ValueError) as exc:
             raise LibraryCatalogError("Library item contains invalid field types") from exc
@@ -407,11 +527,126 @@ class LibraryCatalog:
             self.save()
         return updated
 
+    def import_prepared_package(
+        self,
+        package_root: Path,
+        *,
+        now: Optional[str] = None,
+    ) -> LibraryItem:
+        """Import one exported flat prepared package without taking ownership.
+
+        The package validator checks the manifest, source copies, prepared
+        children, order, paths, and hashes before this catalog is changed.
+        Re-importing the same manifest is idempotent.  A changed package keeps
+        its original catalog identity and becomes stale; it is never silently
+        replaced.
+        """
+
+        from .prepared_media_package import (
+            PreparedMediaPackageError,
+            load_prepared_media_package,
+        )
+
+        path = Path(package_root).expanduser().resolve()
+        try:
+            imported = load_prepared_media_package(path)
+        except (OSError, PreparedMediaPackageError) as exc:
+            raise LibraryImportError(f"prepared package import blocked: {exc}") from exc
+        timestamp = now or _utc_now()
+        item_id = _stable_item_id(path)
+        existing = self._items.get(item_id)
+        if existing is not None and existing.package is None:
+            raise LibraryImportError(
+                "prepared package path conflicts with an existing non-package Library item"
+            )
+        reference = LibraryPackageReference(
+            format=str(imported.manifest["format"]),
+            root_path=str(imported.root),
+            manifest_path=str(imported.manifest_path),
+            manifest_sha256=imported.manifest_sha256,
+            folder_name=imported.package.folder_name,
+            children=tuple(dict(child) for child in imported.children),
+        )
+        manifest_size = imported.manifest_path.stat().st_size
+        if existing is None:
+            observation = {
+                "timestamp_utc": timestamp,
+                "status": SOURCE_PRESENT,
+                "sha256": imported.manifest_sha256,
+                "size_bytes": manifest_size,
+            }
+            item = LibraryItem(
+                item_id=item_id,
+                source_path=str(path),
+                source_filename=path.name,
+                source_sha256=imported.manifest_sha256,
+                import_timestamp_utc=timestamp,
+                source_size_bytes=manifest_size,
+                detected_format="prepared-flat-package",
+                supported=True,
+                state=STATE_READY,
+                preparation_state=PREPARATION_PREPARED,
+                target_folder_name=imported.package.folder_name,
+                target_child_name=None,
+                prepared_manifest_sha256=imported.manifest_sha256,
+                prepared_manifest_path=str(imported.manifest_path),
+                source_status=SOURCE_PRESENT,
+                observed_source_sha256=imported.manifest_sha256,
+                observed_source_size_bytes=manifest_size,
+                observed_timestamp_utc=timestamp,
+                last_validation_error=None,
+                source_observations=(observation,),
+                package=reference,
+            )
+            self._items[item.item_id] = item
+            self.save()
+            return item
+        if (
+            existing.source_status == SOURCE_PRESENT
+            and existing.observed_source_sha256 == imported.manifest_sha256
+            and existing.observed_source_size_bytes == manifest_size
+            and existing.package.manifest_sha256 == imported.manifest_sha256
+            and existing.package == reference
+        ):
+            return existing
+        if (
+            existing.source_status == SOURCE_PRESENT
+            and existing.observed_source_sha256 == imported.manifest_sha256
+            and existing.observed_source_size_bytes == manifest_size
+            and existing.package.manifest_sha256 == imported.manifest_sha256
+            and existing.package != reference
+        ):
+            raise LibraryImportError(
+                "catalog package grouping differs from the verified package manifest"
+            )
+        updated = self._observe_package(existing, imported.manifest_sha256, manifest_size, timestamp)
+        if updated != existing:
+            self._items[item_id] = updated
+            self.save()
+        return updated
+
     def refresh(self, item_id: str, *, now: Optional[str] = None) -> LibraryItem:
         existing = self.get(item_id)
         timestamp = now or _utc_now()
         path = Path(existing.source_path)
-        if not path.exists():
+        if existing.package is not None:
+            from .prepared_media_package import PreparedMediaPackageError, load_prepared_media_package
+
+            if not path.exists():
+                updated = self._observe_missing(existing, timestamp)
+            else:
+                try:
+                    imported = load_prepared_media_package(path)
+                except (OSError, PreparedMediaPackageError) as exc:
+                    updated = self._observe_package_invalid(existing, path, timestamp, str(exc))
+                else:
+                    updated = self._observe_package(
+                        existing,
+                        imported.manifest_sha256,
+                        imported.manifest_path.stat().st_size,
+                        timestamp,
+                    )
+        elif not path.exists():
             updated = self._observe_missing(existing, timestamp)
         else:
             details = _source_details(path)
@@ -445,6 +680,8 @@ class LibraryCatalog:
         if state not in VALID_STATES:
             raise LibraryError(f"unsupported Library state: {state}")
         item = self.get(item_id)
+        if item.package is not None:
+            raise LibraryError("prepared package records are updated by package import/revalidation")
         updated = replace(
             item,
             preparation_state=preparation_state,
@@ -458,6 +695,84 @@ class LibraryCatalog:
         self._items[item_id] = updated
         self.save()
         return updated
+
+    @staticmethod
+    def _observe_package(
+        existing: LibraryItem,
+        manifest_sha256: str,
+        manifest_size: int,
+        timestamp: str,
+    ) -> LibraryItem:
+        status = (
+            SOURCE_PRESENT
+            if manifest_sha256 == existing.source_sha256
+            else SOURCE_CHANGED
+        )
+        observation = {
+            "timestamp_utc": timestamp,
+            "status": status,
+            "sha256": manifest_sha256,
+            "size_bytes": manifest_size,
+        }
+        observations = existing.source_observations
+        if not observations or observations[-1] != observation:
+            observations = (*observations, observation)
+        if status == SOURCE_CHANGED:
+            state = STATE_STALE
+            preparation_state = PREPARATION_STALE
+            error = "prepared package manifest changed since import"
+        else:
+            state = STATE_READY
+            preparation_state = PREPARATION_PREPARED
+            error = None
+        return replace(
+            existing,
+            state=state,
+            preparation_state=preparation_state,
+            source_status=status,
+            observed_source_sha256=manifest_sha256,
+            observed_source_size_bytes=manifest_size,
+            observed_timestamp_utc=timestamp,
+            last_validation_error=error,
+            source_observations=observations,
+        )
+
+    @staticmethod
+    def _observe_package_invalid(
+        existing: LibraryItem,
+        package_root: Path,
+        timestamp: str,
+        message: str,
+    ) -> LibraryItem:
+        manifest_path = package_root / "manifest.json"
+        observed_hash = existing.observed_source_sha256
+        observed_size = existing.observed_source_size_bytes
+        if manifest_path.is_file():
+            try:
+                observed_hash = _hash_file(manifest_path)
+                observed_size = manifest_path.stat().st_size
+            except OSError:
+                pass
+        observation = {
+            "timestamp_utc": timestamp,
+            "status": SOURCE_PRESENT,
+            "sha256": observed_hash,
+            "size_bytes": observed_size,
+        }
+        observations = existing.source_observations
+        if not observations or observations[-1] != observation:
+            observations = (*observations, observation)
+        return replace(
+            existing,
+            state=STATE_BLOCKED,
+            preparation_state=PREPARATION_BLOCKED,
+            source_status=SOURCE_PRESENT,
+            observed_source_sha256=observed_hash,
+            observed_source_size_bytes=observed_size,
+            observed_timestamp_utc=timestamp,
+            last_validation_error=f"prepared package validation failed: {message}",
+            source_observations=observations,
+        )
 
     @staticmethod
     def _new_item(path: Path, details: dict[str, Any], timestamp: str) -> LibraryItem:
@@ -574,18 +889,24 @@ class LibraryCatalog:
             ),
             source_status=SOURCE_MISSING,
             observed_timestamp_utc=timestamp,
-            last_validation_error="source file is missing",
+            last_validation_error=(
+                "prepared package directory is missing"
+                if existing.package is not None
+                else "source file is missing"
+            ),
             source_observations=observations,
         )
 
 
 __all__ = [
     "LIBRARY_FORMAT",
+    "LIBRARY_PACKAGE_ITEM_KIND",
     "LIBRARY_VERSION",
     "PREPARATION_BLOCKED",
     "PREPARATION_PREPARED",
     "PREPARATION_STALE",
     "PREPARATION_UNPREPARED",
+    "PREPARED_MEDIA_PACKAGE_FORMAT",
     "STATE_BLOCKED",
     "STATE_IMPORTED",
     "STATE_READY",
@@ -596,5 +917,6 @@ __all__ = [
     "LibraryError",
     "LibraryImportError",
     "LibraryItem",
+    "LibraryPackageReference",
     "default_catalog_path",
 ]
