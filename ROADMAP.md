@@ -1766,3 +1766,40 @@ transaction, and independent read-back reconstruction now pass offline.
 P16-003A is therefore **READY_FOR_HARDWARE_TEST** for this exact correction,
 not a live authorization. A later task must obtain a new fresh preflight and
 new operation-specific approval. No device access or transaction occurred.
+
+## Phase 16 — P16-003B exact modern mixed TXT/BMP/TXT live smoke (2026-08-31)
+
+P16-003B is **COMPLETE** for the exact approved modern operation at the new
+root destination `IC_P16_MIXED_20260830_02`:
+
+```text
+root\IC_P16_MIXED_20260830_02
+├── 01-introduction.txt
+├── 02-page-01.bmp
+└── 03-ending.txt
+```
+
+The isolated runner revalidated Sony `054c:001e`, a fresh complete eight-object
+backup, fresh native `0x0019` capacity evidence of 3,145,728 bytes, target
+absence, exact source/template/candidate/transaction bindings, fixed state,
+and the P16-003A semantic `0x001b` display-history rebase. The owner supplied
+both exact operation-specific approval phrases after the sealed preflight.
+Exactly one `0x101b` was sent, the device returned explicit integer `0x0000`,
+and no retry or corrective write occurred.
+
+A complete post-operation backup and independent read-back verified the exact
+additive folder, ordered TXT/BMP/TXT children, payloads and validated prefixes,
+preserved `_01` read flags and existing content, exact display-history rebase,
+supported zero `0x001c`–`0x001f` state, and unchanged unrelated objects. The
+post dynamic blob is byte-identical to the candidate. The external
+65-entry versioned preservation manifest and source checksum manifest verify
+with zero mismatches. The initial freshness-reference rejection and its
+non-overwriting offline re-verification are retained as observed procedure
+history, not normalized away.
+
+This result is inferred physical compatibility only for this exact flat
+package and fresh display-history state. Native numeric completion decoding,
+operation-specific capacity semantics beyond this observed response,
+interrupted-write recovery, and broader mixed/nested/batch/GUI/CLI behavior
+remain unresolved or blocked. No subsequent device-changing operation is
+authorized by this checkpoint.

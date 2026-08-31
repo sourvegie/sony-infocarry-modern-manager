@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-08-31
-Canonical checkpoint: P16-003A display-history correction is READY_FOR_HARDWARE_TEST for the exact preserved fresh state; no hardware operation or 0x101b transaction is authorized by this checkpoint
+Canonical checkpoint: P16-003B exact modern mixed TXT/BMP/TXT smoke is COMPLETE for its constrained approved scope; no broader transfer behavior or new device-changing operation is authorized by this checkpoint
 
 ## Portable offline validation
 
@@ -57,6 +57,20 @@ These are host/offline results only. They do not claim physical-device verificat
   **READY_FOR_HARDWARE_TEST** for this offline correction only. No rebasing of
   raw evidence, normalization, hardware access, or modern transaction was
   performed.
+
+- P16-003B performed exactly one separately approved modern `0x101b` transaction
+  for the fresh-state-preserving mixed package at
+  `IC_P16_MIXED_20260830_02`. The device identity was Sony `054c:001e`; a fresh
+  `0x0019` response reported 3,145,728 bytes; the target was absent from the
+  fresh complete backup; and the exact candidate, transaction, and preflight
+  seal were revalidated before transmission. The device returned explicit
+  integer `0x0000`. A complete post-operation backup and independent read-back
+  verified the folder, ordered TXT/BMP/TXT children, exact payloads/prefixes,
+  preserved `_01` read flags and existing content, semantic `0x001b` rebase,
+  zero `0x001c`–`0x001f`, and unchanged unrelated objects. P16-003B is
+  **COMPLETE** only for this exact flat package. Raw and derived evidence is
+  preserved outside Git under the versioned P16-003B evidence root; no retry,
+  corrective write, or broader operation occurred.
 
 ## P15 status boundary
 
@@ -157,9 +171,8 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 ## External/hardware boundaries still unresolved
 
 - physical modern multi-child compatibility beyond the exact verified four-TXT `_02` smoke;
-- newly constructed mixed TXT/BMP live compatibility;
-- physical modern mixed-package compatibility and the future fresh-state
-  validation of semantic display-history preservation;
+- physical modern mixed-package compatibility beyond the exact verified
+  TXT/BMP/TXT `_02` smoke and its tested fresh-state display-history policy;
 - generalized deletion beyond the exact supported smoke scope;
 - physical interrupted-write atomicity, rollback, and recovery;
 - broader arbitrary/nested package behavior.
@@ -170,17 +183,13 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P16-003A is **READY_FOR_HARDWARE_TEST** for the exact owner-confirmed fresh
-display-history state and the constrained mixed TXT/BMP/TXT candidate. Its
-semantic rebase is limited to counted `0x001b` references at or after the exact
-insertion point, uses the exact aligned metadata delta, and requires same-path
-resolution plus preservation of every other fixed-state byte. The external
-fresh backup remains authoritative and unchanged, but is not fresh enough to
-authorize a later live operation. A later task must perform a new read-only
-preflight and obtain new operation-specific owner approval; this checkpoint
-does not authorize hardware access or a device-changing transaction. Native
-global timestamp rewriting, numeric completion decoding, and operation-specific
-capacity semantics remain unresolved observations, not modern rules.
+No subsequent device-changing task is approved by this checkpoint. P16-003B is
+complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package.
+Any later operation must be separately briefed, use a new fresh read-only
+preflight and evidence root, obtain new operation-specific owner approval, and
+remain outside normal GUI/CLI transfer. Native global timestamp rewriting,
+numeric completion decoding, operation-specific capacity semantics, and
+interrupted-write recovery remain unresolved observations, not modern rules.
 
 ## Canonical reading order
 
