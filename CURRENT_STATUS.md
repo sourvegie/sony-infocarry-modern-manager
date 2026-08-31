@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-31
-Canonical checkpoint: P17-003 guarded single prepared-package candidate and preflight bridge is READY_FOR_HARDWARE_TEST for host validation only; no USB access, candidate execution, or new device-changing operation occurred
+Canonical checkpoint: P17-004 fresh read-only Library-package preflight is READY_FOR_HARDWARE_TEST at the owner-approval boundary; no candidate execution or device-changing operation occurred
 
 ## Portable offline validation
 
-- 580 passing tests
+- 582 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -62,6 +62,26 @@ These are host/offline results only. They do not claim physical-device verificat
   hardware boundaries, and has no live sender or owner-approval path. P17-003
   is **READY_FOR_HARDWARE_TEST** for this host-only preparation; a later task
   must obtain a new fresh backup/capacity boundary and separate approval.
+- P17-004 prepared one explicitly imported Library package and completed a
+  fresh, in-order read-only preflight for the new absent destination
+  `IC_P17_LIBRARY_20260831_03`. Sony `054c:001e` detection (durably preserved
+  with bus 2/address 3), the fresh native `0x0019` capacity response, a
+  complete eight-object backup, destination absence, package/catalog/source
+  hashes, reviewed template, display-history state, candidate, transaction,
+  and sealed preview were independently replayed. The 3,145,728-byte parsed
+  capacity leaves 1,054,436 bytes after the 2,091,292-byte candidate model.
+  The authoritative external preservation manifest covers 72 entries with
+  zero mismatches; the refresh is ordered detection → capacity →
+  complete backup. The corrected report distinguishes
+  `read_only_hardware_accessed=true` from
+  `hardware_write_performed=false` and `usb_transmission_performed=false`.
+  A narrow opt-in template-subset check accommodates later verified records
+  already present in the fresh baseline; all extra baseline paths remain
+  protected by the existing preservation verifier. P17-004 is
+  **READY_FOR_HARDWARE_TEST** at the owner-approval boundary only. No write
+  phrase was requested or consumed, no sender was invoked, and no `0x101b`
+  transaction occurred. Physical compatibility for this new source content
+  remains unresolved.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -238,13 +258,14 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 No device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
 P17-001/P17-002 are complete only as offline Library planning/review, and
-P17-003 is host-ready only for the exact single selected package bridge. Any
-later hardware operation must be separately briefed, use a new fresh
-read-only preflight and evidence root, obtain new operation-specific owner
-approval, and remain outside normal GUI/CLI transfer. Native global timestamp
-rewriting, numeric completion decoding, operation-specific capacity semantics,
-interrupted-write recovery, arbitrary package hardware compatibility, and
-batch execution remain unresolved or disabled.
+P17-003/P17-004 are host-ready only for their exact constrained package
+bridges and fresh-preflight boundary. Any later hardware operation must be
+separately briefed, use a new fresh read-only preflight and evidence root,
+obtain new operation-specific owner approval, and remain outside normal
+GUI/CLI transfer. Native global timestamp rewriting, numeric completion
+decoding, operation-specific capacity semantics, interrupted-write recovery,
+arbitrary package hardware compatibility, and batch execution remain
+unresolved or disabled.
 
 ## Canonical reading order
 

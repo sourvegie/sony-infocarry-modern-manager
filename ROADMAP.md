@@ -1886,3 +1886,51 @@ one-shot/no-retry failure boundary. No device, USB, external evidence, or
 `InfoCarry-Toolkit` checkout was accessed or modified. A later separately
 briefed task must obtain a new fresh read-only preflight and operation-specific
 owner approval before any hardware operation.
+
+## Phase 13 — P17-004 fresh read-only Library-package live preflight (2026-08-31)
+
+P17-004 completed one exact, read-only preflight for a new explicitly imported
+Library package at `root\\IC_P17_LIBRARY_20260831_03`, containing
+`01-introduction.txt`, `02-page-01.bmp`, and `03-ending.txt` in manifest order.
+The package was built and imported through the canonical P17-002 path into an
+isolated catalog. The package manifest, catalog, copied source excerpts, and
+validated 237 x 320 1-bit BMP are preserved outside Git with exact hashes.
+
+The authoritative refresh performed the read-only boundary in order: durable
+detection of Sony `054c:001e`, a fresh 64-byte `0x0019` response whose `+0x08`
+capacity field is 3,145,728 bytes, then a complete eight-object backup. The new
+destination was absent from that backup. The fresh baseline is 2,075,256 bytes; the exact
+reconstructed candidate is 2,091,292 bytes, a 16,036-byte increase with a
+1,054,436-byte parsed-capacity margin. Candidate SHA-256 is
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`, the
+prospective `0x101b` transaction SHA-256 is
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`, and
+the corrected refreshed sealed-preflight SHA-256 is
+`4c41ef4431e0b141950d059a04c3ba5ea3c4a71956505af58bdaa48a37148728`.
+
+The fresh baseline already contains later verified records than the P16-001
+template. A narrow bridge-only template-subset validation was therefore added:
+it checks shared stable type/name/prefix/payload facts, permits only the known
+child read-state difference plus expected geometry/timestamp rebasing, and
+leaves all extra fresh-baseline records to the existing preservation verifier.
+The generic candidate path remains strict by default, and a portable regression
+test covers the explicit subset mode. The active fresh display history is
+semantically rebased by the exact `0x140` metadata delta; all six references
+resolve to the same preserved records, while `0x001c`–`0x001f` remain the
+supported zero state.
+
+The external P17-004 session is
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-004-fresh-library-package-20260831-02/`.
+Its authoritative 72-entry `preservation-manifest-v4.json` was replayed with
+zero mismatches; the superseded `preservation-manifest-v1.json`,
+`preservation-manifest-v2.json`, and `preservation-manifest-v3.json` plus
+pre-correction derived reports remain
+preserved for audit. The hash-only sealed preflight and the fresh raw evidence
+remain outside Git. The session records read-only
+hardware access separately from the false write/transmission status. This
+checkpoint is **READY_FOR_HARDWARE_TEST** at the owner-approval boundary only;
+no write phrase was requested or consumed and no sender or `0x101b` operation
+was invoked. Physical compatibility of this new source content, native numeric
+completion semantics, operation-specific capacity semantics, and interrupted
+write recovery remain unresolved. Any future device-changing task requires a
+new fresh preflight and separate exact operation-specific approval.

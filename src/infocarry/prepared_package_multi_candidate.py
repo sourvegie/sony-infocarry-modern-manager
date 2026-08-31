@@ -34,6 +34,12 @@ _RECORD_SIZE = 0x40
 _TEXT_PREFIX_SIZE = 0x20
 _BMP_PREFIX_SIZE = NATIVE_BMP_PREFIX_LENGTH
 _DYNAMIC_BLOB_KEY = "0x8004:backup-blob"
+# The only supported path-subset exception is the reviewed P16-001 template
+# used by the P17 Library bridge.  Keeping the identity here makes the opt-in
+# self-binding even if this builder is called outside that bridge.
+REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256 = (
+    "6c654fe4ec4cd87092b90980471fc32df797c84d7817398c9b81edefcedf796b"
+)
 
 
 class PreparedMultiCandidateError(ValueError):
@@ -156,6 +162,8 @@ def _compare_template_shared(
     template: ParsedBackupBlob,
     template_folder_path: tuple[str, ...],
     template_item_paths: Mapping[str, tuple[str, ...]],
+    *,
+    allow_template_path_subset: bool = False,
 ) -> dict[str, Any]:
     if baseline.data == template.data:
         return {"baseline_template_identical": True, "shared_records_verified": len(baseline.paths)}
@@ -218,6 +226,52 @@ def _compare_template_shared(
             "allowed_read_state_paths": allowed_read_state_paths,
             "allowed_difference": "fresh baseline 0xe0-to-0x20 file flags only; checksum/header effects must remain valid",
             "checksum_effect": "unchanged",
+        }
+    template_paths = set(template.paths.values())
+    baseline_paths = set(baseline.paths.values())
+    if allow_template_path_subset and template_paths < baseline_paths:
+        allowed_read_state_paths: list[str] = []
+        for path in sorted(template_paths):
+            old = _record_for_path(baseline, path)
+            new = _record_for_path(template, path)
+            old_raw = bytes.fromhex(old.raw_hex)
+            new_raw = bytes.fromhex(new.raw_hex)
+            direct_child = (
+                len(path) == len(template_folder_path) + 1
+                and path[: len(template_folder_path)] == template_folder_path
+                and old.kind == "file"
+                and new.kind == "file"
+            )
+            if old.kind != new.kind or old.extension != new.extension or old.name != new.name:
+                raise PreparedMultiCandidateError(
+                    f"template changed preserved metadata at {_display_path(path)}"
+                )
+            if old_raw[1:4] + old_raw[0x10:] != new_raw[1:4] + new_raw[0x10:]:
+                raise PreparedMultiCandidateError(
+                    f"template changed preserved content at {_display_path(path)}"
+                )
+            if old.flag != new.flag:
+                if not (direct_child and old.flag == 0x20 and new.flag == 0xE0):
+                    raise PreparedMultiCandidateError(
+                        f"template changed preserved metadata at {_display_path(path)}"
+                    )
+                allowed_read_state_paths.append(_display_path(path))
+            if old.kind == "file":
+                old_prefix, old_payload = baseline.payload_parts(old)
+                new_prefix, new_payload = template.payload_parts(new)
+                if old_prefix != new_prefix or old_payload != new_payload:
+                    raise PreparedMultiCandidateError(
+                        f"template changed preserved content at {_display_path(path)}"
+                    )
+        return {
+            "baseline_template_identical": False,
+            "template_is_verified_path_subset": True,
+            "same_structure": False,
+            "shared_records_verified": len(template.paths),
+            "baseline_extra_paths": len(baseline_paths - template_paths),
+            "allowed_read_state_paths": allowed_read_state_paths,
+            "allowed_difference": "template covers a verified subset of the fresh baseline; metadata geometry/timestamp fields may be rebased, and only direct-child 0xe0-to-0x20 file flags may differ",
+            "extra_baseline_paths_preserved": True,
         }
     expected = set(baseline.paths.values()) | {template_folder_path}
     expected.update(template_item_paths.values())
@@ -328,6 +382,7 @@ def build_prepared_multi_package_candidate(
     native_capacity_response: NativeCapacityResponse,
     template_folder_path: tuple[str, ...] = ("root", "IC_I_FOLDER_20260823_01"),
     template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
+    template_subset_policy_sha256: Optional[str] = None,
 ) -> PreparedMultiPackageCandidate:
     """Build one ordered multi-child candidate using only native capacity evidence."""
 
@@ -335,6 +390,15 @@ def build_prepared_multi_package_candidate(
         raise PreparedMultiCandidateError("backup and template must be verified parsed values")
     if not isinstance(native_capacity_response, NativeCapacityResponse):
         raise PreparedMultiCandidateError("multi-child candidates require parsed native 0x0019 evidence")
+    if template_subset_policy_sha256 is not None:
+        if template_subset_policy_sha256 != REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256:
+            raise PreparedMultiCandidateError(
+                "template subset mode requires the reviewed P16-001 template identity"
+            )
+        if _sha256(template.data) != template_subset_policy_sha256:
+            raise PreparedMultiCandidateError(
+                "template subset mode requires the reviewed P16-001 template bytes"
+            )
     if isinstance(new_record_timestamp_be32, bool) or not isinstance(new_record_timestamp_be32, int) or not 0 <= new_record_timestamp_be32 <= 0xFFFFFFFF:
         raise PreparedMultiCandidateError("new_record_timestamp_be32 must fit uint32")
     values = _items(package)
@@ -371,7 +435,11 @@ def build_prepared_multi_package_candidate(
             template, template_folder_path, template_item_paths, needed_kinds
         )
         template_validation = _compare_template_shared(
-            baseline, template, template_folder_path, template_item_paths
+            baseline,
+            template,
+            template_folder_path,
+            template_item_paths,
+            allow_template_path_subset=template_subset_policy_sha256 is not None,
         )
     except (BackupFormatError, PreparedMultiCandidateError) as exc:
         if isinstance(exc, PreparedMultiCandidateError):

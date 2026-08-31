@@ -13,6 +13,7 @@ from infocarry.device_info import RawInfoResponse
 from infocarry.library import LibraryCatalog
 from infocarry.prepared_library_package_bridge import (
     P17_003_CONFIRMATION_PHRASE,
+    P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
     P17_003_TEMPLATE_FOLDER_PATH,
     P17_003_TEMPLATE_ITEM_PATHS,
     PreparedLibraryPackageAuthorization,
@@ -24,6 +25,7 @@ from infocarry.prepared_library_package_bridge import (
     run_prepared_library_package_fake_workflow,
 )
 import infocarry.prepared_library_package_bridge as bridge_module
+import infocarry.prepared_package_multi_candidate as candidate_module
 from infocarry.prepared_media_package import (
     build_prepared_media_package,
     export_prepared_media_package,
@@ -119,6 +121,13 @@ class PreparedLibraryPackageBridgeTests(unittest.TestCase):
         )
         template_patcher.start()
         self.addCleanup(template_patcher.stop)
+        subset_policy_patcher = patch.object(
+            candidate_module,
+            "REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256",
+            hashlib.sha256(template.data).hexdigest(),
+        )
+        subset_policy_patcher.start()
+        self.addCleanup(subset_policy_patcher.stop)
         candidate = build_prepared_library_package_candidate(
             catalog,
             item.item_id,
@@ -206,7 +215,8 @@ class PreparedLibraryPackageBridgeTests(unittest.TestCase):
         preflight.verify_seal()
         report = preflight.to_dict()
         self.assertEqual(report["state"], "ready_for_hardware_test_host_only")
-        self.assertFalse(report["hardware_accessed"])
+        self.assertFalse(report["read_only_hardware_accessed"])
+        self.assertFalse(report["hardware_write_performed"])
         self.assertFalse(report["hardware_transaction_performed"])
         self.assertFalse(report["normal_gui_cli_transfer_exposed"])
         serialized = json.dumps(report)
@@ -293,6 +303,17 @@ class PreparedLibraryPackageBridgeTests(unittest.TestCase):
         ):
             authorization.require_same_candidate(altered_top_level_candidate)
 
+        split_binding = dict(candidate.library_binding)
+        split_binding["catalog_item_id"] = "inconsistent-before-authorization"
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageBridgeError,
+            "bindings are inconsistent",
+        ):
+            authorize_prepared_library_package(
+                PreparedLibraryPackageCandidate(candidate.core, split_binding),
+                confirmation=P17_003_CONFIRMATION_PHRASE,
+            )
+
     def test_catalog_source_binding_must_match_verified_manifest(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
@@ -350,6 +371,15 @@ class PreparedLibraryPackageBridgeTests(unittest.TestCase):
         self.assertEqual(
             setup["preflight"].to_dict()["state"],
             "ready_for_hardware_test_host_only",
+        )
+        forged = replace(setup["preflight"], audit={"state": "forged-review-report"})
+        with self.assertRaisesRegex(PreparedLibraryPackageBridgeError, "report seal"):
+            forged.verify_seal()
+
+    def test_reviewed_template_digest_is_pinned_without_fixture_override(self):
+        self.assertEqual(
+            P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+            "6c654fe4ec4cd87092b90980471fc32df797c84d7817398c9b81edefcedf796b",
         )
 
     def test_profile_order_template_and_destination_conflicts_fail_closed(self):

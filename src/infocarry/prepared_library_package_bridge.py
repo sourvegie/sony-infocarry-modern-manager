@@ -53,6 +53,7 @@ from .prepared_multi_package_workflow import (
 from .prepared_package_multi_candidate import (
     PreparedMultiCandidateError,
     PreparedMultiPackageCandidate,
+    REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256,
     build_prepared_multi_package_candidate,
 )
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup
@@ -71,7 +72,7 @@ P17_003_TEMPLATE_ITEM_PATHS = {
 # caller-supplied template for reuse by generic offline tests; this bridge is
 # narrower and therefore rejects any other template bytes before construction.
 P17_003_REVIEWED_TEMPLATE_BLOB_SHA256 = (
-    "6c654fe4ec4cd87092b90980471fc32df797c84d7817398c9b81edefcedf796b"
+    REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256
 )
 P17_003_TIMESTAMP_POLICY = "one_explicit_frozen_value_for_new_records_only"
 P17_003_RUNNER_FORMAT = "infocarry-p17-003-library-package-preflight-v1"
@@ -131,6 +132,16 @@ def _thaw_report(value: Any) -> Any:
         return {key: _thaw_report(child) for key, child in value.items()}
     if isinstance(value, tuple):
         return [_thaw_report(child) for child in value]
+    return value
+
+
+def _audit_without_seal(audit: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the canonical report content covered by the preflight seal."""
+
+    value = _thaw_report(audit)
+    if not isinstance(value, dict):
+        raise PreparedLibraryPackageBridgeError("preflight audit is not an object")
+    value.pop("preflight_seal_sha256", None)
     return value
 
 
@@ -416,6 +427,12 @@ def authorize_prepared_library_package(
         raise PreparedLibraryPackageBridgeError(
             "wrong prepared-package confirmation phrase"
         )
+    binding = candidate.library_binding
+    nested_binding = candidate.core.audit.get("library_binding")
+    if not isinstance(binding, Mapping) or binding != nested_binding:
+        raise PreparedLibraryPackageBridgeError(
+            "candidate Library bindings are inconsistent"
+        )
     try:
         core = authorize_prepared_multi_package(
             candidate.core,
@@ -423,9 +440,6 @@ def authorize_prepared_library_package(
         )
     except PreparedMultiPackageGateError as exc:
         raise PreparedLibraryPackageBridgeError(str(exc)) from exc
-    binding = candidate.core.audit.get("library_binding")
-    if not isinstance(binding, Mapping):
-        raise PreparedLibraryPackageBridgeError("candidate has no Library binding")
     binding_copy = json.loads(json.dumps(binding, ensure_ascii=True))
     return PreparedLibraryPackageAuthorization(
         core=core,
@@ -476,6 +490,7 @@ def build_prepared_library_package_candidate(
             native_capacity_response=native_capacity_response,
             template_folder_path=tuple(template_folder_path),
             template_item_paths=paths,
+            template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
         )
     except (PreparedMultiCandidateError, OSError) as exc:
         raise PreparedLibraryPackageBridgeError(
@@ -501,6 +516,7 @@ def _seal_payload(
     template_folder_path: tuple[str, ...],
     template_item_paths: Mapping[str, tuple[str, ...]],
     new_record_timestamp_be32: int,
+    audit: Mapping[str, Any],
 ) -> dict[str, Any]:
     return {
         "format": P17_003_RUNNER_FORMAT,
@@ -516,7 +532,13 @@ def _seal_payload(
         "new_record_timestamp_be32": f"0x{new_record_timestamp_be32:08x}",
         "confirmation_phrase": P17_003_CONFIRMATION_PHRASE,
         "automatic_retry_allowed": False,
-        "hardware_accessed": False,
+        "read_only_hardware_accessed": bool(
+            audit.get("read_only_hardware_accessed", False)
+        ),
+        "hardware_write_performed": bool(
+            audit.get("hardware_write_performed", False)
+        ),
+        "audit": _audit_without_seal(audit),
     }
 
 
@@ -546,6 +568,11 @@ class PreparedLibraryPackagePreflight:
         return dict(self.template_item_paths)
 
     def verify_seal(self) -> None:
+        report = self.to_dict()
+        if report.get("preflight_seal_sha256") != self.seal_sha256:
+            raise PreparedLibraryPackageBridgeError(
+                "prepared Library package preflight report seal is missing or modified"
+            )
         actual = _seal_sha256(
             candidate=self.candidate,
             authorization=self.authorization,
@@ -555,6 +582,7 @@ class PreparedLibraryPackagePreflight:
             template_folder_path=self.template_folder_path,
             template_item_paths=self._paths(),
             new_record_timestamp_be32=self.new_record_timestamp_be32,
+            audit=self.audit,
         )
         if actual != self.seal_sha256:
             raise PreparedLibraryPackageBridgeError(
@@ -593,23 +621,14 @@ def prepare_prepared_library_package_preflight(
         candidate,
         confirmation=P17_003_CONFIRMATION_PHRASE,
     )
-    seal = _seal_sha256(
-        candidate=candidate,
-        authorization=authorization,
-        backup=backup,
-        capacity_response=native_capacity_response,
-        template=template,
-        template_folder_path=tuple(template_folder_path),
-        template_item_paths=dict(
-            template_item_paths or P17_003_TEMPLATE_ITEM_PATHS
-        ),
-        new_record_timestamp_be32=new_record_timestamp_be32,
-    )
     audit = {
         "format": P17_003_RUNNER_FORMAT,
         "state": "ready_for_hardware_test_host_only",
-        "hardware_accessed": False,
+        "read_only_hardware_accessed": False,
+        "hardware_write_performed": False,
         "hardware_transaction_performed": False,
+        "device_changing_operation_performed": False,
+        "send_count": 0,
         "candidate_bytes_exposed": False,
         "library_binding": candidate.library_binding,
         "candidate": candidate.audit_dict(),
@@ -631,10 +650,23 @@ def prepare_prepared_library_package_preflight(
             "legacy_global_rewrite_reproduced": False,
         },
         "confirmation_phrase": P17_003_CONFIRMATION_PHRASE,
-        "preflight_seal_sha256": seal,
         "automatic_retry_allowed": False,
         "normal_gui_cli_transfer_exposed": False,
     }
+    seal = _seal_sha256(
+        candidate=candidate,
+        authorization=authorization,
+        backup=backup,
+        capacity_response=native_capacity_response,
+        template=template,
+        template_folder_path=tuple(template_folder_path),
+        template_item_paths=dict(
+            template_item_paths or P17_003_TEMPLATE_ITEM_PATHS
+        ),
+        new_record_timestamp_be32=new_record_timestamp_be32,
+        audit=audit,
+    )
+    audit["preflight_seal_sha256"] = seal
     return PreparedLibraryPackagePreflight(
         candidate=candidate,
         authorization=authorization,
