@@ -95,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's corrected offline gate and one constrained modern root-TXT delete smoke are complete for their supported scopes; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
-| 13. Integrate Library, Prepare, and staged transfer | J.0–J.2 local foundation complete; J.3 deferred | The crude Library import/Prepare UI is usable; device-aware planning waits for proven package operations |
+| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 offline planning complete; enabled transfer remains deferred | The Library import/Prepare UI and offline selected/all-ready queue review are usable; device-aware execution remains disabled |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -104,7 +104,7 @@ runner. Attempt 02 completed one approved constrained package smoke with
 `0x0000`; the preserved post-operation backup passes independent read-back
 after `cf7803b` corrected the expected payload-dependent object boundary. The
 complete suite is **525 tests** with three intentional evidence-dependent
-skips after the read-only I.7 experiment-support and bookmark-correction slices. The operator protocol
+skips after the read-only I.7 experiment-support and bookmark-correction slices. This was the count at that earlier slice. The operator protocol
 and offline helpers do not authorize or perform a device operation. The
 separately approved I7 add-01 was completed and independently verified; the
 evidence is synthesized in
@@ -1295,17 +1295,20 @@ stable post-backup form is (`count=0`, `value_04=0`, empty offsets). This
   `9dada7b`; the suite passes **379 tests** with three intentional
   evidence-dependent skips. The catalog is per-user and outside the checkout;
   the UI has no package-transfer action.
-- [ ] **Milestone J.3 — device-aware Library transfer planning:** after the
+- [x] **Milestone J.3 — device-aware Library transfer planning:** after the
   relevant I.8–I.10/H.2 operation gates close, add a framework-independent
   preview/queue model that binds selected prepared items to proven operations,
   conflicts, capacity, and verification. Do not expose device transfer yet.
-- [ ] Add a framework-independent offline transfer plan containing selected
+  Complete for the offline-only P17-001 scope; no device operation occurred.
+- [x] Add a framework-independent offline transfer plan containing selected
   Library items, prepared artifacts, intended destinations, operation type,
   compatibility state, conflicts, per-item size, total size, and capacity
-  result.
-- [ ] Support **Transfer selected** and **Transfer all ready items** as queue
-  construction and review actions. Keep every unsupported/new-record operation
-  disabled and explain the missing evidence gate.
+  result. P17-001 revalidates source and prepared-manifest hashes and compares
+  destinations with a supplied verified offline backup when present.
+- [x] Support **Transfer selected** and **Transfer all ready items** as queue
+  construction and review actions. In the offline ttk surface these controls
+  are explicitly review-only; every unsupported/new-record operation remains
+  disabled and the missing evidence gate is shown.
 - [ ] Execute only mappings proven by Phase 12: existing-TXT replacement,
   guarded new TXT, selective delete, and later prepared-package operations as
   each gate closes. Batch execution remains blocked by R14 until every queued
@@ -1803,3 +1806,27 @@ operation-specific capacity semantics beyond this observed response,
 interrupted-write recovery, and broader mixed/nested/batch/GUI/CLI behavior
 remain unresolved or blocked. No subsequent device-changing operation is
 authorized by this checkpoint.
+
+## Phase 13 — P17-001 device-aware Library transfer planning (2026-08-31)
+
+P17-001 is **COMPLETE** for the offline planning scope. The new
+framework-independent queue plan supports explicit `selected` and `all_ready`
+review modes and reports each current prepared Library item as its own
+root-level TXT package with source/prepared hashes, destination paths,
+operation type, compatibility state, conflicts, per-item sizes, aggregate
+lower-bound growth, and optional verified-backup/capacity comparison.
+
+The planner revalidates each source and prepared manifest while building the
+report, preserves caller order, records excluded non-ready items, and fails
+closed on duplicate or overlapping destinations. It never infers automatic
+package grouping. Candidate construction, authorization, transaction
+construction, USB access, sender calls, automatic retry, and device-changing
+execution remain disabled. The optional ttk controls are explicitly labeled
+`Review selected (offline)…` and `Review all ready (offline)…`; they render a
+review report only and use a verified offline backup when one is already
+loaded.
+
+The owner-supplied P16-003B physical acceptance observation is recorded in the
+P16-003B report and current status only; it does not expand P17-001 scope.
+Opening those files may change read/display-history state, so future hardware
+work requires a new fresh preflight.

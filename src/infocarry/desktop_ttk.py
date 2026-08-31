@@ -27,7 +27,14 @@ from .offline_conversion import (
 )
 from .library import LibraryCatalog, LibraryCatalogError, LibraryError
 from .library_prepare import LibraryPreparationError, prepare_library_item
+from .library_transfer_plan import (
+    LibraryTransferPlanError,
+    SELECTION_ALL_READY,
+    SELECTION_SELECTED,
+    build_library_transfer_queue_plan,
+)
 from .runtime import DesktopRuntimeError, check_desktop_runtime
+from .write_gate import verify_fresh_backup
 
 
 def _backup_destination(parent: Path) -> Path:
@@ -237,6 +244,71 @@ def format_library_preparation_audit(report: Dict[str, Any]) -> str:
     )
 
 
+def format_library_transfer_plan(report: Dict[str, Any]) -> str:
+    """Render the Library queue review without implying transfer capability."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Library transfer plan must be a mapping")
+    selection = report.get("selection", {})
+    baseline = report.get("baseline", {})
+    grouping = report.get("grouping", {})
+    capacity = report.get("capacity", {})
+    eligibility = report.get("eligibility", {})
+    totals = report.get("totals", {})
+    lines = [
+        "OFFLINE LIBRARY TRANSFER REVIEW — no device access or device change occurred",
+        "",
+        f"Selection: {selection.get('mode', 'unknown')} "
+        f"({len(selection.get('selected_item_ids', []))} selected; "
+        f"{len(selection.get('excluded_items', []))} excluded)",
+        f"Baseline: {'verified offline backup' if baseline.get('available') else 'not supplied'}",
+        f"Grouping: {grouping.get('policy', 'unknown')}",
+        "",
+        "Queue entries:",
+    ]
+    for index, item in enumerate(report.get("items", []), start=1):
+        source = item.get("source", {})
+        prepared = item.get("prepared_artifact", {})
+        destination = item.get("destination", {})
+        conflicts = item.get("conflicts", [])
+        reasons = item.get("reasons", [])
+        lines.extend(
+            (
+                f"  {index}. {source.get('filename', 'unknown')} — "
+                f"{item.get('operation_type', 'unknown')}",
+                f"     Compatibility: {item.get('compatibility_state', 'unknown')}",
+                f"     Destination: {', '.join(destination.get('paths', [])) or 'unknown'}",
+                f"     Order: {', '.join(prepared.get('child_order', [])) or 'unknown'}",
+                f"     Source SHA-256: {source.get('sha256', 'unknown')}",
+                f"     Prepared manifest SHA-256: "
+                f"{prepared.get('manifest_sha256', 'unknown')}",
+                f"     Source/prepared bytes: {source.get('size_bytes', '?')} / "
+                f"{prepared.get('prepared_payload_bytes', '?')}",
+                f"     Conflict: {'yes' if conflicts else 'no'}",
+                f"     Queue ready: {'yes' if item.get('queue_ready') else 'no'}",
+            )
+        )
+        if reasons:
+            lines.append(f"     Reasons: {'; '.join(str(reason) for reason in reasons)}")
+    lines.extend(
+        (
+            "",
+            f"Totals: {totals.get('selected_items', 0)} selected; "
+            f"{totals.get('source_bytes', 0)} source bytes; "
+            f"{totals.get('prepared_payload_bytes', 0)} prepared payload bytes; "
+            f"lower-bound growth {totals.get('estimated_growth_lower_bound', 0)} bytes",
+            f"Capacity: {capacity.get('status', 'unknown')} "
+            f"(available {capacity.get('available_bytes', 'unknown')}; "
+            f"lower bound {capacity.get('lower_bound_bytes', 'unknown')})",
+            f"Queue review: {'ready' if eligibility.get('queue_ready') else 'blocked'}",
+            "Device execution: disabled",
+            "Candidate/auth/transaction/sender: none",
+            "USB operation performed: no",
+        )
+    )
+    return "\n".join(lines)
+
+
 def format_prepared_package_readiness_preview(report: Dict[str, Any]) -> str:
     """Render an ordered package readiness report without enabling transfer."""
 
@@ -360,9 +432,17 @@ def launch_ttk_desktop() -> None:
     library_prepare_button = ttk.Button(
         library_toolbar, text="Prepare…", state="disabled"
     )
+    library_selected_queue_button = ttk.Button(
+        library_toolbar, text="Review selected (offline)…", state="disabled"
+    )
+    library_all_queue_button = ttk.Button(
+        library_toolbar, text="Review all ready (offline)…", state="disabled"
+    )
     library_import_button.pack(side="left", padx=3)
     library_remove_button.pack(side="left", padx=3)
     library_prepare_button.pack(side="left", padx=3)
+    library_selected_queue_button.pack(side="left", padx=3)
+    library_all_queue_button.pack(side="left", padx=3)
     ttk.Label(
         library_toolbar,
         text="offline only — no transfer action",
@@ -379,7 +459,7 @@ def launch_ttk_desktop() -> None:
         library_list_frame,
         columns=("state", "source", "target"),
         show="tree headings",
-        selectmode="browse",
+        selectmode="extended",
     )
     library_tree.heading("#0", text="Item")
     library_tree.heading("state", text="State")
@@ -580,8 +660,11 @@ def launch_ttk_desktop() -> None:
             library_import_button.configure(state="disabled")
             library_remove_button.configure(state="disabled")
             library_prepare_button.configure(state="disabled")
+            library_selected_queue_button.configure(state="disabled")
+            library_all_queue_button.configure(state="disabled")
             return
         library_import_button.configure(state="normal")
+        library_all_queue_button.configure(state="normal")
         for item in library_catalog.items:
             target = ""
             if item.target_folder_name and item.target_child_name:
@@ -609,9 +692,29 @@ def launch_ttk_desktop() -> None:
         except LibraryError:
             return None
 
+    def selected_library_items() -> list[Any]:
+        """Return selected items in the visible Library order."""
+
+        if library_catalog is None:
+            return []
+        selected_tree_items = set(library_tree.selection())
+        items = []
+        for tree_item in library_tree.get_children(""):
+            if tree_item not in selected_tree_items:
+                continue
+            item_id = library_tree_items.get(tree_item)
+            if item_id is None:
+                continue
+            try:
+                items.append(library_catalog.get(item_id))
+            except LibraryError:
+                continue
+        return items
+
     def show_library_selection(_event: Any = None) -> None:
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
+        has_selection = bool(library_tree.selection()) and library_catalog is not None
         library_remove_button.configure(state="normal" if enabled else "disabled")
         library_prepare_button.configure(
             state=(
@@ -621,6 +724,12 @@ def launch_ttk_desktop() -> None:
                 and item.state in {"imported", "ready", "blocked"}
                 else "disabled"
             )
+        )
+        library_selected_queue_button.configure(
+            state="normal" if has_selection else "disabled"
+        )
+        library_all_queue_button.configure(
+            state="normal" if library_catalog is not None else "disabled"
         )
         if item is None:
             library_detail_var.set("Select a Library item")
@@ -732,10 +841,61 @@ def launch_ttk_desktop() -> None:
             )
             messagebox.showerror("Offline Prepare", str(exc), parent=root)
 
+    def library_transfer_review_action(selection_mode: str) -> None:
+        """Render an offline queue review; this handler has no USB path."""
+
+        if library_catalog is None:
+            return
+        selected_item_ids = None
+        if selection_mode == SELECTION_SELECTED:
+            selected_items = selected_library_items()
+            if not selected_items:
+                library_status_var.set("Select one or more Library items; no device access")
+                return
+            selected_item_ids = [item.item_id for item in selected_items]
+        backup = None
+        backup_directory = model.state.backup_directory
+        if backup_directory is not None:
+            try:
+                backup = verify_fresh_backup(
+                    backup_directory,
+                    now=None,
+                    max_age_seconds=None,
+                )
+            except Exception as exc:
+                library_status_var.set(
+                    f"Offline queue review has no verified backup: {exc}"
+                )
+        try:
+            plan = build_library_transfer_queue_plan(
+                library_catalog,
+                selected_item_ids=selected_item_ids,
+                selection_mode=selection_mode,
+                backup=backup,
+            )
+        except LibraryTransferPlanError as exc:
+            _set_readonly_text(
+                library_report,
+                "OFFLINE LIBRARY TRANSFER REVIEW — blocked; no device change occurred\n\n"
+                + str(exc),
+            )
+            library_status_var.set(f"Queue review blocked; no device access: {exc}")
+            return
+        _set_readonly_text(library_report, format_library_transfer_plan(plan.to_dict()))
+        library_status_var.set(
+            "Offline queue review displayed; candidate construction and device transfer are disabled"
+        )
+
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
     library_import_button.configure(command=library_import_action)
     library_remove_button.configure(command=library_remove_action)
     library_prepare_button.configure(command=library_prepare_action)
+    library_selected_queue_button.configure(
+        command=lambda: library_transfer_review_action(SELECTION_SELECTED)
+    )
+    library_all_queue_button.configure(
+        command=lambda: library_transfer_review_action(SELECTION_ALL_READY)
+    )
     refresh_library_view()
 
     def load_conversion_preview() -> None:
@@ -827,6 +987,8 @@ def launch_ttk_desktop() -> None:
                 library_import_button,
                 library_remove_button,
                 library_prepare_button,
+                library_selected_queue_button,
+                library_all_queue_button,
             ):
                 button.configure(state="disabled")
         else:

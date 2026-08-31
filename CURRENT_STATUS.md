@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-31
-Canonical checkpoint: P16-003B exact modern mixed TXT/BMP/TXT smoke is COMPLETE for its constrained approved scope; no broader transfer behavior or new device-changing operation is authorized by this checkpoint
+Canonical checkpoint: P17-001 offline device-aware Library transfer planning is COMPLETE; no USB access, candidate execution, or new device-changing operation occurred
 
 ## Portable offline validation
 
-- 547 passing tests
+- 559 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -20,6 +20,13 @@ These are host/offline results only. They do not claim physical-device verificat
 - Selective-delete modeling/hardening has completed its supported offline structural scope, and one constrained modern root-level TXT delete smoke has passed with independent read-back.
 - Local Library foundation and offline Prepare workflow exist; normal generalized transfer remains disconnected from the product workflow.
 - Ordered multi-child TXT and mixed TXT/BMP logical preparation, candidate construction, authorization binding, fake-only workflow, readiness preview, and independent offline read-back exist for their defined offline scopes.
+- P17-001 adds a framework-independent, offline-only Library queue plan for
+  explicit selected items and “all ready” review. Each prepared item remains
+  its own root-level TXT package; duplicate or overlapping destinations fail
+  closed rather than being auto-grouped. The plan revalidates source and
+  prepared-manifest hashes, compares destinations against a supplied verified
+  offline backup when present, reports lower-bound size/capacity, and never
+  constructs a candidate, authorization, transaction, or sender action.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -71,6 +78,12 @@ These are host/offline results only. They do not claim physical-device verificat
   **COMPLETE** only for this exact flat package. Raw and derived evidence is
   preserved outside Git under the versioned P16-003B evidence root; no retry,
   corrective write, or broader operation occurred.
+  After that operation, the owner opened `IC_P16_MIXED_20260830_02` on the
+  physical InfoCarry and opened `01-introduction`, `02-page-01`, and
+  `03-ending` in order; both TXT files and the BMP displayed normally without
+  errors. This is human-observed physical acceptance evidence only. Opening
+  the files can change read/display-history state, so any later hardware task
+  must use a new fresh preflight rather than this post-operation state.
 
 ## P15 status boundary
 
@@ -176,6 +189,8 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 - generalized deletion beyond the exact supported smoke scope;
 - physical interrupted-write atomicity, rollback, and recovery;
 - broader arbitrary/nested package behavior.
+- Library batch execution, package grouping, and normal GUI/CLI transfer
+  exposure remain disabled; P17-001 is offline planning only.
 
 ## Development priority
 
@@ -183,13 +198,14 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-No subsequent device-changing task is approved by this checkpoint. P16-003B is
-complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package.
-Any later operation must be separately briefed, use a new fresh read-only
-preflight and evidence root, obtain new operation-specific owner approval, and
-remain outside normal GUI/CLI transfer. Native global timestamp rewriting,
-numeric completion decoding, operation-specific capacity semantics, and
-interrupted-write recovery remain unresolved observations, not modern rules.
+No device-changing task is approved by this checkpoint. P16-003B remains
+complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
+and P17-001 is complete only as offline Library planning. Any later hardware
+operation must be separately briefed, use a new fresh read-only preflight and
+evidence root, obtain new operation-specific owner approval, and remain
+outside normal GUI/CLI transfer. Native global timestamp rewriting, numeric
+completion decoding, operation-specific capacity semantics, interrupted-write
+recovery, package grouping, and batch execution remain unresolved or disabled.
 
 ## Canonical reading order
 
