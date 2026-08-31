@@ -6,11 +6,13 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from infocarry.backup_format import calculate_backup_checksum, parse_backup_blob
 from infocarry.capacity_evidence import NativeCapacityResponse
 from infocarry.device_info import RawInfoResponse
 from infocarry.prepared_media_package import build_prepared_media_package
+import infocarry.prepared_package_multi_candidate as candidate_module
 from infocarry.prepared_multi_text import build_prepared_text_package_set
 from infocarry.prepared_package_multi_candidate import (
     PreparedMultiCandidateError,
@@ -184,6 +186,105 @@ class PreparedMultiCandidateTests(unittest.TestCase):
         self.assertEqual(candidate.candidate.payload_parts(bmp_record)[1], make_profile_bmp())
         self.assertEqual(len(candidate.candidate.payload_parts(bmp_record)[0]), 16)
         self.assertEqual(candidate.audit["allocation"]["metadata_records_added"], 5)
+
+    def test_explicit_template_subset_mode_preserves_later_baseline_records(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        baseline_blob, template_blob = _template_blobs()
+        state = {
+            command: b"\x00" * 64
+            for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)
+        }
+        now = datetime(2026, 8, 27, tzinfo=timezone.utc)
+        base_path = _write_archive(root / "base", baseline_blob, now, fixed_state=state)
+        base_backup = verify_fresh_backup(base_path, now=now, max_age_seconds=None)
+        image = root / "page.bmp"
+        image.write_bytes(make_profile_bmp())
+        intro = root / "intro.txt"
+        ending = root / "ending.txt"
+        intro.write_bytes(b"template one\r\n")
+        ending.write_bytes(b"template two\r\n")
+        template = parse_backup_blob(template_blob)
+        package_already_present = build_prepared_media_package(
+            ((intro, "chapter.txt"), (image, "page.bmp"), (ending, "ending.txt")),
+            "Template",
+        )
+        superset = build_prepared_multi_package_candidate(
+            package_already_present,
+            base_backup,
+            template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=self._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            },
+        )
+        superset_path = _write_archive(
+            root / "superset",
+            superset.candidate_blob,
+            now,
+            fixed_state=state,
+        )
+        superset_backup = verify_fresh_backup(superset_path, now=now, max_age_seconds=None)
+        next_package = build_prepared_media_package(
+            ((intro, "chapter.txt"), (image, "page.bmp"), (ending, "ending.txt")),
+            "Next",
+        )
+        with self.assertRaisesRegex(PreparedMultiCandidateError, "template changes paths"):
+            build_prepared_multi_package_candidate(
+                next_package,
+                superset_backup,
+                template,
+                new_record_timestamp_be32=0x6A8ABA70,
+                native_capacity_response=self._response(),
+                template_folder_path=("root", "Template"),
+                template_item_paths={
+                    "txt": ("root", "Template", "chapter"),
+                    "bmp": ("root", "Template", "page"),
+                },
+            )
+        with patch.object(
+            candidate_module,
+            "REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256",
+            hashlib.sha256(template.data).hexdigest(),
+        ):
+            candidate = build_prepared_multi_package_candidate(
+                next_package,
+                superset_backup,
+                template,
+                new_record_timestamp_be32=0x6A8ABA70,
+                native_capacity_response=self._response(),
+                template_folder_path=("root", "Template"),
+                template_item_paths={
+                    "txt": ("root", "Template", "chapter"),
+                    "bmp": ("root", "Template", "page"),
+                },
+                template_subset_policy_sha256=hashlib.sha256(template.data).hexdigest(),
+            )
+        self.assertTrue(candidate.audit["template_validation"]["template_is_verified_path_subset"])
+        self.assertTrue(candidate.audit["template_validation"]["extra_baseline_paths_preserved"])
+        self.assertIn(("root", "Template", "ending"), candidate.candidate.paths.values())
+        self.assertIn("root\\Next", ["\\".join(path) for path in candidate.candidate.paths.values()])
+        with self.assertRaisesRegex(
+            PreparedMultiCandidateError,
+            "reviewed P16-001 template identity",
+        ):
+            build_prepared_multi_package_candidate(
+                next_package,
+                superset_backup,
+                template,
+                new_record_timestamp_be32=0x6A8ABA70,
+                native_capacity_response=self._response(),
+                template_folder_path=("root", "Template"),
+                template_item_paths={
+                    "txt": ("root", "Template", "chapter"),
+                    "bmp": ("root", "Template", "page"),
+                },
+                template_subset_policy_sha256="0" * 64,
+            )
 
     def test_requires_each_kind_template_and_native_capacity(self):
         temporary, package, backup, _candidate, template = self._case()
