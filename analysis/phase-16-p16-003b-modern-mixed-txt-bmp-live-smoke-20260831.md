@@ -145,6 +145,13 @@ was added to the repository.
   non-overwriting re-verification of the already captured archive; and
 - the physical operation's device identity, capacity response, transaction
   completion, and post-operation backup contents.
+- after P16-003B, the owner opened `IC_P16_MIXED_20260830_02` on the physical
+  InfoCarry and opened `01-introduction`, `02-page-01`, and `03-ending` in
+  order; both TXT files and the BMP displayed normally without errors. This
+  is human-observed physical acceptance evidence only, not an independent
+  host verification. Opening the files can change read/display-history state,
+  so any later hardware task must use a new fresh preflight rather than this
+  post-operation state.
 
 ### Inferred
 

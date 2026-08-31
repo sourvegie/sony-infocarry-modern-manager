@@ -4,6 +4,7 @@ import unittest
 from infocarry.backup_format import BackupFormatError
 from infocarry.desktop_ttk import (
     format_library_preparation_audit,
+    format_library_transfer_plan,
     format_offline_conversion_report,
     format_offline_page_preview,
     format_post_write_verification,
@@ -28,6 +29,52 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("no device change occurred", summary)
         self.assertIn("root\\\\Book\\\\chapter.txt", summary)
         self.assertIn('"usb_accessed": false', summary)
+
+    def test_library_transfer_summary_is_explicitly_offline(self):
+        summary = format_library_transfer_plan(
+            {
+                "selection": {
+                    "mode": "selected",
+                    "selected_item_ids": ["item-1"],
+                    "excluded_items": [],
+                },
+                "baseline": {"available": False},
+                "grouping": {"policy": "one package per item"},
+                "items": [
+                    {
+                        "source": {"filename": "chapter.txt", "sha256": "a" * 64, "size_bytes": 9},
+                        "prepared_artifact": {
+                            "manifest_sha256": "b" * 64,
+                            "child_order": ["chapter.txt"],
+                            "prepared_payload_bytes": 10,
+                        },
+                        "destination": {"paths": ["root\\Book", "root\\Book\\chapter.txt"]},
+                        "operation_type": "prepared_root_txt_package",
+                        "compatibility_state": "constrained_shape_ready_for_offline_review",
+                        "conflicts": [],
+                        "queue_ready": False,
+                        "reasons": ["verified device backup is required"],
+                    }
+                ],
+                "totals": {
+                    "selected_items": 1,
+                    "source_bytes": 9,
+                    "prepared_payload_bytes": 10,
+                    "estimated_growth_lower_bound": 128,
+                },
+                "capacity": {
+                    "status": "not_evaluated_without_verified_backup",
+                    "available_bytes": None,
+                    "lower_bound_bytes": 128,
+                },
+                "eligibility": {"queue_ready": False},
+            }
+        )
+        self.assertIn("OFFLINE LIBRARY TRANSFER REVIEW", summary)
+        self.assertIn("root\\Book\\chapter.txt", summary)
+        self.assertIn("Device execution: disabled", summary)
+        self.assertIn("Candidate/auth/transaction/sender: none", summary)
+        self.assertIn("USB operation performed: no", summary)
 
     def test_recovery_messages_cover_common_read_only_failures(self):
         self.assertIn("not enough free disk space", friendly_error_message(OSError(errno.ENOSPC, "full")))
