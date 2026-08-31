@@ -252,6 +252,22 @@ fresh revalidation and new exact approval.
 Independent R3 review passes are recorded in
 `analysis/phase-13-p17-006-r3-review-20260901.md`.
 
+P17-007 then performed the separately authorized fresh revalidation for that
+exact Library package and supplied both exact operation phrases. The new Sony
+`054c:001e` detection, fresh parsed `0x0019` response, target-absent complete
+eight-object pre-write backup, package reconstruction, candidate, transaction,
+and seal all matched the constrained reviewed operation. The merged P17-005
+adapter captured one additional complete fresh pre-write backup, then rejected
+it before the sender because its full archive identity (including generated
+manifest and per-object timestamps) differed from the sealed baseline. The
+dynamic blob and every raw object hash were equal; no normalization was
+performed. Sender calls and USB transmissions were zero, and the external
+P17-007 preservation manifest replays with zero mismatches. P17-007 is
+**ESCALATION_REQUIRED** pending a Project Lead decision on whether the safe
+identity binding can be narrowed to an explicitly reviewed raw-state identity;
+no retry, phrase reinterpretation, or corrective write is allowed. See
+`analysis/phase-13-p17-007-exact-library-package-live-smoke-20260901.md`.
+
 ## Immediate Risk Order
 
 1. Preserve R3's narrow Milestone G live-smoke evidence without enabling a
