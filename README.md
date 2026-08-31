@@ -118,7 +118,12 @@ model for one root-level folder with one TXT child and produces an offline
 audit containing source/prepared hashes, sizes, target paths, compatibility,
 and an explicit no-device-change notice. Unsupported formats, invalid source
 bytes, unsafe names, and stale sources remain blocked. No package transfer
-control is exposed in the Library tab.
+control is exposed in the Library tab. The `Import prepared package…` action
+adds one explicitly grouped, flat `infocarry-prepared-typed-media-package-v1`
+record for an exported TXT/BMP package. Its manifest, source archive,
+prepared children, order, kinds, paths, sizes, and hashes are revalidated on
+import and queue review; the package remains offline-review-only and Library
+removal never deletes the package or its original sources.
 
 The no-write desktop Device Manager uses Tkinter/ttk and provides connection
 status, verified read-only backup, a hierarchical folder/file browser,
