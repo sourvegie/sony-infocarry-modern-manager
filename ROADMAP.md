@@ -1934,3 +1934,47 @@ was invoked. Physical compatibility of this new source content, native numeric
 completion semantics, operation-specific capacity semantics, and interrupted
 write recovery remain unresolved. Any future device-changing task requires a
 new fresh preflight and separate exact operation-specific approval.
+
+## Phase 13 — P17-005 isolated single Library-package live-execution readiness adapter (2026-09-01)
+
+P17-005 adds the final host-only execution boundary for one explicitly selected
+P17-002 Library package using the exact P17-004 profile and destination
+`IC_P17_LIBRARY_20260831_03` with ordered TXT/BMP/TXT children. The new module
+`src/infocarry/prepared_library_package_live_adapter.py` remains outside the
+normal CLI and GUI import graph. It reuses the P17-003 bridge for catalog,
+manifest, source, package, and candidate construction and the established
+independent multi-package read-back verifier; it does not duplicate native
+record construction.
+
+The injected preflight fixes the required order to expected Sony `054c:001e`
+detection, fresh parsed native `0x0019` capacity, complete verified backup,
+exact Library/package reconstruction, hash-only preview, and seal. The future
+execution boundary captures and verifies a new complete pre-write backup,
+reconstructs the exact Library candidate from that fresh state immediately
+before the sender call, and revalidates the sealed preflight. The execution
+function constructs the existing `AuthorizedWriteSender` only after all gates;
+its authorization and one-shot call are execution-local and no sender object is
+exported by this adapter. It permits no second transaction, accepts only
+explicit integer `0x0000`, and never retries. Cancellation before transmission
+is safe; cancellation,
+timeout, disconnect, missing/malformed/nonzero completion, post-backup
+failure, or read-back mismatch after transmission is terminal/indeterminate.
+
+The adapter provides a non-overwriting hash-only evidence-manifest writer for
+future complete before/after archives, and successful execution requires that
+manifest plus a hash-only result audit with an exact canonical operation
+sequence. Focused tests cover exact profile and
+identity gates, target conflict, insufficient capacity, seal/source/backup/
+capacity/fixed-state drift, cancellation, all material sender failures,
+post-operation verification, at-most-one sender-call enforcement, and normal
+GUI/CLI isolation.
+These are injected fake-host results only: P17-005 accessed no USB device,
+requested or consumed no owner approval, and created or modified no external
+evidence. Physical compatibility of this Library package remains unresolved.
+
+Independent R3 review passes and is recorded in
+`analysis/phase-13-p17-005-r3-review-20260901.md`. P17-005 is
+**READY_FOR_HARDWARE_TEST** at the host-only boundary; a later separately
+briefed task must perform a new fresh read-only preflight and obtain new exact
+operation-specific approval before any device-changing operation. This
+checkpoint does not authorize a live write.
