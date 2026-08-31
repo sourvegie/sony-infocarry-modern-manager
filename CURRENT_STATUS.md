@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-08-31
-Canonical checkpoint: P16-003A display-history correction is ESCALATION_REQUIRED for the exact preserved fresh state; no hardware operation or 0x101b transaction is authorized by this checkpoint
+Canonical checkpoint: P16-003A display-history correction is READY_FOR_HARDWARE_TEST for the exact preserved fresh state; no hardware operation or 0x101b transaction is authorized by this checkpoint
 
 ## Portable offline validation
 
-- 539 passing tests
+- 547 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -46,15 +46,17 @@ These are host/offline results only. They do not claim physical-device verificat
   No device was detected, queried, backed up, or written during P16-002.
 
 - P16-003A adds the narrow, opt-in support needed to assess the owner-confirmed
-  display-history-only fresh state: raw `0x001b` is preserved only when its
-  active references parse, resolve to existing records, and remain at the same
-  offsets in the prospective candidate; `0x001c`–`0x001f` must remain the
-  supported all-zero state. The fresh P16-003 backup is authoritative offline
-  evidence, not an executable live baseline. Its three valid `0x001b`
-  references would shift under the reviewed additive candidate geometry, so
-  the exact state fails closed as **ESCALATION_REQUIRED**. No rebasing,
-  normalization, candidate seal, authorization, hardware access, or modern
-  transaction was performed.
+  display-history-only fresh state. The fresh P16-003 backup is authoritative
+  offline evidence, not an executable live baseline. Its three valid `0x001b`
+  references are parsed, resolved, and semantically rebased only at or after
+  the exact insertion point by the exact metadata delta; count, header words,
+  unused tail, entry order, unshifted references, preserved records, and
+  `0x001c`–`0x001f` all-zero state remain protected. The exact candidate,
+  authorization, transaction, and independent read-back now bind the before
+  and candidate fixed-state hashes plus old/new reference pairs. P16-003A is
+  **READY_FOR_HARDWARE_TEST** for this offline correction only. No rebasing of
+  raw evidence, normalization, hardware access, or modern transaction was
+  performed.
 
 ## P15 status boundary
 
@@ -156,8 +158,8 @@ Do not intentionally test interrupted-write recovery on the only valuable unit. 
 
 - physical modern multi-child compatibility beyond the exact verified four-TXT `_02` smoke;
 - newly constructed mixed TXT/BMP live compatibility;
-- preserving the verified fresh `0x001b` display-history block through the
-  reviewed additive candidate geometry;
+- physical modern mixed-package compatibility and the future fresh-state
+  validation of semantic display-history preservation;
 - generalized deletion beyond the exact supported smoke scope;
 - physical interrupted-write atomicity, rollback, and recovery;
 - broader arbitrary/nested package behavior.
@@ -168,15 +170,17 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P16-003A is the current offline correction boundary and is
-**ESCALATION_REQUIRED** for the exact owner-confirmed fresh display-history
-state because preserving raw `0x001b` conflicts with the reviewed candidate
-geometry. The raw state must not be rebased or normalized. The next task
-requires a Project Lead decision on a safe offset-preserving geometry or a
-newly captured supported state, followed by a fresh review; it must not access
-hardware or reuse prior live approvals. The native global timestamp rewrite
-and unresolved numeric completion remain unresolved observations, not modern
-rules. No device-changing transaction is authorized by this checkpoint.
+P16-003A is **READY_FOR_HARDWARE_TEST** for the exact owner-confirmed fresh
+display-history state and the constrained mixed TXT/BMP/TXT candidate. Its
+semantic rebase is limited to counted `0x001b` references at or after the exact
+insertion point, uses the exact aligned metadata delta, and requires same-path
+resolution plus preservation of every other fixed-state byte. The external
+fresh backup remains authoritative and unchanged, but is not fresh enough to
+authorize a later live operation. A later task must perform a new read-only
+preflight and obtain new operation-specific owner approval; this checkpoint
+does not authorize hardware access or a device-changing transaction. Native
+global timestamp rewriting, numeric completion decoding, and operation-specific
+capacity semantics remain unresolved observations, not modern rules.
 
 ## Canonical reading order
 

@@ -1,4 +1,6 @@
+from dataclasses import replace
 from datetime import datetime, timezone
+from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
@@ -267,13 +269,15 @@ class PreparedMultiCandidateTests(unittest.TestCase):
             candidate.fixed_state.display_history_paths,
             ((0x80, ("root", "old")),),
         )
-        self.assertTrue(candidate.audit["display_history_validation"]["references_unshifted"])
+        self.assertTrue(candidate.audit["display_history_validation"]["semantic_preserved"])
+        self.assertEqual(candidate.audit["display_history_validation"]["references_rebased"], 0)
         self.assertEqual(
             candidate.audit["policy"]["fixed_state"],
-            "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f",
+            "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f",
         )
         from infocarry.prepared_multi_package_gate import (
             PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+            PreparedMultiPackageGateError,
             authorize_prepared_multi_package,
         )
 
@@ -283,11 +287,88 @@ class PreparedMultiCandidateTests(unittest.TestCase):
         )
         self.assertEqual(
             authorization.fixed_state_policy,
-            "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f",
+            "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f",
         )
         self.assertEqual(authorization.display_history_record_offsets, ("0x00000080",))
         self.assertEqual(authorization.display_history_paths, ("root\\old",))
         authorization.require_same_candidate(candidate)
+
+    def test_verified_display_history_rebases_exactly_when_referenced_records_move(self):
+        temporary, package, _zero_backup, _zero_candidate, template = self._case(mixed=True)
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        now = datetime(2026, 8, 27, tzinfo=timezone.utc)
+        state = {
+            command: b"\x00" * 64
+            for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)
+        }
+        display_history = bytearray(64)
+        display_history[0:4] = (3).to_bytes(4, "big")
+        for index, offset in enumerate((0x80, 0x140, 0x180)):
+            display_history[8 + index * 4 : 12 + index * 4] = offset.to_bytes(4, "big")
+        state[0x001B] = bytes(display_history)
+        backup_path = _write_archive(
+            root / "display-history-rebase-before",
+            template.data,
+            now,
+            fixed_state=state,
+        )
+        backup = verify_fresh_backup(backup_path, now=now, max_age_seconds=None)
+        candidate = build_prepared_multi_package_candidate(
+            package,
+            backup,
+            template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=self._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            },
+        )
+        validation = candidate.audit["display_history_validation"]
+        self.assertEqual(validation["preservation_policy"], "semantic_rebase_by_exact_metadata_delta")
+        self.assertEqual(validation["references_rebased"], 2)
+        self.assertEqual(
+            [
+                (entry["before_relative_record_offset"], entry["candidate_relative_record_offset"])
+                for entry in validation["references"]
+            ],
+            [
+                ("0x00000080", "0x00000080"),
+                ("0x00000140", "0x00000280"),
+                ("0x00000180", "0x000002c0"),
+            ],
+        )
+        self.assertFalse(validation["raw_preserved_exactly"])
+        self.assertEqual(
+            candidate.fixed_state.candidate_raw_blocks[0][8:20],
+            (0x80).to_bytes(4, "big")
+            + (0x280).to_bytes(4, "big")
+            + (0x2C0).to_bytes(4, "big"),
+        )
+        from infocarry.prepared_multi_package_gate import (
+            PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+            PreparedMultiPackageGateError,
+            authorize_prepared_multi_package,
+        )
+
+        authorization = authorize_prepared_multi_package(
+            candidate,
+            confirmation=PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+        )
+        self.assertEqual(authorization.display_history_references_rebased, 2)
+        self.assertEqual(authorization.display_history_insertion_offset, 0x100)
+        self.assertEqual(authorization.display_history_metadata_delta, 0x140)
+        authorization.require_same_candidate(candidate)
+        altered_audit = deepcopy(candidate.audit_dict())
+        altered_audit["display_history_validation"]["references"][1][
+            "candidate_relative_record_offset"
+        ] = "0x00000240"
+        with self.assertRaisesRegex(PreparedMultiPackageGateError, "candidate display_history"):
+            authorization.require_same_candidate(replace(candidate, audit=altered_audit))
+        with self.assertRaisesRegex(PreparedMultiPackageGateError, "raw-preservation"):
+            replace(authorization, display_history_raw_preserved_exactly=True)
 
     def test_fresh_baseline_allows_only_verified_template_read_state_flags(self):
         temporary, package, _zero_backup, _zero_candidate, template = self._case(mixed=True)

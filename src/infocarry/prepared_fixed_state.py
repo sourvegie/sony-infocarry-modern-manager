@@ -3,18 +3,19 @@
 The normal product paths accept only the five zero-filled capture-7 state
 objects. The isolated mixed-package path may additionally opt in to one
 verified display-history block, while still requiring exact zero mark and
-bookmark state and preserving every accepted raw byte.
+bookmark state.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 from typing import Any, Mapping
 
 from .backup import parse_grouped_values_response, parse_offset_list_response
 from .backup_format import BackupFormatError, ParsedBackupBlob, parse_backup_blob
 from .write_gate import VerifiedBackup
+from .write_state import StateSerializationError, rebase_fixed_state_responses
 
 
 FIXED_STATE_COMMANDS = (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)
@@ -50,26 +51,56 @@ class PreparedFixedStateSnapshot:
     display_history_record_offsets: tuple[int, ...] = ()
     display_history_paths: tuple[tuple[int, tuple[str, ...]], ...] = ()
     display_history_metadata_start: int = 0x40
+    prospective_raw_blocks: tuple[bytes, bytes, bytes, bytes, bytes] | None = None
+    display_history_candidate_record_offsets: tuple[int, ...] = ()
+    display_history_insertion_offset: int | None = None
+    display_history_metadata_delta: int = 0
+
+    @property
+    def candidate_raw_blocks(self) -> tuple[bytes, bytes, bytes, bytes, bytes]:
+        return self.raw_blocks if self.prospective_raw_blocks is None else self.prospective_raw_blocks
 
     @property
     def range1(self) -> bytes:
-        return b"".join(self.raw_blocks[:4])
+        return b"".join(self.candidate_raw_blocks[:4])
 
     @property
     def range2(self) -> bytes:
-        return self.raw_blocks[4]
+        return self.candidate_raw_blocks[4]
 
     def to_dict(self) -> dict[str, Any]:
         display_history = {
             "present": bool(self.display_history_record_offsets),
-            "raw_preserved_exactly": True,
+            "preservation_policy": (
+                "semantic_rebase_by_exact_metadata_delta"
+                if self.display_history_record_offsets
+                else "raw_exact"
+            ),
+            "raw_preserved_exactly": (
+                self.candidate_raw_blocks[0] == self.raw_blocks[0]
+            ),
+            "semantic_preserved": bool(self.display_history_record_offsets),
             "metadata_start": f"0x{self.display_history_metadata_start:08x}",
             "relative_record_offsets": [
                 f"0x{offset:08x}" for offset in self.display_history_record_offsets
             ],
+            "candidate_relative_record_offsets": [
+                f"0x{offset:08x}"
+                for offset in (
+                    self.display_history_candidate_record_offsets
+                    or self.display_history_record_offsets
+                )
+            ],
             "absolute_record_offsets": [
                 f"0x{offset + self.display_history_metadata_start:08x}"
                 for offset in self.display_history_record_offsets
+            ],
+            "candidate_absolute_record_offsets": [
+                f"0x{offset + self.display_history_metadata_start:08x}"
+                for offset in (
+                    self.display_history_candidate_record_offsets
+                    or self.display_history_record_offsets
+                )
             ],
             "paths": [
                 {
@@ -78,16 +109,34 @@ class PreparedFixedStateSnapshot:
                 }
                 for offset, path in self.display_history_paths
             ],
-            "candidate_offset_policy": "references must remain valid at the same absolute metadata offsets; no rebasing or raw-block rewrite",
+            "insertion_offset": (
+                None
+                if self.display_history_insertion_offset is None
+                else f"0x{self.display_history_insertion_offset:08x}"
+            ),
+            "metadata_delta": f"0x{self.display_history_metadata_delta:08x}",
+            "references_rebased": sum(
+                before != after
+                for before, after in zip(
+                    self.display_history_record_offsets,
+                    self.display_history_candidate_record_offsets
+                    or self.display_history_record_offsets,
+                )
+            ),
+            "candidate_offset_policy": "counted references at or after the exact insertion offset rebase by the exact metadata delta; all other bytes remain unchanged",
         }
+        candidate_blocks = self.candidate_raw_blocks
         return {
             "policy": (
-                "verified_display_history_0x001b_plus_zero_0x001c_to_0x001f"
+                "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f"
                 if self.display_history_record_offsets
                 else "capture7_exact_all_zero_fixed_state"
             ),
             "supported": True,
-            "raw_bytes_preserved": True,
+            "raw_bytes_preserved": all(
+                candidate_blocks[index] == self.raw_blocks[index]
+                for index in range(len(self.raw_blocks))
+            ),
             "blocks": {
                 f"0x{command:04x}": {
                     "sha256": digest,
@@ -100,9 +149,177 @@ class PreparedFixedStateSnapshot:
                 }
                 for index, (command, digest) in enumerate(self.sha256_by_command)
             },
+            "candidate_blocks": {
+                f"0x{command:04x}": {
+                    "sha256": _sha256(candidate_blocks[index]),
+                    "length": len(candidate_blocks[index]),
+                    "active_entries": (
+                        len(self.display_history_candidate_record_offsets)
+                        if command == DISPLAY_HISTORY_COMMAND
+                        else 0
+                    ),
+                }
+                for index, (command, _digest) in enumerate(self.sha256_by_command)
+            },
+            "before_sha256_by_command": [
+                {"command": f"0x{command:04x}", "sha256": digest}
+                for command, digest in self.sha256_by_command
+            ],
+            "candidate_sha256_by_command": [
+                {
+                    "command": f"0x{command:04x}",
+                    "sha256": _sha256(candidate_blocks[index]),
+                }
+                for index, (command, _digest) in enumerate(self.sha256_by_command)
+            ],
             "prospective_range1_sha256": _sha256(self.range1),
             "prospective_range2_sha256": _sha256(self.range2),
             "display_history": display_history,
+        }
+
+    def rebase_display_history(
+        self,
+        baseline: ParsedBackupBlob,
+        candidate: ParsedBackupBlob,
+        *,
+        insertion_offset: int,
+        metadata_delta: int,
+    ) -> tuple["PreparedFixedStateSnapshot", dict[str, Any]]:
+        """Apply and verify the exact evidence-backed semantic rebase policy."""
+
+        if not self.display_history_record_offsets:
+            result = replace(self, prospective_raw_blocks=self.raw_blocks)
+            return result, {
+                "present": False,
+                "preservation_policy": "raw_exact",
+                "raw_preserved_exactly": True,
+                "semantic_preserved": False,
+                "references_rebased": 0,
+            }
+        if baseline.header.metadata_start != self.display_history_metadata_start:
+            raise PreparedFixedStateError("display-history baseline metadata base changed")
+        if candidate.header.metadata_start != baseline.header.metadata_start:
+            raise PreparedFixedStateError("display-history candidate metadata base changed")
+        if (
+            isinstance(insertion_offset, bool)
+            or not isinstance(insertion_offset, int)
+            or insertion_offset < 0
+            or insertion_offset % 0x40
+            or isinstance(metadata_delta, bool)
+            or not isinstance(metadata_delta, int)
+            or metadata_delta <= 0
+            or metadata_delta % 0x40
+        ):
+            raise PreparedFixedStateError("display-history rebase geometry is not record-aligned")
+        try:
+            rebased_ranges, rebased_grouped = rebase_fixed_state_responses(
+                self.raw_blocks[:4],
+                self.raw_blocks[4],
+                insertion_offset=insertion_offset,
+                metadata_delta=metadata_delta,
+            )
+        except StateSerializationError as exc:
+            raise PreparedFixedStateError(
+                f"display-history semantic rebase failed: {exc}"
+            ) from exc
+        prospective_blocks = tuple(rebased_ranges) + (rebased_grouped,)
+        if prospective_blocks[1:] != self.raw_blocks[1:]:
+            raise PreparedFixedStateError(
+                "display-history rebase changed Mark/Bookmark state"
+            )
+        try:
+            before_response = parse_offset_list_response(self.raw_blocks[0])
+            candidate_response = parse_offset_list_response(prospective_blocks[0])
+        except Exception as exc:
+            raise PreparedFixedStateError(
+                f"display-history rebased response is malformed: {exc}"
+            ) from exc
+        if (
+            candidate_response.count != before_response.count
+            or candidate_response.value_04_be16 != before_response.value_04_be16
+            or candidate_response.value_06_be16 != before_response.value_06_be16
+            or candidate_response.unused_tail_hex != before_response.unused_tail_hex
+        ):
+            raise PreparedFixedStateError(
+                "display-history rebase changed count, header words, or reserved tail"
+            )
+        expected_offsets = tuple(
+            offset + metadata_delta if offset >= insertion_offset else offset
+            for offset in self.display_history_record_offsets
+        )
+        if tuple(candidate_response.record_offsets) != expected_offsets:
+            raise PreparedFixedStateError(
+                "display-history reference was unexpectedly shifted or left unshifted"
+            )
+        if len(self.display_history_paths) != len(expected_offsets):
+            raise PreparedFixedStateError("display-history path binding is incomplete")
+        references: list[dict[str, Any]] = []
+        for before_offset, candidate_offset, (_bound_offset, bound_path) in zip(
+            self.display_history_record_offsets,
+            expected_offsets,
+            self.display_history_paths,
+        ):
+            if before_offset % 0x40 or candidate_offset % 0x40:
+                raise PreparedFixedStateError(
+                    "display-history reference is not record-aligned"
+                )
+            before_absolute = baseline.header.metadata_start + before_offset
+            candidate_absolute = candidate.header.metadata_start + candidate_offset
+            if baseline.paths.get(before_absolute) != bound_path:
+                raise PreparedFixedStateError(
+                    "display-history reference no longer resolves in the baseline"
+                )
+            if candidate.paths.get(candidate_absolute) != bound_path:
+                raise PreparedFixedStateError(
+                    "rebased display-history reference resolves to a different path"
+                )
+            try:
+                before_record = baseline.record_at(before_absolute)
+                candidate_record = candidate.record_at(candidate_absolute)
+                before_prefix, before_payload = baseline.payload_parts(before_record)
+                candidate_prefix, candidate_payload = candidate.payload_parts(candidate_record)
+            except BackupFormatError as exc:
+                raise PreparedFixedStateError(
+                    "display-history reference does not resolve to a complete record"
+                ) from exc
+            before_raw = bytes.fromhex(before_record.raw_hex)
+            candidate_raw = bytes.fromhex(candidate_record.raw_hex)
+            if before_raw[:4] + before_raw[0x0C:] != candidate_raw[:4] + candidate_raw[0x0C:]:
+                raise PreparedFixedStateError(
+                    "rebased display-history reference changed preserved record bytes"
+                )
+            if before_prefix != candidate_prefix or before_payload != candidate_payload:
+                raise PreparedFixedStateError(
+                    "rebased display-history reference changed the preserved payload"
+                )
+            references.append(
+                {
+                    "before_relative_record_offset": f"0x{before_offset:08x}",
+                    "before_absolute_record_offset": f"0x{before_absolute:08x}",
+                    "candidate_relative_record_offset": f"0x{candidate_offset:08x}",
+                    "candidate_absolute_record_offset": f"0x{candidate_absolute:08x}",
+                    "path": "\\".join(bound_path),
+                    "rebased": before_offset != candidate_offset,
+                }
+            )
+        result = replace(
+            self,
+            prospective_raw_blocks=prospective_blocks,
+            display_history_candidate_record_offsets=expected_offsets,
+            display_history_insertion_offset=insertion_offset,
+            display_history_metadata_delta=metadata_delta,
+        )
+        return result, {
+            "present": True,
+            "preservation_policy": "semantic_rebase_by_exact_metadata_delta",
+            "raw_preserved_exactly": prospective_blocks[0] == self.raw_blocks[0],
+            "semantic_preserved": True,
+            "insertion_offset": f"0x{insertion_offset:08x}",
+            "metadata_delta": f"0x{metadata_delta:08x}",
+            "references_rebased": sum(item["rebased"] for item in references),
+            "references": references,
+            "count_header_tail_preserved": True,
+            "unshifted_references_byte_identical": True,
         }
 
     def validate_display_history_unshifted(
@@ -110,12 +327,14 @@ class PreparedFixedStateSnapshot:
         baseline: ParsedBackupBlob,
         candidate: ParsedBackupBlob,
     ) -> dict[str, Any]:
-        """Require every accepted display-history reference to remain unshifted.
+        """Validate the legacy raw-exact/unshifted display-history rule.
 
         The raw 0x001b block is safe to preserve only when its metadata-relative
         offsets still identify the same reachable records after the additive
         candidate is rebuilt.  A root insertion normally shifts later records;
-        that geometry is rejected rather than silently rebasing the block.
+        this compatibility validator rejects that geometry rather than silently
+        rebasing the block. The semantic-rebase policy is implemented by
+        :meth:`rebase_display_history` and is deliberately a separate opt-in.
         """
 
         if not self.display_history_record_offsets:

@@ -1358,12 +1358,13 @@ The UI/UX handoff review and reconciled acceptance boundaries are recorded in
    physical compatibility, J.3 transfer planning, normal GUI/CLI
    package/delete controls, and all broad or interrupted-write operations
    blocked until their separate evidence gates close.
-5. Resolve the P16-003A display-history geometry conflict offline before any
-   new live task. The owner-confirmed fresh `0x001b` references are valid and
-   must be preserved exactly, but the reviewed additive candidate shifts their
-   referenced `_01` records. Do not rebase the raw block or perform hardware
-   access; require a Project Lead decision and fresh R3 review before changing
-   the candidate geometry.
+5. P16-003A is **READY_FOR_HARDWARE_TEST** for its exact offline semantic
+   display-history correction. The owner-confirmed fresh `0x001b` references
+   are preserved semantically by the evidence-backed exact metadata-delta
+   rebase, with same-path/same-record verification and all other bytes
+   protected. Do not access hardware or reuse this offline backup for live
+   execution; a later task must obtain a new fresh preflight and new
+   operation-specific approval.
 6. Push every verified sanitized commit normally to `origin/main` after the
    required focused tests, full suite, diff check, and excluded-content audit.
 
@@ -1745,20 +1746,23 @@ reversion or normalization.
 
 The implementation accepts this state only through an explicit narrow policy:
 `0x001b` must parse, every active reference must resolve to an existing file
-record, each reference must remain at the same absolute offset and path in the
-prospective candidate, and `0x001c`–`0x001f` must remain the supported
-all-zero state. The candidate/template comparison permits only the verified
-`0xe0` → `0x20` child flags and explicitly justified derived effects. Focused
-tests cover opt-in behavior, dangling/mark rejection, unshifted-reference
-validation, template mutation rejection, candidate binding, and independent
-read-back.
+record, and references at or after the exact insertion point must rebase by the
+exact aligned metadata delta. Each rebased reference must resolve to the same
+absolute-path record with preserved bytes, prefix, and payload. Count, header
+words, unused tail, entry order, unshifted references, and `0x001c`–`0x001f`
+all-zero state remain protected. The candidate/template comparison permits
+only the verified `0xe0` → `0x20` child flags and justified derived effects.
+Focused tests cover shifted and unshifted references, malformed/dangling/mark
+rejection, template mutation, candidate binding, exact read-back, and
+unrebased-state failure.
 
-The actual preserved P16-003 fresh state has references at absolute offsets
-`0x0440`, `0x0480`, and `0x04c0`. Inserting the reviewed five-record package
-at the root marker shifts those records, so the raw `0x001b` block cannot be
-preserved exactly and unshifted in that candidate. The candidate builder fails
-closed with this explicit geometry discrepancy. P16-003A is therefore
-`ESCALATION_REQUIRED`, not `READY_FOR_HARDWARE_TEST`: no candidate seal,
-authorization, hardware access, or `0x101b` transaction was created or
-performed. A Project Lead decision on offset-preserving geometry or a fresh
-supported state is required before another readiness review.
+The preserved P16-003 fresh state has relative references `0x0400`, `0x0440`,
+and `0x0480`, which resolve to absolute offsets `0x0440`, `0x0480`, and
+`0x04c0`. The reviewed candidate inserts five records at absolute `0x0400`,
+with relative insertion offset `0x03c0` and metadata delta `0x0140`; the
+candidate references are `0x0540`, `0x0580`, and `0x05c0`, resolving to
+absolute `0x0580`, `0x05c0`, and `0x0600`. The exact candidate, authorization,
+transaction, and independent read-back reconstruction now pass offline.
+P16-003A is therefore **READY_FOR_HARDWARE_TEST** for this exact correction,
+not a live authorization. A later task must obtain a new fresh preflight and
+new operation-specific approval. No device access or transaction occurred.

@@ -3,14 +3,14 @@
 The builder is deliberately narrower than a general ebook writer. It reuses
 the capture-7 folder geometry and requires an existing native record template
 for every child kind. The mixed-package path may preserve one verified
-display-history response only when its referenced records remain unshifted;
-it never invents a TXT or BMP wrapper, touches USB, or assigns Manager-side
-state.
+display-history response only through the separately reviewed semantic-rebase
+rule; it never invents a TXT or BMP wrapper, touches USB, or assigns
+Manager-side state.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 from typing import Any, Mapping, Optional, Sequence
 
@@ -501,14 +501,17 @@ def build_prepared_multi_package_candidate(
     except PreparedFixedStateError as exc:
         raise PreparedMultiCandidateError(f"fresh fixed state is unsupported: {exc}") from exc
     try:
-        display_history_validation = fixed.validate_display_history_unshifted(
+        fixed, display_history_validation = fixed.rebase_display_history(
             baseline,
             candidate,
+            insertion_offset=root_marker_offset - baseline.header.metadata_start,
+            metadata_delta=metadata_delta,
         )
     except PreparedFixedStateError as exc:
         raise PreparedMultiCandidateError(
-            f"fresh display-history state is incompatible with candidate geometry: {exc}"
+            f"fresh display-history state cannot be semantically preserved: {exc}"
         ) from exc
+    fixed_assessment = replace(fixed_assessment, snapshot=fixed)
     try:
         evidence = native_capacity_response.bind_model_lengths(len(baseline_blob), len(candidate_blob))
         capacity = assess_total_capacity(
@@ -559,11 +562,18 @@ def build_prepared_multi_package_candidate(
         "allocation": {"metadata_records_added": 2 + len(values), "metadata_growth_bytes": metadata_delta, "aligned_content_growth_bytes": content_delta, "candidate_growth_bytes": len(candidate_blob) - len(baseline_blob), "capacity_limit_bytes": capacity.capacity_limit_bytes, "baseline_model_bytes": capacity.baseline_model_bytes, "candidate_model_bytes": capacity.candidate_model_bytes, "remaining_growth_bytes": capacity.remaining_growth_bytes, "capacity_result": "sufficient"},
         "capacity_evidence": evidence.to_dict(),
         "fixed_state": fixed_assessment.to_dict(),
-        "transaction": {"command": "0x101b", "sha256": transaction.concatenated_sha256, "payload_length": transaction.payload_length, "range_lengths": [len(value) for value in transaction.ranges], "fixed_state_hashes": [_sha256(value) for value in fixed.raw_blocks]},
+        "transaction": {"command": "0x101b", "sha256": transaction.concatenated_sha256, "payload_length": transaction.payload_length, "range_lengths": [len(value) for value in transaction.ranges], "fixed_state_hashes": [_sha256(value) for value in fixed.candidate_raw_blocks]},
         "template": template_report,
         "template_validation": template_validation,
         "preservation": preservation,
-        "display_history_validation": display_history_validation,
+        "display_history_validation": {
+            **display_history_validation,
+            "insertion_offset_absolute": (
+                _hex(root_marker_offset)
+                if display_history_validation.get("insertion_offset") is not None
+                else None
+            ),
+        },
         "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "existing_timestamps": "preserve_exactly", "legacy_global_timestamp_rewrite_reproduced": False, "fixed_state": fixed.to_dict()["policy"], "manager_sidecars": "not part of device transaction"},
         "expected_post_operation": {"added_paths": added_paths, "removed_paths": [], "ordered_kinds": ["directory", *[item.kind for item in values]], "new_payload_sha256": [_sha256(_item_payload(item)) for item in values], "shared_payloads_preserved": True, "shared_timestamps_preserved": True},
         "assumptions": ["The folder and each child wrapper are copied from explicitly supplied validated native templates.", "The captured root insertion geometry is reused for this offline candidate only.", "This is not proof of arbitrary package or nested-folder compatibility."],
