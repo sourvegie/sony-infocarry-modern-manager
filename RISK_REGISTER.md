@@ -234,6 +234,24 @@ imports. Independent R3 review passes and is recorded in
 **READY_FOR_HARDWARE_TEST** for host-only readiness, followed by a new fresh
 preflight and separate operation-specific approval in a later task.
 
+P17-006 then performed the separately authorized read-only preflight for the
+same exact Library package. The authoritative external session preserved one
+in-order Sony `054c:001e` detection, fresh parsed `0x0019` capacity evidence,
+and a complete eight-object backup with `IC_P17_LIBRARY_20260831_03` absent.
+The candidate and prospective transaction were rebuilt and sealed from that
+fresh state; the model grows by 16,036 bytes and remains 1,054,436 bytes below
+the parsed 3,145,728-byte capacity limit. A first host attempt and its raw
+evidence were retained after the adapter correctly rejected a host timestamp
+that preceded backup finalization; the corrected authoritative session is
+`phase-17-p17-006-library-package-live-smoke-20260901-03`. No sender,
+approval phrase, or `0x101b` request was used. P17-006 is
+**READY_FOR_HARDWARE_TEST** only at the owner-approval boundary. Physical
+compatibility, native numeric completion decoding, and operation-specific
+capacity semantics remain unresolved; any later write requires immediate
+fresh revalidation and new exact approval.
+Independent R3 review passes are recorded in
+`analysis/phase-13-p17-006-r3-review-20260901.md`.
+
 ## Immediate Risk Order
 
 1. Preserve R3's narrow Milestone G live-smoke evidence without enabling a
