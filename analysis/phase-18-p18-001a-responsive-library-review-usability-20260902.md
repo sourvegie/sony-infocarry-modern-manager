@@ -100,10 +100,13 @@ intentional skips, read-only compilation of 181 Python files, and clean
   former single-row toolbar and absolute-path table columns were present.
 - **Inferred:** the grouped rows, explicit pane minima, dynamic wrapping, and
   scrollbars address the reported failure at the declared minimum geometry.
-  This inference still requires the owner’s visual repetition on macOS.
-- **Unresolved:** human acceptance of the corrected rendering at `980x680` and
-  `1120x760` or larger, native font/theme variations, and all hardware/device
-  behavior. No physical or hardware claim is made here.
+- **Observed:** the owner subsequently retested the corrected surface at
+  approximately `980x680` and `1120x760` or larger and reported that it works.
+  This is human-observed GUI evidence for those checks only; it does not
+  establish hardware behavior, transfer execution, or other display
+  environments.
+- **Unresolved:** native font/theme variations outside the reported checks and
+  all hardware/device behavior. No physical or hardware claim is made here.
 
 ## Host validation and manual gate
 
@@ -116,11 +119,9 @@ intentional evidence-dependent skips. `git diff
 candidate bytes, transaction bytes, source-pool material, or
 `InfoCarry-Toolkit` files are included.
 
-The task disposition is **READY_FOR_HUMAN_TEST**. The owner should launch with
-the supported Python 3.12/Tk 9 runtime, open Library, check the exact minimum
-`980x680`, verify every grouped action and the persistent no-send/status
-messages are readable, drag the list/detail sash toward each pane, select the
-prepared package, inspect the scrollable technical detail, then repeat at
-`1120x760` or larger. Selection and keyboard focus must remain intact. No
-approval, sender, device detection, backup, or `0x101b` operation is part of
-this check.
+The task disposition is **COMPLETE** for the bounded responsive-usability
+correction, based on the owner’s observed checks at approximately `980x680`
+and `1120x760` or larger. This closes only the human GUI gate described here;
+it does not make claims about hardware, transfer execution, other display
+environments, or future UI changes. No approval, sender, device detection,
+backup, or `0x101b` operation was part of this check.

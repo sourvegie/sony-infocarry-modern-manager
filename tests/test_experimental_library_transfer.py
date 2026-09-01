@@ -7,6 +7,7 @@ from infocarry.experimental_library_transfer_review import (
     build_experimental_library_transfer_review,
 )
 from infocarry.experimental_transfer_contract import (
+    APPLICATION_TRANSFER_STAGES,
     EXPERIMENTAL_FAILURE_BOUNDARIES,
     experimental_safety_contract,
 )
@@ -193,12 +194,16 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
     def test_safety_contract_covers_every_terminal_boundary_without_retry(self):
         contract = experimental_safety_contract()
 
+        self.assertEqual(contract["application_stages"], list(APPLICATION_TRANSFER_STAGES))
+        self.assertTrue(contract["one_package_one_logical_transaction"])
         self.assertEqual(
             contract["terminal_failure_boundaries"],
             list(EXPERIMENTAL_FAILURE_BOUNDARIES),
         )
         self.assertEqual(contract["maximum_logical_sender_calls"], 1)
         self.assertFalse(contract["automatic_retry_allowed"])
+        self.assertTrue(contract["indeterminate_write_lock"]["persistent_per_device"])
+        self.assertFalse(contract["indeterminate_write_lock"]["automatic_clear"])
 
     def test_non_mapping_plan_is_rejected(self):
         with self.assertRaises(ExperimentalLibraryTransferReviewError):

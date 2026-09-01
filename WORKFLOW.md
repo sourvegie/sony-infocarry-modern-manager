@@ -68,6 +68,19 @@ Conversation history is transient. Approved decisions, implementation state, tes
 
 Do not duplicate chronological milestone history or capability tables into every governance file. Prefer the capability matrix for exact operation status and `analysis/` for evidence/history; keep `CURRENT_STATUS.md` focused on the current sprint.
 
+The accelerated delivery policy classifies work by reachability. Offline
+selection, preparation, Library review, and host-only planning are not R3
+solely because their subject is transfer. R3 begins at authorization, final
+candidate construction, sender reachability, or live-success determination.
+PM may approve reviewed R0/R1/R2 work; the Project Owner retains approval for
+physical device changes, capability-envelope expansion, fundamental
+write/authorization/recovery changes, exact restore, interruption testing,
+firmware/service/alternate modes, and destructive operations outside an
+enabled profile. An enabled Experimental operation uses an in-app,
+transaction-specific confirmation. Keep at most two active streams—Product
+Delivery and Legacy Oracle—and at most two material correction rounds. Do not
+add phase/milestone/smoke-named production modules or parallel live pipelines.
+
 ## Task lifecycle
 
 For each meaningful engineering task, use a concise task brief containing:
