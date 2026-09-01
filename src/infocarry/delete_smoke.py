@@ -655,7 +655,7 @@ def run_delete_smoke(
             raise DeleteSmokeError("fresh detected device identity differs from sealed preflight")
         before = verify_fresh_backup(
             preflight.backup.directory,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if before.manifest_sha256 != preflight.backup.manifest_sha256:
@@ -666,7 +666,7 @@ def run_delete_smoke(
             before,
             preflight.target.path,
             preflight.target.record_offset,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if current.to_dict() != preflight.candidate.to_dict():
@@ -689,7 +689,7 @@ def run_delete_smoke(
         binding = bind_generalized_delete_sender(
             authorization,
             current,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
     except (GeneralizedDeleteError, TransferCancelledError) as exc:
@@ -752,14 +752,14 @@ def run_delete_smoke(
         after = capture_and_verify_fresh_backup(
             Path(post_delete_destination),
             lambda destination: capture(destination, cancelled=cancelled, progress=progress),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         verification = verify_generalized_delete_readback(
             current,
             after.directory,
             completion=completion,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
     except Exception as exc:

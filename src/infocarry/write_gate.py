@@ -260,19 +260,29 @@ def capture_and_verify_fresh_backup(
     *,
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+    reference_clock: Optional[Callable[[], datetime]] = None,
 ) -> VerifiedBackup:
     """Run one injected backup capture and verify the resulting archive.
 
     The capture callback is deliberately the only integration point for a
     future read-only transport.  This function never opens USB, retries a
     failed capture, removes an incomplete archive, or replaces an existing
-    path.  Offline tests can inject a fake callback that writes a complete
-    archive; a live caller must still obtain explicit approval before wiring
-    in a hardware-backed callback.
+    path.  The freshness reference is sampled only after the callback returns,
+    so a backup whose manifest is finalized after the caller began the
+    operation cannot be falsely classified as future-dated.  ``now`` remains
+    accepted for source compatibility but is deliberately not used as the
+    authoritative post-capture reference.  Deterministic tests may inject
+    ``reference_clock``; a live caller should use the default wall clock.
+
+    Offline tests can inject a fake callback that writes a complete archive; a
+    live caller must still obtain explicit approval before wiring in a
+    hardware-backed callback.
     """
 
     if not callable(capture):
         raise WriteGateError("fresh-backup capture must be callable")
+    if reference_clock is not None and not callable(reference_clock):
+        raise WriteGateError("reference_clock must be callable when supplied")
     root = Path(destination).expanduser().resolve()
     if root.exists():
         raise WriteGateError(f"refusing to replace an existing backup path: {root}")
@@ -282,8 +292,19 @@ def capture_and_verify_fresh_backup(
         raise WriteGateError(
             f"fresh backup capture failed; preserve any partial archive at {root}: {exc}"
         ) from exc
+    # ``now`` is intentionally not passed through: it is commonly sampled
+    # before a long USB capture.  The reference must be after the callback has
+    # finalized the manifest.  Keep the argument above for compatibility with
+    # existing callers while making the safe behavior unconditional.
+    post_capture_reference = (
+        reference_clock() if reference_clock is not None else datetime.now(timezone.utc)
+    )
     try:
-        return verify_fresh_backup(root, now=now, max_age_seconds=max_age_seconds)
+        return verify_fresh_backup(
+            root,
+            now=post_capture_reference,
+            max_age_seconds=max_age_seconds,
+        )
     except WriteGateError:
         raise
     except Exception as exc:

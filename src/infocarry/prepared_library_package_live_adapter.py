@@ -283,6 +283,31 @@ def _backup_report_matches(backup: VerifiedBackup, report: Any) -> bool:
     return _json_equivalent(normalized, _sealed_backup_dict(backup))
 
 
+def _backup_comparison_for_validation(comparison: Any) -> Any:
+    """Ignore only verifier-time churn when replaying a preserved audit.
+
+    ``verified_at_utc`` is acquisition provenance, not raw device state.  A
+    later integrity replay necessarily samples that value at a different
+    instant, while the original result audit must retain the time observed at
+    capture.  All raw-state differences and every other provenance field
+    remain exact.
+    """
+
+    value = json.loads(json.dumps(comparison, ensure_ascii=True))
+    if isinstance(value, dict):
+        differences = value.get("provenance_differences")
+        if isinstance(differences, list):
+            value["provenance_differences"] = [
+                entry
+                for entry in differences
+                if not (
+                    isinstance(entry, dict)
+                    and entry.get("field") == "verified_at_utc"
+                )
+            ]
+    return value
+
+
 def _validate_result_audit(
     result_audit: Mapping[str, Any],
     *,
@@ -386,7 +411,8 @@ def _validate_result_audit(
             state="failed",
         ) from exc
     if not _json_equivalent(
-        value["backup_state_comparison"], expected_state_comparison
+        _backup_comparison_for_validation(value["backup_state_comparison"]),
+        _backup_comparison_for_validation(expected_state_comparison),
     ):
         raise PreparedLibraryPackageLiveAdapterError(
             "result_audit backup-state comparison is not the verified raw/provenance audit",
@@ -809,7 +835,10 @@ def prepare_prepared_library_package_live_preflight(
                 cancelled=cancelled,
                 progress=progress,
             ),
-            now=now,
+            # Fresh-backup verification samples its wall clock after capture
+            # finalization.  Do not let a caller's pre-capture timestamp become
+            # the authoritative freshness reference.
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if before.device_identity != _expected_device_hex():
@@ -979,7 +1008,7 @@ def execute_prepared_library_package_live(
         sequence.extend(["device_revalidated", "capacity_revalidated"])
         sealed_before = verify_fresh_backup(
             preflight.before_backup.directory,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if _backup_identity(sealed_before) != _backup_identity(preflight.before_backup):
@@ -992,7 +1021,7 @@ def execute_prepared_library_package_live(
                 cancelled=cancelled,
                 progress=progress,
             ),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if before.device_identity != _expected_device_hex():
@@ -1096,7 +1125,7 @@ def execute_prepared_library_package_live(
                 authorization.require_same_candidate(candidate)
                 authorization.core.revalidate(
                     candidate.core,
-                    now=now,
+                    now=None,
                     max_age_seconds=max_age_seconds,
                 )
 
@@ -1179,7 +1208,7 @@ def execute_prepared_library_package_live(
                 cancelled=cancelled,
                 progress=progress,
             ),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if after.device_identity != _expected_device_hex():
@@ -1189,7 +1218,7 @@ def execute_prepared_library_package_live(
             candidate.core,
             after.directory,
             completion=completion,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("independent_readback_verification")
@@ -1225,7 +1254,7 @@ def execute_prepared_library_package_live(
             before_backup=before,
             after_backup=after,
             result_audit=audit,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
     except Exception as exc:

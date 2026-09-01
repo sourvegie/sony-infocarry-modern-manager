@@ -292,7 +292,7 @@ class GuardedPreparedMultiPackageWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             sequence.append("fresh_complete_backup")
@@ -448,7 +448,7 @@ class GuardedPreparedMultiPackageWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             sequence.append("fresh_post_operation_backup")
@@ -456,7 +456,7 @@ class GuardedPreparedMultiPackageWorkflow:
                 current,
                 after.directory,
                 completion=completion,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             sequence.append("independent_readback_verification")

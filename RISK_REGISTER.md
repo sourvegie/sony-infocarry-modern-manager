@@ -211,6 +211,34 @@ unresolved.
 | R15 | The device's commit point and recovery behavior after an interrupted `0x101b` transaction are unknown. A nominal file operation transmits broad device state and may not be atomic. | Critical | Permit ordinary cancellation before the device-changing request starts. After it starts, treat disconnect, timeout, cancellation, or missing completion as an indeterminate outcome; never retry automatically and perform only read-only diagnosis/backup. Keep writes explicitly experimental. Do not intentionally interrupt the owner's only valuable unit; require a second or sacrificial VNW-V15 plus a separate approved recovery protocol for deliberate testing. | Offline sender and new-TXT integration tests now enforce the distinction and no-retry rule. Physical atomicity, rollback, and recovery remain unproven; R15 stays open and blocks any risk-free write claim or broad public write release. |
 | R16 | Proprietary evidence, credentials, or private device data could be accidentally published through a source remote or a complete Git-history push. | Critical | Before every remote checkpoint, audit all tracked files and `git rev-list --objects --all`; reject original Sony software, ISO content, device backups, USB captures, raw live evidence, credentials, private information, generated output, and temporary artifacts. Keep the remote private only as an additional source/history backup, never as the sole evidence backup. Never force-push or upload excluded evidence. | Controlled for this sanitized remote: the candidate history contains no excluded evidence, the remote is private, and the initial commit is pushed. The original research history and bundle remain local-only; re-audit every future commit. |
 
+## P17-010 freshness-clock correction (R3)
+
+P17-010 attempt 01 is preserved outside Git under the non-overwriting root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+The exact Sony `054c:001e` detection, native `0x0019` capacity response, and
+complete eight-object backup succeeded, but the host harness incorrectly used
+a freshness reference sampled before backup finalization. It stopped safely
+before candidate construction: `write_started=false`, `sender_calls=0`, no
+completion, `approval_consumed=false`, no mutation, and no retry. The raw
+evidence and verified 13-entry manifest remain unchanged with zero mismatches.
+
+The shared capture helper now samples its authoritative freshness reference
+after the complete backup callback returns. P17-010 uses this corrected
+post-finalization clock; a test-only injected clock preserves deterministic
+fixtures. The established package, mixed-package, existing-text, new-TXT, and
+delete execution chains also no longer pass a pre-capture fixed clock into
+downstream backup freshness checks. Completeness, integrity, maximum-age,
+future-skew, raw-state, target-absence, capacity, authorization, transaction,
+seal, one-shot, and no-retry gates are unchanged. Audit replay excludes only
+the verifier-generated `verified_at_utc` observation; all raw-state and other
+provenance remains bound and visible.
+
+Focused and complete host validation pass (602 tests, 3 intentional
+evidence-dependent skips), and the exclusion/preservation audits pass. P17-010A
+is **READY_FOR_HARDWARE_TEST** only for a later fresh attempt with renewed
+operation-specific approval. No hardware access or sender construction occurs
+in this correction.
+
 P17-005 adds the isolated, unregistered one-shot adapter needed to connect a
 future real Sony transport to the exact P17-004 Library package profile. It
 reuses the P17-003 bridge, candidate, authorization, and independent verifier;
@@ -406,3 +434,37 @@ Library content remain unresolved. See
 `analysis/phase-13-p17-009-corrected-raw-state-library-package-fresh-preflight-20260901.md`.
 Independent R3 review passes are recorded in
 `analysis/phase-13-p17-009-r3-review-20260901.md`.
+
+## P17-010 exact Library-package live-execution preflight (R3)
+
+P17-010 merged PR #16 into canonical `main` at
+`98ae3e14b36073f5bb41c30c4ae4ee6a85c9b390` before beginning the dedicated
+task branch. The owner authorized only read-only detection, capacity, and a
+fresh complete backup. One Sony `054c:001e` was observed; native `0x0019`
+reported a 3,145,728-byte limit; and the complete eight-object backup proved
+`root\\IC_P17_LIBRARY_20260831_03` absent. The first capacity-output attempt
+was stopped by the CLI's pre-existing-path guard before device access and is
+preserved as a superseded host attempt; it was not used as evidence.
+
+The fresh raw backup identity equals the P17-009 baseline under the reviewed
+`BackupStateIdentity` (`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`).
+Its archive path, manifest hash, and acquisition timestamps remain visible
+provenance and are reported separately. The exact P17-004 Library package and
+P17-009-approved candidate/transaction were rebuilt through the isolated
+P17-005 adapter using an injected callback over the captured archive; this
+did not recapture hardware or invoke a sender. Candidate growth is 16,036
+bytes; baseline available growth is 1,070,472 bytes and post-candidate
+capacity margin is 1,054,436 bytes.
+
+The P17-010 hash-only sealed preflight binds the device, fresh backup and raw
+identity, native capacity response, catalog/item/package/child/template
+hashes, target absence, fixed/display-history state, candidate, transaction,
+timestamp policy, expected post-state, explicit approval phrases, and the
+no-retry boundary. It records zero sender calls, backend writes, USB
+transmission, and device change. P17-010 is **READY_FOR_HARDWARE_TEST** only
+after an independent R3 review; it does not consume either later approval
+phrase. Any later live attempt must immediately repeat fresh detection,
+capacity, and complete-backup revalidation, then obtain both exact phrases
+for this operation. A stale preflight, raw-state mismatch, target collision,
+capacity discrepancy, malformed evidence, or any ambiguous completion remains
+terminal and must not trigger retry or corrective writing.

@@ -403,6 +403,22 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             (setup["root"] / "execution-before").resolve(),
         )
         self.assertEqual(self._sender_calls(setup), 1)
+
+    def test_pre_send_failure_does_not_consume_approval_or_one_shot_claim(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
+            self._execute(setup, detect_device=lambda: (0x054C, 0x001F))
+        self.assertEqual(raised.exception.stage, "preflight_revalidation")
+        self.assertFalse(raised.exception.write_started)
+        self.assertEqual(self._sender_calls(setup), 0)
+
+        # A pre-send gate failure does not consume the sealed one-shot claim;
+        # the same exact preflight may still be attempted after revalidation.
+        result = self._execute(setup)
+        self.assertEqual(result.completion, 0)
+        self.assertEqual(self._sender_calls(setup), 1)
         self.assertEqual(len(setup["captures"]), 3)
         manifest = json.loads(
             (setup["root"] / "evidence/result-manifest.json").read_text(encoding="utf-8")

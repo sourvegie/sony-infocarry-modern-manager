@@ -241,7 +241,7 @@ class GuardedPreparedPackageWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             operation_sequence.append("fresh_complete_backup")
@@ -325,7 +325,7 @@ class GuardedPreparedPackageWorkflow:
             sender_authorization = bind_prepared_package_sender(
                 authorization,
                 current,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
@@ -420,7 +420,7 @@ class GuardedPreparedPackageWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             operation_sequence.append("fresh_post_operation_backup")
@@ -429,7 +429,7 @@ class GuardedPreparedPackageWorkflow:
                 current,
                 after.directory,
                 completion=completion,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:

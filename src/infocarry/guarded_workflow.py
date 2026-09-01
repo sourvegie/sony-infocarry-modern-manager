@@ -217,7 +217,7 @@ class ExistingTextReplacementWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
@@ -244,7 +244,7 @@ class ExistingTextReplacementWorkflow:
                 preview_report,
                 cli_write_flag=cli_write_flag,
                 confirmation=confirmation,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except WriteGateError as exc:
@@ -272,14 +272,14 @@ class ExistingTextReplacementWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             verification = verify_post_write_backup(
                 before,
                 after.directory,
                 transaction,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
