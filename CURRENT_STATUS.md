@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-013 strict sealed-schema loader correction is host-validated on its task branch and proposed READY_FOR_HARDWARE_TEST after review/CI; P17-012 remains a historical host-only preflight and its attempt-03 loader failure was safe, pre-hardware, and non-mutating
+Canonical checkpoint: P17-015 immutable Library-package operation bundle is host-validated on PR #21 and READY_FOR_HARDWARE_TEST for the exact reviewed operation only; P17-010, P17-012, and P17-014 remain historical safe fail-closed records
 
 ## Portable offline validation
 
-- 609 passing tests
+- 618 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -471,6 +471,70 @@ correction is reviewed and merged. No hardware access, sender construction,
 approval consumption, retry, or `0x101b` transmission occurred in P17-013;
 the prior operation phrases are not reusable.
 
+## P17-014 exact Library-package live attempt (R3)
+
+The P17-014 host-only preflight had passed its independent review, but the
+authorized live attempt was stopped before any hardware callback. The caller
+paired the P17-014 sealed report with the older P17-012 offline baseline
+instead of the P17-014 preflight backup; the strict canonical loader therefore
+reported `core_preflight_seal_sha256 does not match the reconstructed core`.
+This is a host preparation failure, not device-state evidence.
+
+The non-overwriting external abort record is at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+It records no device detection, capacity query, backup capture, sender
+construction, approval consumption, backend write, or `0x101b`; the device was
+not accessed and no state changed. The failure audit SHA-256 is
+`f59801c1b582a820c985a03663395ed8e9123dff911b68579a9b30940d7554d2`, and its
+preservation manifest SHA-256 is
+`3a293f48e790e5b6f055e4a3dc486b90a0c8704482497139dc0e57ddc42264ae`.
+
+The owner-supplied P17-014 phrases were not consumed. That approval is
+expired and must not be reused. P17-014 has no physical execution result;
+another attempt requires an offline correction, a fresh preflight, and new
+operation-specific approval. Physical opening of the three children remains
+unperformed.
+
+## P17-015 immutable Library-package operation bundle (R3)
+
+P17-015 corrects the host-side cross-generation pairing defect exposed by
+P17-014. The isolated production live entrypoint now accepts one immutable,
+hash-bound `infocarry-p17-015-library-package-operation-bundle-v1` input. The
+bundle binds the sealed report, its exact baseline backup manifest, catalog,
+reviewed template bytes, native `0x0019` response bytes, package manifest and
+ordered source/prepared-child records, selected Library item, destination,
+candidate/transaction/core/outer seals, raw-state identity, exact approval
+policy, timestamp policy, and non-overwriting result destinations. The
+resolver verifies every existing artifact and reconciles every copied value
+against the canonical P17-013 sealed-report loader before any runtime
+detection, capture, sender construction, approval consumption, or
+transmission.
+
+The P17-010 premature freshness-clock pattern and the P17-012 nested
+transaction-schema mismatch remain preserved as historical fail-closed
+records. The P17-014 report-plus-wrong-baseline substitution is now a focused
+bundle failure case; no fallback alias or manually paired baseline is
+accepted. Candidate and transaction bytes remain outside the bundle manifest
+and Git; only their exact hashes are bound.
+
+The real production entrypoint was rehearsed twice end-to-end with injected
+fake hardware boundaries: each sent once, accepted explicit `0x0000`, and
+completed post-backup plus independent read-back verification. A third
+rehearsal reached the sender boundary with a missing backend and performed
+zero sends. Bundle artifact, scalar, package-child, output, safety-policy,
+schema, baseline-substitution, cancellation, timeout, disconnect,
+completion, post-backup, read-back, and second-send failures remain
+fail-closed. The adapter is still not imported or exposed by normal GUI/CLI
+transfer paths. No hardware, real sender, owner phrase, or `0x101b` was used
+by P17-015.
+
+P17-015 is **READY_FOR_HARDWARE_TEST** for the exact reviewed Library package
+operation only, after focused/full validation, evidence-exclusion audit, and
+independent R3 review. A later task must create a new fresh read-only
+preflight and obtain new operation-specific approval. Physical compatibility,
+native completion semantics, interrupted-write recovery, and broader package
+behavior remain unresolved.
+
 ## Current product safety boundary
 
 Normal product-facing controls remain disabled for:
@@ -502,15 +566,15 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P17-012 is complete through the final host-only revalidation and is stopped at
-**READY_FOR_HARDWARE_TEST**. Its new exact phrases are documented in the
-P17-012 dossier but were not requested, supplied, or consumed. A later live
-task must use the sealed exact operation, perform any required final
-revalidation, and obtain both phrases in a new owner message; it must remain
-outside normal GUI/CLI transfer. P16-003B remains complete only for its exact package,
-P17-001/P17-002 remain offline Library planning/review, and all broader
-package, batch, timestamp, completion-decoding, and interrupted-write claims
-remain unresolved or disabled.
+P17-015 is the current host-only correction checkpoint. The next task may
+perform a new fresh read-only preflight for the exact reviewed operation, but
+must not reuse any prior approval phrases, baseline, or sealed attempt. No
+device-changing transaction is authorized by this checkpoint. P17-014 remains
+a historical safe pre-send abort, P17-012 remains a historical host-only
+preflight, P16-003B remains complete only for its exact package, and
+P17-001/P17-002 remain offline Library planning/review. Broader package,
+batch, timestamp, completion-decoding, recovery, and normal GUI/CLI transfer
+claims remain unresolved or disabled.
 
 ## Canonical reading order
 

@@ -2285,3 +2285,62 @@ duplicate JSON keys, and the absence of callback/sender activity on failure.
 The correction is host-only; a later fresh operation must obtain new
 operation-specific approval. P17-013 is **READY_FOR_HARDWARE_TEST** only
 after independent R3 review, CI, and merge.
+
+## Phase 13 — P17-014 exact Library-package live attempt (2026-09-01)
+
+The P17-014 host-only preflight was independently reviewed as ready, but the
+authorized live attempt was fail-closed before hardware access. The offline
+caller paired the P17-014 sealed report with the P17-012 baseline archive;
+the canonical strict loader rejected the mismatch because
+`core_preflight_seal_sha256` did not match the reconstructed core. No device
+detection, capacity query, backup, sender construction, approval consumption,
+backend write, `0x101b`, or mutation occurred. No retry was made.
+
+The non-overwriting external audit is preserved at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+It records the failure audit SHA-256
+`f59801c1b582a820c985a03663395ed8e9123dff911b68579a9b30940d7554d2` and
+preservation-manifest SHA-256
+`3a293f48e790e5b6f055e4a3dc486b90a0c8704482497139dc0e57ddc42264ae`.
+The owner-supplied phrases were not consumed and are expired. A future
+attempt requires an offline pairing correction, fresh R3 review, a new fresh
+preflight, and new exact approval.
+
+## Phase 13 — P17-015 immutable Library-package operation bundle (2026-09-01)
+
+P17-015 expands PR #21 with an offline-only correction to the P17-014
+fail-closed attempt. The P17-010 premature freshness-clock failure,
+P17-012 nested transaction-schema failure, and P17-014 report-plus-wrong-
+baseline failure are preserved as historical safety evidence. The live
+entrypoint no longer accepts manually paired report, backup, catalog,
+template, capacity, candidate, transaction, or output arguments. It accepts
+one immutable, hash-bound
+`infocarry-p17-015-library-package-operation-bundle-v1` instead.
+
+The framework-independent bundle binds the exact sealed report and baseline
+manifest, catalog, reviewed template and native `0x0019` response bytes,
+package manifest and ordered source/prepared-child hashes, selected item,
+destination, candidate/transaction/core/outer seals, raw-state identity,
+authorization and timestamp policy, and non-overwriting output paths. The
+adapter verifies all artifact bytes, checks every copied binding against the
+strict P17-013 sealed schema, reconstructs the candidate through the existing
+P17-003 bridge, and rejects stale, substituted, malformed, duplicated, or
+contradictory members before any runtime callback. Candidate and transaction
+bytes remain external and are not placed in Git.
+
+The actual production entrypoint was rehearsed twice with fresh temporary
+bundles and injected fake hardware boundaries. Both nominal runs sent once,
+accepted explicit integer `0x0000`, captured complete post-operation backups,
+and passed independent read-back. A third rehearsal reached the sender
+boundary with zero sends. Focused tests cover each bundle artifact/scalar,
+package-child and output binding, safety-policy mutation, the P17-014/P17-012
+baseline substitution, cancellation, timeout/disconnect, malformed/missing/
+nonzero completion, post-backup/read-back failure, and second-send refusal.
+The adapter remains outside normal GUI/CLI imports and no hardware, real
+sender, approval phrase, or `0x101b` was used.
+
+P17-015 is **READY_FOR_HARDWARE_TEST** only for this exact reviewed Library
+package profile, following strong independent R3 review, complete portable
+validation, CI, and exclusion audits. A later task must perform a new fresh
+read-only preflight and obtain new operation-specific approval; no live
+operation is authorized by this checkpoint.

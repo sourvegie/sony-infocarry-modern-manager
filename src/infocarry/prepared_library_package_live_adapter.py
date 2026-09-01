@@ -24,13 +24,14 @@ from threading import Lock
 from types import MappingProxyType
 from typing import Any, Callable, Mapping, Optional
 
-from .backup_format import ParsedBackupBlob
+from .backup_format import ParsedBackupBlob, parse_backup_blob
 from .backup_state_identity import (
     BackupStateIdentity,
     compare_verified_backups,
     derive_backup_state_identity,
 )
 from .capacity_evidence import NativeCapacityResponse
+from .device_info import RawInfoResponse
 from .library import LibraryCatalog
 from .prepared_library_package_bridge import (
     P17_003_CONFIRMATION_PHRASE,
@@ -43,6 +44,10 @@ from .prepared_library_package_bridge import (
     authorize_prepared_library_package,
     build_prepared_library_package_candidate,
     prepare_prepared_library_package_preflight,
+)
+from .prepared_library_package_operation_bundle import (
+    OperationBundleError,
+    PreparedLibraryPackageOperationBundle,
 )
 from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
@@ -1017,6 +1022,195 @@ def load_prepared_library_package_live_preflight(
 
 
 @dataclass(frozen=True)
+class _ResolvedPreparedLibraryPackageOperationBundle:
+    """Protocol-specific view of one already verified operation bundle."""
+
+    bundle: PreparedLibraryPackageOperationBundle
+    preflight: PreparedLibraryPackageLivePreflight
+    catalog: LibraryCatalog
+    template: ParsedBackupBlob
+    capacity_response: NativeCapacityResponse
+
+
+def _resolve_prepared_library_package_operation_bundle(
+    bundle: PreparedLibraryPackageOperationBundle,
+) -> _ResolvedPreparedLibraryPackageOperationBundle:
+    """Resolve every artifact from the one immutable bundle before callbacks."""
+
+    if not isinstance(bundle, PreparedLibraryPackageOperationBundle):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-015 requires one immutable prepared Library operation bundle",
+            stage="operation_bundle",
+            state="failed",
+        )
+    try:
+        bundle.verify_artifacts()
+        report_path = Path(bundle.sealed_report.path)
+        report = _strict_json_object(report_path)
+        binding = report["candidate"]["library_binding"]
+        report_before = report["before_backup"]
+        report_capacity = report["capacity_response"]
+        report_authorization = report["authorization"]
+        candidate_audit = report["candidate"]
+        expected_post = candidate_audit["expected_post_operation"]
+    except (KeyError, TypeError, OperationBundleError) as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-015 operation bundle bindings are malformed: {exc}",
+            stage="operation_bundle",
+            state="failed",
+        ) from exc
+
+    def require_equal(label: str, actual: Any, expected: Any) -> None:
+        if not _json_equivalent(actual, expected):
+            raise OperationBundleError(
+                f"operation bundle {label} differs from its sealed report"
+            )
+
+    try:
+        if str(Path(report_before["directory"]).expanduser().resolve()) != bundle.baseline_backup.path:
+            raise OperationBundleError(
+                "operation bundle baseline backup is not the sealed report baseline"
+            )
+        if report_before.get("manifest_sha256") != bundle.baseline_backup.sha256:
+            raise OperationBundleError("operation bundle baseline manifest hash differs")
+        if str(Path(binding["catalog_path"]).expanduser().resolve()) != bundle.catalog.path:
+            raise OperationBundleError("operation bundle catalog is not the sealed Library catalog")
+        if str(Path(binding["manifest_path"]).expanduser().resolve()) != bundle.package_manifest.path:
+            raise OperationBundleError(
+                "operation bundle package manifest is not the sealed package manifest"
+            )
+        require_equal(
+            "ordered package children",
+            binding["ordered_children"],
+            bundle.to_dict()["package_children"],
+        )
+        require_equal(
+            "expected post-operation",
+            expected_post,
+            bundle.to_dict()["expected_post_operation"],
+        )
+        if bundle.selected_item_id != binding["catalog_item_id"]:
+            raise OperationBundleError("operation bundle selected Library item differs")
+        if bundle.expected_folder_name != report["expected_folder_name"]:
+            raise OperationBundleError("operation bundle destination differs")
+        if tuple(bundle.device_identity) != tuple(report["device_identity"]):
+            raise OperationBundleError("operation bundle device identity differs")
+        if bundle.owner_approval_phrase != report["owner_approval_phrase"]:
+            raise OperationBundleError("operation bundle owner approval differs")
+        if bundle.confirmation_phrase != report["confirmation_phrase"]:
+            raise OperationBundleError("operation bundle confirmation differs")
+        if bundle.confirmation_policy != report["confirmation_policy"]:
+            raise OperationBundleError("operation bundle confirmation policy differs")
+        if bundle.new_record_timestamp_be32 != report_authorization["new_record_timestamp_be32"]:
+            raise OperationBundleError("operation bundle timestamp differs")
+        if bundle.timestamp_policy != candidate_audit["policy"]["timestamp"]:
+            raise OperationBundleError("operation bundle timestamp policy differs")
+        if report_capacity.get("raw_response_sha256") != bundle.capacity_response_sha256:
+            raise OperationBundleError("operation bundle capacity response hash differs")
+        if report_authorization["candidate_transaction_sha256"] != bundle.transaction_sha256:
+            raise OperationBundleError("operation bundle transaction binding differs")
+        if candidate_audit["candidate"]["blob_sha256"] != bundle.candidate_blob_sha256:
+            raise OperationBundleError("operation bundle candidate binding differs")
+        if _sha256(_canonical_json(candidate_audit)) != bundle.candidate_audit_sha256:
+            raise OperationBundleError("operation bundle candidate audit hash differs")
+        if _sha256(_canonical_json(report_authorization)) != bundle.authorization_sha256:
+            raise OperationBundleError("operation bundle authorization hash differs")
+        if _sha256(_canonical_json(expected_post)) != bundle.expected_post_operation_sha256:
+            raise OperationBundleError("operation bundle expected post-state hash differs")
+        if _sha256(_canonical_json(binding)) != bundle.library_binding_sha256:
+            raise OperationBundleError("operation bundle Library binding hash differs")
+        if report["core_preflight_seal_sha256"] != bundle.core_preflight_seal_sha256:
+            raise OperationBundleError("operation bundle core seal differs")
+        if report["preflight_seal_sha256"] != bundle.preflight_seal_sha256:
+            raise OperationBundleError("operation bundle outer seal differs")
+        if report["backup_state_identity_sha256"] != bundle.baseline_state_identity_sha256:
+            raise OperationBundleError("operation bundle raw-state identity differs")
+        if report_capacity["raw_response_sha256"] != bundle.capacity_response_sha256:
+            raise OperationBundleError("operation bundle capacity binding differs")
+        report_catalog_hash = binding["catalog_sha256"]
+    except (KeyError, TypeError, OperationBundleError) as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-015 operation bundle/report binding mismatch: {exc}",
+            stage="operation_bundle",
+            state="failed",
+        ) from exc
+
+    try:
+        baseline = verify_fresh_backup(
+            Path(bundle.baseline_backup.path),
+            now=None,
+            max_age_seconds=None,
+        )
+        if _backup_identity(baseline).sha256 != bundle.baseline_state_identity_sha256:
+            raise ValueError("baseline raw-state identity differs from the sealed bundle")
+        if _sha256(_canonical_json(LibraryCatalog(Path(bundle.catalog.path)).to_dict())) != report_catalog_hash:
+            raise ValueError("catalog model hash differs from the sealed Library binding")
+        catalog = LibraryCatalog(Path(bundle.catalog.path))
+        template = parse_backup_blob(Path(bundle.template.path).read_bytes())
+        capacity_response = NativeCapacityResponse.from_hardware_response(
+            RawInfoResponse(0x0019, "operation-bundle", Path(bundle.capacity_response.path).read_bytes()),
+            device_identity=P17_005_DEVICE_IDENTITY,
+        )
+        if capacity_response.to_dict() != report_capacity:
+            raise ValueError("capacity response differs from the sealed bundle")
+        preflight = load_prepared_library_package_live_preflight(
+            report_path,
+            catalog=catalog,
+            selected_item_id=bundle.selected_item_id,
+            backup=baseline,
+            template=template,
+            capacity_response=capacity_response,
+        )
+        if _backup_identity(preflight.before_backup).sha256 != bundle.baseline_state_identity_sha256:
+            raise ValueError("loaded preflight raw-state identity differs from the bundle")
+        if preflight.candidate.candidate_blob_sha256 != bundle.candidate_blob_sha256:
+            raise ValueError("loaded candidate differs from the bundle")
+        if preflight.candidate.transaction_sha256 != bundle.transaction_sha256:
+            raise ValueError("loaded transaction differs from the bundle")
+        if preflight.core.seal_sha256 != bundle.core_preflight_seal_sha256:
+            raise ValueError("loaded core seal differs from the bundle")
+        if preflight.seal_sha256 != bundle.preflight_seal_sha256:
+            raise ValueError("loaded outer seal differs from the bundle")
+    except Exception as exc:
+        if isinstance(exc, PreparedLibraryPackageLiveAdapterError):
+            raise
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-015 operation bundle resolution failed: {exc}",
+            stage="operation_bundle",
+            state="failed",
+        ) from exc
+
+    output_paths = tuple(
+        Path(path)
+        for path in (
+            bundle.fresh_backup_destination,
+            bundle.post_operation_destination,
+            bundle.evidence_manifest_destination,
+        )
+    )
+    if len({path.resolve() for path in output_paths}) != len(output_paths):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-015 operation bundle output destinations overlap",
+            stage="operation_bundle",
+            state="failed",
+        )
+    for path in output_paths:
+        if path.exists():
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-015 operation output already exists: {path}",
+                stage="operation_bundle",
+                state="failed",
+            )
+    return _ResolvedPreparedLibraryPackageOperationBundle(
+        bundle=bundle,
+        preflight=preflight,
+        catalog=catalog,
+        template=template,
+        capacity_response=capacity_response,
+    )
+
+
+@dataclass(frozen=True)
 class PreparedLibraryPackageLiveResult:
     preflight: PreparedLibraryPackageLivePreflight
     candidate: PreparedLibraryPackageCandidate
@@ -1243,20 +1437,13 @@ def prepare_prepared_library_package_live_preflight(
 
 
 def execute_prepared_library_package_live(
-    preflight: PreparedLibraryPackageLivePreflight,
+    operation_bundle: PreparedLibraryPackageOperationBundle,
     *,
-    catalog: LibraryCatalog,
-    selected_item_id: str,
-    backup_destination: Path,
-    execution_template: Optional[ParsedBackupBlob] = None,
-    post_operation_destination: Path,
-    evidence_manifest_destination: Path,
     owner_approval: str,
     confirmation: str,
     detect_device: DetectDeviceCallback,
     query_capacity: CapacityQueryCallback,
     backend: WriteBackend,
-    bulk_out_endpoint: int,
     capture: CaptureCallback,
     policy: WritePolicy = WritePolicy(),
     clock: Clock = time.monotonic,
@@ -1266,22 +1453,23 @@ def execute_prepared_library_package_live(
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
 ) -> PreparedLibraryPackageLiveResult:
-    """Execute exactly one approved transaction after sealed revalidation.
+    """Execute exactly one approved transaction from one immutable bundle.
 
-    A new complete backup is captured and verified immediately before the
-    sender call.  The Library catalog, package, source files, candidate,
-    capacity, and authorization are rebuilt from that fresh backup and must
-    remain byte-for-byte equivalent to the sealed preview. Any post-start
-    failure is terminal and indeterminate; this function has no retry or
-    corrective-write path.
+    The bundle resolves the sealed report, baseline backup, catalog, template,
+    capacity evidence, package children, exact candidate/transaction hashes,
+    and non-overwriting output destinations as one hash-bound operation input.
+    Runtime callbacks are the only remaining injected boundaries. A new
+    complete backup is captured and verified immediately before the sender
+    call. Any post-start failure is terminal and indeterminate; this function
+    has no retry or corrective-write path.
     """
 
-    if not isinstance(preflight, PreparedLibraryPackageLivePreflight):
-        raise PreparedLibraryPackageLiveAdapterError(
-            "P17-005 requires a sealed live preflight",
-            stage="preflight",
-            state="failed",
-        )
+    resolved = _resolve_prepared_library_package_operation_bundle(operation_bundle)
+    bundle = resolved.bundle
+    preflight = resolved.preflight
+    catalog = resolved.catalog
+    template = resolved.template
+    selected_item_id = bundle.selected_item_id
     _validate_callbacks(
         detect_device=detect_device,
         query_capacity=query_capacity,
@@ -1339,7 +1527,7 @@ def execute_prepared_library_package_live(
             raise ValueError("sealed preflight backup changed before execution")
         sequence.append("sealed_preflight_backup_revalidated")
         before = capture_and_verify_fresh_backup(
-            Path(backup_destination),
+            Path(bundle.fresh_backup_destination),
             lambda destination: capture(
                 destination,
                 cancelled=cancelled,
@@ -1363,7 +1551,6 @@ def execute_prepared_library_package_live(
             primary_error=str(exc),
         ) from exc
 
-    template = execution_template or preflight.template
     try:
         candidate = build_prepared_library_package_candidate(
             catalog,
@@ -1430,7 +1617,7 @@ def execute_prepared_library_package_live(
 
         sender_impl = _AuthorizedWriteSender(
             backend,
-            bulk_out_endpoint,
+            bundle.bulk_out_endpoint,
             policy=policy,
             clock=clock,
             sleep=sleep,
@@ -1526,7 +1713,7 @@ def execute_prepared_library_package_live(
 
     try:
         after = capture_and_verify_fresh_backup(
-            Path(post_operation_destination),
+            Path(bundle.post_operation_destination),
             lambda destination: capture(
                 destination,
                 cancelled=cancelled,
@@ -1573,7 +1760,7 @@ def execute_prepared_library_package_live(
             },
         }
         write_prepared_library_package_evidence_manifest(
-            evidence_manifest_destination,
+            Path(bundle.evidence_manifest_destination),
             preflight=preflight,
             before_backup=before,
             after_backup=after,
