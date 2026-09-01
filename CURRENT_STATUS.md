@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-006 fresh read-only Library-package preflight is READY_FOR_HARDWARE_TEST at the owner-approval boundary; no approval phrase was requested or consumed and no transaction occurred
+Canonical checkpoint: P17-007 stopped fail-closed before transmission because the merged P17-005 adapter rejected the additional fresh pre-write backup's full archive identity; no sender call or 0x101b transaction occurred
 
 ## Portable offline validation
 
@@ -124,6 +124,27 @@ These are host/offline results only. They do not claim physical-device verificat
   `analysis/phase-13-p17-006-exact-library-package-live-smoke-preflight-20260901.md`;
   independent R3 review passes are recorded in
   `analysis/phase-13-p17-006-r3-review-20260901.md`.
+- P17-007 performed the separately approved fresh read-only revalidation for
+  the exact P17-004 Library package at
+  `root\\IC_P17_LIBRARY_20260831_03`. Sony `054c:001e` was detected on bus
+  2/address 3; the fresh native `0x0019` response reported 3,145,728 bytes;
+  and complete eight-object backups were captured with the target absent. The
+  corrected sealed preflight rebuilt the exact approved candidate and
+  transaction: 2,091,292-byte candidate, 16,036-byte growth, 1,054,436-byte
+  capacity margin, candidate SHA-256
+  `0e3af665c6046c91d1096e8570f8b63b1fc82d35788027becf65ff942ca8883f`, and
+  transaction SHA-256
+  `1abab51a9ddb069154fba4d411ffbe31359125270b1438d78acd47b745a54439`.
+  With both exact operation phrases supplied, the merged P17-005 adapter
+  captured a new complete pre-write backup but rejected its full archive
+  identity because capture-generated archive/object timestamps changed its
+  manifest SHA-256, even though all raw object hashes and the dynamic blob
+  matched. The sender was never constructed or opened, sender calls were 0,
+  and no `0x101b` request occurred. P17-007 is
+  **ESCALATION_REQUIRED** pending a Project Lead decision on the safe backup
+  identity boundary; no retry or normalization is permitted. The external
+  evidence root and 73-entry v2 preservation manifest remain outside Git; see
+  `analysis/phase-13-p17-007-exact-library-package-live-smoke-20260901.md`.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -297,7 +318,7 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-No device-changing task is approved by this checkpoint. P16-003B remains
+No further device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
 P17-001/P17-002 are complete only as offline Library planning/review, and
 P17-003/P17-004/P17-005 are host-ready only for their exact constrained
@@ -308,7 +329,10 @@ obtain new operation-specific owner approval, and remain outside normal
 GUI/CLI transfer. Native global timestamp rewriting, numeric completion
 decoding, operation-specific capacity semantics, interrupted-write recovery,
 arbitrary package hardware compatibility, and batch execution remain
-unresolved or disabled.
+unresolved or disabled. The next task requires Project Lead review of the
+P17-005 exact fresh-backup identity conflict; do not relax the gate, reuse the
+approval phrases, or attempt another P17-007 transaction until that review is
+complete.
 
 ## Canonical reading order
 

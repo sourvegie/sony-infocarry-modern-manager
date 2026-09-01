@@ -95,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's corrected offline gate and one constrained modern root-TXT delete smoke are complete for their supported scopes; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
-| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; P17-003 exact single-package candidate/preflight bridge is host-ready; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review. One exact revalidated TXT/BMP/TXT package can be bridged into the reviewed host-only candidate/preflight path; device-aware execution remains disabled |
+| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; P17-003 exact single-package bridge is host-ready; P17-007 stopped before transmission at the P17-005 fresh-backup identity gate; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review. One exact revalidated TXT/BMP/TXT package can be bridged into the reviewed host-only candidate/preflight path; device-aware execution remains blocked pending resolution of the exact fresh-backup identity conflict |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -2004,3 +2004,27 @@ write recovery remain unresolved. A later task must obtain a new fresh
 preflight and both exact operation-specific approval phrases.
 Independent R3 review passes are recorded in
 `analysis/phase-13-p17-006-r3-review-20260901.md`.
+
+## Phase 13 — P17-007 exact Library-package one-shot live smoke (2026-09-01)
+
+P17-007 used a new external evidence root and the separately supplied exact
+operation phrases for one additive operation targeting
+`root\\IC_P17_LIBRARY_20260831_03`. Fresh Sony `054c:001e` detection, native
+`0x0019` capacity, target absence, complete eight-object backup, exact Library
+package reconstruction, and the approved candidate/transaction/seal all
+passed. The candidate remained 2,091,292 bytes, with 16,036 bytes of growth
+and 1,054,436 bytes of parsed-capacity margin; its candidate and transaction
+hashes matched P17-006 exactly.
+
+The merged P17-005 adapter then captured and verified its required additional
+fresh pre-write backup. It failed closed before constructing/opening the write
+backend because the full backup identity differed from the sealed baseline.
+The raw dynamic blob and all eight object hashes matched; the difference is in
+capture-generated archive/object timestamps and therefore the manifest hash.
+No normalization, second send, retry, or corrective write was performed;
+sender calls and `0x101b` transmissions were zero. The 73-entry external
+preservation manifest replays with zero mismatches. P17-007 is
+**ESCALATION_REQUIRED**, not complete: the next task must resolve this
+P17-005 identity-policy conflict under independent R3 review before any new
+live approval or transmission. The sanitized result is recorded in
+`analysis/phase-13-p17-007-exact-library-package-live-smoke-20260901.md`.
