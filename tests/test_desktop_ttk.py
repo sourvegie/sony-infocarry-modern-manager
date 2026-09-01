@@ -5,6 +5,7 @@ from infocarry.backup_format import BackupFormatError
 from infocarry.desktop_ttk import (
     format_library_preparation_audit,
     format_library_transfer_plan,
+    format_experimental_library_transfer_review,
     format_offline_conversion_report,
     format_offline_page_preview,
     format_post_write_verification,
@@ -75,6 +76,39 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("Device execution: disabled", summary)
         self.assertIn("Candidate/auth/transaction/sender: none", summary)
         self.assertIn("USB operation performed: no", summary)
+
+    def test_experimental_library_review_shows_guarded_scope_without_send(self):
+        summary = format_experimental_library_transfer_review(
+            {
+                "profile": "one_selected_library_item_root_txt_bmp_txt",
+                "selection": {"logical_item_id": "item-1"},
+                "package": {
+                    "prepared_manifest_sha256": "a" * 64,
+                    "ordered_children": [
+                        {"order": 0, "kind": "txt", "name": "01-introduction.txt", "path": "root\\Book\\01-introduction.txt", "prepared_payload_bytes": 10},
+                        {"order": 1, "kind": "bmp", "name": "02-page-01.bmp", "path": "root\\Book\\02-page-01.bmp", "prepared_payload_bytes": 20},
+                        {"order": 2, "kind": "txt", "name": "03-ending.txt", "path": "root\\Book\\03-ending.txt", "prepared_payload_bytes": 8},
+                    ],
+                },
+                "destination": {"paths": ["root\\Book"], "conflicts": []},
+                "capacity": {"status": "unknown", "available_bytes": None},
+                "fresh_backup": {"destination": "allocated per attempt"},
+                "candidate": {"candidate_blob_sha256": "not sealed"},
+                "operation_identity": {},
+                "transfer_semantics": {},
+                "verification": {},
+                "eligibility": {
+                    "experimental_status": "preview_only",
+                    "execution_action_exposed": False,
+                    "reasons": ["fresh complete verified backup is required"],
+                },
+            }
+        )
+        self.assertIn("EXPERIMENTAL LIBRARY TRANSFER REVIEW", summary)
+        self.assertIn("02-page-01.bmp", summary)
+        self.assertIn("no send action", summary)
+        self.assertIn("automatic retry: no", summary)
+        self.assertIn("Why not hardware-ready", summary)
 
     def test_recovery_messages_cover_common_read_only_failures(self):
         self.assertIn("not enough free disk space", friendly_error_message(OSError(errno.ENOSPC, "full")))

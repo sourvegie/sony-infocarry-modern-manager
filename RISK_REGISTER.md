@@ -13,7 +13,9 @@ absent from this checkout.
 | ID | Risk | Level | Required treatment and release gate | Status |
 | --- | --- | --- | --- | --- |
 
-Current checkpoint: workflow migration W-001/W-002 is complete at `c1cf621`,
+Current checkpoint: P18-001 capability-driven Experimental Library integration is
+host-only and unexecuted; the exact P17-018 package row is authoritative in
+`CAPABILITY_MATRIX.md`. Workflow migration W-001/W-002 is complete at `c1cf621`,
 PR #2 is merged at `02dc39e`, and PR #3 recording P15-003 completion is merged
 at `ae35ec2`. P16-001 Capture 01 is complete for the exact constrained
 native TXT/BMP/TXT evidence scope. Its complete post-operation raw backup is
@@ -39,7 +41,7 @@ P17-002 explicit prepared-package import/grouped review are complete for their
 offline-only scopes. P17-003 now bridges one exact revalidated Library package
 into a hash-bound candidate/preflight and fake-host workflow only; normal
 device transfer remains disabled.
-The current portable suite is **623 tests** with three
+The current portable suite is **641 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The original P15-001 modern dossier is now correctly reclassified as
@@ -709,3 +711,32 @@ and does not change the production sender, device protocol, authorization,
 one-shot, or post-write controls. P17-019 is **COMPLETE — offline correction
 only** for the already completed exact P17-018 scope; physical opening of the
 three children remains pending and no new hardware operation is authorized.
+
+## P18-001 capability-driven Experimental Library integration (R3/R2)
+
+P18-001 updates the capability authority in `CAPABILITY_MATRIX.md` and keeps
+`CURRENT_STATUS.md` as the current-sprint summary. The matrix corrects the
+historical boundary: constrained root-TXT deletion is live-proven; ordered
+four-TXT and flat TXT/BMP/TXT have constrained proof; and P17-018's exact
+Library package is read-back verified. None of those statements generalizes to
+arbitrary package shapes, nesting, multiple packages, batch, recovery, or
+normal generalized transfer.
+
+The product integration adds only a hash-only review model and a thin isolated
+delegation to the reviewed P17-017 production runner plus P17-019 terminal
+reconciliation. The exact supported product shape is one explicitly grouped
+Library item with `01-introduction.txt`, `02-page-01.bmp`, and
+`03-ending.txt` under `root\\IC_P17_LIBRARY_20260831_03`. The review binds or
+reports the package manifest, child order/kinds/sizes, target absence rule,
+fresh complete backup, native capacity, candidate/transaction/bundle/seal
+identity, full-library-image semantics, explicit `0x0000`, one logical
+transaction maximum, complete post-backup, independent read-back, and no
+automatic retry. Candidate bytes are never presented in the GUI review.
+
+The ttk surface exposes a review action only; it does not import the live
+adapter, construct a sender, request approval, or send `0x101b`. The isolated
+integration entrypoint accepts one immutable operation bundle and delegates
+all safety gates to the canonical runner. Unsupported, stale, conflicting,
+modified, nested, multi-package, and differently shaped items remain
+preview-only with a reason. Future live use still requires a fresh verified
+backup, exact operation-specific approval, and the existing R3 stop boundary.

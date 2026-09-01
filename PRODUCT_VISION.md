@@ -87,8 +87,8 @@ A user can additionally:
 
 - remove one selected disposable or no-longer-needed supported item through a
   separately captured and tested delete path;
-- create any proven folders and multiple records required for one prepared
-  book/content package;
+- review one explicitly prepared package with a proven exact folder and child
+  shape;
 - transfer one prepared supported item after capacity/conflict review; and
 - verify every created or removed record and all affected sidecars.
 
@@ -112,11 +112,17 @@ queue every compatible prepared item. It never means synchronize, delete
 unmatched device content, restore a side, or reproduce the legacy send-all
 operation. Unsupported queued items remain preview-only and cannot be sent.
 
-For both single-item and future queued operations, selection describes the
-logical change set. The underlying ordinary write can still transmit the
-complete candidate InfoCarry model, so the UI must describe the operation as
-library-image preparation, transfer, and full read-back verification rather
-than a file-size-proportional copy.
+For both single-item and future queued operations, selection describes a
+logical Library item; it never means merge or synchronization. The
+authoritative current capability boundary is
+[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). It records that constrained
+root TXT deletion, ordered four-TXT, flat TXT/BMP/TXT, and the exact P17-018
+Library package have their own limited evidence gates. P18-001 adds an
+Experimental review and guarded integration for exactly the P17-018-proven
+Library shape: one root folder with ordered TXT, BMP, TXT children. It reuses
+the reviewed candidate, authorization, one-shot runner, fresh-backup, and
+P17-019 read-back reconciliation path. A selected item is the logical change,
+while the protocol transfers a complete candidate library image.
 
 ### v1.0 — General content manager
 
@@ -161,21 +167,14 @@ while J.3 device-aware planning remains deferred. Arbitrary package transfer,
 normal GUI/CLI exposure, generalized live deletion, and interrupted-write
 recovery remain unproven or prohibited.
 
-The post-smoke offline expansion is now active: the ordered multi-child
-candidate builder accepts the existing multiple-TXT and typed TXT/BMP logical
-models, uses explicit native child templates and parsed `0x0019` capacity
-evidence, and preserves shared records byte-for-byte outside proven layout
-fields. This remains an offline candidate boundary; no multi-child package
-transfer is live-eligible and no package action is exposed in the normal
-interface. Its exact offline authorization binds ordered sources, target
-record identities, native capacity evidence, fixed state, candidate, and
-transaction hashes. The fake-only guarded workflow exercises fresh-backup
-rebuild, one-shot semantics, cooperative deadline, completion, and independent
-read-back failure boundaries. The read-only readiness preview presents ordered
-TXT/BMP contents, sizes, conflicts, candidate/capacity hashes, and no-device
-status without a package action. No native multi-child capture currently
-supports the generalized candidate, so these remain disconnected from live and
-product-facing transfer actions.
+The P18-001 UI surface is deliberately crude and review-only: it reports
+ordered children, sizes, destination/conflicts, fresh-backup and capacity
+requirements, hash-only operation identity, verification requirements, and
+the no-retry policy without exposing authorization or a send control.
+Unsupported combinations, nesting, multiple packages, batch actions,
+generalized deletion, and recovery remain unavailable. Physical opening of
+the exact P17-018 package remains a human acceptance check; interrupted-write
+recovery and broader compatibility remain unresolved.
 
 ## Canonical Desktop Workflow
 

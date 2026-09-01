@@ -1,14 +1,38 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-018 completed one exact, separately authorized Library-package live smoke from merged P17-017; the constrained result is read-back verified, while broader transfer behavior and physical acceptance remain limited or unresolved
+Canonical checkpoint: P18-001 integrates an Experimental review/guard boundary for the exact P17-018-proven Library TXT/BMP/TXT package; no hardware or approval activity occurred
+
+Capability authority: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). This file is the current-sprint view; the matrix is authoritative for exact operation exposure and remaining blockers.
 
 ## Portable offline validation
 
-- 629 passing tests
+- 641 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
+
+## P18-001 current sprint — capability-driven Experimental Library transfer
+
+P18-001 is host/offline-only. It adds a hash-only Experimental review surface
+for exactly one explicitly grouped, fully revalidated Library package with
+`root\\IC_P17_LIBRARY_20260831_03`, `01-introduction.txt`,
+`02-page-01.bmp`, and `03-ending.txt` in that order. The review reports the
+prepared manifest and child sizes, destination and conflicts, fresh-backup
+requirement, candidate/transaction/bundle identity when a sealed preflight is
+provided, complete-candidate-library-image semantics, explicit `0x0000`, one
+logical transaction maximum, no automatic retry, post-backup/read-back, and
+audit provenance without exposing candidate bytes.
+
+The isolated integration delegates to the reviewed P17-017 production runner
+and P17-019 terminal reconciliation; it does not build a parallel writer or
+safety stack. The normal ttk GUI may display the review, but exposes no
+authorization or send action. Unsupported, stale, conflicting, nested,
+multi-package, and differently shaped items remain preview-only with reasons.
+The first integrated path is **READY_FOR_HARDWARE_TEST** after host review;
+offline GUI usability remains **READY_FOR_HUMAN_TEST** until a human checks
+the crude surface. No hardware, approval phrase, sender, or `0x101b` was used
+in P18-001. Physical opening of the exact P17-018 package remains pending.
 
 ## Proven or delivered scopes
 
