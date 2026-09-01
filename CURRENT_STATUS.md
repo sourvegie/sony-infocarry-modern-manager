@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-007 stopped fail-closed before transmission because the merged P17-005 adapter rejected the additional fresh pre-write backup's full archive identity; no sender call or 0x101b transaction occurred
+Canonical checkpoint: P17-008 host-only raw backup-state identity correction is READY_FOR_HARDWARE_TEST; no hardware access, sender call, or 0x101b transaction occurred
 
 ## Portable offline validation
 
-- 591 passing tests
+- 596 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -145,6 +145,23 @@ These are host/offline results only. They do not claim physical-device verificat
   identity boundary; no retry or normalization is permitted. The external
   evidence root and 73-entry v2 preservation manifest remain outside Git; see
   `analysis/phase-13-p17-007-exact-library-package-live-smoke-20260901.md`.
+- P17-008 replaces the P17-005 full archive-manifest equality gate with the
+  reviewed immutable `BackupStateIdentity`. It is derived only after the
+  existing complete/integrity verifier succeeds and binds the exact Sony
+  identity, protocol, canonical eight-object order and roles, filename
+  semantics, lengths, raw hashes, dynamic blob, and fixed-state hashes.
+  Capture archive paths, manifest hash, and acquisition timestamps remain
+  preserved in the full backup/audit records and are reported separately as
+  provenance differences. The isolated P17-005 adapter now accepts an
+  independently captured backup only when this raw identity matches, while
+  still requiring exact candidate bytes, exact transaction bytes, and exact
+  non-provenance bindings before sender construction. Focused fake-host tests
+  cover provenance-only equality and material identity changes; no USB or
+  external evidence was accessed or modified. Independent R3 review passes
+  are recorded in
+  `analysis/phase-13-p17-008-r3-review-20260901.md`. P17-008 is
+  **READY_FOR_HARDWARE_TEST** only; a later task must perform a new fresh
+  preflight and obtain new operation-specific approval.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -321,18 +338,17 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 No further device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
 P17-001/P17-002 are complete only as offline Library planning/review, and
-P17-003/P17-004/P17-005 are host-ready only for their exact constrained
-package bridges and fresh-preflight/one-shot boundary. Any later hardware
-operation must be
+P17-003/P17-004/P17-005/P17-008 are host-ready only for their exact
+constrained package bridges and fresh-preflight/one-shot boundary. Any later
+hardware operation must be
 separately briefed, use a new fresh read-only preflight and evidence root,
 obtain new operation-specific owner approval, and remain outside normal
 GUI/CLI transfer. Native global timestamp rewriting, numeric completion
 decoding, operation-specific capacity semantics, interrupted-write recovery,
 arbitrary package hardware compatibility, and batch execution remain
-unresolved or disabled. The next task requires Project Lead review of the
-P17-005 exact fresh-backup identity conflict; do not relax the gate, reuse the
-approval phrases, or attempt another P17-007 transaction until that review is
-complete.
+unresolved or disabled. The P17-008 correction does not authorize a live
+operation or reuse the P17-007 approval phrases; a later operation must use a
+new fresh preflight and new exact operation-specific approval.
 
 ## Canonical reading order
 

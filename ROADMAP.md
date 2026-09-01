@@ -95,7 +95,7 @@ milestone is not complete merely because exploratory code exists.
 | 10. Package and release | v0.1 hobby package complete; later refresh pending | Canonical checkout, reproducible wheel, guide, tests, and smoke evidence |
 | 11. Offline conversion foundation | First slice complete; deprioritized | Strict authoring, logical pages, and initial tabs exist; only core-transfer prerequisites proceed now |
 | 12. Prove general new-file transfer and selective delete | Active — I.6 is complete for one constrained live package smoke; I.7 add-01, the isolated display-history/Mark-1/Bookmark-1 state experiment, and one stateful legacy deletion effect are independently verified; H.2's corrected offline gate and one constrained modern root-TXT delete smoke are complete for their supported scopes; I.8 logical multiple-TXT, I.9 typed TXT/BMP, and I.10 flat ebook planning are complete offline | The preserved I7 comparison now has zero unexplained non-timestamp differences after timestamp-only normalization; arbitrary package behavior, generalized deletion, request-4 completion, physical recovery, and normal product exposure remain unproven |
-| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; P17-003 exact single-package bridge is host-ready; P17-007 stopped before transmission at the P17-005 fresh-backup identity gate; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review. One exact revalidated TXT/BMP/TXT package can be bridged into the reviewed host-only candidate/preflight path; device-aware execution remains blocked pending resolution of the exact fresh-backup identity conflict |
+| 13. Integrate Library, Prepare, and staged transfer | J.0–J.3 and P17-002 offline package planning complete; P17-003 exact single-package bridge and P17-008 raw-state identity correction are host-ready; P17-007 remains historical fail-closed evidence; enabled transfer remains deferred | The Library supports non-destructive TXT/package import, explicit grouped package review, and offline selected/all-ready queue review. One exact revalidated TXT/BMP/TXT package can be bridged into the reviewed host-only candidate/preflight path; the corrected one-shot boundary is ready for a separately approved hardware test, not normal product transfer |
 
 Current Phase 12/I.7/H.2 status: native capacity semantics are resolved offline,
 and commit `09452be` adds actual parsed `0x0019` response binding, native-only
@@ -2028,3 +2028,33 @@ preservation manifest replays with zero mismatches. P17-007 is
 P17-005 identity-policy conflict under independent R3 review before any new
 live approval or transmission. The sanitized result is recorded in
 `analysis/phase-13-p17-007-exact-library-package-live-smoke-20260901.md`.
+
+## Phase 13 — P17-008 verified raw backup-state identity correction (2026-09-01)
+
+P17-008 resolves the P17-007 host-boundary conflict without modifying the
+preserved P17-007 evidence or normalizing either backup. The new
+framework-independent `BackupStateIdentity` is derived only after the existing
+complete backup/integrity verifier succeeds. It binds the stable Sony/protocol
+identity, canonical ordered eight-object set with role/key/command, expected
+raw backup filename semantics, requested and received lengths, and SHA-256 for
+every object; it also explicitly binds the dynamic blob length/hash and the
+five fixed-state hashes.
+
+Archive directory, manifest SHA-256, created/updated/received timestamps, and
+verification time remain in the full backup and evidence records. They are
+reported by a deterministic comparison audit as provenance differences and do
+not participate in raw-state equality. Any device/protocol/object-set,
+role/command/filename semantics, length, raw hash, dynamic, or fixed-state
+difference remains fail-closed.
+
+The isolated P17-005 adapter now uses this identity for the sealed-baseline
+and fresh-pre-write state gate. It still reconstructs the package from the
+fresh verified backup and requires exact candidate bytes, exact transaction
+bytes, and exact non-provenance bindings before constructing its one-shot
+sender. The success evidence manifest separately preserves both complete
+backup reports and the raw-state/provenance comparison. No USB, hardware, or
+external evidence was accessed by P17-008; the normal GUI/CLI remains
+unconnected. Focused identity and adapter tests, the complete portable suite,
+and the evidence-exclusion audit pass. P17-008 is
+**READY_FOR_HARDWARE_TEST** only; a later task must perform a new fresh
+preflight and obtain new operation-specific approval.

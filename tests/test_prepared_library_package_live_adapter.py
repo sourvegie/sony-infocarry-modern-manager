@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -355,7 +355,48 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         )
         self.assertIsNotNone(manifest["before_backup"])
         self.assertIsNotNone(manifest["after_backup"])
+        self.assertTrue(manifest["backup_state_comparison"]["raw_state_equal"])
+        self.assertIn(
+            "archive_directory",
+            {
+                entry["field"]
+                for entry in manifest["backup_state_comparison"][
+                    "provenance_differences"
+                ]
+            },
+        )
         self.assertEqual(manifest["result_audit"]["state"], "readback_verified")
+
+    def test_independent_same_state_backup_provenance_does_not_block_execution(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        captures = setup["captures"]
+
+        def recaptured_with_new_provenance(destination, **kwargs):
+            captures.append(Path(destination))
+            blob = setup["current"]["candidate"].candidate_blob if len(captures) >= 3 else setup["preflight"].candidate.core.baseline.data
+            _write_archive(
+                destination,
+                blob,
+                self.now - timedelta(seconds=len(captures)),
+                fixed_state=setup["fixed_state"],
+            )
+
+        setup["capture"] = recaptured_with_new_provenance
+        result = self._execute(setup)
+        self.assertEqual(result.completion, 0)
+        self.assertEqual(self._sender_calls(setup), 1)
+        self.assertTrue(result.audit["backup_state_comparison"]["raw_state_equal"])
+        self.assertTrue(result.audit["backup_state_comparison"]["provenance_differences"])
+        self.assertIn(
+            "manifest_sha256",
+            {
+                entry["field"]
+                for entry in result.audit["backup_state_comparison"][
+                    "provenance_differences"
+                ]
+            },
+        )
     def test_execute_requires_injected_backend_at_approved_boundary(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)

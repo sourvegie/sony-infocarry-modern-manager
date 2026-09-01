@@ -96,6 +96,11 @@ def _write_archive(
         "created_at_utc": timestamp.isoformat(),
         "updated_at_utc": timestamp.isoformat(),
         "device": {"vendor_id": "0x054c", "product_id": "0x001e"},
+        "protocol": {
+            "direction": "device-to-host",
+            "command_header": "uint16le command + uint32le requested_length",
+            "source": "static analysis of VicTwo.dll",
+        },
         "objects": entries,
     }
     (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")

@@ -268,6 +268,21 @@ identity binding can be narrowed to an explicitly reviewed raw-state identity;
 no retry, phrase reinterpretation, or corrective write is allowed. See
 `analysis/phase-13-p17-007-exact-library-package-live-smoke-20260901.md`.
 
+P17-008 resolves that policy at the host boundary with a reviewed immutable
+`BackupStateIdentity`. It is derived only after complete backup/integrity
+verification and includes the stable device/protocol identity, canonical
+ordered object roles/keys/commands, expected filename semantics, lengths, raw
+hashes, dynamic blob length/hash, and fixed-state hashes. Archive path,
+manifest hash, and acquisition/verification timestamps remain preserved and
+are reported separately as provenance; they cannot bypass any material raw
+state mismatch. The isolated P17-005 adapter still requires exact candidate
+bytes, exact transaction bytes, and all non-provenance bindings before its
+one-shot sender boundary. Focused tests cover both provenance-only equality
+and fail-closed material changes. P17-008 is **READY_FOR_HARDWARE_TEST** after
+independent R3 review and CI, with no hardware access or approval consumption;
+a later task must use a new fresh preflight and new operation-specific
+approval.
+
 ## Immediate Risk Order
 
 1. Preserve R3's narrow Milestone G live-smoke evidence without enabling a
