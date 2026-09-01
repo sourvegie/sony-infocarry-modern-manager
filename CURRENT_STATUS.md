@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-017 is correcting the P17-016 attempt-output lifecycle on a dedicated R3 task branch; P17-015 remains the last merged host-only READY_FOR_HARDWARE_TEST checkpoint, while P17-010, P17-012, P17-014, and P17-016 remain historical safe fail-closed records
+Canonical checkpoint: P17-018 completed one exact, separately authorized Library-package live smoke from merged P17-017; the constrained result is read-back verified, while broader transfer behavior and physical acceptance remain limited or unresolved
 
 ## Portable offline validation
 
@@ -564,6 +564,59 @@ subsequent safety failure cannot be retried. P17-017 is
 R3 review, local validation, and passing PR #22 CI at commit `0e6eef4`. No hardware, sender,
 approval phrase, or `0x101b` is authorized.
 
+## P17-018 exact Library-package one-shot live smoke (R3)
+
+P17-017 was merged into canonical `main` at
+`7039c33dca9b06a987cb40340837cb938272c73d` before the P17-018 live attempt.
+The owner supplied both exact P17-018 phrases for immutable safety bundle
+`3d2461ead56a7a339cde100f64f1530769d0bd2195f80f0a76d75f62322e126d`.
+The runner allocated a new direct-child attempt root under the bounded
+external namespace; the prior P17-018 preflight output root did not collide
+with it and no bundle input was rebuilt or substituted.
+
+Final immediate revalidation detected exactly one Sony `054c:001e` at bus
+2/address 3. The fresh native `0x0019` response was 64 bytes with raw SHA-256
+`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662` and a
+parsed capacity of 3,145,728 bytes. The complete eight-object pre-write
+backup has manifest SHA-256
+`e655f9781546cf15955a8170f9ce062f331f3acb74fbb00a30789cada8678850`,
+dynamic-blob SHA-256
+`e3ac59cb5586a5dc35ea04f6bf24f5cc6509931761ece01bc2605a717335e741`,
+and raw-state identity
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`.
+The target `root\IC_P17_LIBRARY_20260831_03` was absent. Candidate growth
+was 16,036 bytes, leaving 1,054,436 bytes of post-candidate capacity margin.
+
+The runner consumed the single-use approval, made one logical sender call,
+and transmitted exactly one `0x101b`. Completion was explicit integer
+`0x0000`; the wrapper recorded 20 bulk-write calls. No retry was attempted.
+The complete post-operation backup has manifest SHA-256
+`4bdf5c96f97cdd87cd7fb67b5cf219fb2a5eea67e2cafde4e1500c8c5e3edf77` and
+dynamic-blob SHA-256 equal to the candidate
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`.
+Independent read-back verified exactly these four additions, in order: the
+`_03` folder, `01-introduction.txt`, `02-page-01.bmp`, and `03-ending.txt`;
+331 shared paths remained unchanged, with no removals. Fixed state and the
+verified six-reference display-history rebase also passed. The transaction
+SHA-256 is
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`.
+
+The external evidence is preserved at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-018-library-package-live-execution-20260901-01/p17-018-attempt-151c253bd93d4635bf159fd4e081b18f/`.
+Its 29-entry `preservation-manifest-v1.json` replays with zero mismatches.
+A surrounding post-run wrapper emitted a misleading local failure record
+after the production runner had already returned `readback_verified`: its
+second disk-only verifier received the preflight core instead of
+`preflight.candidate.core`. The original diagnostic remains unchanged and
+the corrected offline reconciliation records the distinction; no retry or
+additional device access occurred.
+
+P17-018 is **COMPLETE** only for this exact one-folder Library package and
+the ordered TXT/BMP/TXT children above. This result does not establish
+general package compatibility, interrupted-write recovery, or normal
+GUI/CLI transfer exposure. Human physical opening of the folder and all
+three children remains the final physical acceptance check.
+
 ## Current product safety boundary
 
 Normal product-facing controls remain disabled for:
@@ -595,11 +648,11 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P17-017 is the current offline R3 correction and is
-**READY_FOR_HARDWARE_TEST** only as a host checkpoint; PR #22 CI passes before
-any future fresh hardware preflight. No device-changing
-transaction, approval phrase, or hardware retry is authorized by this
-checkpoint. P17-016 remains a historical safe pre-send output-binding abort;
+P17-018 is complete only for the exact constrained operation recorded above.
+No additional live attempt, approval phrase, retry, or broader transfer is
+authorized by this checkpoint. Any future device operation requires a new
+task, fresh read-only preflight, and new operation-specific approval. P17-016
+remains a historical safe pre-send output-binding abort;
 P17-015 remains the prior host-only bundle checkpoint; P17-014 remains a
 historical safe pre-send abort; P17-012 remains a historical host-only
 preflight; P16-003B remains complete only for its exact package; and
