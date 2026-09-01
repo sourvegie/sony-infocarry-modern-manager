@@ -2344,3 +2344,40 @@ package profile, following strong independent R3 review, complete portable
 validation, CI, and exclusion audits. A later task must perform a new fresh
 read-only preflight and obtain new operation-specific approval; no live
 operation is authorized by this checkpoint.
+
+## Phase 13 — P17-017 separate immutable identity from attempt evidence (2026-09-01)
+
+P17-016 exposed a systemic orchestration defect in the P17-015/P17-016
+bundle lifecycle. The immutable bundle bound concrete fresh-before,
+post-operation, and result-manifest paths. The authorized preflight-only run
+occupied the fresh-before path, so the later live attempt was guaranteed to
+fail its own output-collision gate before device access. The preserved
+P17-016 failure record remains outside Git and is not modified.
+
+P17-017 corrects the invariant without weakening operation authorization.
+The new bundle self-hash binds all safety-relevant inputs and behavior:
+device and raw-state identity, package/catalog/template, target and absence
+rule, candidate and transaction, capacity/state/freshness checks,
+timestamp policy, exact `0x101b`, explicit integer `0x0000`, one sender
+maximum, and no retry. It binds only a fixed evidence-output layout, not
+acquisition paths. The runner receives one external evidence namespace and
+atomically reserves a new direct child below an external non-symlink namespace
+outside the source repository, then derives fixed before/after/manifest paths
+beneath that root. It rejects collisions and out-of-namespace requests before
+any runtime callback. Once exact approval is accepted for live mode, the
+one-shot claim is consumed before device callbacks, so safety failures expire
+the attempt without retry; preflight-only and safe pre-callback cancellation
+remain non-consuming.
+
+The actual production entrypoint was exercised through injected fake
+boundaries. The same sealed safety bundle first ran in preflight-only mode,
+creating one evidence root and reaching the sender boundary with zero sends;
+it then ran in live mode with a distinct auto-reserved root, sent exactly
+once, accepted explicit `0x0000`, captured post-backup, and passed independent
+read-back. Output paths are present in the result audit/manifest only as
+attempt provenance; candidate and transaction bytes remain external.
+
+P17-017 is **READY_FOR_HARDWARE_TEST** as a host-only correction after strong
+independent R3 review and local validation; CI remains the PR gate. No
+hardware, real sender, approval phrase, or `0x101b` was used. A later live task may use one newly prepared bundle through one
+preflight and one approved live attempt without rebundling between modes.

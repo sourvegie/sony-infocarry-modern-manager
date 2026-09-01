@@ -106,6 +106,8 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
     ):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
+        evidence_namespace = root / "evidence-namespace"
+        evidence_namespace.mkdir()
         baseline_blob, _template_blob = _template_blobs()
         fixed_state = {
             command: b"\x00" * 64
@@ -136,7 +138,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             captures.append(Path(destination))
             if capture_error and len(captures) >= 3:
                 raise OSError("simulated post-operation backup failure")
-            blob = baseline_blob if len(captures) <= 2 else (
+            blob = baseline_blob if Path(destination).name != "backup-after-0001" else (
                 current["candidate"].candidate_blob
                 if after_blob is None
                 else after_blob
@@ -201,9 +203,6 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             report_path,
             template_path=template_path,
             capacity_response_path=capacity_path,
-            fresh_backup_destination=root / "execution-before",
-            post_operation_destination=root / "after",
-            evidence_manifest_destination=root / "evidence/result-manifest.json",
         )
         bundle_path = bundle.write(root / "operation-bundle.json")
         bundle = load_operation_bundle(bundle_path)
@@ -226,6 +225,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "previewed": previewed,
             "backend": backend,
             "fixed_state": fixed_state,
+            "evidence_namespace": evidence_namespace,
             "common": common,
         }
 
@@ -263,40 +263,14 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                     setup["report_path"],
                     template_path=setup["template_path"],
                     capacity_response_path=setup["capacity_path"],
-                    fresh_backup_destination=setup["root"] / "execution-before",
-                    post_operation_destination=setup["root"] / "after",
-                    evidence_manifest_destination=setup["root"] / "evidence/result-manifest.json",
                 )
             except OperationBundleError as exc:
                 raise PreparedLibraryPackageLiveAdapterError(
                     str(exc), stage="operation_bundle", state="failed"
                 ) from exc
-        output_overrides = {
-            key: overrides.pop(key)
-            for key in (
-                "backup_destination",
-                "post_operation_destination",
-                "evidence_manifest_destination",
-            )
-            if key in overrides
-        }
-        if output_overrides:
-            bundle = replace(
-                bundle,
-                fresh_backup_destination=str(
-                    output_overrides.get("backup_destination", bundle.fresh_backup_destination)
-                ),
-                post_operation_destination=str(
-                    output_overrides.get(
-                        "post_operation_destination", bundle.post_operation_destination
-                    )
-                ),
-                evidence_manifest_destination=str(
-                    output_overrides.get(
-                        "evidence_manifest_destination", bundle.evidence_manifest_destination
-                    )
-                ),
-            )
+        evidence_namespace = overrides.pop(
+            "evidence_namespace", setup["evidence_namespace"]
+        )
         arguments = {
             "owner_approval": P17_005_OWNER_APPROVAL,
             "confirmation": P17_005_CONFIRMATION,
@@ -304,6 +278,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "query_capacity": setup["common"]["query_capacity"],
             "backend": setup["backend"],
             "capture": setup["capture"],
+            "evidence_namespace": evidence_namespace,
             "now": self.now,
             "max_age_seconds": None,
         }
@@ -636,13 +611,11 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         result = self._execute(setup)
         self.assertEqual(result.completion, 0)
         self.assertTrue(result.verification.success)
-        self.assertEqual(
-            result.before_backup.directory,
-            (setup["root"] / "execution-before").resolve(),
-        )
+        self.assertEqual(result.before_backup.directory.name, "backup-before-0001")
+        self.assertEqual(result.after_backup.directory.name, "backup-after-0001")
         self.assertEqual(self._sender_calls(setup), 1)
 
-    def test_pre_send_failure_does_not_consume_approval_or_one_shot_claim(self):
+    def test_pre_send_failure_after_claim_expires_approval_without_retry(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
 
@@ -650,30 +623,8 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             self._execute(setup, detect_device=lambda: (0x054C, 0x001F))
         self.assertEqual(raised.exception.stage, "preflight_revalidation")
         self.assertFalse(raised.exception.write_started)
+        self.assertTrue(raised.exception.audit["approval_consumed"])
         self.assertEqual(self._sender_calls(setup), 0)
-
-        # A pre-send gate failure does not consume the sealed one-shot claim;
-        # the same exact preflight may still be attempted after revalidation.
-        result = self._execute(setup)
-        self.assertEqual(result.completion, 0)
-        self.assertEqual(self._sender_calls(setup), 1)
-        self.assertEqual(len(setup["captures"]), 3)
-        manifest = json.loads(
-            (setup["root"] / "evidence/result-manifest.json").read_text(encoding="utf-8")
-        )
-        self.assertIsNotNone(manifest["before_backup"])
-        self.assertIsNotNone(manifest["after_backup"])
-        self.assertTrue(manifest["backup_state_comparison"]["raw_state_equal"])
-        self.assertIn(
-            "archive_directory",
-            {
-                entry["field"]
-                for entry in manifest["backup_state_comparison"][
-                    "provenance_differences"
-                ]
-            },
-        )
-        self.assertEqual(manifest["result_audit"]["state"], "readback_verified")
 
         setup["captures"].clear()
         with self.assertRaisesRegex(
@@ -682,11 +633,32 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         ):
             self._execute(
                 setup,
-                backup_destination=setup["root"] / "execution-before-second",
-                post_operation_destination=setup["root"] / "after-second",
-                evidence_manifest_destination=setup["root"] / "evidence/second.json",
+                evidence_namespace=setup["evidence_namespace"],
             )
-        self.assertEqual(self._sender_calls(setup), 1)
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertEqual(setup["captures"], [])
+
+    def test_p17_017_namespace_must_be_external_and_non_symlink(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        setup["captures"].clear()
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "outside the source repository",
+        ):
+            self._execute(setup, evidence_namespace=Path(__file__).resolve().parents[1])
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertEqual(setup["captures"], [])
+
+        link = setup["root"] / "evidence-link"
+        link.symlink_to(setup["evidence_namespace"], target_is_directory=True)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "must not be a symlink",
+        ):
+            self._execute(setup, evidence_namespace=link)
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertEqual(setup["captures"], [])
 
     def test_independent_same_state_backup_provenance_does_not_block_execution(self):
         setup = self._setup()
@@ -695,7 +667,11 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
 
         def recaptured_with_new_provenance(destination, **kwargs):
             captures.append(Path(destination))
-            blob = setup["current"]["candidate"].candidate_blob if len(captures) >= 3 else setup["preflight"].candidate.core.baseline.data
+            blob = (
+                setup["current"]["candidate"].candidate_blob
+                if Path(destination).name == "backup-after-0001"
+                else setup["preflight"].candidate.core.baseline.data
+            )
             _write_archive(
                 destination,
                 blob,
@@ -721,8 +697,9 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
     def test_execute_requires_injected_backend_at_approved_boundary(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
-        with self.assertRaisesRegex(PreparedLibraryPackageLiveAdapterError, "write backend"):
+        with self.assertRaisesRegex(PreparedLibraryPackageLiveAdapterError, "write backend") as raised:
             self._execute(setup, backend=None)
+        self.assertTrue(raised.exception.audit["approval_consumed"])
         self.assertEqual(self._sender_calls(setup), 0)
 
     def test_after_start_cancel_timeout_disconnect_and_completion_failures_are_terminal(self):
@@ -858,12 +835,20 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 now=self.now,
                 max_age_seconds=None,
             )
+        path = setup["root"] / "manual-evidence/preservation-manifest-v1.json"
+        manifest_audit = json.loads(json.dumps(result.audit))
+        manifest_audit["evidence_outputs"] = {
+            "root": str(path.parent),
+            "before_backup": str(path.parent / "backup-before-0001"),
+            "after_backup": str(path.parent / "backup-after-0001"),
+            "manifest": str(path),
+        }
         path = write_prepared_library_package_evidence_manifest(
-            setup["root"] / "evidence/preservation-manifest-v1.json",
+            path,
             preflight=setup["preflight"],
             before_backup=result.before_backup,
             after_backup=result.after_backup,
-            result_audit=result.audit,
+            result_audit=manifest_audit,
             now=self.now,
             max_age_seconds=None,
         )
@@ -876,7 +861,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 preflight=setup["preflight"],
                 before_backup=result.before_backup,
                 after_backup=result.after_backup,
-                result_audit=result.audit,
+                result_audit=manifest_audit,
                 now=self.now,
                 max_age_seconds=None,
             )
@@ -928,6 +913,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 query_capacity=capacity,
                 backend=setup["backend"],
                 capture=capture,
+                evidence_namespace=setup["evidence_namespace"],
                 now=self.now,
                 max_age_seconds=None,
             )
@@ -946,7 +932,10 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 self.assertEqual(len(setup["captures"]), 3)
                 self.assertEqual(
                     json.loads(
-                        (setup["root"] / "evidence/result-manifest.json").read_text(
+                        Path(
+                            setup["captures"][-1].parent
+                            / "result-manifest-0001.json"
+                        ).read_text(
                             encoding="utf-8"
                         )
                     )["result_audit"]["completion"],
@@ -958,11 +947,97 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.addCleanup(setup["temporary"].cleanup)
         with self.assertRaisesRegex(
             PreparedLibraryPackageLiveAdapterError,
-            "write backend",
+            "preflight-only",
         ):
-            self._execute(setup, backend=None)
+            self._execute(setup, backend=None, preflight_only=True)
         self.assertEqual(len(setup["captures"]), 2)
         self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_p17_016_preflight_output_does_not_deadlock_same_bundle_live_attempt(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "preflight-only",
+        ) as preflight_error:
+            self._execute(setup, backend=None, preflight_only=True)
+        preflight_root = Path(
+            preflight_error.exception.audit["evidence_outputs"]["root"]
+        )
+        self.assertTrue(preflight_root.is_dir())
+        self.assertEqual(self._sender_calls(setup), 0)
+
+        result = self._execute(setup)
+        live_root = Path(result.audit["evidence_outputs"]["root"])
+        self.assertTrue(result.verification.success)
+        self.assertEqual(result.completion, 0)
+        self.assertNotEqual(live_root, preflight_root)
+        self.assertTrue((preflight_root / "backup-before-0001").is_dir())
+        self.assertTrue((live_root / "backup-before-0001").is_dir())
+        self.assertTrue((live_root / "backup-after-0001").is_dir())
+        self.assertTrue((live_root / "result-manifest-0001.json").is_file())
+        self.assertEqual(self._sender_calls(setup), 1)
+
+    def test_p17_017_bundle_identity_excludes_attempt_output_paths(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        first = setup["bundle"]
+        second = PreparedLibraryPackageOperationBundle.from_sealed_report(
+            setup["report_path"],
+            template_path=setup["template_path"],
+            capacity_response_path=setup["capacity_path"],
+        )
+        self.assertEqual(first.bundle_sha256, second.bundle_sha256)
+        serialized = first.to_dict()
+        self.assertNotIn("outputs", serialized)
+        self.assertIn("evidence_output_policy", serialized)
+
+    def test_p17_017_output_root_collision_and_path_escape_stop_before_callbacks(self):
+        for name, allocator in (
+            (
+                "collision",
+                lambda namespace: namespace / "already-used",
+            ),
+            (
+                "escape",
+                lambda namespace: namespace.parent / "outside-namespace",
+            ),
+        ):
+            with self.subTest(name=name):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+                collision = setup["evidence_namespace"] / "already-used"
+                collision.mkdir()
+                events = []
+
+                def detect():
+                    events.append("detect")
+                    return (0x054C, 0x001E)
+
+                with self.assertRaisesRegex(
+                    PreparedLibraryPackageLiveAdapterError,
+                    "evidence root",
+                ):
+                    self._execute(
+                        setup,
+                        evidence_root_allocator=allocator,
+                        detect_device=detect,
+                    )
+                self.assertEqual(events, [])
+                self.assertEqual(len(setup["captures"]), 1)
+                self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_result_manifest_records_reserved_outputs_without_binding_them_to_bundle(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+        outputs = result.audit["evidence_outputs"]
+        manifest_path = Path(outputs["manifest"])
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["result_audit"]["evidence_outputs"], outputs)
+        self.assertNotIn("evidence_outputs", setup["bundle"].to_dict())
+        self.assertNotIn(outputs["root"], json.dumps(setup["bundle"].to_dict()))
 
     def test_operation_bundle_rejects_p17_014_report_with_p17_012_baseline_substitution(self):
         setup = self._setup()
@@ -1021,9 +1096,6 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             ("library-binding", lambda value: value.update(library_binding_sha256="0" * 64)),
             ("package-child", lambda value: value["package_children"][0].update(source_sha256="0" * 64)),
             ("expected-post-state", lambda value: value["expected_post_operation"].update(mutation=True)),
-            ("fresh-output", lambda value: value["outputs"].update(fresh_backup_destination=str(Path(value["outputs"]["fresh_backup_destination"]).parent))),
-            ("post-output", lambda value: value["outputs"].update(post_operation_destination=str(Path(value["outputs"]["post_operation_destination"]).parent))),
-            ("evidence-output", lambda value: value["outputs"].update(evidence_manifest_destination=value["artifacts"]["sealed_report"]["path"])),
         )
         for name, mutate in mutations:
             with self.subTest(name=name):
@@ -1051,6 +1123,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             ("timestamp-policy", lambda value: value.update(timestamp_policy="legacy_global_rewrite")),
             ("endpoint", lambda value: value.update(bulk_out_endpoint=2)),
             ("child-order", lambda value: value["package_children"][0].update(order=1)),
+            ("evidence-output-policy", lambda value: value["evidence_output_policy"].update(manifest_name="changed.json")),
         ):
             with self.subTest(name=name):
                 setup = self._setup()
