@@ -33,6 +33,10 @@ from .library_transfer_plan import (
     SELECTION_SELECTED,
     build_library_transfer_queue_plan,
 )
+from .experimental_library_transfer_review import (
+    ExperimentalLibraryTransferReviewError,
+    build_experimental_library_transfer_review,
+)
 from .runtime import DesktopRuntimeError, check_desktop_runtime
 from .write_gate import verify_fresh_backup
 
@@ -310,6 +314,63 @@ def format_library_transfer_plan(report: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
+    """Render the narrow Experimental review without exposing a send action."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Experimental Library transfer review must be a mapping")
+    package = report.get("package", {})
+    destination = report.get("destination", {})
+    capacity = report.get("capacity", {})
+    candidate = report.get("candidate", {})
+    identity = report.get("operation_identity", {})
+    eligibility = report.get("eligibility", {})
+    verification = report.get("verification", {})
+    children = package.get("ordered_children", [])
+    lines = [
+        "EXPERIMENTAL LIBRARY TRANSFER REVIEW — no device access or device change occurred",
+        "",
+        f"Status: {eligibility.get('experimental_status', 'preview_only')}",
+        f"Profile: {report.get('profile', 'unknown')}",
+        f"Logical selection: {report.get('selection', {}).get('logical_item_id', 'none')} (one grouped package)",
+        "",
+        "Ordered package contents:",
+    ]
+    for child in children:
+        lines.append(
+            f"  {child.get('order', '?')}. {child.get('kind', '?')} "
+            f"{child.get('name', '?')} — {child.get('path', '?')} — "
+            f"{child.get('prepared_payload_bytes', '?')} B prepared"
+        )
+    lines.extend(
+        (
+            "",
+            f"Destination: {', '.join(destination.get('paths', [])) or 'unknown'}",
+            f"Conflicts: {'yes' if destination.get('conflicts') else 'no'}",
+            f"Prepared manifest SHA-256: {package.get('prepared_manifest_sha256', 'not sealed')}",
+            f"Capacity: {capacity.get('status', 'unknown')}; available {capacity.get('available_bytes', 'unknown')}; "
+            f"candidate growth {capacity.get('candidate_growth_bytes', 'not sealed')}; "
+            f"margin {capacity.get('remaining_growth_bytes', 'not sealed')}",
+            f"Fresh complete backup: required; destination {report.get('fresh_backup', {}).get('destination', 'not specified')}",
+            f"Candidate SHA-256: {candidate.get('candidate_blob_sha256', 'not sealed')}",
+            f"Operation bundle SHA-256: {identity.get('bundle_sha256', 'not sealed')}",
+            f"Transaction SHA-256: {identity.get('transaction_sha256', 'not sealed')}",
+            f"Preflight seal SHA-256: {identity.get('preflight_seal_sha256', 'not sealed')}",
+            "Physical semantics: one logical selection transfers a complete candidate library image",
+            "Safety: one logical transaction maximum; exact confirmation; explicit 0x0000 only; automatic retry: no",
+            f"Post-operation: complete backup + independent read-back + {verification.get('wrapper_reconciliation', 'reviewed reconciliation')}",
+            f"Audit location: {verification.get('audit_location') or 'allocated under bounded external evidence namespace'}",
+            f"Execution action exposed: {'yes' if eligibility.get('execution_action_exposed') else 'no'} "
+            "(no send action in this review surface)",
+        )
+    )
+    reasons = eligibility.get("reasons", [])
+    if reasons:
+        lines.append(f"Why not hardware-ready: {'; '.join(str(reason) for reason in reasons)}")
+    lines.append("Normal GUI/CLI transfer: no send control; review only")
+    return "\n".join(lines)
+
+
 def format_prepared_package_readiness_preview(report: Dict[str, Any]) -> str:
     """Render an ordered package readiness report without enabling transfer."""
 
@@ -442,15 +503,19 @@ def launch_ttk_desktop() -> None:
     library_all_queue_button = ttk.Button(
         library_toolbar, text="Review all ready (offline)…", state="disabled"
     )
+    library_experimental_button = ttk.Button(
+        library_toolbar, text="Review Experimental transfer…", state="disabled"
+    )
     library_import_button.pack(side="left", padx=3)
     library_package_import_button.pack(side="left", padx=3)
     library_remove_button.pack(side="left", padx=3)
     library_prepare_button.pack(side="left", padx=3)
     library_selected_queue_button.pack(side="left", padx=3)
     library_all_queue_button.pack(side="left", padx=3)
+    library_experimental_button.pack(side="left", padx=3)
     ttk.Label(
         library_toolbar,
-        text="offline only — no transfer action",
+        text="Experimental review only — no send action",
         foreground="#6b4f00",
     ).pack(side="right", padx=(12, 0))
 
@@ -643,7 +708,8 @@ def launch_ttk_desktop() -> None:
         f"Runtime: {runtime.description}\n"
         "Supported device: Sony InfoCarry VNW-V15 (VID 054c, PID 001e)\n"
         "Device Manager writes are limited to the guarded existing-TXT workflow.\n"
-        "Prepared package import is a grouped offline review only; it does not enable transfer.\n"
+        "The exact proven Library TXT/BMP/TXT package is Experimental: this build shows a guarded review only; no send action is exposed.\n"
+        "Unsupported package shapes remain unavailable; recovery is unresolved and automatic write retry is never used.\n"
         "Text Converter and Ebook Renderer are offline-only in this milestone.\n\n"
         "Recovery: preserve any before/after backup, do not retry a started write, "
         "and use only read-only detection or backup checks after a disconnect.\n"
@@ -669,10 +735,12 @@ def launch_ttk_desktop() -> None:
             library_prepare_button.configure(state="disabled")
             library_selected_queue_button.configure(state="disabled")
             library_all_queue_button.configure(state="disabled")
+            library_experimental_button.configure(state="disabled")
             return
         library_import_button.configure(state="normal")
         library_package_import_button.configure(state="normal")
         library_all_queue_button.configure(state="normal")
+        library_experimental_button.configure(state="disabled")
         for item in library_catalog.items:
             target = ""
             if item.package is not None and item.target_folder_name:
@@ -741,6 +809,9 @@ def launch_ttk_desktop() -> None:
         )
         library_all_queue_button.configure(
             state="normal" if library_catalog is not None else "disabled"
+        )
+        library_experimental_button.configure(
+            state="normal" if enabled else "disabled"
         )
         if item is None:
             library_detail_var.set("Select a Library item")
@@ -926,6 +997,54 @@ def launch_ttk_desktop() -> None:
             "Offline queue review displayed; candidate construction and device transfer are disabled"
         )
 
+    def library_experimental_review_action() -> None:
+        """Show the narrow Experimental boundary without a send action."""
+
+        if library_catalog is None:
+            return
+        selected_items = selected_library_items()
+        if len(selected_items) != 1:
+            library_status_var.set(
+                "Experimental review requires exactly one Library item; no device access"
+            )
+            return
+        backup = None
+        backup_directory = model.state.backup_directory
+        if backup_directory is not None:
+            try:
+                backup = verify_fresh_backup(
+                    backup_directory,
+                    now=None,
+                    max_age_seconds=None,
+                )
+            except Exception as exc:
+                library_status_var.set(
+                    f"Experimental review has no verified backup: {exc}"
+                )
+        try:
+            plan = build_library_transfer_queue_plan(
+                library_catalog,
+                selected_item_ids=[selected_items[0].item_id],
+                selection_mode=SELECTION_SELECTED,
+                backup=backup,
+            )
+            review = build_experimental_library_transfer_review(plan.to_dict())
+        except (LibraryTransferPlanError, ExperimentalLibraryTransferReviewError) as exc:
+            _set_readonly_text(
+                library_report,
+                "EXPERIMENTAL LIBRARY TRANSFER REVIEW — blocked; no device change occurred\n\n"
+                + str(exc),
+            )
+            library_status_var.set(f"Experimental review blocked; no device access: {exc}")
+            return
+        _set_readonly_text(
+            library_report,
+            format_experimental_library_transfer_review(review.to_dict()),
+        )
+        library_status_var.set(
+            "Experimental review displayed; fresh backup/candidate/authorization and device execution remain guarded"
+        )
+
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
     library_import_button.configure(command=library_import_action)
     library_package_import_button.configure(command=library_package_import_action)
@@ -937,6 +1056,7 @@ def launch_ttk_desktop() -> None:
     library_all_queue_button.configure(
         command=lambda: library_transfer_review_action(SELECTION_ALL_READY)
     )
+    library_experimental_button.configure(command=library_experimental_review_action)
     refresh_library_view()
 
     def load_conversion_preview() -> None:
@@ -1030,6 +1150,7 @@ def launch_ttk_desktop() -> None:
                 library_prepare_button,
                 library_selected_queue_button,
                 library_all_queue_button,
+                library_experimental_button,
             ):
                 button.configure(state="disabled")
         else:
