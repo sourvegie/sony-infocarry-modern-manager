@@ -468,3 +468,34 @@ capacity, and complete-backup revalidation, then obtain both exact phrases
 for this operation. A stale preflight, raw-state mismatch, target collision,
 capacity discrepancy, malformed evidence, or any ambiguous completion remains
 terminal and must not trigger retry or corrective writing.
+
+## P17-011 corrected-clock fresh Library-package preflight (R3)
+
+P17-011 completed one authorized read-only sequence in a new external,
+non-overwriting evidence root. Exactly one Sony `054c:001e` was detected; the
+native `0x0019` response was 64 bytes with SHA-256
+`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662` and a
+3,145,728-byte parsed capacity; and one complete eight-object backup was
+verified. The backup manifest SHA-256 is
+`c2a53b4c2e45f4a536229d82b61ef479c769c170df1137cd4ee4765998663293`, and its
+raw-state identity equals the P17-009 baseline at
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`. The
+target remains absent.
+
+The backup was finalized at `2026-09-01T05:41:51.261937Z` and verified fresh
+against a reference sampled at `2026-09-01T05:42:19Z`, after finalization, as
+required by the corrected P17-010 clock rule. Acquisition paths, manifest
+hashes, and timestamps remain preserved as provenance; six provenance
+differences were reported rather than normalized away. The exact candidate
+and transaction remain hash-bound, with 16,036 bytes of growth and 1,054,436
+bytes of post-candidate capacity margin.
+
+The hash-only preflight is externally sealed and the 65-entry preservation
+manifest replays with zero mismatches. P17-011 records zero sender calls,
+backend writes, approval consumption, USB transmission, and device change.
+The new approval phrases are sealed but were not requested or consumed.
+P17-011 is **READY_FOR_HARDWARE_TEST** only at this host-only boundary; a
+later task must repeat fresh read-only preflight and obtain new exact approval.
+Physical compatibility, native numeric completion semantics,
+operation-specific capacity semantics, and interrupted-write recovery remain
+open. See the P17-011 analysis dossier and R3 review.
