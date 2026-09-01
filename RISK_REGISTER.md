@@ -645,8 +645,8 @@ and cannot be retried; preflight-only and safe cancellation before callbacks
 remain non-consuming.
 
 P17-017 is host-only and is **READY_FOR_HARDWARE_TEST** after focused/full
-validation, exclusion audit, and independent R3 review; CI remains the PR
-gate. No hardware, sender, approval phrase, or `0x101b` is authorized by this
+validation, exclusion audit, independent R3 review, and passing PR #22 CI at
+commit `0e6eef4`. No hardware, sender, approval phrase, or `0x101b` is authorized by this
 correction. Physical compatibility,
 completion semantics, interrupted-write recovery, and broader package
 behavior remain unresolved.

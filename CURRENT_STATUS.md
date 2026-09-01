@@ -561,7 +561,7 @@ preflight-only does not consume the one-shot claim. Once exact approval is
 accepted for live mode, the claim is consumed before device callbacks, so a
 subsequent safety failure cannot be retried. P17-017 is
 **READY_FOR_HARDWARE_TEST** for this host-only correction after independent
-R3 review and local validation; CI remains the PR gate. No hardware, sender,
+R3 review, local validation, and passing PR #22 CI at commit `0e6eef4`. No hardware, sender,
 approval phrase, or `0x101b` is authorized.
 
 ## Current product safety boundary
@@ -596,8 +596,8 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 ## Next approved engineering task
 
 P17-017 is the current offline R3 correction and is
-**READY_FOR_HARDWARE_TEST** only as a host checkpoint; CI must still pass on
-the review PR before any future fresh hardware preflight. No device-changing
+**READY_FOR_HARDWARE_TEST** only as a host checkpoint; PR #22 CI passes before
+any future fresh hardware preflight. No device-changing
 transaction, approval phrase, or hardware retry is authorized by this
 checkpoint. P17-016 remains a historical safe pre-send output-binding abort;
 P17-015 remains the prior host-only bundle checkpoint; P17-014 remains a

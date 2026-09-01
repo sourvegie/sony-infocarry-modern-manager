@@ -105,6 +105,6 @@ evidence-dependent skips. No hardware, real sender, approval phrase, or
   interrupted-write recovery, and all broader package/transfer behavior.
 
 Final status is `READY_FOR_HARDWARE_TEST` after strong independent R3 review,
-full validation, diff/exclusion audits, and the local pre-push checks recorded
-below. CI remains a repository gate to confirm on the review PR. This
-correction itself authorizes no hardware access and requests no owner phrases.
+full validation, diff/exclusion audits, local checks, and passing PR #22 CI at
+commit `0e6eef4968006c312e57d3799b77d7725408f9b1`. This correction itself
+authorizes no hardware access and requests no owner phrases.

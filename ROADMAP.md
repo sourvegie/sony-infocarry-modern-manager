@@ -2378,6 +2378,7 @@ read-back. Output paths are present in the result audit/manifest only as
 attempt provenance; candidate and transaction bytes remain external.
 
 P17-017 is **READY_FOR_HARDWARE_TEST** as a host-only correction after strong
-independent R3 review and local validation; CI remains the PR gate. No
+independent R3 review, local validation, and passing PR #22 CI at commit
+`0e6eef4`. No
 hardware, real sender, approval phrase, or `0x101b` was used. A later live task may use one newly prepared bundle through one
 preflight and one approved live attempt without rebundling between modes.
