@@ -564,3 +564,21 @@ does not access hardware or reuse the expired P17-012 phrases. A later fresh
 operation requires a new complete read-only preflight and new exact approval;
 P17-013 is **READY_FOR_HARDWARE_TEST** only after independent R3 review and
 merge.
+
+## P17-014 live attempt — fail-closed before hardware (R3)
+
+The authorized P17-014 one-shot attempt did not reach device detection. The
+offline caller supplied the P17-012 baseline archive while loading the P17-014
+sealed report, so the strict loader rejected the reconstructed core seal:
+`core_preflight_seal_sha256 does not match the reconstructed core`. This is a
+host-side binding/setup failure, not evidence of a device discrepancy.
+
+The external non-overwriting failure record and its preservation manifest are
+under
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+The audit proves `write_started=false`, `sender_calls=0`,
+`backend_write_calls=0`, `approval_consumed=false`, no completion, no
+`0x101b`, no device access, no mutation, and no retry. The supplied approval
+is expired. Control requires correcting the offline pairing, independently
+reviewing it, and performing a new fresh read-only preflight with new exact
+owner phrases before any future sender construction.

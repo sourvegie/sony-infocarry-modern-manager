@@ -471,6 +471,30 @@ correction is reviewed and merged. No hardware access, sender construction,
 approval consumption, retry, or `0x101b` transmission occurred in P17-013;
 the prior operation phrases are not reusable.
 
+## P17-014 exact Library-package live attempt (R3)
+
+The P17-014 host-only preflight had passed its independent review, but the
+authorized live attempt was stopped before any hardware callback. The caller
+paired the P17-014 sealed report with the older P17-012 offline baseline
+instead of the P17-014 preflight backup; the strict canonical loader therefore
+reported `core_preflight_seal_sha256 does not match the reconstructed core`.
+This is a host preparation failure, not device-state evidence.
+
+The non-overwriting external abort record is at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+It records no device detection, capacity query, backup capture, sender
+construction, approval consumption, backend write, or `0x101b`; the device was
+not accessed and no state changed. The failure audit SHA-256 is
+`f59801c1b582a820c985a03663395ed8e9123dff911b68579a9b30940d7554d2`, and its
+preservation manifest SHA-256 is
+`3a293f48e790e5b6f055e4a3dc486b90a0c8704482497139dc0e57ddc42264ae`.
+
+The owner-supplied P17-014 phrases were not consumed. That approval is
+expired and must not be reused. P17-014 has no physical execution result;
+another attempt requires an offline correction, a fresh preflight, and new
+operation-specific approval. Physical opening of the three children remains
+unperformed.
+
 ## Current product safety boundary
 
 Normal product-facing controls remain disabled for:
@@ -502,12 +526,13 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P17-012 is complete through the final host-only revalidation and is stopped at
-**READY_FOR_HARDWARE_TEST**. Its new exact phrases are documented in the
-P17-012 dossier but were not requested, supplied, or consumed. A later live
-task must use the sealed exact operation, perform any required final
-revalidation, and obtain both phrases in a new owner message; it must remain
-outside normal GUI/CLI transfer. P16-003B remains complete only for its exact package,
+P17-014's authorized live attempt is a historical safe pre-send abort and is
+not a hardware result. The immediate next task must correct the offline
+sealed-report/baseline pairing, obtain independent R3 review, and then request
+a newly approved fresh preflight before any future live attempt. The expired
+P17-014 phrases must not be reused. P17-012 remains complete through its final
+host-only revalidation and is stopped at **READY_FOR_HARDWARE_TEST**. P16-003B
+remains complete only for its exact package,
 P17-001/P17-002 remain offline Library planning/review, and all broader
 package, batch, timestamp, completion-decoding, and interrupted-write claims
 remain unresolved or disabled.

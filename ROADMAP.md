@@ -2285,3 +2285,23 @@ duplicate JSON keys, and the absence of callback/sender activity on failure.
 The correction is host-only; a later fresh operation must obtain new
 operation-specific approval. P17-013 is **READY_FOR_HARDWARE_TEST** only
 after independent R3 review, CI, and merge.
+
+## Phase 13 — P17-014 exact Library-package live attempt (2026-09-01)
+
+The P17-014 host-only preflight was independently reviewed as ready, but the
+authorized live attempt was fail-closed before hardware access. The offline
+caller paired the P17-014 sealed report with the P17-012 baseline archive;
+the canonical strict loader rejected the mismatch because
+`core_preflight_seal_sha256` did not match the reconstructed core. No device
+detection, capacity query, backup, sender construction, approval consumption,
+backend write, `0x101b`, or mutation occurred. No retry was made.
+
+The non-overwriting external audit is preserved at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+It records the failure audit SHA-256
+`f59801c1b582a820c985a03663395ed8e9123dff911b68579a9b30940d7554d2` and
+preservation-manifest SHA-256
+`3a293f48e790e5b6f055e4a3dc486b90a0c8704482497139dc0e57ddc42264ae`.
+The owner-supplied phrases were not consumed and are expired. A future
+attempt requires an offline pairing correction, fresh R3 review, a new fresh
+preflight, and new exact approval.
