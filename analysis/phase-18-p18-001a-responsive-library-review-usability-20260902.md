@@ -1,7 +1,7 @@
 # P18-001A — Responsive Library review usability correction
 
-Date: 2026-09-02  
-Base: canonical `main` at merged PR #25 commit `e1e9f7d`  
+Date: 2026-09-02
+Base: canonical `main` at merged PR #25 commit `e1e9f7d`
 Risk: R1 presentation with R2 safety/status visibility regression risk
 
 ## Scope and disposition

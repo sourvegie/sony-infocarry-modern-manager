@@ -41,7 +41,7 @@ P17-002 explicit prepared-package import/grouped review are complete for their
 offline-only scopes. P17-003 now bridges one exact revalidated Library package
 into a hash-bound candidate/preflight and fake-host workflow only; normal
 device transfer remains disabled.
-The current portable suite is **641 tests** with three
+The current portable suite is **643 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The original P15-001 modern dossier is now correctly reclassified as
