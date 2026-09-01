@@ -1,8 +1,13 @@
 import errno
+import inspect
 import unittest
 
 from infocarry.backup_format import BackupFormatError
 from infocarry.desktop_ttk import (
+    LIBRARY_DEFAULT_GEOMETRY,
+    LIBRARY_DETAIL_MIN_WIDTH,
+    LIBRARY_LIST_MIN_WIDTH,
+    LIBRARY_MINIMUM_GEOMETRY,
     format_library_preparation_audit,
     format_library_transfer_plan,
     format_experimental_library_transfer_review,
@@ -11,12 +16,34 @@ from infocarry.desktop_ttk import (
     format_post_write_verification,
     format_text_replacement_preview,
     friendly_error_message,
+    launch_ttk_desktop,
 )
 from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_library_review_geometry_is_explicit_and_usable(self):
+        self.assertEqual(LIBRARY_MINIMUM_GEOMETRY, (980, 680))
+        self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[0], LIBRARY_MINIMUM_GEOMETRY[0])
+        self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[1], LIBRARY_MINIMUM_GEOMETRY[1])
+        self.assertGreaterEqual(LIBRARY_LIST_MIN_WIDTH, 320)
+        self.assertGreaterEqual(LIBRARY_DETAIL_MIN_WIDTH, 400)
+
+    def test_library_layout_uses_scrollable_portable_ttk_controls(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertNotIn("minsize=", source)
+        for control in (
+            "library_tree_horizontal_scroll",
+            "library_report_horizontal_scroll",
+            "library_safety_notice",
+            "library_status_label",
+            "library_experimental_group",
+            "keep_library_sash_in_bounds",
+            "sashpos",
+        ):
+            self.assertIn(control, source)
+
     def test_library_prepare_summary_is_explicitly_offline(self):
         summary = format_library_preparation_audit(
             {
@@ -106,6 +133,12 @@ class DesktopTtkMessageTests(unittest.TestCase):
         )
         self.assertIn("EXPERIMENTAL LIBRARY TRANSFER REVIEW", summary)
         self.assertIn("02-page-01.bmp", summary)
+        self.assertIn("Status", summary)
+        self.assertIn("Package contents (authoritative order)", summary)
+        self.assertIn("Destination and conflicts", summary)
+        self.assertIn("Capacity and backup state", summary)
+        self.assertIn("Safety rules", summary)
+        self.assertIn("Technical details", summary)
         self.assertIn("no send action", summary)
         self.assertIn("automatic retry: no", summary)
         self.assertIn("Why not hardware-ready", summary)

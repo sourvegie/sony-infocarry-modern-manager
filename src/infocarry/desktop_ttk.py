@@ -41,6 +41,15 @@ from .runtime import DesktopRuntimeError, check_desktop_runtime
 from .write_gate import verify_fresh_backup
 
 
+# The Library review is designed for an ordinary non-maximized macOS window.
+# Keep this geometry explicit so visual checks and future layout changes share
+# one documented boundary.
+LIBRARY_MINIMUM_GEOMETRY = (980, 680)
+LIBRARY_DEFAULT_GEOMETRY = (1120, 760)
+LIBRARY_LIST_MIN_WIDTH = 360
+LIBRARY_DETAIL_MIN_WIDTH = 440
+
+
 def _backup_destination(parent: Path) -> Path:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     candidate = parent.expanduser().resolve() / f"InfoCarry-backup-{stamp}"
@@ -330,11 +339,12 @@ def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
     lines = [
         "EXPERIMENTAL LIBRARY TRANSFER REVIEW — no device access or device change occurred",
         "",
-        f"Status: {eligibility.get('experimental_status', 'preview_only')}",
-        f"Profile: {report.get('profile', 'unknown')}",
-        f"Logical selection: {report.get('selection', {}).get('logical_item_id', 'none')} (one grouped package)",
+        "Status",
+        f"  Eligibility: {eligibility.get('experimental_status', 'preview_only')}",
+        f"  Profile: {report.get('profile', 'unknown')}",
+        f"  Logical selection: {report.get('selection', {}).get('logical_item_id', 'none')} (one grouped package)",
         "",
-        "Ordered package contents:",
+        "Package contents (authoritative order)",
     ]
     for child in children:
         lines.append(
@@ -345,29 +355,41 @@ def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
     lines.extend(
         (
             "",
-            f"Destination: {', '.join(destination.get('paths', [])) or 'unknown'}",
-            f"Conflicts: {'yes' if destination.get('conflicts') else 'no'}",
-            f"Prepared manifest SHA-256: {package.get('prepared_manifest_sha256', 'not sealed')}",
-            f"Capacity: {capacity.get('status', 'unknown')}; available {capacity.get('available_bytes', 'unknown')}; "
+            "Destination and conflicts",
+            f"  Paths: {', '.join(destination.get('paths', [])) or 'unknown'}",
+            f"  Conflicts: {'yes' if destination.get('conflicts') else 'no'}",
+            "",
+            "Capacity and backup state",
+            f"  Capacity: {capacity.get('status', 'unknown')}; available {capacity.get('available_bytes', 'unknown')}; "
             f"candidate growth {capacity.get('candidate_growth_bytes', 'not sealed')}; "
             f"margin {capacity.get('remaining_growth_bytes', 'not sealed')}",
-            f"Fresh complete backup: required; destination {report.get('fresh_backup', {}).get('destination', 'not specified')}",
-            f"Candidate SHA-256: {candidate.get('candidate_blob_sha256', 'not sealed')}",
-            f"Operation bundle SHA-256: {identity.get('bundle_sha256', 'not sealed')}",
-            f"Transaction SHA-256: {identity.get('transaction_sha256', 'not sealed')}",
-            f"Preflight seal SHA-256: {identity.get('preflight_seal_sha256', 'not sealed')}",
-            "Physical semantics: one logical selection transfers a complete candidate library image",
-            "Safety: one logical transaction maximum; exact confirmation; explicit 0x0000 only; automatic retry: no",
-            f"Post-operation: complete backup + independent read-back + {verification.get('wrapper_reconciliation', 'reviewed reconciliation')}",
-            f"Audit location: {verification.get('audit_location') or 'allocated under bounded external evidence namespace'}",
-            f"Execution action exposed: {'yes' if eligibility.get('execution_action_exposed') else 'no'} "
-            "(no send action in this review surface)",
+            f"  Fresh complete backup: required; destination {report.get('fresh_backup', {}).get('destination', 'not specified')}",
+            "",
+            "Safety rules",
+            "  Physical semantics: one logical selection transfers a complete candidate library image",
+            "  One logical transaction maximum; exact confirmation; explicit 0x0000 only",
+            "  automatic retry: no; post-operation complete backup + independent read-back required",
+            f"  Verification: {verification.get('wrapper_reconciliation', 'reviewed reconciliation')}",
+            "",
+            "Technical details",
+            f"  Prepared manifest SHA-256: {package.get('prepared_manifest_sha256', 'not sealed')}",
+            f"  Candidate SHA-256: {candidate.get('candidate_blob_sha256', 'not sealed')}",
+            f"  Operation bundle SHA-256: {identity.get('bundle_sha256', 'not sealed')}",
+            f"  Transaction SHA-256: {identity.get('transaction_sha256', 'not sealed')}",
+            f"  Preflight seal SHA-256: {identity.get('preflight_seal_sha256', 'not sealed')}",
+            f"  Audit location: {verification.get('audit_location') or 'allocated under bounded external evidence namespace'}",
+            f"  Execution action exposed: {'yes' if eligibility.get('execution_action_exposed') else 'no'} (no send action in this review surface)",
         )
     )
     reasons = eligibility.get("reasons", [])
-    if reasons:
-        lines.append(f"Why not hardware-ready: {'; '.join(str(reason) for reason in reasons)}")
-    lines.append("Normal GUI/CLI transfer: no send control; review only")
+    lines.extend(
+        (
+            "",
+            "Why not hardware-ready / why transfer is unavailable",
+            f"  {'; '.join(str(reason) for reason in reasons) if reasons else 'Execution is intentionally unavailable in this review-only surface'}",
+            "Normal GUI/CLI transfer: no send control; review only",
+        )
+    )
     return "\n".join(lines)
 
 
@@ -433,8 +455,8 @@ def launch_ttk_desktop() -> None:
 
     root = tk.Tk()
     root.title("Sony InfoCarry Manager")
-    root.geometry("1080x680")
-    root.minsize(860, 520)
+    root.geometry(f"{LIBRARY_DEFAULT_GEOMETRY[0]}x{LIBRARY_DEFAULT_GEOMETRY[1]}")
+    root.minsize(*LIBRARY_MINIMUM_GEOMETRY)
     model = DesktopWorkflowModel()
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
@@ -480,85 +502,193 @@ def launch_ttk_desktop() -> None:
     )
     library_detail_var = tk.StringVar(value="Select a Library item")
     library_tree_items: Dict[str, str] = {}
-    library_toolbar = ttk.Frame(library_tab)
-    library_toolbar.pack(fill="x", pady=(0, 8))
     ttk.Label(
-        library_toolbar,
+        library_tab,
         text="Local Library",
         font=("TkDefaultFont", 14, "bold"),
-    ).pack(side="left", padx=(0, 16))
-    library_import_button = ttk.Button(library_toolbar, text="Import TXT…")
+    ).pack(anchor="w", pady=(0, 4))
+    library_toolbar = ttk.Frame(library_tab)
+    library_toolbar.pack(fill="x", pady=(0, 8))
+    library_toolbar.columnconfigure(1, weight=1)
+    library_import_group = ttk.LabelFrame(library_toolbar, text="Import / prepare")
+    library_import_group.grid(row=0, column=0, sticky="w")
+    library_review_group = ttk.LabelFrame(library_toolbar, text="Offline review")
+    library_review_group.grid(row=1, column=0, sticky="w", pady=(4, 0))
+    library_experimental_group = ttk.LabelFrame(
+        library_toolbar, text="Experimental boundary — review only"
+    )
+    library_experimental_group.grid(
+        row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
+    )
+    library_experimental_group.columnconfigure(1, weight=1)
+    library_import_button = ttk.Button(library_import_group, text="Import TXT…")
     library_package_import_button = ttk.Button(
-        library_toolbar, text="Import prepared package…"
+        library_import_group, text="Import prepared package…"
     )
     library_remove_button = ttk.Button(
-        library_toolbar, text="Remove from Library", state="disabled"
+        library_import_group, text="Remove from Library", state="disabled"
     )
     library_prepare_button = ttk.Button(
-        library_toolbar, text="Prepare…", state="disabled"
+        library_import_group, text="Prepare…", state="disabled"
     )
     library_selected_queue_button = ttk.Button(
-        library_toolbar, text="Review selected (offline)…", state="disabled"
+        library_review_group, text="Review selected (offline)…", state="disabled"
     )
     library_all_queue_button = ttk.Button(
-        library_toolbar, text="Review all ready (offline)…", state="disabled"
+        library_review_group, text="Review all ready (offline)…", state="disabled"
     )
     library_experimental_button = ttk.Button(
-        library_toolbar, text="Review Experimental transfer…", state="disabled"
+        library_experimental_group,
+        text="Review Experimental transfer…",
+        state="disabled",
     )
-    library_import_button.pack(side="left", padx=3)
-    library_package_import_button.pack(side="left", padx=3)
-    library_remove_button.pack(side="left", padx=3)
-    library_prepare_button.pack(side="left", padx=3)
-    library_selected_queue_button.pack(side="left", padx=3)
-    library_all_queue_button.pack(side="left", padx=3)
-    library_experimental_button.pack(side="left", padx=3)
+    for button in (
+        library_import_button,
+        library_package_import_button,
+        library_remove_button,
+        library_prepare_button,
+    ):
+        button.pack(side="left", padx=3, pady=3)
+    for button in (library_selected_queue_button, library_all_queue_button):
+        button.pack(side="left", padx=3, pady=3)
+    library_experimental_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
     ttk.Label(
-        library_toolbar,
-        text="Experimental review only — no send action",
+        library_experimental_group,
+        text="No approval or send action is available here.",
         foreground="#6b4f00",
-    ).pack(side="right", padx=(12, 0))
+        anchor="w",
+    ).grid(row=0, column=1, sticky="ew", padx=(8, 8), pady=3)
+    library_safety_notice = ttk.Label(
+        library_toolbar,
+        text=(
+            "Experimental review only — no send action. Fresh backup, candidate, "
+            "authorization, and device execution remain separately guarded."
+        ),
+        foreground="#6b4f00",
+        anchor="w",
+        justify="left",
+        wraplength=900,
+    )
+    library_safety_notice.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+
+    library_status_frame = ttk.Frame(library_tab)
+    library_status_frame.pack(side="bottom", fill="x", pady=(8, 0))
+    library_status_label = ttk.Label(
+        library_status_frame,
+        textvariable=library_status_var,
+        anchor="w",
+        justify="left",
+        wraplength=900,
+    )
+    library_status_label.pack(anchor="w", fill="x")
 
     library_content = ttk.Panedwindow(library_tab, orient="horizontal")
     library_content.pack(fill="both", expand=True)
-    library_list_frame = ttk.Frame(library_content, padding=(0, 0, 8, 0))
-    library_detail_frame = ttk.Frame(library_content, padding=(8, 0, 0, 0))
+    # ttk::panedwindow has weighted panes but no portable minsize option.
+    # Explicit child widths provide useful requested minima without relying on
+    # the classic tk::panedwindow API.
+    library_list_frame = ttk.Frame(
+        library_content, width=LIBRARY_LIST_MIN_WIDTH, padding=(0, 0, 8, 0)
+    )
+    library_detail_frame = ttk.Frame(
+        library_content, width=LIBRARY_DETAIL_MIN_WIDTH, padding=(8, 0, 0, 0)
+    )
     library_content.add(library_list_frame, weight=3)
     library_content.add(library_detail_frame, weight=2)
+    library_list_frame.columnconfigure(0, weight=1)
+    library_list_frame.rowconfigure(0, weight=1)
     library_tree = ttk.Treeview(
         library_list_frame,
-        columns=("state", "source", "target"),
+        columns=("state", "shape", "source", "target"),
         show="tree headings",
         selectmode="extended",
     )
     library_tree.heading("#0", text="Item")
     library_tree.heading("state", text="State")
+    library_tree.heading("shape", text="Shape")
     library_tree.heading("source", text="Source")
     library_tree.heading("target", text="Target")
-    library_tree.column("#0", minwidth=160, width=220, stretch=True)
-    library_tree.column("state", minwidth=90, width=100, stretch=False)
-    library_tree.column("source", minwidth=180, width=260, stretch=True)
-    library_tree.column("target", minwidth=180, width=260, stretch=True)
+    library_tree.column("#0", minwidth=150, width=190, stretch=True)
+    library_tree.column("state", minwidth=78, width=88, stretch=False)
+    library_tree.column("shape", minwidth=92, width=110, stretch=False)
+    library_tree.column("source", minwidth=150, width=190, stretch=True)
+    library_tree.column("target", minwidth=180, width=230, stretch=True)
     library_tree_scroll = ttk.Scrollbar(
         library_list_frame, orient="vertical", command=library_tree.yview
     )
-    library_tree.configure(yscrollcommand=library_tree_scroll.set)
-    library_tree.pack(side="left", fill="both", expand=True)
-    library_tree_scroll.pack(side="right", fill="y")
-    ttk.Label(library_detail_frame, text="Library selection").pack(anchor="w")
-    ttk.Label(
+    library_tree_horizontal_scroll = ttk.Scrollbar(
+        library_list_frame, orient="horizontal", command=library_tree.xview
+    )
+    library_tree.configure(
+        yscrollcommand=library_tree_scroll.set,
+        xscrollcommand=library_tree_horizontal_scroll.set,
+    )
+    library_tree.grid(row=0, column=0, sticky="nsew")
+    library_tree_scroll.grid(row=0, column=1, sticky="ns")
+    library_tree_horizontal_scroll.grid(row=1, column=0, sticky="ew")
+    library_detail_frame.columnconfigure(0, weight=1)
+    library_detail_frame.rowconfigure(2, weight=1)
+    library_detail_heading = ttk.Label(library_detail_frame, text="Library selection")
+    library_detail_heading.grid(row=0, column=0, sticky="w")
+    library_detail_label = ttk.Label(
         library_detail_frame,
         textvariable=library_detail_var,
-        wraplength=380,
-    ).pack(anchor="w", fill="x", pady=(2, 10))
-    library_report = tk.Text(library_detail_frame, height=20, width=48, wrap="word")
-    library_report.pack(fill="both", expand=True)
+        wraplength=420,
+        justify="left",
+    )
+    library_detail_label.grid(row=1, column=0, sticky="ew", pady=(2, 10))
+    library_report_frame = ttk.Frame(library_detail_frame)
+    library_report_frame.grid(row=2, column=0, sticky="nsew")
+    library_report_frame.columnconfigure(0, weight=1)
+    library_report_frame.rowconfigure(0, weight=1)
+    library_report = tk.Text(
+        library_report_frame, height=20, width=48, wrap="none", undo=False
+    )
+    library_report_vertical_scroll = ttk.Scrollbar(
+        library_report_frame, orient="vertical", command=library_report.yview
+    )
+    library_report_horizontal_scroll = ttk.Scrollbar(
+        library_report_frame, orient="horizontal", command=library_report.xview
+    )
+    library_report.configure(
+        yscrollcommand=library_report_vertical_scroll.set,
+        xscrollcommand=library_report_horizontal_scroll.set,
+    )
+    library_report.grid(row=0, column=0, sticky="nsew")
+    library_report_vertical_scroll.grid(row=0, column=1, sticky="ns")
+    library_report_horizontal_scroll.grid(row=1, column=0, sticky="ew")
     library_report.configure(state="disabled")
-    ttk.Label(
-        library_detail_frame,
-        textvariable=library_status_var,
-        wraplength=520,
-    ).pack(anchor="w", fill="x", pady=(8, 0))
+
+    def update_library_responsive_labels(_event: Any = None) -> None:
+        """Keep safety and status text readable as the window is resized."""
+
+        available_width = max(320, library_tab.winfo_width() - 24)
+        library_safety_notice.configure(wraplength=available_width)
+        library_status_label.configure(wraplength=available_width)
+        detail_width = max(260, library_detail_frame.winfo_width() - 20)
+        library_detail_label.configure(wraplength=detail_width)
+
+    def keep_library_sash_in_bounds(_event: Any = None) -> None:
+        """Keep both Library panes useful while retaining a draggable sash."""
+
+        try:
+            total_width = library_content.winfo_width()
+            current_position = library_content.sashpos(0)
+        except tk.TclError:
+            return
+        minimum_position = LIBRARY_LIST_MIN_WIDTH
+        maximum_position = total_width - LIBRARY_DETAIL_MIN_WIDTH
+        if maximum_position < minimum_position:
+            return
+        bounded_position = max(
+            minimum_position, min(current_position, maximum_position)
+        )
+        if bounded_position != current_position:
+            library_content.sashpos(0, bounded_position)
+
+    library_tab.bind("<Configure>", update_library_responsive_labels)
+    library_content.bind("<Configure>", keep_library_sash_in_bounds)
+    library_content.bind("<ButtonRelease-1>", keep_library_sash_in_bounds)
 
     toolbar = ttk.Frame(device_tab, padding=(10, 10, 10, 6))
     toolbar.pack(fill="x")
@@ -743,15 +873,17 @@ def launch_ttk_desktop() -> None:
         library_experimental_button.configure(state="disabled")
         for item in library_catalog.items:
             target = ""
+            shape = "TXT"
             if item.package is not None and item.target_folder_name:
                 target = f"root\\{item.target_folder_name} ({len(item.package.children)} children)"
+                shape = "/".join(child.kind.upper() for child in item.package.children)
             elif item.target_folder_name and item.target_child_name:
                 target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
             tree_item = library_tree.insert(
                 "",
                 "end",
                 text=item.source_filename,
-                values=(item.state, item.source_path, target),
+                values=(item.state, shape, item.source_filename, target),
             )
             library_tree_items[tree_item] = item.item_id
         show_library_selection()

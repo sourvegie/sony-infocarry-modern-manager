@@ -34,6 +34,25 @@ cd ${PROJECT_ROOT}
 If the window is blank or the old Tk deprecation warning appears, close it and
 launch with the command above. Do not use the macOS system `python3`.
 
+## Library review layout
+
+The supported Library review geometry is a minimum of `980x680` pixels and a
+default opening size of `1120x760`. The toolbar uses separate grouped rows for
+**Import / prepare**, **Offline review**, and the **Experimental boundary —
+review only**. The persistent Experimental notice and bottom status wrap when
+the window narrows. The Library list/detail divider is user-adjustable; its
+pane minima are 360 and 440 pixels, enforced on resize and sash release. The
+table uses concise filenames,
+shape, state, and target values. Select an item to see full paths, hashes,
+ordered children, and diagnostics in the scrollable detail report.
+
+For the human visual check, open the Library tab at `980x680`, confirm every
+action label, the no-send notice, the table headers, the detail heading, and
+the bottom status are readable, then drag the sash toward each pane in turn.
+Resize to `1120x760` or larger and confirm the same information remains
+visible without losing selection or keyboard focus. The Experimental review
+must continue to show no approval or send control.
+
 ## Read-only workflow
 
 1. Connect one InfoCarry and close the legacy Windows manager before starting
