@@ -50,6 +50,25 @@ technical details, and why the transfer is unavailable. It retains exact
 hashes and paths; the technical section keeps long values out of the primary
 status summary.
 
+## Independent review
+
+The first independent R1/R2 review found two implementation issues: an
+unsupported ttk `minsize` pane option and possible horizontal competition
+between the Offline review and Experimental groups. The implementation
+replaced `minsize` with supported child width requests, moved the Experimental
+group to a full-width row, and added a bounded `sashpos` clamp. A follow-up
+review also found trailing whitespace in this record and a stale `641` count in
+the risk register; both were corrected in commit `4669357`.
+
+The final independent re-review at
+`466935734a7487379629c845b99f9b3137f08f7f` is **PASS —
+READY_FOR_HUMAN_TEST**. It confirmed Tk 9 compatibility, the `980x680`
+minimum, grouped toolbar, sash bounds, scrollbars, persistent safety/status
+text, concise table/detail separation, GUI/live-adapter isolation, and no
+P18-002 scope leakage. It also confirmed 10 focused tests, 643 full-suite
+tests with 3 intentional skips, compilation of 181 Python files, and clean
+`git diff --check`. No hardware or external evidence was accessed.
+
 ## Evidence classifications and boundaries
 
 - **Verified:** the change is limited to `desktop_ttk.py`, its formatter/UI
