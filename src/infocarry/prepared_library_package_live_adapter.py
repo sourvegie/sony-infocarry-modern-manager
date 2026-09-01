@@ -22,7 +22,7 @@ from pathlib import Path
 import time
 from threading import Lock
 from types import MappingProxyType
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, NoReturn, Optional
 from uuid import uuid4
 
 from .backup_format import ParsedBackupBlob, parse_backup_blob
@@ -1359,6 +1359,233 @@ class PreparedLibraryPackageLiveResult:
     audit: Mapping[str, Any]
 
 
+P17_019_WRAPPER_RESULT_FORMAT = (
+    "infocarry-p17-019-library-package-live-result-reconciliation-v1"
+)
+
+
+class PreparedLibraryPackageLiveResultReconciliationError(RuntimeError):
+    """Terminal post-run reconciliation failure; no retry is permitted."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        stage: str,
+        audit: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.stage = stage
+        self.automatic_retry_allowed = False
+        self.audit = dict(audit or {})
+        self.audit.setdefault("automatic_retry_allowed", False)
+
+
+@dataclass(frozen=True)
+class PreparedLibraryPackageLiveWrapperResult:
+    """Successful terminal wrapper result after a second disk-only check.
+
+    The production runner remains the source of the device-operation result.
+    This record adds only the surrounding wrapper's independent read-back
+    conclusion.  It deliberately reports one logical sender operation and a
+    separately named low-level bulk-write count; the latter is never treated
+    as a sender-call count.
+    """
+
+    runner_result: PreparedLibraryPackageLiveResult
+    verification: PreparedMultiPackageReadback
+    audit: Mapping[str, Any]
+
+    @property
+    def state(self) -> str:
+        return "readback_verified"
+
+    @property
+    def completion(self) -> int:
+        return self.runner_result.completion
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.audit)
+
+
+def reconcile_prepared_library_package_live_result(
+    result: PreparedLibraryPackageLiveResult,
+    *,
+    low_level_bulk_write_calls: Optional[int] = None,
+    now: Optional[datetime] = None,
+    max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+) -> PreparedLibraryPackageLiveWrapperResult:
+    """Reconcile one successful runner result without touching hardware.
+
+    This is the reviewed boundary for a surrounding execution/audit wrapper.
+    It accepts only the production runner's successful result shape and uses
+    ``result.preflight.candidate.core`` for the independent disk verifier.
+    Passing the enclosing preflight object is intentionally impossible at
+    this boundary.  The runner has already enforced the device, approval,
+    one-shot, completion, and post-backup gates; this function never sends,
+    retries, or changes device state.
+    """
+
+    failure_audit = {
+        "format": P17_019_WRAPPER_RESULT_FORMAT,
+        "state": "failed",
+        "automatic_retry_allowed": False,
+    }
+
+    def fail(message: str, stage: str) -> NoReturn:
+        failure_audit["stage"] = stage
+        raise PreparedLibraryPackageLiveResultReconciliationError(
+            message,
+            stage=stage,
+            audit=failure_audit,
+        )
+
+    if not isinstance(result, PreparedLibraryPackageLiveResult):
+        fail("runner result is not a PreparedLibraryPackageLiveResult", "result")
+    if isinstance(result.completion, bool) or not isinstance(result.completion, int):
+        fail("runner completion is missing or malformed", "completion")
+    if result.completion != 0:
+        fail(
+            f"runner completion was 0x{result.completion:04x}; only 0x0000 is accepted",
+            "completion",
+        )
+    if low_level_bulk_write_calls is not None and (
+        isinstance(low_level_bulk_write_calls, bool)
+        or not isinstance(low_level_bulk_write_calls, int)
+        or low_level_bulk_write_calls < 0
+    ):
+        fail("low-level bulk-write call count is malformed", "accounting")
+
+    try:
+        result.preflight.verify_seal()
+        result.authorization.require_same_candidate(result.candidate)
+    except Exception as exc:
+        fail(f"runner result bindings are not sealed: {exc}", "bindings")
+
+    audit = _thaw(result.audit)
+    if not isinstance(audit, Mapping):
+        fail("runner result audit is malformed", "runner_audit")
+    if (
+        audit.get("format") != P17_005_RUNNER_FORMAT
+        or audit.get("state") != "readback_verified"
+        or audit.get("usb_transmission_performed") is not True
+        or audit.get("device_changing_operation_performed") is not True
+        or audit.get("approval_consumed") is not True
+        or audit.get("completion") != "0x0000"
+        or audit.get("preflight_seal_sha256") != result.preflight.seal_sha256
+    ):
+        fail("runner result is not a successful sealed operation", "runner_audit")
+
+    workflow = audit.get("workflow")
+    if not isinstance(workflow, Mapping):
+        fail("runner workflow audit is malformed", "accounting")
+    if (
+        workflow.get("isolated_one_shot_adapter") is not True
+        or type(workflow.get("sender_calls")) is not int
+        or workflow.get("sender_calls") != 1
+        or workflow.get("automatic_retry_allowed") is not False
+    ):
+        fail(
+            "runner workflow is not exactly one logical sender call with no retry",
+            "accounting",
+        )
+
+    candidate_audit = audit.get("candidate")
+    if not isinstance(candidate_audit, Mapping):
+        fail("runner candidate audit is malformed", "bindings")
+    try:
+        _require_reconstructed_candidate_matches(
+            result.preflight.candidate,
+            result.candidate,
+        )
+    except Exception as exc:
+        fail(f"runner candidate does not match the sealed candidate: {exc}", "bindings")
+    candidate_details = candidate_audit.get("candidate")
+    transaction_details = candidate_audit.get("transaction")
+    if not isinstance(candidate_details, Mapping) or not isinstance(
+        transaction_details, Mapping
+    ) or (
+        candidate_details.get("blob_sha256") != result.candidate.candidate_blob_sha256
+        or transaction_details.get("sha256") != result.candidate.transaction_sha256
+    ):
+        fail("runner candidate or transaction hash is inconsistent", "bindings")
+
+    if not isinstance(result.before_backup, VerifiedBackup) or not isinstance(
+        result.after_backup, VerifiedBackup
+    ):
+        fail("runner result does not contain two verified backups", "post_backup")
+    if result.before_backup.directory == result.after_backup.directory:
+        fail("runner before and after backups must be distinct", "post_backup")
+    try:
+        before_identity = _backup_identity(result.before_backup)
+        sealed_identity = _backup_identity(result.preflight.before_backup)
+        candidate_identity = _backup_identity(result.candidate.core.backup)
+    except Exception as exc:
+        fail(f"runner before backup could not be verified: {exc}", "post_backup")
+    if before_identity != sealed_identity:
+        fail("runner before backup does not match sealed preflight state", "post_backup")
+    if before_identity != candidate_identity:
+        fail("runner before backup does not match candidate backup state", "post_backup")
+    if not isinstance(result.verification, PreparedMultiPackageReadback):
+        fail("runner read-back result is malformed", "readback")
+    if (
+        not result.verification.success
+        or type(result.verification.completion) is not int
+        or result.verification.completion != 0
+        or result.verification.candidate.candidate_blob_sha256
+        != result.candidate.candidate_blob_sha256
+        or result.verification.candidate.transaction_sha256
+        != result.candidate.transaction_sha256
+        or result.verification.before.directory != result.before_backup.directory
+        or result.verification.after.directory != result.after_backup.directory
+    ):
+        fail("runner result does not contain the exact successful read-back", "readback")
+
+    try:
+        independent = verify_prepared_multi_package_readback(
+            result.preflight.candidate.core,
+            result.after_backup.directory,
+            completion=result.completion,
+            now=now,
+            max_age_seconds=max_age_seconds,
+        )
+    except Exception as exc:
+        fail(f"independent disk read-back verification failed: {exc}", "readback")
+
+    wrapper_audit = {
+        "format": P17_019_WRAPPER_RESULT_FORMAT,
+        "state": "readback_verified",
+        "terminal_success": True,
+        "completion": "0x0000",
+        "write_started": True,
+        "approval_consumed": True,
+        "preflight_seal_sha256": result.preflight.seal_sha256,
+        "candidate_blob_sha256": result.candidate.candidate_blob_sha256,
+        "transaction_sha256": result.candidate.transaction_sha256,
+        "accounting": {
+            "logical_sender_calls": 1,
+            "low_level_bulk_write_calls": low_level_bulk_write_calls,
+            "definition": (
+                "one logical sender call may contain multiple low-level bulk writes; "
+                "bulk writes are not sender calls"
+            ),
+        },
+        "post_backup_verified": True,
+        "independent_readback_verified": True,
+        "verification": {
+            "shared_path_count": independent.shared_path_count,
+            "details": dict(independent.details),
+            "automatic_retry": False,
+        },
+        "automatic_retry_allowed": False,
+    }
+    return PreparedLibraryPackageLiveWrapperResult(
+        runner_result=result,
+        verification=independent,
+        audit=wrapper_audit,
+    )
+
+
 def _failure(
     message: str,
     *,
@@ -2186,12 +2413,16 @@ __all__ = [
     "P17_009_OWNER_APPROVAL",
     "P17_012_SEALED_PREFLIGHT_KEYS",
     "P17_017_EVIDENCE_OUTPUT_POLICY",
+    "P17_019_WRAPPER_RESULT_FORMAT",
     "PreparedLibraryPackageAttemptEvidence",
     "PreparedLibraryPackageLiveAdapterError",
     "PreparedLibraryPackageLivePreflight",
     "PreparedLibraryPackageLiveResult",
+    "PreparedLibraryPackageLiveResultReconciliationError",
+    "PreparedLibraryPackageLiveWrapperResult",
     "execute_prepared_library_package_live",
     "load_prepared_library_package_live_preflight",
     "prepare_prepared_library_package_live_preflight",
+    "reconcile_prepared_library_package_live_result",
     "write_prepared_library_package_evidence_manifest",
 ]

@@ -682,3 +682,30 @@ additional hardware access occurred. P17-018 is **COMPLETE** only for this
 exact package and does not generalize compatibility, recovery, or normal
 GUI/CLI transfer. Physical opening of all three children remains a human
 acceptance check.
+
+## P17-019 post-run wrapper false-negative correction (R3)
+
+P17-018 exposed a host-only audit-wrapper defect after the device operation
+had already succeeded: the wrapper passed the enclosing live preflight to the
+second disk-only verifier, which requires the prepared multi-package
+candidate core. The preserved P17-018 `live-failure-audit.json` is historical
+evidence and remains unchanged; it must not be treated as the authoritative
+device result. No hardware retry, sender construction, approval phrase, or
+`0x101b` is part of this correction.
+
+P17-019 adds the explicit
+`reconcile_prepared_library_package_live_result()` boundary. It verifies the
+sealed runner result, exact candidate/transaction and backup bindings, one
+logical sender call, explicit `0x0000`, and the runner's no-retry state before
+calling the independent verifier with `result.preflight.candidate.core`.
+The successful terminal record uses `logical_sender_calls=1` and an optional
+separate `low_level_bulk_write_calls` field, so the 20 P17-018 bulk chunks
+cannot be misreported as 20 sender calls. Candidate mismatch, post-backup
+mismatch, nonzero/missing completion, multiple logical sends, and verifier
+exceptions remain terminal failures and are never converted into success.
+
+The boundary is offline-only, remains outside normal GUI/CLI transfer paths,
+and does not change the production sender, device protocol, authorization,
+one-shot, or post-write controls. P17-019 is **COMPLETE — offline correction
+only** for the already completed exact P17-018 scope; physical opening of the
+three children remains pending and no new hardware operation is authorized.

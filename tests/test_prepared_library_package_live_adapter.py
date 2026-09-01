@@ -19,9 +19,11 @@ from infocarry.prepared_library_package_live_adapter import (
     P17_009_CONFIRMATION_POLICY,
     P17_009_OWNER_APPROVAL,
     PreparedLibraryPackageLiveAdapterError,
+    PreparedLibraryPackageLiveResultReconciliationError,
     execute_prepared_library_package_live,
     load_prepared_library_package_live_preflight,
     prepare_prepared_library_package_live_preflight,
+    reconcile_prepared_library_package_live_result,
     write_prepared_library_package_evidence_manifest,
 )
 from infocarry.prepared_library_package_operation_bundle import (
@@ -35,6 +37,10 @@ import infocarry.prepared_package_multi_candidate as candidate_module
 from infocarry.prepared_media_package import (
     build_prepared_media_package,
     export_prepared_media_package,
+)
+from infocarry.prepared_package_multi_verify import (
+    PreparedMultiVerificationError,
+    verify_prepared_multi_package_readback,
 )
 from infocarry.protocol import REQUEST_COMPLETION, TransferTimeoutError
 from infocarry.write_protocol import REQUEST_BEGIN_TRANSMIT
@@ -952,6 +958,140 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             self._execute(setup, backend=None, preflight_only=True)
         self.assertEqual(len(setup["captures"]), 2)
         self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_p17_018_wrapper_defect_is_reproduced_and_corrected_offline(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+
+        # This is the exact P17-018 boundary mistake: the enclosing live
+        # preflight is not the candidate core expected by the verifier.
+        with self.assertRaisesRegex(PreparedMultiVerificationError, "candidate is invalid"):
+            verify_prepared_multi_package_readback(
+                setup["preflight"],
+                result.after_backup.directory,
+                completion=result.completion,
+                now=self.now,
+                max_age_seconds=None,
+            )
+
+        reconciled = reconcile_prepared_library_package_live_result(
+            result,
+            low_level_bulk_write_calls=20,
+            now=self.now,
+            max_age_seconds=None,
+        )
+        self.assertEqual(reconciled.state, "readback_verified")
+        self.assertEqual(reconciled.completion, 0)
+        self.assertTrue(reconciled.audit["terminal_success"])
+        self.assertTrue(reconciled.audit["post_backup_verified"])
+        self.assertTrue(reconciled.audit["independent_readback_verified"])
+        self.assertEqual(reconciled.audit["accounting"]["logical_sender_calls"], 1)
+        self.assertEqual(reconciled.audit["accounting"]["low_level_bulk_write_calls"], 20)
+        self.assertNotIn("sender_calls", reconciled.audit)
+
+    def test_wrapper_rejects_candidate_mismatch_without_converting_to_success(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+        forged_core = replace(
+            result.candidate.core,
+            candidate_blob=result.candidate.candidate_blob[:-1]
+            + bytes([result.candidate.candidate_blob[-1] ^ 1]),
+        )
+        forged = replace(
+            result,
+            candidate=replace(result.candidate, core=forged_core),
+        )
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveResultReconciliationError,
+            "sealed candidate|bindings",
+        ):
+            reconcile_prepared_library_package_live_result(
+                forged,
+                now=self.now,
+                max_age_seconds=None,
+            )
+
+    def test_wrapper_rejects_post_backup_mismatch_nonzero_and_missing_completion(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveResultReconciliationError,
+            "two verified backups|distinct|read-back",
+        ):
+            reconcile_prepared_library_package_live_result(
+                replace(result, after_backup=result.before_backup),
+                now=self.now,
+                max_age_seconds=None,
+            )
+
+        for completion in (1, None):
+            with self.subTest(completion=completion):
+                with self.assertRaisesRegex(
+                    PreparedLibraryPackageLiveResultReconciliationError,
+                    "completion",
+                ):
+                    reconcile_prepared_library_package_live_result(
+                        replace(result, completion=completion),
+                        now=self.now,
+                        max_age_seconds=None,
+                    )
+
+    def test_wrapper_rejects_before_backup_raw_state_substitution(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+        forged_before = replace(
+            result.before_backup,
+            blob_sha256="0" * 64,
+        )
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveResultReconciliationError,
+            "before backup could not be verified|sealed preflight",
+        ):
+            reconcile_prepared_library_package_live_result(
+                replace(result, before_backup=forged_before),
+                now=self.now,
+                max_age_seconds=None,
+            )
+
+    def test_wrapper_rejects_multiple_logical_sends(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+        audit = json.loads(json.dumps(result.audit))
+        audit["workflow"]["sender_calls"] = 2
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveResultReconciliationError,
+            "exactly one logical sender call",
+        ):
+            reconcile_prepared_library_package_live_result(
+                replace(result, audit=audit),
+                now=self.now,
+                max_age_seconds=None,
+            )
+
+    def test_wrapper_verification_exception_remains_terminal(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+        with patch.object(
+            adapter_module,
+            "verify_prepared_multi_package_readback",
+            side_effect=PreparedMultiVerificationError("synthetic verifier failure"),
+        ):
+            with self.assertRaisesRegex(
+                PreparedLibraryPackageLiveResultReconciliationError,
+                "independent disk read-back verification failed",
+            ):
+                reconcile_prepared_library_package_live_result(
+                    result,
+                    now=self.now,
+                    max_age_seconds=None,
+                )
 
     def test_p17_016_preflight_output_does_not_deadlock_same_bundle_live_attempt(self):
         setup = self._setup()
