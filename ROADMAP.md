@@ -2219,3 +2219,43 @@ authorization by implication. Physical compatibility, native numeric
 completion decoding, operation-specific capacity semantics, and
 interrupted-write recovery remain unresolved. See
 `analysis/phase-13-p17-011-corrected-clock-fresh-library-package-preflight-20260901.md`.
+
+## Phase 13 — P17-012 exact Library-package live-execution preflight (2026-09-01)
+
+PR #18 was merged into canonical `main` at
+`be4703c252f8a3f6bf7d40effdbc0b567fad9ad4` before the dedicated P17-012 branch
+was created. The owner authorized only a new read-only revalidation; no sender
+was constructed and no approval phrase was consumed.
+
+The new external evidence root contains two preserved numbered sequences. The
+first complete backup became stale during host-side sealing and is retained as
+superseded evidence. The second authoritative sequence detected exactly one
+Sony `054c:001e` at bus 2/address 3, captured a 64-byte native `0x0019`
+response reporting 3,145,728 bytes, and verified a complete eight-object
+backup. Its manifest SHA-256 is
+`4d3394de6f62c44f1ae6a1e790f099347196c9a3edd17444d9e5c93b06060b8e`; its
+dynamic blob is 2,075,256 bytes with SHA-256
+`e3ac59cb5586a5dc35ea04f6bf24f5cc6509931761ece01bc2605a717335e741`.
+
+After integrity verification, the backup matched the P17-009 raw-state
+identity
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`, while
+six acquisition-provenance differences were preserved and reported. The
+target `root\\IC_P17_LIBRARY_20260831_03` was absent. The exact P17-011
+candidate and transaction remained unchanged at
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761` and
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`.
+Candidate growth is 16,036 bytes and post-candidate capacity margin is
+1,054,436 bytes. The new core/outer preflight seals are
+`7294a989dd551985e6aa16b2a1cd0e7382f323551321e860dbfcf93071348da6` /
+`aeb656176aa9163d904f1f8fcbf9c588ef7a33be35dfcc2e64efa3b8235829a8`.
+
+The 54-entry external preservation manifest replays with zero mismatches.
+P17-012 is **READY_FOR_HARDWARE_TEST** only at the new owner-approval
+boundary, with sender calls, backend writes, approval consumption, USB
+transmission, completion, and device mutation all zero. The exact new phrases
+are recorded in the P17-012 dossier but are not authorization by implication.
+Physical compatibility, native numeric completion semantics,
+operation-specific capacity semantics, and interrupted-write recovery remain
+unresolved. See
+`analysis/phase-13-p17-012-exact-library-package-live-execution-preflight-20260901.md`.
