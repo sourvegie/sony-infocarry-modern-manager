@@ -20,6 +20,7 @@ import hashlib
 import json
 from pathlib import Path
 import time
+from threading import Lock
 from types import MappingProxyType
 from typing import Any, Callable, Mapping, Optional
 
@@ -42,6 +43,10 @@ from .prepared_library_package_bridge import (
     authorize_prepared_library_package,
     build_prepared_library_package_candidate,
     prepare_prepared_library_package_preflight,
+)
+from .prepared_multi_package_gate import (
+    PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+    PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
 )
 from .prepared_package_multi_verify import (
     PreparedMultiPackageReadback,
@@ -68,6 +73,9 @@ P17_005_DEVICE_IDENTITY = (0x054C, 0x001E)
 P17_005_PROFILE = "one_selected_library_item_root_txt_bmp_txt"
 P17_005_OWNER_APPROVAL = "APPROVE P17-003 MODERN LIBRARY PACKAGE SMOKE 01"
 P17_005_CONFIRMATION = P17_003_CONFIRMATION_PHRASE
+P17_009_OWNER_APPROVAL = "APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01"
+P17_009_CONFIRMATION = "CONFIRM P17-009 ONE INFOCARRY MULTI-CHILD PACKAGE"
+P17_009_CONFIRMATION_POLICY = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
 P17_005_RUNNER_FORMAT = "infocarry-p17-005-library-package-live-adapter-v1"
 P17_005_EVIDENCE_MANIFEST_FORMAT = (
     "infocarry-p17-005-library-package-evidence-manifest-v1"
@@ -117,6 +125,37 @@ class PreparedLibraryPackageLiveAdapterError(RuntimeError):
         self.automatic_retry_allowed = False
         self.audit = dict(audit or {})
         self.audit.setdefault("automatic_retry_allowed", False)
+
+
+class _OneShotExecutionClaim:
+    """In-memory single-use claim for one sealed preflight object."""
+
+    __slots__ = ("_consumed", "_lock")
+
+    def __init__(self) -> None:
+        self._consumed = False
+        self._lock = Lock()
+
+    def consume(self) -> None:
+        with self._lock:
+            if self._consumed:
+                raise PreparedLibraryPackageLiveAdapterError(
+                    "P17-005 sealed preflight already attempted its one transaction",
+                    stage="write_guard",
+                    state="failed",
+                )
+            self._consumed = True
+
+
+_EXECUTION_CLAIMS_LOCK = Lock()
+_EXECUTION_CLAIMS: dict[str, _OneShotExecutionClaim] = {}
+
+
+def _execution_claim_for(seal_sha256: str) -> _OneShotExecutionClaim:
+    """Return the process-local single-use claim for one sealed operation."""
+
+    with _EXECUTION_CLAIMS_LOCK:
+        return _EXECUTION_CLAIMS.setdefault(seal_sha256, _OneShotExecutionClaim())
 
 
 def _sha256(data: bytes) -> str:
@@ -470,6 +509,21 @@ def _validate_expected_folder(expected_folder_name: str) -> None:
         )
 
 
+def _validate_operation_phrase(value: str, label: str) -> None:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\x00" in value
+        or "\n" in value
+        or "\r" in value
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"{label} is invalid",
+            stage="approval",
+            state="failed",
+        )
+
+
 def _seal_payload(
     *,
     core: PreparedLibraryPackagePreflight,
@@ -484,8 +538,12 @@ def _seal_payload(
         "core_preflight_seal_sha256": core.seal_sha256,
         "core_preflight": core.to_dict(),
         "audit": _audit_without_seal(audit),
-        "owner_approval_phrase": P17_005_OWNER_APPROVAL,
-        "confirmation_phrase": P17_005_CONFIRMATION,
+        "owner_approval_phrase": audit.get(
+            "owner_approval_phrase", P17_005_OWNER_APPROVAL
+        ),
+        "confirmation_phrase": audit.get(
+            "confirmation_phrase", core.authorization.core.confirmation_phrase
+        ),
         "automatic_retry_allowed": False,
         "normal_gui_cli_transfer_exposed": False,
     }
@@ -541,6 +599,11 @@ class PreparedLibraryPackageLivePreflight:
     def template(self) -> ParsedBackupBlob:
         return self.core.template
 
+    def _consume_execution_claim(self) -> None:
+        """Consume the only sender-attempt claim for this sealed preflight."""
+
+        _execution_claim_for(self.seal_sha256).consume()
+
     def verify_seal(self) -> None:
         try:
             self.core.verify_seal()
@@ -584,6 +647,10 @@ class PreparedLibraryPackageLivePreflight:
             or not _json_equivalent(
                 report.get("capacity_response"), self.core.capacity_response.to_dict()
             )
+            or report.get("confirmation_phrase")
+            != self.core.authorization.core.confirmation_phrase
+            or report.get("confirmation_policy")
+            != self.core.authorization.core.confirmation_policy
         ):
             raise PreparedLibraryPackageLiveAdapterError(
                 "P17-005 live preflight report bindings were modified",
@@ -675,6 +742,9 @@ def prepare_prepared_library_package_live_preflight(
     progress: Optional[ProgressCallback] = None,
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+    owner_approval_phrase: str = P17_005_OWNER_APPROVAL,
+    confirmation_phrase: str = P17_005_CONFIRMATION,
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
 ) -> PreparedLibraryPackageLivePreflight:
     """Run and seal the required fresh, read-only injected preflight.
 
@@ -685,6 +755,17 @@ def prepare_prepared_library_package_live_preflight(
     """
 
     _validate_expected_folder(expected_folder_name)
+    _validate_operation_phrase(owner_approval_phrase, "owner approval phrase")
+    _validate_operation_phrase(confirmation_phrase, "confirmation phrase")
+    if confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT and (
+        owner_approval_phrase == P17_005_OWNER_APPROVAL
+        or confirmation_phrase == P17_005_CONFIRMATION
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "explicit operation phrases must not reuse expired P17-007 phrases",
+            stage="approval",
+            state="failed",
+        )
     _validate_callbacks(
         detect_device=detect_device,
         query_capacity=query_capacity,
@@ -752,6 +833,8 @@ def prepare_prepared_library_package_live_preflight(
             native_capacity_response=capacity,
             template_folder_path=P17_003_TEMPLATE_FOLDER_PATH,
             template_item_paths=P17_003_TEMPLATE_ITEM_PATHS,
+            confirmation_phrase=confirmation_phrase,
+            confirmation_policy=confirmation_policy,
         )
         if core.candidate.library_binding.get("folder_name") != expected_folder_name:
             raise ValueError("selected Library package differs from the exact P17-004 destination")
@@ -785,8 +868,9 @@ def prepare_prepared_library_package_live_preflight(
         "before_backup": _sealed_backup_dict(before),
         "capacity_response": capacity.to_dict(),
         "operation_sequence": sequence,
-        "owner_approval_phrase": P17_005_OWNER_APPROVAL,
-        "confirmation_phrase": P17_005_CONFIRMATION,
+        "owner_approval_phrase": owner_approval_phrase,
+        "confirmation_phrase": confirmation_phrase,
+        "confirmation_policy": confirmation_policy,
         "automatic_retry_allowed": False,
         "normal_gui_cli_transfer_exposed": False,
         "send_count": 0,
@@ -857,13 +941,17 @@ def execute_prepared_library_package_live(
     except PreparedLibraryPackageLiveAdapterError:
         raise
 
-    if owner_approval != P17_005_OWNER_APPROVAL:
+    expected_owner_approval = _thaw(preflight.audit).get(
+        "owner_approval_phrase", P17_005_OWNER_APPROVAL
+    )
+    expected_confirmation = preflight.authorization.core.confirmation_phrase
+    if owner_approval != expected_owner_approval:
         raise PreparedLibraryPackageLiveAdapterError(
             "P17-005 owner approval phrase was not accepted; no transaction attempted",
             stage="approval",
             state="failed",
         )
-    if confirmation != P17_005_CONFIRMATION:
+    if confirmation != expected_confirmation:
         raise PreparedLibraryPackageLiveAdapterError(
             "P17-005 confirmation phrase was not accepted; no transaction attempted",
             stage="approval",
@@ -940,6 +1028,7 @@ def execute_prepared_library_package_live(
         authorization = authorize_prepared_library_package(
             candidate,
             confirmation=confirmation,
+            confirmation_policy=preflight.authorization.core.confirmation_policy,
         )
         authorization.require_same_candidate(candidate)
         sequence.extend(["library_candidate_reconstructed", "authorization_revalidated"])
@@ -979,6 +1068,11 @@ def execute_prepared_library_package_live(
                 stage="sender",
                 state="failed",
             )
+        # Consume the claim before constructing the sender. This makes the
+        # sealed preflight one-shot across repeated calls on the same object,
+        # including post-start indeterminate failures; only a new fresh
+        # preflight can establish a new execution boundary.
+        preflight._consume_execution_claim()
         from .write_protocol import AuthorizedWriteSender as _AuthorizedWriteSender
 
         sender_impl = _AuthorizedWriteSender(
@@ -1335,6 +1429,9 @@ __all__ = [
     "P17_005_RUNNER_FORMAT",
     "P17_005_SUCCESS_SEQUENCE",
     "P17_005_TARGET_FOLDER",
+    "P17_009_CONFIRMATION",
+    "P17_009_CONFIRMATION_POLICY",
+    "P17_009_OWNER_APPROVAL",
     "PreparedLibraryPackageLiveAdapterError",
     "PreparedLibraryPackageLivePreflight",
     "PreparedLibraryPackageLiveResult",

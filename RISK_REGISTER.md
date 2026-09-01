@@ -371,3 +371,38 @@ nonzero-state handling, arbitrary target compatibility, and generalized delete
 remain unproven. Normal GUI/CLI deletion remains disabled. The sanitized
 result is `analysis/phase-13-milestone-h2-modern-delete-smoke-20260827.md`;
 the 21-file external evidence manifest was verified with zero mismatches.
+
+## P17-009 corrected raw-state Library-package fresh preflight (R3)
+
+P17-009 completed the authorized read-only preflight for the preserved P17-004
+Library package at `root\\IC_P17_LIBRARY_20260831_03`. In-order detection
+observed Sony `054c:001e`; the fresh parsed `0x0019` response reported a
+3,145,728-byte capacity limit; and a fresh complete eight-object backup
+proved the target absent. The fresh backup and preserved P17-004 refresh are
+equal under the reviewed immutable `BackupStateIdentity`; archive paths,
+manifest hash, and acquisition timestamps remain separately preserved as
+provenance differences.
+
+Controls include exact package/catalog/child/template hashes, ordered
+TXT/BMP/TXT bindings, destination absence, fixed/display-history state,
+semantic `0x001b` rebasing by the exact `0x140` metadata delta, supported
+zero `0x001c`–`0x001f`, candidate/transaction/seal hashes, parsed capacity
+fit, one explicit new-record timestamp, and expected additive post-state.
+The original external 67-entry v1 evidence manifest remains unchanged; a
+corrected non-overwriting v2 manifest covers 68 entries and replays with zero
+mismatches. The
+two new operation phrases are sealed for a later task but were not requested
+or consumed; expired P17-007 phrases are rejected by the explicit policy.
+
+P17-009 is **READY_FOR_HARDWARE_TEST** only at the host-only owner-approval
+boundary. Sender calls, backend writes, USB transmissions, and device changes
+are zero. The adapter consumes a thread-safe process-local single-use claim
+keyed by the sealed preflight before sender construction, and same-seal second
+execution is refused. No write is authorized here. Any later live task must repeat fresh
+detection/capacity/complete-backup preflight, require new exact owner approval,
+and preserve before/after evidence. Native completion decoding,
+operation-specific capacity semantics, and physical compatibility of this new
+Library content remain unresolved. See
+`analysis/phase-13-p17-009-corrected-raw-state-library-package-fresh-preflight-20260901.md`.
+Independent R3 review passes are recorded in
+`analysis/phase-13-p17-009-r3-review-20260901.md`.

@@ -15,6 +15,9 @@ from infocarry.prepared_library_package_live_adapter import (
     P17_005_CONFIRMATION,
     P17_005_OWNER_APPROVAL,
     P17_005_TARGET_FOLDER,
+    P17_009_CONFIRMATION,
+    P17_009_CONFIRMATION_POLICY,
+    P17_009_OWNER_APPROVAL,
     PreparedLibraryPackageLiveAdapterError,
     execute_prepared_library_package_live,
     prepare_prepared_library_package_live_preflight,
@@ -233,6 +236,57 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertNotIn('"candidate_blob":', serialized)
         self.assertNotIn('"candidate_bytes":', serialized)
 
+    def test_p17_009_phrases_are_new_and_sealed_into_authorization(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        common = dict(setup["common"])
+        common.update(
+            {
+                "backup_destination": setup["root"] / "p17-009-before",
+                "owner_approval_phrase": P17_009_OWNER_APPROVAL,
+                "confirmation_phrase": P17_009_CONFIRMATION,
+                "confirmation_policy": P17_009_CONFIRMATION_POLICY,
+            }
+        )
+        preflight = prepare_prepared_library_package_live_preflight(**common)
+        preflight.verify_seal()
+        report = preflight.to_dict()
+        self.assertEqual(report["owner_approval_phrase"], P17_009_OWNER_APPROVAL)
+        self.assertEqual(report["confirmation_phrase"], P17_009_CONFIRMATION)
+        self.assertEqual(report["confirmation_policy"], P17_009_CONFIRMATION_POLICY)
+        self.assertEqual(
+            preflight.authorization.core.confirmation_phrase, P17_009_CONFIRMATION
+        )
+        self.assertNotEqual(P17_009_OWNER_APPROVAL, P17_005_OWNER_APPROVAL)
+        self.assertNotEqual(P17_009_CONFIRMATION, P17_005_CONFIRMATION)
+
+    def test_explicit_policy_rejects_expired_p17_007_phrases(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        for field in ("owner_approval_phrase", "confirmation_phrase"):
+            with self.subTest(field=field):
+                common = dict(setup["common"])
+                common.update(
+                    {
+                        "backup_destination": setup["root"] / f"p17-009-expired-{field}",
+                        "owner_approval_phrase": (
+                            P17_005_OWNER_APPROVAL
+                            if field == "owner_approval_phrase"
+                            else P17_009_OWNER_APPROVAL
+                        ),
+                        "confirmation_phrase": (
+                            P17_005_CONFIRMATION
+                            if field == "confirmation_phrase"
+                            else P17_009_CONFIRMATION
+                        ),
+                        "confirmation_policy": P17_009_CONFIRMATION_POLICY,
+                    }
+                )
+                with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as context:
+                    prepare_prepared_library_package_live_preflight(**common)
+                self.assertEqual(context.exception.stage, "approval")
+                self.assertIn("expired P17-007", str(context.exception))
+
     def test_adapter_is_unreachable_from_normal_cli_and_gui(self):
         cli = (Path(__file__).parents[1] / "src/infocarry/cli.py").read_text()
         desktop = (Path(__file__).parents[1] / "src/infocarry/desktop_ttk.py").read_text()
@@ -366,6 +420,19 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             },
         )
         self.assertEqual(manifest["result_audit"]["state"], "readback_verified")
+
+        setup["captures"].clear()
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "already attempted its one transaction",
+        ):
+            self._execute(
+                setup,
+                backup_destination=setup["root"] / "execution-before-second",
+                post_operation_destination=setup["root"] / "after-second",
+                evidence_manifest_destination=setup["root"] / "evidence/second.json",
+            )
+        self.assertEqual(self._sender_calls(setup), 1)
 
     def test_independent_same_state_backup_provenance_does_not_block_execution(self):
         setup = self._setup()

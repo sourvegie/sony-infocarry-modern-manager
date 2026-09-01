@@ -36,6 +36,8 @@ from .prepared_media_package import (
     load_prepared_media_package,
 )
 from .prepared_multi_package_gate import (
+    PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+    PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
     PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
     PreparedMultiPackageAuthorization,
     PreparedMultiPackageGateError,
@@ -420,10 +422,14 @@ def authorize_prepared_library_package(
     candidate: PreparedLibraryPackageCandidate,
     *,
     confirmation: str,
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
 ) -> PreparedLibraryPackageAuthorization:
     if not isinstance(candidate, PreparedLibraryPackageCandidate):
         raise PreparedLibraryPackageBridgeError("Library candidate is invalid")
-    if confirmation != P17_003_CONFIRMATION_PHRASE:
+    if (
+        confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED
+        and confirmation != P17_003_CONFIRMATION_PHRASE
+    ):
         raise PreparedLibraryPackageBridgeError(
             "wrong prepared-package confirmation phrase"
         )
@@ -437,6 +443,7 @@ def authorize_prepared_library_package(
         core = authorize_prepared_multi_package(
             candidate.core,
             confirmation=confirmation,
+            confirmation_policy=confirmation_policy,
         )
     except PreparedMultiPackageGateError as exc:
         raise PreparedLibraryPackageBridgeError(str(exc)) from exc
@@ -604,6 +611,8 @@ def prepare_prepared_library_package_preflight(
     native_capacity_response: NativeCapacityResponse,
     template_folder_path: tuple[str, ...] = P17_003_TEMPLATE_FOLDER_PATH,
     template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
+    confirmation_phrase: str = P17_003_CONFIRMATION_PHRASE,
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
 ) -> PreparedLibraryPackagePreflight:
     """Prepare one exact future operation without device access or USB."""
 
@@ -619,7 +628,8 @@ def prepare_prepared_library_package_preflight(
     )
     authorization = authorize_prepared_library_package(
         candidate,
-        confirmation=P17_003_CONFIRMATION_PHRASE,
+        confirmation=confirmation_phrase,
+        confirmation_policy=confirmation_policy,
     )
     audit = {
         "format": P17_003_RUNNER_FORMAT,
@@ -649,7 +659,8 @@ def prepare_prepared_library_package_preflight(
             "new_records": "one_explicit_frozen_value",
             "legacy_global_rewrite_reproduced": False,
         },
-        "confirmation_phrase": P17_003_CONFIRMATION_PHRASE,
+        "confirmation_phrase": confirmation_phrase,
+        "confirmation_policy": confirmation_policy,
         "automatic_retry_allowed": False,
         "normal_gui_cli_transfer_exposed": False,
     }
@@ -762,7 +773,7 @@ def run_prepared_library_package_fake_workflow(
         package=current.package,
         preview=current.core,
         new_record_timestamp_be32=preflight.new_record_timestamp_be32,
-        confirmation=P17_003_CONFIRMATION_PHRASE,
+        confirmation=preflight.authorization.core.confirmation_phrase,
         fake_transport=True,
         cancelled=cancelled,
         progress=progress,

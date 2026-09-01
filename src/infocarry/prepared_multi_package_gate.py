@@ -15,6 +15,8 @@ from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, verify_fresh_ba
 
 
 PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE = "ADD ONE INFOCARRY MULTI-CHILD PACKAGE"
+PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED = "fixed_reviewed_phrase"
+PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT = "explicit_operation_phrase_v1"
 PREPARED_MULTI_PACKAGE_GATE_FORMAT = "infocarry-modern-ordered-package-gate-v1"
 
 
@@ -430,9 +432,28 @@ class PreparedMultiPackageAuthorization:
     candidate_growth_bytes: int
     capacity_result: str
     confirmation_phrase: str
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED
 
     def __post_init__(self) -> None:
-        if self.confirmation_phrase != PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE:
+        if (
+            not isinstance(self.confirmation_phrase, str)
+            or not self.confirmation_phrase
+            or "\x00" in self.confirmation_phrase
+            or "\n" in self.confirmation_phrase
+            or "\r" in self.confirmation_phrase
+        ):
+            raise PreparedMultiPackageGateError("multi-package confirmation phrase is invalid")
+        if self.confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED:
+            phrase_valid = self.confirmation_phrase == PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE
+        elif self.confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
+            # An isolated task supplies its own exact phrase; it is bound into
+            # the sealed operation rather than treated as a product-wide
+            # confirmation token. The historical fixed phrase is explicitly
+            # excluded so an operation policy cannot silently reuse P17-007.
+            phrase_valid = self.confirmation_phrase != PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE
+        else:
+            phrase_valid = False
+        if not phrase_valid:
             raise PreparedMultiPackageGateError("wrong multi-package confirmation phrase")
         if len(self.device_identity) != 2 or any(not isinstance(value, str) or not value for value in self.device_identity):
             raise PreparedMultiPackageGateError("authorization device identity is invalid")
@@ -618,7 +639,7 @@ class PreparedMultiPackageAuthorization:
         return backup
 
     def to_dict(self) -> dict[str, Any]:
-        result = {"format": PREPARED_MULTI_PACKAGE_GATE_FORMAT, "state": "authorized_for_fake_transport_only", "usb_transmission_performed": False, "operation": "add_one_root_folder_ordered_package", "confirmation_phrase": self.confirmation_phrase}
+        result = {"format": PREPARED_MULTI_PACKAGE_GATE_FORMAT, "state": "authorized_for_fake_transport_only", "usb_transmission_performed": False, "operation": "add_one_root_folder_ordered_package", "confirmation_phrase": self.confirmation_phrase, "confirmation_policy": self.confirmation_policy}
         result.update(self._expected())
         result["source_sha256"] = list(self.source_sha256)
         result["source_paths"] = list(self.source_paths)
@@ -666,15 +687,39 @@ class PreparedMultiPackageAuthorization:
         return result
 
 
-def authorize_prepared_multi_package(candidate: PreparedMultiPackageCandidate, *, confirmation: str) -> PreparedMultiPackageAuthorization:
-    if confirmation != PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE:
+def authorize_prepared_multi_package(
+    candidate: PreparedMultiPackageCandidate,
+    *,
+    confirmation: str,
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
+) -> PreparedMultiPackageAuthorization:
+    if confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED:
+        phrase_valid = confirmation == PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE
+    elif confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
+        phrase_valid = (
+            isinstance(confirmation, str)
+            and bool(confirmation)
+            and "\x00" not in confirmation
+            and "\n" not in confirmation
+            and "\r" not in confirmation
+            and confirmation != PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE
+        )
+    else:
+        phrase_valid = False
+    if not phrase_valid:
         raise PreparedMultiPackageGateError("wrong multi-package confirmation phrase")
     values = _candidate_binding(candidate)
-    return PreparedMultiPackageAuthorization(**values, confirmation_phrase=confirmation)
+    return PreparedMultiPackageAuthorization(
+        **values,
+        confirmation_phrase=confirmation,
+        confirmation_policy=confirmation_policy,
+    )
 
 
 __all__ = [
     "PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE",
+    "PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT",
+    "PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED",
     "PREPARED_MULTI_PACKAGE_GATE_FORMAT",
     "PreparedMultiPackageAuthorization",
     "PreparedMultiPackageGateError",
