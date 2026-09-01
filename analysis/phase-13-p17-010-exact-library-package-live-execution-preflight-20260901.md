@@ -1,9 +1,9 @@
 # P17-010 — Exact P17 Library package live-execution preflight
 
-Date: 2026-09-01  
-Risk: R3 — device-state candidate and one-shot execution boundary  
-Status: **READY_FOR_HARDWARE_TEST** at the final owner-approval boundary  
-Canonical merge base: `98ae3e14b36073f5bb41c30c4ae4ee6a85c9b390`  
+Date: 2026-09-01
+Risk: R3 — device-state candidate and one-shot execution boundary
+Status: **READY_FOR_HARDWARE_TEST** at the final owner-approval boundary
+Canonical merge base: `98ae3e14b36073f5bb41c30c4ae4ee6a85c9b390`
 External evidence root: `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-01/`
 
 ## Scope and authorization boundary
@@ -160,8 +160,45 @@ P17-010 stops at **READY_FOR_HARDWARE_TEST**. A later task must perform an
 immediate final read-only revalidation and obtain both exact phrases before
 constructing a sender:
 
-`APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01`  
+`APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01`
 `CONFIRM P17-009 ONE INFOCARRY MULTI-CHILD PACKAGE`
 
 No phrase is authorization by implication, and no phrase from an older task
 may be reused.
+
+## P17-010 attempt 01 and freshness-clock correction
+
+The authorized attempt-01 read-only sequence used the external evidence root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+It detected exactly one Sony `054c:001e`, captured the native `0x0019`
+response with SHA-256
+`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662`, parsed
+capacity as 3,145,728 bytes, and verified a complete eight-object backup with
+the target absent.
+
+The attempt stopped before candidate construction because the harness passed a
+wall-clock reference captured before backup acquisition into freshness
+verification. The finalized backup was therefore falsely classified as
+future-dated. This is a verified safe host-timing defect, not device-state
+evidence. The preserved failure audit records `write_started=false`,
+`sender_calls=0`, no completion, `approval_consumed=false`, no mutation, and
+no retry. The raw evidence and verified 13-entry preservation manifest remain
+unchanged and replay with zero mismatches.
+
+The correction makes the completed backup callback the acquisition boundary
+and samples the authoritative freshness reference afterward. A test-only
+`reference_clock` keeps deterministic fixtures reproducible; the P17 live
+adapter uses the current UTC clock after finalization. The independent review
+also identified the same downstream fixed-clock use in the established
+package, mixed-package, existing-text, new-TXT, and delete execution chains;
+their post-capture freshness checks now use the current UTC boundary as well.
+Audit replay ignores only the verifier-generated `verified_at_utc` field, while
+retaining raw-state, integrity, completeness, maximum-age, future-skew, and all
+other provenance checks. The adapters still fail closed before sender
+construction on any gate failure and retain the one-shot/no-retry boundary.
+
+Focused regression tests and the complete portable suite pass (602 tests, 3
+intentional evidence-dependent skips). P17-010A is host-validated as
+**READY_FOR_HARDWARE_TEST** only for a future fresh attempt. No hardware was
+accessed, no sender was constructed, no approval phrase was reused, and no
+device-changing transaction occurred during this correction.

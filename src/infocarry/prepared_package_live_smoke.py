@@ -168,7 +168,7 @@ def run_prepared_package_live_smoke(
         before = capture_and_verify_fresh_backup(
             Path(backup_destination),
             lambda destination: capture(destination, cancelled=cancelled, progress=progress),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("fresh_complete_backup")
@@ -214,7 +214,7 @@ def run_prepared_package_live_smoke(
         sender_authorization = bind_prepared_package_sender(
             authorization,
             candidate,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("authorization")
@@ -276,7 +276,7 @@ def run_prepared_package_live_smoke(
         after = capture_and_verify_fresh_backup(
             Path(post_operation_destination),
             lambda destination: capture(destination, cancelled=cancelled, progress=progress),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("fresh_post_operation_backup")
@@ -285,7 +285,7 @@ def run_prepared_package_live_smoke(
             candidate,
             after.directory,
             completion=completion,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("independent_readback_verification")

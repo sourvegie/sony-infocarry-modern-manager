@@ -2153,3 +2153,30 @@ P17-010. Raw evidence, candidate/transaction bytes, and the external v1
 Physical compatibility, native
 numeric completion semantics, operation-specific capacity semantics, and
 interrupted-write recovery remain unresolved.
+
+## Phase 13 — P17-010 freshness-clock correction (2026-09-01)
+
+P17-010 attempt 01 is preserved outside Git under the non-overwriting
+`phase-17-p17-010-library-package-live-execution-20260901-02` evidence root.
+The exact Sony `054c:001e` detection, native `0x0019` capacity response, and
+complete eight-object backup succeeded. The host harness then stopped before
+candidate construction because it compared the finalized backup against a
+wall-clock reference captured before acquisition. The failure is host timing,
+not device-state evidence: `write_started=false`, `sender_calls=0`, completion
+none, `approval_consumed=false`, no mutation, and no retry. The raw evidence
+and verified 13-entry manifest remain unchanged and replay with zero mismatches.
+
+The shared freshness helper now samples its authoritative reference after the
+complete backup callback has finalized the manifest. The P17 live adapter and
+the established package, mixed-package, existing-text, new-TXT, and delete
+execution chains use the corrected current-UTC boundary for downstream backup
+freshness checks; deterministic tests may inject a clock. Only
+verifier-generated `verified_at_utc` is excluded during audit replay.
+Completeness, integrity, maximum-age, future-skew, raw-state, capacity,
+target-absence, authorization, transaction, seal, one-shot, no-retry, and
+post-read-back gates remain fail-closed. Focused and complete validation pass
+with 602 tests and 3 intentional evidence-dependent skips.
+
+P17-010A is **READY_FOR_HARDWARE_TEST** only for a future new fresh attempt.
+No hardware was accessed and no prior approval phrase is reusable; renewed
+exact owner approval is required for any later live task.

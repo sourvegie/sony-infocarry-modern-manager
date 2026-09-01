@@ -157,13 +157,16 @@ class WriteGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "fresh"
             verified = capture_and_verify_fresh_backup(
-                destination, fake_capture, now=now
+                destination,
+                fake_capture,
+                now=now,
+                reference_clock=lambda: now,
             )
             self.assertEqual(calls, [destination.resolve()])
             self.assertEqual(verified.directory, destination.resolve())
             self.assertEqual(verified.object_count, 1)
 
-    def test_fresh_backup_verification_uses_post_capture_clock_when_now_is_none(self):
+    def test_fresh_backup_verification_uses_post_capture_clock(self):
         invocation_started = datetime.now(timezone.utc) - timedelta(seconds=2)
         capture_times = []
 
@@ -175,28 +178,52 @@ class WriteGateTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            stale_reference = root / "stale-reference"
-            with self.assertRaisesRegex(WriteGateError, "timestamp is in the future"):
-                capture_and_verify_fresh_backup(
-                    stale_reference,
-                    fake_capture,
-                    now=invocation_started,
-                    max_age_seconds=30,
-                )
-            self.assertTrue((stale_reference / "manifest.json").is_file())
-
             accepted = capture_and_verify_fresh_backup(
                 root / "post-capture-reference",
                 fake_capture,
-                now=None,
+                # This simulates a caller sampling before a long capture. The
+                # authoritative reference is explicitly sampled after the
+                # callback has finalized the manifest.
+                now=invocation_started,
                 max_age_seconds=30,
+                reference_clock=lambda: capture_times[-1],
             )
 
             self.assertGreater(capture_times[0], invocation_started)
-            self.assertGreaterEqual(
-                datetime.fromisoformat(accepted.verified_at_utc), capture_times[1]
-            )
+            self.assertEqual(datetime.fromisoformat(accepted.verified_at_utc), capture_times[0])
             self.assertEqual(accepted.object_count, 1)
+
+    def test_capture_and_verify_rejects_truly_future_dated_manifest(self):
+        capture_time = datetime.now(timezone.utc)
+
+        def fake_capture(destination):
+            destination.mkdir()
+            _write_archive(destination, _make_blob(), capture_time + timedelta(minutes=1))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(WriteGateError, "timestamp is in the future"):
+                capture_and_verify_fresh_backup(
+                    Path(temporary) / "future",
+                    fake_capture,
+                    reference_clock=lambda: capture_time,
+                    max_age_seconds=30,
+                )
+
+    def test_capture_and_verify_rejects_stale_manifest(self):
+        capture_time = datetime.now(timezone.utc)
+
+        def fake_capture(destination):
+            destination.mkdir()
+            _write_archive(destination, _make_blob(), capture_time - timedelta(minutes=1))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(WriteGateError, "older than the permitted"):
+                capture_and_verify_fresh_backup(
+                    Path(temporary) / "stale",
+                    fake_capture,
+                    reference_clock=lambda: capture_time,
+                    max_age_seconds=30,
+                )
 
     def test_genuinely_future_dated_manifest_is_still_rejected(self):
         future = datetime.now(timezone.utc) + timedelta(hours=1)

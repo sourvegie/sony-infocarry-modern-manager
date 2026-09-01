@@ -392,7 +392,7 @@ class P16MixedPackageLiveSender:
         bound = _SenderAuthorization(
             candidate=candidate,
             authorization=authorization,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         return self._sender.send(
@@ -498,7 +498,7 @@ def prepare_p16_mixed_package_live_smoke(
             lambda destination: capture(
                 destination, cancelled=cancelled, progress=progress
             ),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if before.device_identity != tuple(
@@ -647,7 +647,7 @@ def execute_p16_mixed_package_live_smoke(
     try:
         current_backup = verify_fresh_backup(
             preflight.before_backup.directory,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         if _backup_identity(current_backup) != _backup_identity(preflight.before_backup):
@@ -710,7 +710,7 @@ def execute_p16_mixed_package_live_smoke(
             candidate.transaction,
             candidate,
             authorization,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
             cancelled=cancelled,
             progress=progress,
@@ -756,7 +756,7 @@ def execute_p16_mixed_package_live_smoke(
             lambda destination: capture(
                 destination, cancelled=cancelled, progress=progress
             ),
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("fresh_post_operation_backup")
@@ -764,7 +764,7 @@ def execute_p16_mixed_package_live_smoke(
             candidate,
             after.directory,
             completion=completion,
-            now=now,
+            now=None,
             max_age_seconds=max_age_seconds,
         )
         sequence.append("independent_readback_verification")

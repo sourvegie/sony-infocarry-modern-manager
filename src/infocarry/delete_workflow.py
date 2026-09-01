@@ -200,7 +200,7 @@ class GuardedGeneralizedDeleteWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
@@ -220,7 +220,7 @@ class GuardedGeneralizedDeleteWorkflow:
                 before.directory,
                 target_path,
                 target_record_offset,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except TransferCancelledError as exc:
@@ -255,7 +255,7 @@ class GuardedGeneralizedDeleteWorkflow:
             binding = bind_generalized_delete_sender(
                 authorization,
                 current,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except TransferCancelledError as exc:
@@ -334,14 +334,14 @@ class GuardedGeneralizedDeleteWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             verification = verify_generalized_delete_readback(
                 current,
                 after.directory,
                 completion=completion,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:

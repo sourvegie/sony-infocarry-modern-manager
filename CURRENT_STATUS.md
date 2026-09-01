@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-010 exact Library-package live execution has completed its fresh read-only revalidation and is READY_FOR_HARDWARE_TEST at the final owner-approval boundary; no sender call, backend write, or 0x101b transaction occurred
+Canonical checkpoint: P17-010 freshness-clock correction is host-validated and READY_FOR_HARDWARE_TEST for a future fresh attempt; the authorized attempt-01 stopped fail-closed before sender construction because its harness used a pre-capture fixed timestamp; no sender call, backend write, or 0x101b transaction occurred
 
 ## Portable offline validation
 
-- 599 passing tests
+- 602 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -222,6 +222,28 @@ These are host/offline results only. They do not claim physical-device verificat
   projection makes baseline allowance and post-candidate headroom explicit;
   see
   `analysis/phase-13-p17-010-exact-library-package-live-execution-preflight-20260901.md`.
+- P17-010 attempt 01 is preserved as a safe, fail-closed pre-send result under
+  the external, non-overwriting root
+  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+  Exact Sony `054c:001e` detection, the native `0x0019` capacity response, and
+  the complete eight-object backup succeeded; the target was absent. The
+  harness then rejected the backup because it compared the finalized backup
+  manifest with a wall-clock reference captured before acquisition. This was a
+  host timing defect, not device-state evidence. The preserved failure audit
+  records `write_started=false`, `sender_calls=0`, no completion,
+  `approval_consumed=false`, no mutation, and no retry; its verified 13-entry
+  manifest remains unchanged with zero mismatches.
+  The shared freshness helper now samples its authoritative reference only
+  after the complete backup callback returns, with an injectable clock only for
+  deterministic tests. P17-010 uses the corrected post-finalization clock at
+  the live boundary, and the established package, mixed-package, existing-text,
+  new-TXT, and delete execution chains now use the same safe boundary for their
+  downstream freshness checks. The replay audit ignores only verifier-generated
+  `verified_at_utc` differences while retaining all raw-state and other
+  provenance checks. Focused and full host validation pass at 602 tests plus
+  3 intentional evidence-dependent skips. P17-010 is **READY_FOR_HARDWARE_TEST**
+  only for a future new fresh attempt; no hardware was accessed in this
+  correction and the prior phrases are not reusable.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The

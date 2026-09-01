@@ -220,7 +220,7 @@ class GuardedNewTxtWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
@@ -252,7 +252,7 @@ class GuardedNewTxtWorkflow:
                 source_encoding=source_encoding,
                 record_timestamp_be32=record_timestamp_be32,
                 metadata_timestamps=metadata_timestamps,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
@@ -290,7 +290,7 @@ class GuardedNewTxtWorkflow:
                 current_preview.result,
                 before.directory,
                 source_path,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             authorization = authorize_new_txt_add(
@@ -302,7 +302,7 @@ class GuardedNewTxtWorkflow:
                 current_preview.result,
                 before.directory,
                 source_path,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:
@@ -363,7 +363,7 @@ class GuardedNewTxtWorkflow:
                 lambda destination: self._capture(
                     destination, cancelled=cancelled, progress=progress
                 ),
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
             verification = authorization.verify_post_add_backup(
@@ -371,7 +371,7 @@ class GuardedNewTxtWorkflow:
                 before.directory,
                 source_path,
                 after.directory,
-                now=now,
+                now=None,
                 max_age_seconds=max_age_seconds,
             )
         except Exception as exc:

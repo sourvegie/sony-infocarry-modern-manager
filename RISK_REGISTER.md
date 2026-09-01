@@ -211,6 +211,34 @@ unresolved.
 | R15 | The device's commit point and recovery behavior after an interrupted `0x101b` transaction are unknown. A nominal file operation transmits broad device state and may not be atomic. | Critical | Permit ordinary cancellation before the device-changing request starts. After it starts, treat disconnect, timeout, cancellation, or missing completion as an indeterminate outcome; never retry automatically and perform only read-only diagnosis/backup. Keep writes explicitly experimental. Do not intentionally interrupt the owner's only valuable unit; require a second or sacrificial VNW-V15 plus a separate approved recovery protocol for deliberate testing. | Offline sender and new-TXT integration tests now enforce the distinction and no-retry rule. Physical atomicity, rollback, and recovery remain unproven; R15 stays open and blocks any risk-free write claim or broad public write release. |
 | R16 | Proprietary evidence, credentials, or private device data could be accidentally published through a source remote or a complete Git-history push. | Critical | Before every remote checkpoint, audit all tracked files and `git rev-list --objects --all`; reject original Sony software, ISO content, device backups, USB captures, raw live evidence, credentials, private information, generated output, and temporary artifacts. Keep the remote private only as an additional source/history backup, never as the sole evidence backup. Never force-push or upload excluded evidence. | Controlled for this sanitized remote: the candidate history contains no excluded evidence, the remote is private, and the initial commit is pushed. The original research history and bundle remain local-only; re-audit every future commit. |
 
+## P17-010 freshness-clock correction (R3)
+
+P17-010 attempt 01 is preserved outside Git under the non-overwriting root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+The exact Sony `054c:001e` detection, native `0x0019` capacity response, and
+complete eight-object backup succeeded, but the host harness incorrectly used
+a freshness reference sampled before backup finalization. It stopped safely
+before candidate construction: `write_started=false`, `sender_calls=0`, no
+completion, `approval_consumed=false`, no mutation, and no retry. The raw
+evidence and verified 13-entry manifest remain unchanged with zero mismatches.
+
+The shared capture helper now samples its authoritative freshness reference
+after the complete backup callback returns. P17-010 uses this corrected
+post-finalization clock; a test-only injected clock preserves deterministic
+fixtures. The established package, mixed-package, existing-text, new-TXT, and
+delete execution chains also no longer pass a pre-capture fixed clock into
+downstream backup freshness checks. Completeness, integrity, maximum-age,
+future-skew, raw-state, target-absence, capacity, authorization, transaction,
+seal, one-shot, and no-retry gates are unchanged. Audit replay excludes only
+the verifier-generated `verified_at_utc` observation; all raw-state and other
+provenance remains bound and visible.
+
+Focused and complete host validation pass (602 tests, 3 intentional
+evidence-dependent skips), and the exclusion/preservation audits pass. P17-010A
+is **READY_FOR_HARDWARE_TEST** only for a later fresh attempt with renewed
+operation-specific approval. No hardware access or sender construction occurs
+in this correction.
+
 P17-005 adds the isolated, unregistered one-shot adapter needed to connect a
 future real Sony transport to the exact P17-004 Library package profile. It
 reuses the P17-003 bridge, candidate, authorization, and independent verifier;
