@@ -13,8 +13,9 @@ absent from this checkout.
 | ID | Risk | Level | Required treatment and release gate | Status |
 | --- | --- | --- | --- | --- |
 
-Current checkpoint: P18-001 capability-driven Experimental Library integration is
-host-only and unexecuted; the exact P17-018 package row is authoritative in
+Current checkpoint: P18-001A corrects responsive visibility and a persisted-child
+display startup defect in the host-only
+Experimental Library review; the exact P17-018 package row remains authoritative in
 `CAPABILITY_MATRIX.md`. Workflow migration W-001/W-002 is complete at `c1cf621`,
 PR #2 is merged at `02dc39e`, and PR #3 recording P15-003 completion is merged
 at `ae35ec2`. P16-001 Capture 01 is complete for the exact constrained
@@ -41,7 +42,7 @@ P17-002 explicit prepared-package import/grouped review are complete for their
 offline-only scopes. P17-003 now bridges one exact revalidated Library package
 into a hash-bound candidate/preflight and fake-host workflow only; normal
 device transfer remains disabled.
-The current portable suite is **641 tests** with three
+The current portable suite is **644 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The original P15-001 modern dossier is now correctly reclassified as
@@ -740,3 +741,27 @@ all safety gates to the canonical runner. Unsupported, stale, conflicting,
 modified, nested, multi-package, and differently shaped items remain
 preview-only with a reason. Future live use still requires a fresh verified
 backup, exact operation-specific approval, and the existing R3 stop boundary.
+
+## P18-001A responsive Library review usability (R1/R2)
+
+The merged P18-001 review was functionally correct but visually unsafe to
+accept at ordinary non-maximized widths: action labels, the persistent
+Experimental no-send notice, technical review text, and status could be
+clipped or compressed. P18-001A addresses only presentation and visibility.
+The supported minimum geometry is `980x680` (default `1120x760`); grouped
+action rows separate import/prepare, offline review, and the Experimental
+review-only boundary. The safety notice and status wrap dynamically, the
+Library list/detail sash has 360/440 pixel pane minima enforced on resize and
+sash release, and long details are
+scrollable rather than forcing full absolute paths into the primary table.
+
+The owner’s first launch also exposed a persisted package-child mapping
+startup defect in the display-only shape column; the follow-up correction
+handles the canonical mapping representation without changing transfer scope.
+
+Control: no approval, sender, `0x101b`, hardware access, candidate,
+authorization, package-schema, or Library-persistence behavior changed. The
+Experimental review remains no-send and the live adapter remains outside the
+normal GUI/CLI import graph. Automated host checks cover the explicit geometry
+and safety sections; visual acceptance remains a human check at the minimum
+and expanded geometries. Disposition: **READY_FOR_HUMAN_TEST**.

@@ -1,18 +1,43 @@
 # Current Project Status
 
-Date: 2026-09-01
-Canonical checkpoint: P18-001 integrates an Experimental review/guard boundary for the exact P17-018-proven Library TXT/BMP/TXT package; no hardware or approval activity occurred
+Date: 2026-09-02
+Canonical checkpoint: P18-001A responsive Library review correction includes a follow-up fix for persisted-package display startup; P18-001 remains review-only and no hardware or approval activity occurred
 
 Capability authority: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). This file is the current-sprint view; the matrix is authoritative for exact operation exposure and remaining blockers.
 
 ## Portable offline validation
 
-- 641 passing tests
+- 644 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
 
-## P18-001 current sprint — capability-driven Experimental Library transfer
+## P18-001A current sprint — responsive Library review usability correction
+
+P18-001A corrects the merged P18-001 presentation boundary without changing
+the Experimental operation, package schema, candidate, authorization, or
+device-facing code. The Library opens at `1120x760` and has a defined minimum
+supported geometry of `980x680`. Import/prepare, offline review, and the
+Experimental review-only boundary are grouped into responsive action rows;
+the no-send safety notice and bottom status remain persistent and wrap to the
+available width. The Library list uses concise item/state/shape/source/target
+values, while the detail pane retains full source, target, hash, ordered-child,
+and diagnostic information with vertical and horizontal scrolling. The
+list/detail sash remains user-adjustable, with a 360-pixel list minimum and
+440-pixel detail minimum enforced on resize and sash release.
+
+The formatter now presents status, package contents, destination/conflicts,
+capacity/backup state, safety rules, technical details, and the reason
+transfer is unavailable as distinct sections. The review-only surface still
+has no approval or send control and the live adapter remains outside the
+normal GUI/CLI import graph. Host validation is **READY_FOR_HUMAN_TEST**;
+an owner launch also exposed and corrected a persisted-child mapping startup
+defect in the display-only shape column. The owner must still repeat the
+visual check at the minimum and expanded
+geometries before any later product milestone considers the presentation
+accepted.
+
+## P18-001 integrated capability boundary (context)
 
 P18-001 is host/offline-only. It adds a hash-only Experimental review surface
 for exactly one explicitly grouped, fully revalidated Library package with

@@ -2465,3 +2465,27 @@ not import the live adapter, request approval, construct a sender, or send
 `0x101b`. Host validation is the basis for **READY_FOR_HARDWARE_TEST** before
 the first separately approved transfer; crude GUI usability remains a human
 check. No hardware or external evidence was accessed in P18-001.
+
+## P18-001A — responsive Library review usability correction (2026-09-02)
+
+Human review found the merged P18-001 ttk Library surface too compressed at
+ordinary non-maximized widths: the single-row toolbar, Experimental notice,
+technical review, and bottom status could be clipped despite unused space.
+P18-001A keeps the exact review-only product boundary and corrects only the
+presentation. The Library now has a documented `980x680` minimum and
+`1120x760` default geometry, grouped action rows for import/prepare, offline
+review, and the Experimental boundary, plus a persistent wrapped
+no-send notice and status line. The list uses concise display values; the
+detail report keeps full paths, hashes, ordered children, and diagnostics with
+vertical/horizontal scrolling. The user-adjustable list/detail sash has
+360/440 pixel pane minima enforced on resize and sash release.
+
+The formatter separates status, package contents, destination/conflicts,
+capacity/backup state, safety rules, technical details, and why execution is
+unavailable. Automated tests and compilation pass; no protocol, candidate,
+authorization, Library/package schema, GUI/CLI isolation, or hardware behavior
+changed. The owner launch also found and the display-only boundary corrected a
+persisted package-child mapping startup defect. The corrected host result is
+**READY_FOR_HUMAN_TEST**. The owner must
+visually check the minimum and expanded geometries before the next product
+milestone; no hardware or approval activity is part of this correction.
