@@ -50,6 +50,25 @@ LIBRARY_LIST_MIN_WIDTH = 360
 LIBRARY_DETAIL_MIN_WIDTH = 440
 
 
+def _library_package_shape(package: Any) -> str:
+    """Return a concise child-kind shape for the Library list.
+
+    ``LibraryPackageReference`` deliberately persists its children as plain
+    dictionaries.  Keep the display boundary compatible with that canonical
+    representation while also accepting the small object-shaped fixtures used
+    by older in-memory callers.
+    """
+
+    kinds: list[str] = []
+    for child in getattr(package, "children", ()):
+        if isinstance(child, dict):
+            kind = child.get("kind")
+        else:
+            kind = getattr(child, "kind", None)
+        kinds.append(str(kind).upper() if kind else "?")
+    return "/".join(kinds) or "PACKAGE"
+
+
 def _backup_destination(parent: Path) -> Path:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     candidate = parent.expanduser().resolve() / f"InfoCarry-backup-{stamp}"
@@ -876,7 +895,7 @@ def launch_ttk_desktop() -> None:
             shape = "TXT"
             if item.package is not None and item.target_folder_name:
                 target = f"root\\{item.target_folder_name} ({len(item.package.children)} children)"
-                shape = "/".join(child.kind.upper() for child in item.package.children)
+                shape = _library_package_shape(item.package)
             elif item.target_folder_name and item.target_child_name:
                 target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
             tree_item = library_tree.insert(

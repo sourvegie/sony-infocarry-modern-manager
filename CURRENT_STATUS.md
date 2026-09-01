@@ -1,13 +1,13 @@
 # Current Project Status
 
 Date: 2026-09-02
-Canonical checkpoint: P18-001A responsive Library review correction is host-complete; P18-001 remains review-only and no hardware or approval activity occurred
+Canonical checkpoint: P18-001A responsive Library review correction includes a follow-up fix for persisted-package display startup; P18-001 remains review-only and no hardware or approval activity occurred
 
 Capability authority: [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). This file is the current-sprint view; the matrix is authoritative for exact operation exposure and remaining blockers.
 
 ## Portable offline validation
 
-- 643 passing tests
+- 644 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -31,7 +31,9 @@ capacity/backup state, safety rules, technical details, and the reason
 transfer is unavailable as distinct sections. The review-only surface still
 has no approval or send control and the live adapter remains outside the
 normal GUI/CLI import graph. Host validation is **READY_FOR_HUMAN_TEST**;
-the owner must still repeat the visual check at the minimum and expanded
+an owner launch also exposed and corrected a persisted-child mapping startup
+defect in the display-only shape column. The owner must still repeat the
+visual check at the minimum and expanded
 geometries before any later product milestone considers the presentation
 accepted.
 

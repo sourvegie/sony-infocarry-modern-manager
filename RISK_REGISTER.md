@@ -13,7 +13,8 @@ absent from this checkout.
 | ID | Risk | Level | Required treatment and release gate | Status |
 | --- | --- | --- | --- | --- |
 
-Current checkpoint: P18-001A corrects responsive visibility of the host-only
+Current checkpoint: P18-001A corrects responsive visibility and a persisted-child
+display startup defect in the host-only
 Experimental Library review; the exact P17-018 package row remains authoritative in
 `CAPABILITY_MATRIX.md`. Workflow migration W-001/W-002 is complete at `c1cf621`,
 PR #2 is merged at `02dc39e`, and PR #3 recording P15-003 completion is merged
@@ -41,7 +42,7 @@ P17-002 explicit prepared-package import/grouped review are complete for their
 offline-only scopes. P17-003 now bridges one exact revalidated Library package
 into a hash-bound candidate/preflight and fake-host workflow only; normal
 device transfer remains disabled.
-The current portable suite is **643 tests** with three
+The current portable suite is **644 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The original P15-001 modern dossier is now correctly reclassified as
@@ -753,6 +754,10 @@ review-only boundary. The safety notice and status wrap dynamically, the
 Library list/detail sash has 360/440 pixel pane minima enforced on resize and
 sash release, and long details are
 scrollable rather than forcing full absolute paths into the primary table.
+
+The owner’s first launch also exposed a persisted package-child mapping
+startup defect in the display-only shape column; the follow-up correction
+handles the canonical mapping representation without changing transfer scope.
 
 Control: no approval, sender, `0x101b`, hardware access, candidate,
 authorization, package-schema, or Library-persistence behavior changed. The

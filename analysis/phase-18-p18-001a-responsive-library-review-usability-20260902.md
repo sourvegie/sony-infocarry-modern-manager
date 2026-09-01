@@ -19,6 +19,14 @@ detail values, and bottom status. The supplied references were inspected as
 the presentation baseline; they are not repository evidence and are not
 copied into Git.
 
+The owner’s first launch of the corrected surface then exposed a separate
+host-only startup defect in `refresh_library_view`: the canonical persisted
+`LibraryPackageReference.children` values are dictionaries, while the new
+shape display read them as attribute-bearing objects. No hardware, sender, or
+transfer path was reached. The display boundary now reads the persisted
+`kind` mapping while retaining compatibility with object-shaped in-memory
+fixtures, and a focused regression test covers the exact TXT/BMP/TXT shape.
+
 ## Corrected layout contract
 
 The desktop opens at `1120x760` and declares a supported minimum of `980x680`.
@@ -60,7 +68,7 @@ group to a full-width row, and added a bounded `sashpos` clamp. A follow-up
 review also found trailing whitespace in this record and a stale `641` count in
 the risk register; both were corrected in commit `4669357`.
 
-The final independent re-review at
+The pre-correction independent re-review at
 `466935734a7487379629c845b99f9b3137f08f7f` is **PASS —
 READY_FOR_HUMAN_TEST**. It confirmed Tk 9 compatibility, the `980x680`
 minimum, grouped toolbar, sash bounds, scrollbars, persistent safety/status
@@ -68,6 +76,18 @@ text, concise table/detail separation, GUI/live-adapter isolation, and no
 P18-002 scope leakage. It also confirmed 10 focused tests, 643 full-suite
 tests with 3 intentional skips, compilation of 181 Python files, and clean
 `git diff --check`. No hardware or external evidence was accessed.
+
+The owner-reported startup regression is corrected in the follow-up change;
+post-correction focused/full validation and independent review are recorded
+below.
+
+Fresh independent R1/R2 re-review of the follow-up diff is **PASS —
+READY_FOR_HUMAN_TEST**. It confirmed that persisted child dictionaries are
+read at the display boundary, strict catalog validation is unchanged, the
+normal GUI/CLI remains isolated from live transfer, and no hardware path is
+reachable. It confirmed 11 focused tests, 644 full-suite tests with 3
+intentional skips, read-only compilation of 181 Python files, and clean
+`git diff --check`.
 
 ## Evidence classifications and boundaries
 
@@ -87,10 +107,11 @@ tests with 3 intentional skips, compilation of 181 Python files, and clean
 
 ## Host validation and manual gate
 
-Focused `tests.test_desktop_ttk` tests pass, including the explicit geometry,
-sectioned-review, no-send, and existing offline wording assertions. The module
-and tests compile under the project virtual environment. The complete suite
-passes with 643 tests and 3 intentional evidence-dependent skips. `git diff
+Focused `tests.test_desktop_ttk` tests pass, including the persisted-child
+mapping regression, explicit geometry, sectioned-review, no-send, and existing
+offline wording assertions. The module and tests compile under the project
+virtual environment. The complete suite passes with 644 tests and 3
+intentional evidence-dependent skips. `git diff
 --check` and the excluded-evidence/history audit pass; no raw evidence,
 candidate bytes, transaction bytes, source-pool material, or
 `InfoCarry-Toolkit` files are included.

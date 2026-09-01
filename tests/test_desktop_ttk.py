@@ -1,6 +1,7 @@
 import errno
 import inspect
 import unittest
+from types import SimpleNamespace
 
 from infocarry.backup_format import BackupFormatError
 from infocarry.desktop_ttk import (
@@ -8,6 +9,7 @@ from infocarry.desktop_ttk import (
     LIBRARY_DETAIL_MIN_WIDTH,
     LIBRARY_LIST_MIN_WIDTH,
     LIBRARY_MINIMUM_GEOMETRY,
+    _library_package_shape,
     format_library_preparation_audit,
     format_library_transfer_plan,
     format_experimental_library_transfer_review,
@@ -23,6 +25,16 @@ from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_library_package_shape_accepts_persisted_child_mappings(self):
+        package = SimpleNamespace(
+            children=(
+                {"kind": "txt"},
+                {"kind": "bmp"},
+                {"kind": "txt"},
+            )
+        )
+        self.assertEqual(_library_package_shape(package), "TXT/BMP/TXT")
+
     def test_library_review_geometry_is_explicit_and_usable(self):
         self.assertEqual(LIBRARY_MINIMUM_GEOMETRY, (980, 680))
         self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[0], LIBRARY_MINIMUM_GEOMETRY[0])

@@ -2484,6 +2484,8 @@ The formatter separates status, package contents, destination/conflicts,
 capacity/backup state, safety rules, technical details, and why execution is
 unavailable. Automated tests and compilation pass; no protocol, candidate,
 authorization, Library/package schema, GUI/CLI isolation, or hardware behavior
-changed. The corrected host result is **READY_FOR_HUMAN_TEST**. The owner must
+changed. The owner launch also found and the display-only boundary corrected a
+persisted package-child mapping startup defect. The corrected host result is
+**READY_FOR_HUMAN_TEST**. The owner must
 visually check the minimum and expanded geometries before the next product
 milestone; no hardware or approval activity is part of this correction.
