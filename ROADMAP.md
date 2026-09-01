@@ -2438,3 +2438,30 @@ does not modify the production runner, device protocol, authorization, or
 normal GUI/CLI transfer exposure. P17-019 is **COMPLETE — offline correction
 only** for the already completed exact P17-018 scope; physical opening of the
 three children remains pending.
+
+## P18-001 — capability-driven Experimental Library transfer integration (2026-09-01)
+
+P18-001 makes the exact proven capability boundary explicit in
+`CAPABILITY_MATRIX.md`. The matrix records constrained root-TXT deletion,
+ordered four-TXT, flat TXT/BMP/TXT, and the P17-018 Library package separately;
+it does not convert constrained evidence into generalized compatibility.
+`CURRENT_STATUS.md` remains the current-sprint view and this roadmap remains
+chronological history.
+
+The product slice adds a hash-only Experimental Library review for one
+explicitly grouped, fully revalidated package with the exact ordered
+`01-introduction.txt`, `02-page-01.bmp`, `03-ending.txt` profile and reviewed
+destination. It reports prepared sizes, conflicts, fresh-backup/capacity
+requirements, hash-only candidate/operation identity when a sealed preflight
+is supplied, complete-library-image semantics, explicit `0x0000`, one logical
+transaction maximum, no retry, post-backup, independent read-back, and audit
+provenance. Unsupported, stale, conflicting, nested, multi-package, and
+differently shaped items remain preview-only with precise reasons.
+
+The isolated integration entrypoint accepts one immutable operation bundle and
+delegates to the reviewed P17-017 runner and P17-019 reconciliation. No writer
+or safety stack was duplicated. The ttk surface exposes review only: it does
+not import the live adapter, request approval, construct a sender, or send
+`0x101b`. Host validation is the basis for **READY_FOR_HARDWARE_TEST** before
+the first separately approved transfer; crude GUI usability remains a human
+check. No hardware or external evidence was accessed in P18-001.

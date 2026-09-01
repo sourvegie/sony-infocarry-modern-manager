@@ -6,10 +6,11 @@ For every engineering task:
 
 1. Read `CURRENT_STATUS.md` for the current verified checkpoint, blockers, and next approved work.
 2. Read `WORKFLOW.md` for task lifecycle, risk levels, review requirements, escalation, and human/hardware boundaries.
-3. Read `PRODUCT_VISION.md` when product scope or behavior matters.
-4. Read `RISK_REGISTER.md` for any change with device, persistence, data-loss, or release risk.
-5. Inspect only the relevant `ROADMAP.md` / `analysis/` records needed for the task. Do not reread the entire project history by default.
-6. Use `README.md` for supported setup, commands, and developer/user entry points.
+3. Read `CAPABILITY_MATRIX.md` when an operation's support, exposure, or blocker is in question; it is the authoritative capability register.
+4. Read `PRODUCT_VISION.md` when product scope or behavior matters.
+5. Read `RISK_REGISTER.md` for any change with device, persistence, data-loss, or release risk.
+6. Inspect only the relevant `ROADMAP.md` / `analysis/` records needed for the task. Do not reread the entire project history by default.
+7. Use `README.md` for supported setup, commands, and developer/user entry points.
 
 Repository state and canonical documents override remembered conversation history.
 
@@ -27,7 +28,7 @@ Original Sony software, ISO contents, raw USB captures, complete device backups,
 
 The project is read-first and fail-closed. Preserve all proven narrow scopes without generalizing beyond their evidence.
 
-Normal product-facing generalized write, package-transfer, delete, destructive synchronization, restore, firmware/unlock, and alternate-mode controls remain disabled unless `CURRENT_STATUS.md`, `RISK_REGISTER.md`, and an explicit approved task say otherwise.
+Normal product-facing generalized write, package-transfer, delete, destructive synchronization, restore, firmware/unlock, and alternate-mode controls remain disabled unless `CURRENT_STATUS.md`, `CAPABILITY_MATRIX.md`, `RISK_REGISTER.md`, and an explicit approved task say otherwise. A proven narrow operation may be labeled Experimental only when its matrix row and exact safety gate support it.
 
 A successful fixture, fake transport, offline candidate comparison, or previous narrow live smoke does not authorize a broader live operation.
 

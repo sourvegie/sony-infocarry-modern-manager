@@ -58,6 +58,7 @@ Conversation history is transient. Approved decisions, implementation state, tes
 ## Canonical documents
 
 - `CURRENT_STATUS.md`: concise current project snapshot; update after meaningful verified checkpoints.
+- `CAPABILITY_MATRIX.md`: authoritative exact-shape operation support/exposure register; use it for capability questions instead of copying milestone narratives.
 - `PRODUCT_VISION.md`: stable product scope and approved product behavior.
 - `RISK_REGISTER.md`: material risks, controls, and unresolved safety boundaries.
 - `ROADMAP.md`: longer-term milestones and historical progress.
@@ -65,7 +66,7 @@ Conversation history is transient. Approved decisions, implementation state, tes
 - `analysis/`: investigation records, evidence synthesis, protocols, and technical history.
 - `AGENTS.md`: compact operational instructions for coding agents.
 
-Do not duplicate chronological milestone history into every governance file. Prefer references to the canonical record.
+Do not duplicate chronological milestone history or capability tables into every governance file. Prefer the capability matrix for exact operation status and `analysis/` for evidence/history; keep `CURRENT_STATUS.md` focused on the current sprint.
 
 ## Task lifecycle
 
