@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-008 host-only raw backup-state identity correction is READY_FOR_HARDWARE_TEST; no hardware access, sender call, or 0x101b transaction occurred
+Canonical checkpoint: P17-009 corrected raw-state fresh Library-package preflight is READY_FOR_HARDWARE_TEST at the host-only approval boundary; no sender call, backend write, or 0x101b transaction occurred
 
 ## Portable offline validation
 
-- 596 passing tests
+- 599 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -162,6 +162,36 @@ These are host/offline results only. They do not claim physical-device verificat
   `analysis/phase-13-p17-008-r3-review-20260901.md`. P17-008 is
   **READY_FOR_HARDWARE_TEST** only; a later task must perform a new fresh
   preflight and obtain new operation-specific approval.
+- P17-009 completed a new in-order read-only preflight for the preserved
+  P17-004 Library item targeting
+  `root\\IC_P17_LIBRARY_20260831_03`. Sony `054c:001e` was detected at bus
+  2/address 3; the fresh native `0x0019` response is 64 bytes with SHA-256
+  `c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662` and
+  reports a 3,145,728-byte capacity limit. The fresh complete eight-object
+  backup has manifest SHA-256
+  `b143485b76935c69a427c13f17f01fc2ebf2c1e0a7fbe596bd3b678eff88d403`,
+  dynamic model 2,075,256 bytes, and raw-state identity SHA-256
+  `6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`;
+  `_03` was absent. A comparison against the preserved P17-004 refresh is
+  raw-state equal and explicitly reports only acquisition-provenance
+  differences. The exact 2,091,292-byte candidate grows 16,036 bytes and
+  leaves 1,054,436 bytes of parsed-capacity margin; candidate, transaction,
+  and preflight seal hashes are recorded in the P17-009 dossier. The six
+  active `0x001b` references are semantically rebased by the exact `0x140`
+  metadata delta to the same paths/records, while `0x001c`–`0x001f` remain
+  supported all-zero state. The original external 67-entry v1 manifest is
+  preserved unchanged and replays with zero mismatches. The corrected
+  non-overwriting v2 manifest covers 68 entries and also replays with zero
+  mismatches. P17-009 is
+  **READY_FOR_HARDWARE_TEST** only; sender calls,
+  backend write calls, USB transmissions, and device-changing operations are
+  zero. The adapter now consumes a thread-safe process-local single-use claim
+  keyed by the sealed preflight before sender construction; a same-seal second
+  execution fails closed. The two new phrases are bound but were not requested or consumed;
+  old P17-007 phrases are not reusable. Physical compatibility and native
+  numeric completion decoding remain unresolved. See
+  `analysis/phase-13-p17-009-corrected-raw-state-library-package-fresh-preflight-20260901.md` and
+  `analysis/phase-13-p17-009-r3-review-20260901.md`.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -338,7 +368,7 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 No further device-changing task is approved by this checkpoint. P16-003B remains
 complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
 P17-001/P17-002 are complete only as offline Library planning/review, and
-P17-003/P17-004/P17-005/P17-008 are host-ready only for their exact
+P17-003/P17-004/P17-005/P17-008/P17-009 are host-ready only for their exact
 constrained package bridges and fresh-preflight/one-shot boundary. Any later
 hardware operation must be
 separately briefed, use a new fresh read-only preflight and evidence root,
@@ -346,9 +376,11 @@ obtain new operation-specific owner approval, and remain outside normal
 GUI/CLI transfer. Native global timestamp rewriting, numeric completion
 decoding, operation-specific capacity semantics, interrupted-write recovery,
 arbitrary package hardware compatibility, and batch execution remain
-unresolved or disabled. The P17-008 correction does not authorize a live
-operation or reuse the P17-007 approval phrases; a later operation must use a
-new fresh preflight and new exact operation-specific approval.
+unresolved or disabled. P17-009 is also an approval-boundary record only: its
+new phrases are documented but not requested or consumed, and it does not
+authorize a live operation or reuse the P17-007 approval phrases. A later
+operation must use a new fresh preflight and new exact operation-specific
+approval.
 
 ## Canonical reading order
 

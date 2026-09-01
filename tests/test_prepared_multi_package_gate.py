@@ -10,6 +10,7 @@ except ModuleNotFoundError:
 
 from infocarry.prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+    PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
     PreparedMultiPackageAuthorization,
     PreparedMultiPackageGateError,
     authorize_prepared_multi_package,
@@ -45,6 +46,15 @@ class PreparedMultiPackageGateTests(unittest.TestCase):
         _package, _backup, candidate, _template = self._candidate()
         with self.assertRaisesRegex(PreparedMultiPackageGateError, "confirmation"):
             authorize_prepared_multi_package(candidate, confirmation="ADD ONE INFOCARRY PACKAGE")
+
+    def test_explicit_policy_rejects_historical_fixed_phrase(self):
+        _package, _backup, candidate, _template = self._candidate()
+        with self.assertRaisesRegex(PreparedMultiPackageGateError, "confirmation"):
+            authorize_prepared_multi_package(
+                candidate,
+                confirmation=PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+                confirmation_policy=PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+            )
 
     def test_mutating_each_audit_binding_invalidates_authorization(self):
         _package, _backup, candidate, _template = self._candidate()

@@ -2058,3 +2058,50 @@ unconnected. Focused identity and adapter tests, the complete portable suite,
 and the evidence-exclusion audit pass. P17-008 is
 **READY_FOR_HARDWARE_TEST** only; a later task must perform a new fresh
 preflight and obtain new operation-specific approval.
+
+## Phase 13 — P17-009 corrected raw-state Library-package fresh preflight (2026-09-01)
+
+P17-009 started from canonical `main` after PR #15 and used a new external
+evidence root. The preserved P17-004 Library item was revalidated as one
+explicit flat package with ordered TXT/BMP/TXT children targeting
+`root\\IC_P17_LIBRARY_20260831_03`. In-order detection observed Sony
+`054c:001e` at bus 2/address 3. The fresh native `0x0019` response was
+preserved and parsed as a 3,145,728-byte capacity limit, and a fresh complete
+eight-object backup proved the target absent.
+
+After complete backup verification, P17-009 compared the fresh backup with
+the preserved P17-004 refresh through the immutable P17-008
+`BackupStateIdentity`. The raw state compared equal with identity SHA-256
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`.
+Archive path, manifest hash, and acquisition timestamps remain preserved and
+are explicitly listed as provenance differences, not normalized away.
+
+The exact candidate is 2,091,292 bytes from a 2,075,256-byte baseline, with
+16,036 bytes of growth and 1,054,436 bytes of parsed-capacity margin. Its
+SHA-256 is
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`; the
+prospective `0x101b` transaction SHA-256 is
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`; and
+the sealed preflight SHA-256 is
+`183660f73c586474878a4242ebc2c219c41d96f8f4fa7363235edd695c408e79`.
+The exact six active `0x001b` references are semantically rebased by the
+reviewed `0x140` metadata delta; `0x001c`–`0x001f` remain supported all-zero
+state. Candidate, transaction, and raw evidence remain outside Git; the
+The original 67-entry v1 manifest remains unchanged; a corrected
+non-overwriting v2 manifest covers 68 entries (including v1) and replays with
+zero mismatches.
+
+P17-009 is **READY_FOR_HARDWARE_TEST** only at the host-only approval
+boundary. Sender calls, backend writes, USB transmissions, and device changes
+are zero. The new exact phrases are bound but were not requested or consumed:
+`APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01` and
+`CONFIRM P17-009 ONE INFOCARRY MULTI-CHILD PACKAGE`. The dossier is
+`analysis/phase-13-p17-009-corrected-raw-state-library-package-fresh-preflight-20260901.md`.
+The adapter consumes a thread-safe process-local single-use claim keyed by the
+sealed preflight before sender construction; same-seal second execution is
+refused, and expired P17-007 phrases are centrally rejected. Independent R3
+review passes are recorded in
+`analysis/phase-13-p17-009-r3-review-20260901.md`.
+Physical compatibility, native numeric completion decoding, and
+operation-specific capacity semantics remain unresolved for any future live
+task.
