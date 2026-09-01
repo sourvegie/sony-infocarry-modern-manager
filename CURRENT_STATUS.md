@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-012 exact P17-011 Library-package live-execution preflight is host-validated and READY_FOR_HARDWARE_TEST at a new owner-approval boundary; its authorized read-only revalidation detected one Sony 054c:001e, captured fresh capacity and one complete backup, and performed no sender construction, approval consumption, backend write, or 0x101b transaction
+Canonical checkpoint: P17-013 strict sealed-schema loader correction is host-validated on its task branch and proposed READY_FOR_HARDWARE_TEST after review/CI; P17-012 remains a historical host-only preflight and its attempt-03 loader failure was safe, pre-hardware, and non-mutating
 
 ## Portable offline validation
 
-- 602 passing tests
+- 609 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -436,6 +436,40 @@ scope. Numeric completion decoding and operation-specific capacity response
 remain unresolved/non-blocking, and no modern transaction is authorized by
 this task. See
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-capture-01-results.md`.
+
+## P17-013 sealed-schema loader correction (R3)
+
+P17-012 live attempt 03 was stopped offline before hardware access because
+the local loader expected a top-level `transaction_sha256`, while the
+canonical sealed-preflight schema binds the prospective transaction at
+`authorization.candidate_transaction_sha256`. The preserved external
+evidence root
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-012-library-package-live-execution-20260901-03/`
+and its `offline-loader-failure.json` remain unchanged. That record states
+`write_started=false`, `sender_calls=0`, `backend_write_calls=0`,
+`approval_consumed=false`, no completion, no `0x101b`, no mutation, and no
+retry.
+
+The P17-013 correction adds a strict loader for the exact P17-012 sealed
+report shape. It rejects missing, duplicate, malformed, contradictory, and
+top-level-alias transaction bindings, validates all other top-level execution
+fields, reconstructs the candidate through the reviewed Library bridge, and
+requires the nested transaction hash to equal the independently reconstructed
+transaction before seal verification. The producer now records read-only
+hardware access accurately while retaining the no-write flags. The exact
+preserved P17-012 sealed report replays offline with outer seal
+`aeb656176aa9163d904f1f8fcbf9c588ef7a33be35dfcc2e64efa3b8235829a8`, candidate
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`, and
+transaction
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`.
+
+Focused loader tests cover the exact nested binding, missing field,
+top-level-only and contradictory aliases, malformed and mismatched hashes,
+duplicate JSON keys, and no callback/sender activity on failure. P17-013 is
+**READY_FOR_HARDWARE_TEST** only for a later fresh operation after this
+correction is reviewed and merged. No hardware access, sender construction,
+approval consumption, retry, or `0x101b` transmission occurred in P17-013;
+the prior operation phrases are not reusable.
 
 ## Current product safety boundary
 

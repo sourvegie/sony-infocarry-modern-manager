@@ -2259,3 +2259,29 @@ Physical compatibility, native numeric completion semantics,
 operation-specific capacity semantics, and interrupted-write recovery remain
 unresolved. See
 `analysis/phase-13-p17-012-exact-library-package-live-execution-preflight-20260901.md`.
+
+## Phase 13 — P17-013 sealed-report loader schema correction (2026-09-01)
+
+P17-012 attempt 03 was a safe offline abort before hardware access. The
+loader expected a top-level `transaction_sha256`, but the canonical sealed
+report stores the binding at
+`authorization.candidate_transaction_sha256`. The external attempt-03
+evidence root and its verified manifest remain unchanged and record
+`write_started=false`, zero sender/backend-write calls, no approval
+consumption, no completion, no `0x101b`, no mutation, and no retry.
+
+P17-013 adds a strict loader for the exact P17-012 report shape. It rejects
+missing or duplicate fields, top-level aliases and contradictions, malformed
+hashes, and mismatches against a candidate independently reconstructed from
+the supplied verified backup, catalog, template, and capacity evidence. It
+audits all other fields read by the live boundary, verifies the existing
+outer/core seals, and keeps the loader outside normal product imports. The
+producer now accurately marks read-only detection/capacity/backup as hardware
+access while retaining false write/transmission flags.
+
+Focused tests cover valid nested loading, missing nested state, top-level-only
+and contradictory aliases, malformed and mismatched transaction hashes,
+duplicate JSON keys, and the absence of callback/sender activity on failure.
+The correction is host-only; a later fresh operation must obtain new
+operation-specific approval. P17-013 is **READY_FOR_HARDWARE_TEST** only
+after independent R3 review, CI, and merge.
