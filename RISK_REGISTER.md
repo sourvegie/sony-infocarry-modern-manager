@@ -499,3 +499,42 @@ later task must repeat fresh read-only preflight and obtain new exact approval.
 Physical compatibility, native numeric completion semantics,
 operation-specific capacity semantics, and interrupted-write recovery remain
 open. See the P17-011 analysis dossier and R3 review.
+
+## P17-012 exact Library-package live-execution preflight (R3)
+
+PR #18 was merged at `be4703c252f8a3f6bf7d40effdbc0b567fad9ad4` before the
+P17-012 branch was created. The owner authorized only the fresh read-only
+revalidation; the two exact operation phrases were not supplied or consumed.
+The new external evidence root preserves two numbered read-only sequences.
+The first complete backup became stale during host-side sealing and remains
+unchanged as superseded evidence. The second sequence is authoritative:
+exactly one Sony `054c:001e` was detected at bus 2/address 3, native `0x0019`
+reported 3,145,728 bytes, and a complete eight-object backup finalized with
+manifest SHA-256
+`4d3394de6f62c44f1ae6a1e790f099347196c9a3edd17444d9e5c93b06060b8e`.
+
+The authoritative backup passed integrity verification and matches the
+P17-009 raw-state identity
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`; six
+acquisition-provenance differences remain separately visible. The exact
+P17-011 Library package, target absence, fixed/display-history policy,
+candidate, transaction, and capacity fit revalidated. Candidate growth is
+16,036 bytes with 1,054,436 bytes of post-candidate capacity margin. The
+candidate and transaction remain
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761` and
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`.
+The new core/outer seals are
+`7294a989dd551985e6aa16b2a1cd0e7382f323551321e860dbfcf93071348da6` /
+`aeb656176aa9163d904f1f8fcbf9c588ef7a33be35dfcc2e64efa3b8235829a8`.
+
+The external 54-entry preservation manifest replays with zero mismatches.
+No sender was constructed, no approval was consumed, no backend write or
+`0x101b` was issued, and no device state changed. P17-012 is
+**READY_FOR_HARDWARE_TEST** only at the final owner-approval boundary. A
+later live task must freshly revalidate the exact sealed operation and obtain
+the new phrases
+`APPROVE P17-011 MODERN LIBRARY PACKAGE PREFLIGHT 01` and
+`CONFIRM P17-011 ONE INFOCARRY MULTI-CHILD PACKAGE`; these are not reusable
+authorization by implication. Physical compatibility, native numeric
+completion semantics, operation-specific capacity semantics, and
+interrupted-write recovery remain unresolved.

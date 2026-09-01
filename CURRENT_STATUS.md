@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-011 corrected-clock fresh Library-package preflight is host-validated and READY_FOR_HARDWARE_TEST at a new owner-approval boundary; its authorized read-only sequence detected one Sony 054c:001e, captured fresh capacity and one complete backup, and performed no sender construction, approval consumption, backend write, or 0x101b transaction
+Canonical checkpoint: P17-012 exact P17-011 Library-package live-execution preflight is host-validated and READY_FOR_HARDWARE_TEST at a new owner-approval boundary; its authorized read-only revalidation detected one Sony 054c:001e, captured fresh capacity and one complete backup, and performed no sender construction, approval consumption, backend write, or 0x101b transaction
 
 ## Portable offline validation
 
@@ -269,6 +269,32 @@ These are host/offline results only. They do not claim physical-device verificat
   device changes are zero. Its new phrases are bound but not requested or
   consumed. See
   `analysis/phase-13-p17-011-corrected-clock-fresh-library-package-preflight-20260901.md`.
+- P17-012 completed the separately authorized final read-only revalidation for
+  the exact P17-011 Library-package operation after merging PR #18 at
+  `be4703c252f8a3f6bf7d40effdbc0b567fad9ad4`. The new external root is
+  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-012-library-package-live-preflight-20260901-01`.
+  A second numbered sequence was used because the first complete backup became
+  stale during host-side sealing; both sequences remain preserved and the
+  second is authoritative. It detected exactly one Sony `054c:001e` at bus
+  2/address 3, captured a 64-byte native `0x0019` response reporting
+  3,145,728 bytes, and verified a complete eight-object backup with manifest
+  SHA-256 `4d3394de6f62c44f1ae6a1e790f099347196c9a3edd17444d9e5c93b06060b8e`.
+  The raw-state identity equals the P17-009 baseline at
+  `6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`, with
+  six acquisition-provenance differences explicitly retained. The target
+  `root\\IC_P17_LIBRARY_20260831_03` is absent. The exact P17-011 candidate and
+  transaction remain `a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`
+  and `1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`,
+  with 16,036 bytes of growth and 1,054,436 bytes of capacity margin. New
+  core/outer seals are
+  `7294a989dd551985e6aa16b2a1cd0e7382f323551321e860dbfcf93071348da6` /
+  `aeb656176aa9163d904f1f8fcbf9c588ef7a33be35dfcc2e64efa3b8235829a8`.
+  The 54-entry external preservation manifest replayed with zero mismatches.
+  P17-012 is **READY_FOR_HARDWARE_TEST** only at the new owner-approval
+  boundary: sender construction, approval consumption, backend writes,
+  `0x101b`, and device mutation are all zero. The exact phrases are recorded
+  in the P17-012 dossier but are not requested or consumed here. See
+  `analysis/phase-13-p17-012-exact-library-package-live-execution-preflight-20260901.md`.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -442,12 +468,12 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P17-011 is complete through host-only preparation and is stopped at
+P17-012 is complete through the final host-only revalidation and is stopped at
 **READY_FOR_HARDWARE_TEST**. Its new exact phrases are documented in the
-P17-011 dossier but were not requested, supplied, or consumed. A later live
-task must use a new fresh detection/capacity/complete-backup preflight and
-separate operation-specific owner approval; it must remain outside normal
-GUI/CLI transfer. P16-003B remains complete only for its exact package,
+P17-012 dossier but were not requested, supplied, or consumed. A later live
+task must use the sealed exact operation, perform any required final
+revalidation, and obtain both phrases in a new owner message; it must remain
+outside normal GUI/CLI transfer. P16-003B remains complete only for its exact package,
 P17-001/P17-002 remain offline Library planning/review, and all broader
 package, batch, timestamp, completion-decoding, and interrupted-write claims
 remain unresolved or disabled.
