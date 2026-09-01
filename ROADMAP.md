@@ -2180,3 +2180,42 @@ with 602 tests and 3 intentional evidence-dependent skips.
 P17-010A is **READY_FOR_HARDWARE_TEST** only for a future new fresh attempt.
 No hardware was accessed and no prior approval phrase is reusable; renewed
 exact owner approval is required for any later live task.
+
+## Phase 13 — P17-011 corrected-clock fresh Library-package preflight (2026-09-01)
+
+P17-011 completed the separately authorized read-only sequence from canonical
+merge `457f03dc73024e259fe2e2d412a612257d030779`. It detected exactly one Sony
+`054c:001e` at bus 2/address 3, captured a 64-byte native `0x0019` response
+with SHA-256
+`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662` reporting
+3,145,728 bytes, and captured one complete eight-object backup. The backup
+manifest SHA-256 is
+`c2a53b4c2e45f4a536229d82b61ef479c769c170df1137cd4ee4765998663293`, the
+dynamic blob is 2,075,256 bytes with SHA-256
+`e3ac59cb5586a5dc35ea04f6bf24f5cc6509931761ece01bc2605a717335e741`, and the
+raw-state identity equals the P17-009 baseline at
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`. The
+target `root\\IC_P17_LIBRARY_20260831_03` is absent.
+
+The raw backup manifest finalized at `05:41:51.261937Z` and was accepted
+against a `05:42:19Z` reference sampled afterward, applying the corrected
+post-finalization freshness rule. Six acquisition-provenance differences
+remain explicitly reported. The preserved P17-004 Library package was
+revalidated, and the exact candidate is 2,091,292 bytes with 16,036 bytes of
+growth and 1,054,436 bytes of post-candidate capacity margin. Candidate SHA is
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`;
+transaction SHA is
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`;
+core/outer seals are
+`0a0ce4f38d0e5c417253408b1a438b520481efdd29902228889070ea0e561543` /
+`ab80b18459586edb71af31785151f9d0e178a699bdaba98796c6fad3702f3ad5`.
+
+The 65-entry external preservation manifest replayed with zero mismatches.
+No sender was constructed, no approval was consumed, no backend write or
+`0x101b` occurred, and no device state changed. P17-011 is
+**READY_FOR_HARDWARE_TEST** at a new owner-approval boundary only. The two
+new exact phrases are recorded in the sanitized analysis but are not
+authorization by implication. Physical compatibility, native numeric
+completion decoding, operation-specific capacity semantics, and
+interrupted-write recovery remain unresolved. See
+`analysis/phase-13-p17-011-corrected-clock-fresh-library-package-preflight-20260901.md`.

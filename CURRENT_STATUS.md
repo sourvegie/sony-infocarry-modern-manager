@@ -1,7 +1,7 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-010 freshness-clock correction is host-validated and READY_FOR_HARDWARE_TEST for a future fresh attempt; the authorized attempt-01 stopped fail-closed before sender construction because its harness used a pre-capture fixed timestamp; no sender call, backend write, or 0x101b transaction occurred
+Canonical checkpoint: P17-011 corrected-clock fresh Library-package preflight is host-validated and READY_FOR_HARDWARE_TEST at a new owner-approval boundary; its authorized read-only sequence detected one Sony 054c:001e, captured fresh capacity and one complete backup, and performed no sender construction, approval consumption, backend write, or 0x101b transaction
 
 ## Portable offline validation
 
@@ -244,6 +244,31 @@ These are host/offline results only. They do not claim physical-device verificat
   3 intentional evidence-dependent skips. P17-010 is **READY_FOR_HARDWARE_TEST**
   only for a future new fresh attempt; no hardware was accessed in this
   correction and the prior phrases are not reusable.
+- P17-011 completed the separately authorized corrected-clock read-only
+  preflight for the preserved P17-004 Library item. The new external root is
+  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-011-library-package-fresh-preflight-20260901-01`.
+  In order, exactly one Sony `054c:001e` was detected at bus 2/address 3, a
+  64-byte native `0x0019` response reported 3,145,728 bytes, and one complete
+  eight-object backup was captured. Its manifest SHA-256 is
+  `c2a53b4c2e45f4a536229d82b61ef479c769c170df1137cd4ee4765998663293`, its
+  dynamic blob is 2,075,256 bytes with raw-state identity
+  `6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`, and
+  the target `root\\IC_P17_LIBRARY_20260831_03` is absent. The backup was
+  finalized at `05:41:51.261937Z` and accepted against a post-finalization
+  `05:42:19Z` reference under the corrected P17-010 clock rule. The exact
+  candidate remains 2,091,292 bytes with 16,036 bytes of growth and
+  1,054,436 bytes of post-candidate capacity margin; candidate and
+  transaction hashes are recorded in the P17-011 dossier, with core seal
+  `0a0ce4f38d0e5c417253408b1a438b520481efdd29902228889070ea0e561543` and
+  outer seal
+  `ab80b18459586edb71af31785151f9d0e178a699bdaba98796c6fad3702f3ad5`.
+  The raw state matches the P17-009 baseline; six acquisition-provenance
+  differences remain preserved and reported. P17-011 is
+  **READY_FOR_HARDWARE_TEST** only at the new owner-approval boundary:
+  sender calls, backend writes, approval consumption, USB transmission, and
+  device changes are zero. Its new phrases are bound but not requested or
+  consumed. See
+  `analysis/phase-13-p17-011-corrected-clock-fresh-library-package-preflight-20260901.md`.
 - P16-001 Capture 01 is preserved outside Git and its native transaction is
   parseable. A new complete read-only post-operation backup is preserved
   outside Git and exactly matches the native transaction model. The
@@ -417,22 +442,15 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-No further device-changing task is approved by this checkpoint. P16-003B remains
-complete only for the exact fresh-state-preserving flat TXT/BMP/TXT package,
-P17-001/P17-002 are complete only as offline Library planning/review, and
-P17-003/P17-004/P17-005/P17-008/P17-009 are host-ready only for their exact
-constrained package bridges and fresh-preflight/one-shot boundary. Any later
-hardware operation must be
-separately briefed, use a new fresh read-only preflight and evidence root,
-obtain new operation-specific owner approval, and remain outside normal
-GUI/CLI transfer. Native global timestamp rewriting, numeric completion
-decoding, operation-specific capacity semantics, interrupted-write recovery,
-arbitrary package hardware compatibility, and batch execution remain
-unresolved or disabled. P17-009 is also an approval-boundary record only: its
-new phrases are documented but not requested or consumed, and it does not
-authorize a live operation or reuse the P17-007 approval phrases. A later
-operation must use a new fresh preflight and new exact operation-specific
-approval.
+P17-011 is complete through host-only preparation and is stopped at
+**READY_FOR_HARDWARE_TEST**. Its new exact phrases are documented in the
+P17-011 dossier but were not requested, supplied, or consumed. A later live
+task must use a new fresh detection/capacity/complete-backup preflight and
+separate operation-specific owner approval; it must remain outside normal
+GUI/CLI transfer. P16-003B remains complete only for its exact package,
+P17-001/P17-002 remain offline Library planning/review, and all broader
+package, batch, timestamp, completion-decoding, and interrupted-write claims
+remain unresolved or disabled.
 
 ## Canonical reading order
 
