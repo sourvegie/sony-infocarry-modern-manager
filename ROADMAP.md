@@ -2105,3 +2105,51 @@ review passes are recorded in
 Physical compatibility, native numeric completion decoding, and
 operation-specific capacity semantics remain unresolved for any future live
 task.
+
+## Phase 13 — P17-010 exact Library-package live-execution preflight (2026-09-01)
+
+P17-010 first merged PR #16 into canonical `main` at
+`98ae3e14b36073f5bb41c30c4ae4ee6a85c9b390`, then created a dedicated task
+branch and performed only the newly authorized read-only hardware steps. The
+ordered observations were one Sony `054c:001e` at bus 2/address 3, a fresh
+native `0x0019` response (64 bytes, SHA-256
+`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662`) reporting
+3,145,728 bytes, and one complete eight-object backup. The attempted
+`capacity-0001-raw` path was refused by the CLI before device access because
+it already existed; the successful `capacity-0002-raw` capture is the only
+capacity evidence used.
+
+The fresh backup has manifest SHA-256
+`2a581a9282e56cac31c1e7baa42593a5b15ed94c3e0f301f6f5c9321603f9ebf`, dynamic
+model 2,075,256 bytes, and raw `BackupStateIdentity` SHA-256
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`.
+The target `root\\IC_P17_LIBRARY_20260831_03` is absent. Comparison with the
+P17-009 baseline is raw-state equal; archive location, manifest digest, and
+capture/verification times are retained and reported as provenance
+differences, not normalized away.
+
+The preserved P17-004 Library item, package manifest, ordered TXT/BMP/TXT
+children, source hashes, reviewed P16 template, fixed/display-history policy,
+candidate, transaction, timestamp policy, and expected additive post-state
+were reconstructed through the merged P17-005 adapter using the recorded
+fresh backup as an injected offline callback. The candidate is 2,091,292
+bytes, grows by 16,036 bytes; baseline available growth is 1,070,472 bytes
+and post-candidate capacity margin is 1,054,436 bytes. Candidate SHA-256 is
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761` and
+transaction SHA-256 is
+`1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`.
+The P17-010 core and outer preflight seals are
+`fa9f8fbed201648bc351dd65b3e206460fdf11576385806739d065b77866fbc4` and
+`d25ca9d32b9417f7784cbecbce8bc25b8324aa55ee1cc88519249aa04f2f3a91`.
+
+P17-010 is **READY_FOR_HARDWARE_TEST** at the final owner-approval boundary
+only. The hash-only sealed report records `sender_calls=0`, no backend write,
+no USB transmission, no device change, no retry, and no normal GUI/CLI
+exposure. Its exact later phrases are
+`APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01` and
+`CONFIRM P17-009 ONE INFOCARRY MULTI-CHILD PACKAGE`; neither was consumed in
+P17-010. Raw evidence, candidate/transaction bytes, and the external v1
+67-entry preservation manifest plus v2 69-entry correction remain outside Git.
+Physical compatibility, native
+numeric completion semantics, operation-specific capacity semantics, and
+interrupted-write recovery remain unresolved.

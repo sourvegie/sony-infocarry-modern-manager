@@ -406,3 +406,37 @@ Library content remain unresolved. See
 `analysis/phase-13-p17-009-corrected-raw-state-library-package-fresh-preflight-20260901.md`.
 Independent R3 review passes are recorded in
 `analysis/phase-13-p17-009-r3-review-20260901.md`.
+
+## P17-010 exact Library-package live-execution preflight (R3)
+
+P17-010 merged PR #16 into canonical `main` at
+`98ae3e14b36073f5bb41c30c4ae4ee6a85c9b390` before beginning the dedicated
+task branch. The owner authorized only read-only detection, capacity, and a
+fresh complete backup. One Sony `054c:001e` was observed; native `0x0019`
+reported a 3,145,728-byte limit; and the complete eight-object backup proved
+`root\\IC_P17_LIBRARY_20260831_03` absent. The first capacity-output attempt
+was stopped by the CLI's pre-existing-path guard before device access and is
+preserved as a superseded host attempt; it was not used as evidence.
+
+The fresh raw backup identity equals the P17-009 baseline under the reviewed
+`BackupStateIdentity` (`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`).
+Its archive path, manifest hash, and acquisition timestamps remain visible
+provenance and are reported separately. The exact P17-004 Library package and
+P17-009-approved candidate/transaction were rebuilt through the isolated
+P17-005 adapter using an injected callback over the captured archive; this
+did not recapture hardware or invoke a sender. Candidate growth is 16,036
+bytes; baseline available growth is 1,070,472 bytes and post-candidate
+capacity margin is 1,054,436 bytes.
+
+The P17-010 hash-only sealed preflight binds the device, fresh backup and raw
+identity, native capacity response, catalog/item/package/child/template
+hashes, target absence, fixed/display-history state, candidate, transaction,
+timestamp policy, expected post-state, explicit approval phrases, and the
+no-retry boundary. It records zero sender calls, backend writes, USB
+transmission, and device change. P17-010 is **READY_FOR_HARDWARE_TEST** only
+after an independent R3 review; it does not consume either later approval
+phrase. Any later live attempt must immediately repeat fresh detection,
+capacity, and complete-backup revalidation, then obtain both exact phrases
+for this operation. A stale preflight, raw-state mismatch, target collision,
+capacity discrepancy, malformed evidence, or any ambiguous completion remains
+terminal and must not trigger retry or corrective writing.
