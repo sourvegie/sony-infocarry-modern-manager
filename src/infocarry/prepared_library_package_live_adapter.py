@@ -24,6 +24,11 @@ from types import MappingProxyType
 from typing import Any, Callable, Mapping, Optional
 
 from .backup_format import ParsedBackupBlob
+from .backup_state_identity import (
+    BackupStateIdentity,
+    compare_verified_backups,
+    derive_backup_state_identity,
+)
 from .capacity_evidence import NativeCapacityResponse
 from .library import LibraryCatalog
 from .prepared_library_package_bridge import (
@@ -172,15 +177,63 @@ def _sealed_backup_dict(backup: VerifiedBackup) -> dict[str, Any]:
     return result
 
 
-def _backup_identity(backup: VerifiedBackup) -> tuple[Any, ...]:
-    return (
-        backup.manifest_sha256,
-        backup.blob_sha256,
-        backup.object_count,
-        backup.object_sha256_by_key,
-        backup.object_filename_by_key,
-        backup.device_identity,
+def _backup_identity(backup: VerifiedBackup) -> BackupStateIdentity:
+    """Return canonical raw state identity, excluding capture provenance."""
+
+    return derive_backup_state_identity(backup)
+
+
+def _candidate_comparison_view(
+    candidate: PreparedLibraryPackageCandidate | Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return candidate bindings with only archive provenance removed.
+
+    Candidate bytes and transactions remain compared exactly.  The sole
+    omitted candidate field is the baseline archive's manifest hash: it is a
+    provenance binding that can differ when the same raw state is captured
+    into a new archive.  The complete backup reports and the state-identity
+    comparison remain separately preserved in the operation audit.
+    """
+
+    source = (
+        candidate.audit_dict()
+        if isinstance(candidate, PreparedLibraryPackageCandidate)
+        else candidate
     )
+    value = json.loads(json.dumps(source, ensure_ascii=True))
+    baseline = value.get("baseline")
+    if isinstance(baseline, dict):
+        baseline.pop("manifest_sha256", None)
+    return value
+
+
+def _require_reconstructed_candidate_matches(
+    sealed: PreparedLibraryPackageCandidate,
+    current: PreparedLibraryPackageCandidate,
+) -> None:
+    if current.candidate_blob != sealed.candidate_blob:
+        raise ValueError("rebuilt Library candidate bytes differ from sealed preflight")
+    if current.transaction != sealed.transaction:
+        raise ValueError("rebuilt Library transaction differs from sealed preflight")
+    if _candidate_comparison_view(current) != _candidate_comparison_view(sealed):
+        raise ValueError(
+            "rebuilt Library candidate differs from sealed preflight outside backup provenance"
+        )
+
+
+def _authorization_comparison_view(
+    authorization: Mapping[str, Any] | PreparedLibraryPackageAuthorization,
+) -> dict[str, Any]:
+    """Compare authorization bindings without the fresh archive provenance hash."""
+
+    source = (
+        authorization.to_dict()
+        if isinstance(authorization, PreparedLibraryPackageAuthorization)
+        else authorization
+    )
+    value = json.loads(json.dumps(source, ensure_ascii=True))
+    value.pop("baseline_manifest_sha256", None)
+    return value
 
 
 def _backup_report_matches(backup: VerifiedBackup, report: Any) -> bool:
@@ -216,6 +269,7 @@ def _validate_result_audit(
         "usb_transmission_performed",
         "device_changing_operation_performed",
         "preflight_seal_sha256",
+        "backup_state_comparison",
         "candidate",
         "authorization",
         "completion",
@@ -273,19 +327,39 @@ def _validate_result_audit(
             stage="evidence_manifest",
             state="failed",
         )
-    if not _json_equivalent(candidate, preflight.candidate.audit_dict()):
+    if _candidate_comparison_view(candidate) != _candidate_comparison_view(
+        preflight.candidate
+    ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "result_audit candidate is not the sealed candidate",
+            "result_audit candidate is not the sealed candidate outside backup provenance",
+            stage="evidence_manifest",
+            state="failed",
+        )
+    try:
+        expected_state_comparison = compare_verified_backups(
+            preflight.before_backup,
+            before_backup,
+        ).to_dict()
+    except Exception as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"result_audit backup-state comparison could not be verified: {exc}",
+            stage="evidence_manifest",
+            state="failed",
+        ) from exc
+    if not _json_equivalent(
+        value["backup_state_comparison"], expected_state_comparison
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit backup-state comparison is not the verified raw/provenance audit",
             stage="evidence_manifest",
             state="failed",
         )
     authorization = value["authorization"]
-    if not isinstance(authorization, Mapping) or not _json_equivalent(
-        authorization,
-        preflight.authorization.to_dict(),
-    ):
+    if not isinstance(authorization, Mapping) or _authorization_comparison_view(
+        authorization
+    ) != _authorization_comparison_view(preflight.authorization):
         raise PreparedLibraryPackageLiveAdapterError(
-            "result_audit authorization is not the sealed authorization",
+            "result_audit authorization is not the sealed authorization outside backup provenance",
             stage="evidence_manifest",
             state="failed",
         )
@@ -483,9 +557,21 @@ class PreparedLibraryPackageLivePreflight:
                 stage="preflight_seal",
                 state="failed",
             )
+        try:
+            expected_state_identity = _backup_identity(self.core.before_backup)
+        except Exception as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-005 sealed backup state identity could not be verified: {exc}",
+                stage="preflight_seal",
+                state="failed",
+            ) from exc
         if (
             report.get("preflight_seal_sha256") != self.seal_sha256
             or report.get("core_preflight_seal_sha256") != self.core.seal_sha256
+            or report.get("backup_state_identity")
+            != expected_state_identity.to_dict()
+            or report.get("backup_state_identity_sha256")
+            != expected_state_identity.sha256
             or not _json_equivalent(
                 report.get("candidate"), self.core.candidate.audit_dict()
             )
@@ -692,6 +778,8 @@ def prepare_prepared_library_package_live_preflight(
         "device_changing_operation_performed": False,
         "target_absent_from_fresh_backup": True,
         "core_preflight_seal_sha256": core.seal_sha256,
+        "backup_state_identity": _backup_identity(before).to_dict(),
+        "backup_state_identity_sha256": _backup_identity(before).sha256,
         "candidate": core.candidate.audit_dict(),
         "authorization": core.authorization.to_dict(),
         "before_backup": _sealed_backup_dict(before),
@@ -848,8 +936,7 @@ def execute_prepared_library_package_live(
         )
         if candidate.library_binding.get("folder_name") != preflight.expected_folder_name:
             raise ValueError("selected Library destination differs from sealed preflight")
-        if candidate.audit_dict() != preflight.candidate.audit_dict():
-            raise ValueError("rebuilt Library candidate differs from sealed preflight")
+        _require_reconstructed_candidate_matches(preflight.candidate, candidate)
         authorization = authorize_prepared_library_package(
             candidate,
             confirmation=confirmation,
@@ -1023,6 +1110,10 @@ def execute_prepared_library_package_live(
             "usb_transmission_performed": True,
             "device_changing_operation_performed": True,
             "preflight_seal_sha256": preflight.seal_sha256,
+            "backup_state_comparison": compare_verified_backups(
+                preflight.before_backup,
+                before,
+            ).to_dict(),
             "candidate": candidate.audit_dict(),
             "authorization": authorization.to_dict(),
             "completion": "0x0000",
@@ -1202,6 +1293,9 @@ def write_prepared_library_package_evidence_manifest(
         "version": 1,
         "runner_format": P17_005_RUNNER_FORMAT,
         "preflight_seal_sha256": preflight.seal_sha256,
+        "backup_state_comparison": validated_result_audit[
+            "backup_state_comparison"
+        ],
         "candidate_blob_sha256": preflight.candidate.candidate_blob_sha256,
         "transaction_sha256": preflight.candidate.transaction_sha256,
         "before_backup": _sealed_backup_dict(verified_before),
