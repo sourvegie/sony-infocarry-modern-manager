@@ -80,6 +80,46 @@ P17_005_RUNNER_FORMAT = "infocarry-p17-005-library-package-live-adapter-v1"
 P17_005_EVIDENCE_MANIFEST_FORMAT = (
     "infocarry-p17-005-library-package-evidence-manifest-v1"
 )
+# This is the exact top-level shape emitted by the P17-012 sealed-preflight
+# producer.  Keep it strict: in particular, the prospective transaction hash
+# is nested under ``authorization.candidate_transaction_sha256``.  A stale
+# top-level alias must not be accepted as a fallback or silently ignored.
+P17_012_SEALED_PREFLIGHT_KEYS = frozenset(
+    {
+        "approval_consumed",
+        "authorization",
+        "automatic_retry_allowed",
+        "backend_write_calls",
+        "backup_state_identity",
+        "backup_state_identity_sha256",
+        "before_backup",
+        "candidate",
+        "capacity_response",
+        "completion",
+        "confirmation_phrase",
+        "confirmation_policy",
+        "core_preflight_seal_sha256",
+        "device_changing_operation_performed",
+        "device_identity",
+        "expected_folder_name",
+        "format",
+        "hardware_accessed",
+        "normal_gui_cli_transfer_exposed",
+        "operation_sequence",
+        "owner_approval_phrase",
+        "preflight_seal_sha256",
+        "profile",
+        "read_only_hardware_accessed",
+        "read_only_preflight",
+        "send_count",
+        "sender_calls",
+        "state",
+        "target_absent_from_fresh_backup",
+        "usb_transmission_performed",
+        "write_started",
+        "zero_x101b_transmitted",
+    }
+)
 P17_005_SUCCESS_SEQUENCE = (
     "live_preflight_seal_verified",
     "owner_approval",
@@ -191,6 +231,55 @@ def _json_equivalent(left: Any, right: Any) -> bool:
     """Compare report values after the tuple/list JSON boundary."""
 
     return _canonical_json(left) == _canonical_json(right)
+
+
+def _strict_json_object(path: Path) -> dict[str, Any]:
+    """Load one JSON object while rejecting duplicate keys at every level."""
+
+    def object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(
+            path.expanduser().resolve().read_text(encoding="utf-8"),
+            object_pairs_hook=object_pairs,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-012 sealed preflight could not be loaded: {exc}",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        ) from exc
+    if not isinstance(value, dict):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-012 sealed preflight must be a JSON object",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    return value
+
+
+def _require_digest(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or value.lower() != value
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"{label} must be a lowercase SHA-256 digest",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    return value
 
 
 def _audit_without_seal(audit: Mapping[str, Any]) -> dict[str, Any]:
@@ -699,6 +788,234 @@ class PreparedLibraryPackageLivePreflight:
         return _thaw(self.audit)
 
 
+def load_prepared_library_package_live_preflight(
+    report_path: Path,
+    *,
+    catalog: LibraryCatalog,
+    selected_item_id: str,
+    backup: VerifiedBackup,
+    template: ParsedBackupBlob,
+    capacity_response: NativeCapacityResponse,
+) -> PreparedLibraryPackageLivePreflight:
+    """Load and independently reconstruct one sealed P17-012 preflight.
+
+    The sealed JSON is an input to a future live boundary, not an authority
+    for candidate bytes.  Its exact schema is checked first, then the
+    reviewed Library bridge reconstructs the core candidate from the caller's
+    independently verified backup, template, capacity response, and catalog.
+    In particular, the transaction binding is accepted only at
+    ``authorization.candidate_transaction_sha256``; a top-level alias is an
+    unexpected field and fails before any live callback could be reached.
+    """
+
+    report = _strict_json_object(Path(report_path))
+    missing = sorted(P17_012_SEALED_PREFLIGHT_KEYS - set(report))
+    unexpected = sorted(set(report) - P17_012_SEALED_PREFLIGHT_KEYS)
+    if missing or unexpected:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-012 sealed preflight schema fields differ: "
+            f"missing={missing}, unexpected={unexpected}",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+
+    expected_scalars = {
+        "format": P17_005_RUNNER_FORMAT,
+        "state": "ready_for_hardware_test_host_only",
+        "profile": P17_005_PROFILE,
+        "device_identity": list(_expected_device_hex()),
+        "expected_folder_name": P17_005_TARGET_FOLDER,
+        "read_only_preflight": True,
+        # Detection/capacity/backup are hardware access, but remain strictly
+        # read-only.  These flags match the P17-012 sealed-report producer.
+        "hardware_accessed": True,
+        "read_only_hardware_accessed": True,
+        "usb_transmission_performed": False,
+        "device_changing_operation_performed": False,
+        "target_absent_from_fresh_backup": True,
+        "approval_consumed": False,
+        "backend_write_calls": 0,
+        "sender_calls": 0,
+        "send_count": 0,
+        "write_started": False,
+        "completion": None,
+        "zero_x101b_transmitted": True,
+        "automatic_retry_allowed": False,
+        "normal_gui_cli_transfer_exposed": False,
+        "operation_sequence": [
+            "read_only_preflight",
+            "expected_device_detected",
+            "fresh_capacity_queried_0x0019",
+            "fresh_complete_backup_verified",
+            "library_candidate_reconstructed",
+            "hash_only_preview_presented",
+            "live_preflight_sealed",
+        ],
+    }
+    boolean_fields = {
+        "read_only_preflight",
+        "hardware_accessed",
+        "read_only_hardware_accessed",
+        "usb_transmission_performed",
+        "device_changing_operation_performed",
+        "target_absent_from_fresh_backup",
+        "approval_consumed",
+        "write_started",
+        "zero_x101b_transmitted",
+        "automatic_retry_allowed",
+        "normal_gui_cli_transfer_exposed",
+    }
+    integer_fields = {"backend_write_calls", "sender_calls", "send_count"}
+    for key in boolean_fields:
+        if type(report.get(key)) is not bool:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-012 sealed preflight field {key!r} must be a boolean",
+                stage="preflight_load",
+                state="failed",
+                audit={"operation_sequence": []},
+            )
+    for key in integer_fields:
+        if type(report.get(key)) is not int:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-012 sealed preflight field {key!r} must be an integer",
+                stage="preflight_load",
+                state="failed",
+                audit={"operation_sequence": []},
+            )
+    for key, expected in expected_scalars.items():
+        if report.get(key) != expected:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-012 sealed preflight field {key!r} is not the reviewed value",
+                stage="preflight_load",
+                state="failed",
+                audit={"operation_sequence": []},
+            )
+
+    _require_digest(report["preflight_seal_sha256"], "preflight_seal_sha256")
+    _require_digest(
+        report["core_preflight_seal_sha256"],
+        "core_preflight_seal_sha256",
+    )
+    if not isinstance(report["owner_approval_phrase"], str):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "owner_approval_phrase must be a string",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    _validate_operation_phrase(report["owner_approval_phrase"], "owner approval phrase")
+    _validate_operation_phrase(report["confirmation_phrase"], "confirmation phrase")
+    if report["confirmation_policy"] not in (
+        PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
+        PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "confirmation_policy is not a supported reviewed policy",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+
+    authorization = report["authorization"]
+    if not isinstance(authorization, Mapping):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "authorization must be a JSON object",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    transaction_sha256 = _require_digest(
+        authorization.get("candidate_transaction_sha256"),
+        "authorization.candidate_transaction_sha256",
+    )
+    timestamp = authorization.get("new_record_timestamp_be32")
+    if isinstance(timestamp, bool) or not isinstance(timestamp, int) or not (
+        0 <= timestamp <= 0xFFFFFFFF
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "authorization.new_record_timestamp_be32 is invalid",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    if not isinstance(backup, VerifiedBackup):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "an independently verified backup is required to load a sealed preflight",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    if not isinstance(template, ParsedBackupBlob):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "the reviewed parsed template is required to load a sealed preflight",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    if not isinstance(capacity_response, NativeCapacityResponse):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "the parsed native capacity response is required to load a sealed preflight",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+
+    try:
+        core = prepare_prepared_library_package_preflight(
+            catalog,
+            selected_item_id,
+            backup,
+            template,
+            new_record_timestamp_be32=timestamp,
+            native_capacity_response=capacity_response,
+            template_folder_path=P17_003_TEMPLATE_FOLDER_PATH,
+            template_item_paths=P17_003_TEMPLATE_ITEM_PATHS,
+            confirmation_phrase=report["confirmation_phrase"],
+            confirmation_policy=report["confirmation_policy"],
+        )
+    except (PreparedLibraryPackageBridgeError, OSError, ValueError, TypeError) as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-012 sealed preflight reconstruction failed: {exc}",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        ) from exc
+
+    if transaction_sha256 != core.candidate.transaction_sha256:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "authorization.candidate_transaction_sha256 does not match "
+            "the independently reconstructed transaction",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    if report["core_preflight_seal_sha256"] != core.seal_sha256:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "core_preflight_seal_sha256 does not match the reconstructed core",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+
+    preflight = PreparedLibraryPackageLivePreflight(
+        core=core,
+        expected_folder_name=report["expected_folder_name"],
+        seal_sha256=report["preflight_seal_sha256"],
+        audit=report,
+    )
+    try:
+        preflight.verify_seal()
+    except PreparedLibraryPackageLiveAdapterError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-012 sealed preflight verification failed: {exc}",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        ) from exc
+    return preflight
+
+
 @dataclass(frozen=True)
 class PreparedLibraryPackageLiveResult:
     preflight: PreparedLibraryPackageLivePreflight
@@ -885,7 +1202,8 @@ def prepare_prepared_library_package_live_preflight(
         "device_identity": list(_expected_device_hex()),
         "expected_folder_name": expected_folder_name,
         "read_only_preflight": True,
-        "hardware_accessed": False,
+        "hardware_accessed": True,
+        "read_only_hardware_accessed": True,
         "usb_transmission_performed": False,
         "device_changing_operation_performed": False,
         "target_absent_from_fresh_backup": True,
@@ -903,6 +1221,12 @@ def prepare_prepared_library_package_live_preflight(
         "automatic_retry_allowed": False,
         "normal_gui_cli_transfer_exposed": False,
         "send_count": 0,
+        "sender_calls": 0,
+        "backend_write_calls": 0,
+        "approval_consumed": False,
+        "write_started": False,
+        "completion": None,
+        "zero_x101b_transmitted": True,
     }
     seal = _seal_sha256(
         core=core,
@@ -1461,10 +1785,12 @@ __all__ = [
     "P17_009_CONFIRMATION",
     "P17_009_CONFIRMATION_POLICY",
     "P17_009_OWNER_APPROVAL",
+    "P17_012_SEALED_PREFLIGHT_KEYS",
     "PreparedLibraryPackageLiveAdapterError",
     "PreparedLibraryPackageLivePreflight",
     "PreparedLibraryPackageLiveResult",
     "execute_prepared_library_package_live",
+    "load_prepared_library_package_live_preflight",
     "prepare_prepared_library_package_live_preflight",
     "write_prepared_library_package_evidence_manifest",
 ]

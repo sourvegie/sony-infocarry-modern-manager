@@ -538,3 +538,29 @@ the new phrases
 authorization by implication. Physical compatibility, native numeric
 completion semantics, operation-specific capacity semantics, and
 interrupted-write recovery remain unresolved.
+
+## P17-013 sealed-report loader schema correction (R3)
+
+P17-012 attempt 03 stopped safely before hardware because its offline live
+loader looked for `transaction_sha256` at the report top level. The reviewed
+producer and preserved sealed report bind it only at
+`authorization.candidate_transaction_sha256`. The external attempt-03
+evidence and 13-entry manifest remain unchanged; the audit records no
+sender, approval consumption, backend write, `0x101b`, or mutation.
+
+The correction uses a strict, framework-independent loader. It requires the
+exact P17-012 top-level field set, rejects duplicate JSON keys and any stale
+or contradictory top-level alias, validates every execution-state scalar,
+reconstructs the candidate through the existing Library bridge, and compares
+the nested transaction digest with the independently reconstructed
+transaction before any live callback, sender, approval, or transmission can
+be reached. The producer records read-only detection/capacity/backup as
+`hardware_accessed=true` and `read_only_hardware_accessed=true`, while write
+and transmission flags remain false.
+
+The boundary remains fail-closed for malformed, missing, duplicated,
+contradictory, stale, or mismatched bindings. The correction is host-only and
+does not access hardware or reuse the expired P17-012 phrases. A later fresh
+operation requires a new complete read-only preflight and new exact approval;
+P17-013 is **READY_FOR_HARDWARE_TEST** only after independent R3 review and
+merge.

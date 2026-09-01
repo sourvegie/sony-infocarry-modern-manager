@@ -20,6 +20,7 @@ from infocarry.prepared_library_package_live_adapter import (
     P17_009_OWNER_APPROVAL,
     PreparedLibraryPackageLiveAdapterError,
     execute_prepared_library_package_live,
+    load_prepared_library_package_live_preflight,
     prepare_prepared_library_package_live_preflight,
     write_prepared_library_package_evidence_manifest,
 )
@@ -90,7 +91,14 @@ class MissingCompletionBackend(PackageWorkflowBackend):
 class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
     now = datetime(2026, 9, 1, tzinfo=timezone.utc)
 
-    def _setup(self, *, backend=None, capture_error=False, after_blob=None):
+    def _setup(
+        self,
+        *,
+        backend=None,
+        capture_error=False,
+        after_blob=None,
+        explicit=False,
+    ):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
         baseline_blob, _template_blob = _template_blobs()
@@ -164,6 +172,14 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "now": self.now,
             "max_age_seconds": None,
         }
+        if explicit:
+            common.update(
+                {
+                    "owner_approval_phrase": "APPROVE P17-011 MODERN LIBRARY PACKAGE PREFLIGHT 01",
+                    "confirmation_phrase": "CONFIRM P17-011 ONE INFOCARRY MULTI-CHILD PACKAGE",
+                    "confirmation_policy": P17_009_CONFIRMATION_POLICY,
+                }
+            )
         preflight = prepare_prepared_library_package_live_preflight(**common)
         current["candidate"] = preflight.candidate
         backend = backend or PackageWorkflowBackend()
@@ -182,6 +198,26 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "fixed_state": fixed_state,
             "common": common,
         }
+
+    def _write_loader_report(self, setup, mutate=None, raw=None):
+        report_path = setup["root"] / "sealed-preflight.json"
+        if raw is None:
+            report = setup["preflight"].to_dict()
+            if mutate is not None:
+                mutate(report)
+            raw = json.dumps(report, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
+        report_path.write_text(raw, encoding="utf-8")
+        return report_path
+
+    def _load_report(self, setup, path):
+        return load_prepared_library_package_live_preflight(
+            path,
+            catalog=setup["catalog"],
+            selected_item_id=setup["item"].item_id,
+            backup=setup["preflight"].before_backup,
+            template=setup["template"],
+            capacity_response=setup["preflight"].capacity_response,
+        )
 
     def _execute(self, setup, **overrides):
         arguments = {
@@ -235,6 +271,138 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         serialized = json.dumps(report)
         self.assertNotIn('"candidate_blob":', serialized)
         self.assertNotIn('"candidate_bytes":', serialized)
+
+    def test_loader_accepts_exact_p17_012_nested_transaction_binding(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+        path = self._write_loader_report(setup)
+        loaded = self._load_report(setup, path)
+        self.assertEqual(loaded.seal_sha256, setup["preflight"].seal_sha256)
+        self.assertEqual(
+            loaded.authorization.to_dict()["candidate_transaction_sha256"],
+            loaded.candidate.transaction_sha256,
+        )
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+
+    def test_loader_rejects_missing_nested_transaction_binding_before_hardware(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+
+        def remove_nested(report):
+            report["authorization"].pop("candidate_transaction_sha256")
+
+        path = self._write_loader_report(setup, remove_nested)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "candidate_transaction_sha256",
+        ):
+            self._load_report(setup, path)
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_loader_rejects_stale_top_level_only_transaction_alias(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+
+        def replace_with_alias(report):
+            report["authorization"].pop("candidate_transaction_sha256")
+            report["transaction_sha256"] = setup["preflight"].candidate.transaction_sha256
+
+        path = self._write_loader_report(setup, replace_with_alias)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "schema fields differ",
+        ):
+            self._load_report(setup, path)
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_loader_rejects_contradictory_top_level_transaction_alias(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+
+        def add_contradictory_alias(report):
+            report["transaction_sha256"] = "0" * 64
+
+        path = self._write_loader_report(setup, add_contradictory_alias)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "schema fields differ",
+        ):
+            self._load_report(setup, path)
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_loader_rejects_malformed_nested_transaction_hash(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+
+        def replace_hash(report):
+            report["authorization"]["candidate_transaction_sha256"] = "not-a-hash"
+
+        path = self._write_loader_report(setup, replace_hash)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "lowercase SHA-256 digest",
+        ):
+            self._load_report(setup, path)
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_loader_rejects_nested_transaction_mismatch_before_hardware(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+
+        def replace_hash(report):
+            report["authorization"]["candidate_transaction_sha256"] = "0" * 64
+
+        path = self._write_loader_report(setup, replace_hash)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "does not match the independently reconstructed transaction",
+        ):
+            self._load_report(setup, path)
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_loader_rejects_duplicate_json_keys_before_hardware(self):
+        setup = self._setup(explicit=True)
+        self.addCleanup(setup["temporary"].cleanup)
+        path = self._write_loader_report(
+            setup,
+            raw=(
+                '{"format": "infocarry-p17-005-library-package-live-adapter-v1", '
+                '"format": "infocarry-p17-005-library-package-live-adapter-v1"}'
+            ),
+        )
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "duplicate JSON key",
+        ):
+            self._load_report(setup, path)
+        self.assertEqual(
+            [path.resolve() for path in setup["captures"]],
+            [(setup["root"] / "before").resolve()],
+        )
+        self.assertEqual(self._sender_calls(setup), 0)
 
     def test_p17_009_phrases_are_new_and_sealed_into_authorization(self):
         setup = self._setup()
