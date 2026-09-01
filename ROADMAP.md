@@ -2382,3 +2382,32 @@ independent R3 review, local validation, and passing PR #22 CI at commit
 `0e6eef4`. No
 hardware, real sender, approval phrase, or `0x101b` was used. A later live task may use one newly prepared bundle through one
 preflight and one approved live attempt without rebundling between modes.
+
+## Phase 13 — P17-018 exact Library-package one-shot live smoke (2026-09-01)
+
+P17-018 exercised the corrected P17-017 production runner with the exact
+sealed Library-package bundle and a new non-overwriting attempt root. The
+final immediate gates revalidated one Sony `054c:001e`, a fresh native
+`0x0019` capacity of 3,145,728 bytes, a complete eight-object backup, raw
+state identity, target absence, package/catalog/template bindings, and all
+candidate, transaction, authorization, and seal hashes. The candidate grew
+by 16,036 bytes and left 1,054,436 bytes of parsed capacity margin.
+
+The owner supplied the exact P17-018 phrases. The one-shot boundary consumed
+the approval once, issued exactly one `0x101b`, accepted explicit integer
+`0x0000`, and did not retry. The post-operation eight-object backup and
+independent verifier confirmed exactly the new
+`root\IC_P17_LIBRARY_20260831_03` folder with ordered
+`01-introduction.txt`, `02-page-01.bmp`, and `03-ending.txt`; 331 shared
+paths were unchanged and no paths were removed. The six verified
+display-history references were rebased as required by the reviewed policy.
+
+Raw evidence remains outside Git at the external P17-018 live-attempt root;
+its 29-entry preservation manifest replays with zero mismatches. A local
+surrounding wrapper error occurred only after the production runner had
+returned `readback_verified`, because the wrapper passed the wrong object
+type to a second disk-only verifier. The original diagnostic is preserved
+unchanged and the corrected offline reconciliation records the distinction.
+This result is complete only for the exact package; physical opening of the
+three children remains a human acceptance check, and broader transfer,
+recovery, and normal GUI/CLI behavior remain outside the proven scope.

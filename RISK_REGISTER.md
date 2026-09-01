@@ -650,3 +650,35 @@ commit `0e6eef4`. No hardware, sender, approval phrase, or `0x101b` is authorize
 correction. Physical compatibility,
 completion semantics, interrupted-write recovery, and broader package
 behavior remain unresolved.
+
+## P17-018 exact Library-package live smoke (R3)
+
+P17-018 used the merged P17-017 runner with the exact sealed safety bundle
+`3d2461ead56a7a339cde100f64f1530769d0bd2195f80f0a76d75f62322e126d` and
+freshly allocated attempt evidence. Exactly one Sony `054c:001e` was
+revalidated; native `0x0019` reported 3,145,728 bytes; the fresh complete
+pre-write backup matched raw-state identity
+`6b330ac1b77960327f3532a0c5723d6b514ec06111344267fd2a2df888160510`; and
+the `_03` target was absent. Candidate growth was 16,036 bytes, leaving
+1,054,436 bytes of capacity margin.
+
+The single-use approval was consumed for exactly one logical sender call.
+The transaction completed with explicit integer `0x0000`, no retry was
+attempted, and the complete post-operation backup plus independent read-back
+verified the exact additive folder and ordered TXT/BMP/TXT children. The
+post-operation manifest SHA-256 is
+`4bdf5c96f97cdd87cd7fb67b5cf219fb2a5eea67e2cafde4e1500c8c5e3edf77` and
+the dynamic blob equals the candidate SHA-256
+`a5e9ca7f429a6f75583c1c5701bb669ed2b7f79e068dda69c63bb06300174761`.
+331 shared paths were preserved with no removals; fixed state and the
+verified six-reference display-history rebase passed. The external
+29-entry preservation manifest replays with zero mismatches.
+
+A surrounding audit wrapper raised a local verifier type error after the
+production runner had already returned `readback_verified`; the original
+diagnostic is retained and the corrected offline reconciliation distinguishes
+that wrapper defect from the successful runner/device result. No retry or
+additional hardware access occurred. P17-018 is **COMPLETE** only for this
+exact package and does not generalize compatibility, recovery, or normal
+GUI/CLI transfer. Physical opening of all three children remains a human
+acceptance check.
