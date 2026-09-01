@@ -2411,3 +2411,30 @@ unchanged and the corrected offline reconciliation records the distinction.
 This result is complete only for the exact package; physical opening of the
 three children remains a human acceptance check, and broader transfer,
 recovery, and normal GUI/CLI behavior remain outside the proven scope.
+
+## Phase 13 — P17-019 corrected P17-018 post-run wrapper (2026-09-01)
+
+P17-018's production runner completed the exact authorized operation with
+`readback_verified`, but a surrounding audit wrapper subsequently passed the
+enclosing live preflight to the second disk-only verifier instead of
+`preflight.candidate.core`. The preserved external `live-failure-audit.json`
+remains unchanged; P17-019 reproduced this false-negative offline from the
+preserved/sanitized result and did not access hardware or alter evidence.
+
+The isolated adapter now provides
+`reconcile_prepared_library_package_live_result()` as the single reviewed
+post-run wrapper boundary. It accepts only a successful sealed runner result,
+rechecks the exact candidate/transaction, backup, completion, approval,
+one-shot, and no-retry invariants, and calls the second verifier with the
+candidate core. It returns a successful terminal reconciliation only after
+that disk-only check passes. Genuine candidate, backup, completion,
+multi-send, or verifier failures remain terminal and are never converted into
+success.
+
+Wrapper accounting distinguishes `logical_sender_calls` from an optional
+`low_level_bulk_write_calls` count. The 20 low-level P17-018 chunks therefore
+cannot be reported as 20 sender calls. The correction is offline-only and
+does not modify the production runner, device protocol, authorization, or
+normal GUI/CLI transfer exposure. P17-019 is **COMPLETE — offline correction
+only** for the already completed exact P17-018 scope; physical opening of the
+three children remains pending.

@@ -5,7 +5,7 @@ Canonical checkpoint: P17-018 completed one exact, separately authorized Library
 
 ## Portable offline validation
 
-- 623 passing tests
+- 629 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -617,6 +617,32 @@ general package compatibility, interrupted-write recovery, or normal
 GUI/CLI transfer exposure. Human physical opening of the folder and all
 three children remains the final physical acceptance check.
 
+## P17-019 corrected P17-018 post-run wrapper (R3)
+
+P17-018's surrounding audit wrapper emitted a false-negative after the
+production runner had already returned `readback_verified`: it passed the
+enclosing live preflight object to the second disk-only verifier instead of
+`preflight.candidate.core`. The original external `live-failure-audit.json`
+remains preserved unchanged; P17-019 reproduced the mistake offline from the
+preserved/sanitized result and did not modify raw evidence.
+
+The isolated adapter now exposes a narrow offline result-reconciliation
+boundary. It accepts only a successful sealed
+`PreparedLibraryPackageLiveResult`, checks its one logical sender call,
+explicit integer `0x0000`, verified before/after backups, candidate and
+transaction bindings, and existing no-retry audit, then invokes the second
+verifier with `result.preflight.candidate.core`. Genuine candidate, backup,
+completion, sender-count, or verifier failures remain terminal and cannot be
+converted into success. Its accounting records `logical_sender_calls` and
+`low_level_bulk_write_calls` separately; low-level chunks are never sender
+calls. The helper is offline-only and does not alter the production runner,
+device protocol, authorization, or GUI/CLI isolation.
+
+P17-019 is **COMPLETE — offline correction only** for the already completed
+exact scope; it authorizes no hardware access, retry, approval phrase, or new
+operation. Physical opening of the P17-018 folder and all three children
+remains pending.
+
 ## Current product safety boundary
 
 Normal product-facing controls remain disabled for:
@@ -649,9 +675,11 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 ## Next approved engineering task
 
 P17-018 is complete only for the exact constrained operation recorded above.
-No additional live attempt, approval phrase, retry, or broader transfer is
-authorized by this checkpoint. Any future device operation requires a new
-task, fresh read-only preflight, and new operation-specific approval. P17-016
+P17-019 corrects only the post-run audit-wrapper false-negative described
+above. No additional live attempt, approval phrase, retry, or broader
+transfer is authorized by this checkpoint. Any future device operation
+requires a new task, fresh read-only preflight, and new operation-specific
+approval. P17-016
 remains a historical safe pre-send output-binding abort;
 P17-015 remains the prior host-only bundle checkpoint; P17-014 remains a
 historical safe pre-send abort; P17-012 remains a historical host-only
