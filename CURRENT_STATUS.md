@@ -1,11 +1,11 @@
 # Current Project Status
 
 Date: 2026-09-01
-Canonical checkpoint: P17-015 immutable Library-package operation bundle is host-validated on PR #21 and READY_FOR_HARDWARE_TEST for the exact reviewed operation only; P17-010, P17-012, and P17-014 remain historical safe fail-closed records
+Canonical checkpoint: P17-017 is correcting the P17-016 attempt-output lifecycle on a dedicated R3 task branch; P17-015 remains the last merged host-only READY_FOR_HARDWARE_TEST checkpoint, while P17-010, P17-012, P17-014, and P17-016 remain historical safe fail-closed records
 
 ## Portable offline validation
 
-- 618 passing tests
+- 623 passing tests
 - 3 intentional evidence-dependent skips
 
 These are host/offline results only. They do not claim physical-device verification.
@@ -504,7 +504,8 @@ bundle binds the sealed report, its exact baseline backup manifest, catalog,
 reviewed template bytes, native `0x0019` response bytes, package manifest and
 ordered source/prepared-child records, selected Library item, destination,
 candidate/transaction/core/outer seals, raw-state identity, exact approval
-policy, timestamp policy, and non-overwriting result destinations. The
+policy, timestamp policy, and a fixed non-overwriting evidence-output policy.
+Concrete per-attempt result destinations are allocated by the runner. The
 resolver verifies every existing artifact and reconciles every copied value
 against the canonical P17-013 sealed-report loader before any runtime
 detection, capture, sender construction, approval consumption, or
@@ -534,6 +535,34 @@ independent R3 review. A later task must create a new fresh read-only
 preflight and obtain new operation-specific approval. Physical compatibility,
 native completion semantics, interrupted-write recovery, and broader package
 behavior remain unresolved.
+
+## P17-016 safe output-binding abort and P17-017 correction (R3)
+
+P17-016 was stopped before device access because its exact immutable bundle
+bound the preflight fresh-backup output directory. The authorized preflight-
+only production run created that directory, so the later live run was
+guaranteed to reject the same bundle at the output-collision check. The
+preserved external P17-016 audit records no device access, sender, write,
+approval consumption, completion, `0x101b`, mutation, or retry; it remains
+unchanged outside Git.
+
+P17-017 separates the immutable safety identity from acquisition outputs. The
+corrected bundle self-hash retains every device/package/catalog/template,
+raw-state, capacity, candidate, transaction, authorization, fixed-state,
+timestamp, completion, one-shot, and no-retry binding, while carrying only a
+fixed output-layout policy. The isolated runner atomically reserves a direct
+child under a constrained external evidence namespace and derives the before
+backup, after backup, and result-manifest paths beneath it. Output paths are
+recorded in audits/manifests but cannot substitute safety-bound inputs.
+
+The same bundle can now run preflight-only into one reserved root and later
+run live into another reserved root without rebundling between those modes;
+preflight-only does not consume the one-shot claim. Once exact approval is
+accepted for live mode, the claim is consumed before device callbacks, so a
+subsequent safety failure cannot be retried. P17-017 is
+**READY_FOR_HARDWARE_TEST** for this host-only correction after independent
+R3 review, local validation, and passing PR #22 CI at commit `0e6eef4`. No hardware, sender,
+approval phrase, or `0x101b` is authorized.
 
 ## Current product safety boundary
 
@@ -566,12 +595,14 @@ Preserve functional parity and proven transfer-safety boundaries before investin
 
 ## Next approved engineering task
 
-P17-015 is the current host-only correction checkpoint. The next task may
-perform a new fresh read-only preflight for the exact reviewed operation, but
-must not reuse any prior approval phrases, baseline, or sealed attempt. No
-device-changing transaction is authorized by this checkpoint. P17-014 remains
-a historical safe pre-send abort, P17-012 remains a historical host-only
-preflight, P16-003B remains complete only for its exact package, and
+P17-017 is the current offline R3 correction and is
+**READY_FOR_HARDWARE_TEST** only as a host checkpoint; PR #22 CI passes before
+any future fresh hardware preflight. No device-changing
+transaction, approval phrase, or hardware retry is authorized by this
+checkpoint. P17-016 remains a historical safe pre-send output-binding abort;
+P17-015 remains the prior host-only bundle checkpoint; P17-014 remains a
+historical safe pre-send abort; P17-012 remains a historical host-only
+preflight; P16-003B remains complete only for its exact package; and
 P17-001/P17-002 remain offline Library planning/review. Broader package,
 batch, timestamp, completion-decoding, recovery, and normal GUI/CLI transfer
 claims remain unresolved or disabled.

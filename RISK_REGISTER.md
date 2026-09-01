@@ -39,7 +39,7 @@ P17-002 explicit prepared-package import/grouped review are complete for their
 offline-only scopes. P17-003 now bridges one exact revalidated Library package
 into a hash-bound candidate/preflight and fake-host workflow only; normal
 device transfer remains disabled.
-The current portable suite is **591 tests** with three
+The current portable suite is **623 tests** with three
 intentional evidence-dependent skips. Arbitrary package behavior, generalized
 deletion, normal GUI/CLI transfer, and physical recovery remain unproven.
 The original P15-001 modern dossier is now correctly reclassified as
@@ -592,7 +592,8 @@ hash-bound envelope covers the sealed report, exact baseline backup manifest,
 catalog, reviewed template, native `0x0019` response, package manifest and
 ordered child source/prepared bindings, selected item, destination, raw-state
 identity, candidate/transaction/core/outer seals, authorization/policy, and
-non-overwriting output paths. Before any runtime callback, the adapter
+a fixed non-overwriting evidence-output policy. Concrete per-attempt paths
+are allocated by the runner after bundle resolution. Before any runtime callback, the adapter
 verifies all artifact bytes, loads the canonical P17-013 schema, and
 reconstructs the candidate from that exact bundle. Candidate and transaction
 bytes are never stored in the bundle or Git.
@@ -615,3 +616,37 @@ P17-015 is **READY_FOR_HARDWARE_TEST** only for the exact reviewed Library
 package profile after strong independent R3 review and CI. No hardware,
 real sender, approval phrase, or `0x101b` was used; a later task must create a
 new fresh read-only preflight and obtain new exact owner approval.
+
+## P17-016/P17-017 immutable identity and attempt-output lifecycle (R3)
+
+P17-016 exposed a systemic orchestration defect: the preflight-only
+production run created the immutable bundle's bound fresh-backup directory,
+so the later live attempt rejected the same approved bundle before hardware
+access. The external P17-016 failure evidence is preserved unchanged and
+records zero detection/write activity, no approval consumption, no mutation,
+and no retry.
+
+P17-017 corrects only the output lifecycle. The operation bundle now binds
+every safety-relevant artifact and behavior, including device identity,
+baseline raw-state identity, package/catalog/template, target absence,
+candidate and transaction hashes, capacity/state/freshness rules, exact
+`0x101b`, integer `0x0000`, one sender maximum, and no retry. Its self-hash
+contains a fixed output-layout policy but no concrete acquisition path.
+
+The isolated runner atomically reserves one direct child below a supplied
+external non-symlink namespace outside the source repository and derives the
+before backup, after backup, and manifest paths underneath it. A preflight-only
+run and its later live run therefore have distinct output roots while retaining
+the same sealed safety identity. Collision, path escape, or child substitution
+fails before runtime callbacks; output paths remain auditable but cannot
+replace any bound input. After exact approval, the one-shot claim is consumed
+before device callbacks, so any subsequent safety failure expires the attempt
+and cannot be retried; preflight-only and safe cancellation before callbacks
+remain non-consuming.
+
+P17-017 is host-only and is **READY_FOR_HARDWARE_TEST** after focused/full
+validation, exclusion audit, independent R3 review, and passing PR #22 CI at
+commit `0e6eef4`. No hardware, sender, approval phrase, or `0x101b` is authorized by this
+correction. Physical compatibility,
+completion semantics, interrupted-write recovery, and broader package
+behavior remain unresolved.

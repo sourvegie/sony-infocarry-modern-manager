@@ -23,6 +23,7 @@ import time
 from threading import Lock
 from types import MappingProxyType
 from typing import Any, Callable, Mapping, Optional
+from uuid import uuid4
 
 from .backup_format import ParsedBackupBlob, parse_backup_blob
 from .backup_state_identity import (
@@ -46,6 +47,7 @@ from .prepared_library_package_bridge import (
     prepare_prepared_library_package_preflight,
 )
 from .prepared_library_package_operation_bundle import (
+    EVIDENCE_OUTPUT_POLICY,
     OperationBundleError,
     PreparedLibraryPackageOperationBundle,
 )
@@ -149,6 +151,127 @@ DetectDeviceCallback = Callable[[], tuple[int, int]]
 CapacityQueryCallback = Callable[[], NativeCapacityResponse]
 PreviewCallback = Callable[[Mapping[str, Any]], None]
 Clock = Callable[[], float]
+EvidenceRootAllocator = Callable[[Path], Path]
+
+P17_017_EVIDENCE_OUTPUT_POLICY = EVIDENCE_OUTPUT_POLICY
+
+
+@dataclass(frozen=True)
+class PreparedLibraryPackageAttemptEvidence:
+    """Reserved per-attempt output paths, excluded from operation identity."""
+
+    root: Path
+    before_backup: Path
+    after_backup: Path
+    manifest: Path
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "root": str(self.root),
+            "before_backup": str(self.before_backup),
+            "after_backup": str(self.after_backup),
+            "manifest": str(self.manifest),
+        }
+
+
+def _default_evidence_root_allocator(namespace: Path) -> Path:
+    return namespace / f"p17-017-attempt-{uuid4().hex}"
+
+
+def _reserve_attempt_evidence(
+    namespace: Path,
+    allocator: Optional[EvidenceRootAllocator],
+) -> PreparedLibraryPackageAttemptEvidence:
+    """Atomically reserve one direct child for this execution attempt."""
+
+    requested_namespace = Path(namespace).expanduser()
+    if not requested_namespace.is_absolute():
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-017 evidence namespace must be absolute",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    if requested_namespace.is_symlink():
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-017 evidence namespace must not be a symlink",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    namespace = requested_namespace
+    namespace = namespace.resolve()
+    if not namespace.is_dir():
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-017 evidence namespace is not an existing directory: {namespace}",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    repository_root = Path(__file__).resolve().parents[2]
+    try:
+        namespace.relative_to(repository_root)
+    except ValueError:
+        pass
+    else:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-017 evidence namespace must be outside the source repository",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    allocator = allocator or _default_evidence_root_allocator
+    try:
+        requested = allocator(namespace)
+        candidate = Path(requested).expanduser()
+    except Exception as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-017 evidence root allocation failed: {exc}",
+            stage="evidence_outputs",
+            state="failed",
+        ) from exc
+    if not candidate.is_absolute():
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-017 evidence root allocation must return an absolute path",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    candidate = candidate.resolve()
+    if candidate.parent != namespace:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-017 evidence root must be a direct child of the evidence namespace",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    try:
+        candidate.mkdir(mode=0o700)
+    except FileExistsError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-017 evidence root already exists: {candidate}",
+            stage="evidence_outputs",
+            state="failed",
+        ) from exc
+    except OSError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-017 evidence root could not be reserved: {exc}",
+            stage="evidence_outputs",
+            state="failed",
+        ) from exc
+    if any(candidate.iterdir()):
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-017 reserved evidence root is not empty: {candidate}",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    outputs = PreparedLibraryPackageAttemptEvidence(
+        root=candidate,
+        before_backup=candidate / P17_017_EVIDENCE_OUTPUT_POLICY["before_backup_name"],
+        after_backup=candidate / P17_017_EVIDENCE_OUTPUT_POLICY["post_operation_name"],
+        manifest=candidate / P17_017_EVIDENCE_OUTPUT_POLICY["manifest_name"],
+    )
+    if any(path.exists() for path in (outputs.before_backup, outputs.after_backup, outputs.manifest)):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-017 reserved evidence output collides with an existing child",
+            stage="evidence_outputs",
+            state="failed",
+        )
+    return outputs
 
 
 class PreparedLibraryPackageLiveAdapterError(RuntimeError):
@@ -402,6 +525,37 @@ def _backup_comparison_for_validation(comparison: Any) -> Any:
     return value
 
 
+def _validate_evidence_output_record(outputs: Any) -> dict[str, str]:
+    if not isinstance(outputs, Mapping) or set(outputs) != {
+        "root",
+        "before_backup",
+        "after_backup",
+        "manifest",
+    }:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit evidence output record is malformed",
+            stage="evidence_manifest",
+            state="failed",
+        )
+    result: dict[str, str] = {}
+    for label, value in outputs.items():
+        if not isinstance(value, str) or not value:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"result_audit evidence output {label} is malformed",
+                stage="evidence_manifest",
+                state="failed",
+            )
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"result_audit evidence output {label} is not absolute",
+                stage="evidence_manifest",
+                state="failed",
+            )
+        result[label] = str(path.resolve())
+    return result
+
+
 def _validate_result_audit(
     result_audit: Mapping[str, Any],
     *,
@@ -426,6 +580,7 @@ def _validate_result_audit(
         "expected_folder_name",
         "usb_transmission_performed",
         "device_changing_operation_performed",
+        "approval_consumed",
         "preflight_seal_sha256",
         "backup_state_comparison",
         "candidate",
@@ -433,6 +588,7 @@ def _validate_result_audit(
         "completion",
         "verification",
         "workflow",
+        "evidence_outputs",
     }
     if not required.issubset(value):
         missing = sorted(required - set(value))
@@ -449,6 +605,7 @@ def _validate_result_audit(
             stage="evidence_manifest",
             state="failed",
         )
+    _validate_evidence_output_record(value["evidence_outputs"])
     if (
         value["format"] != P17_005_RUNNER_FORMAT
         or value["state"] != "readback_verified"
@@ -457,6 +614,7 @@ def _validate_result_audit(
         or value["expected_folder_name"] != preflight.expected_folder_name
         or value["usb_transmission_performed"] is not True
         or value["device_changing_operation_performed"] is not True
+        or value["approval_consumed"] is not True
         or value["preflight_seal_sha256"] != preflight.seal_sha256
         or value["completion"] != "0x0000"
     ):
@@ -1180,27 +1338,6 @@ def _resolve_prepared_library_package_operation_bundle(
             state="failed",
         ) from exc
 
-    output_paths = tuple(
-        Path(path)
-        for path in (
-            bundle.fresh_backup_destination,
-            bundle.post_operation_destination,
-            bundle.evidence_manifest_destination,
-        )
-    )
-    if len({path.resolve() for path in output_paths}) != len(output_paths):
-        raise PreparedLibraryPackageLiveAdapterError(
-            "P17-015 operation bundle output destinations overlap",
-            stage="operation_bundle",
-            state="failed",
-        )
-    for path in output_paths:
-        if path.exists():
-            raise PreparedLibraryPackageLiveAdapterError(
-                f"P17-015 operation output already exists: {path}",
-                stage="operation_bundle",
-                state="failed",
-            )
     return _ResolvedPreparedLibraryPackageOperationBundle(
         bundle=bundle,
         preflight=preflight,
@@ -1233,6 +1370,8 @@ def _failure(
     candidate: Optional[PreparedLibraryPackageCandidate] = None,
     authorization: Optional[PreparedLibraryPackageAuthorization] = None,
     primary_error: Optional[str] = None,
+    evidence_outputs: Optional[PreparedLibraryPackageAttemptEvidence] = None,
+    approval_consumed: bool = False,
 ) -> PreparedLibraryPackageLiveAdapterError:
     audit: dict[str, Any] = {
         "format": P17_005_RUNNER_FORMAT,
@@ -1248,6 +1387,9 @@ def _failure(
         "operation_sequence": list(sequence),
     }
     audit["sender_calls"] = sender_calls
+    audit["approval_consumed"] = approval_consumed
+    if evidence_outputs is not None:
+        audit["evidence_outputs"] = evidence_outputs.to_dict()
     if primary_error is not None:
         audit["primary_error"] = primary_error
     if candidate is not None:
@@ -1443,8 +1585,11 @@ def execute_prepared_library_package_live(
     confirmation: str,
     detect_device: DetectDeviceCallback,
     query_capacity: CapacityQueryCallback,
-    backend: WriteBackend,
+    backend: Optional[WriteBackend],
     capture: CaptureCallback,
+    evidence_namespace: Path,
+    evidence_root_allocator: Optional[EvidenceRootAllocator] = None,
+    preflight_only: bool = False,
     policy: WritePolicy = WritePolicy(),
     clock: Clock = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
@@ -1456,12 +1601,15 @@ def execute_prepared_library_package_live(
     """Execute exactly one approved transaction from one immutable bundle.
 
     The bundle resolves the sealed report, baseline backup, catalog, template,
-    capacity evidence, package children, exact candidate/transaction hashes,
-    and non-overwriting output destinations as one hash-bound operation input.
-    Runtime callbacks are the only remaining injected boundaries. A new
-    complete backup is captured and verified immediately before the sender
-    call. Any post-start failure is terminal and indeterminate; this function
-    has no retry or corrective-write path.
+    capacity evidence, package children, and exact candidate/transaction
+    hashes as one hash-bound operation input. Per-attempt evidence outputs are
+    reserved beneath ``evidence_namespace`` after bundle resolution and are
+    not part of the operation identity. Runtime callbacks are the only
+    remaining device boundaries. A live claim is consumed before any device
+    callback, while preflight-only mode leaves the claim available for a later
+    approved live attempt. A new complete backup is captured and verified
+    immediately before the sender call. Any post-start failure is terminal and
+    indeterminate; this function has no retry or corrective-write path.
     """
 
     resolved = _resolve_prepared_library_package_operation_bundle(operation_bundle)
@@ -1470,6 +1618,10 @@ def execute_prepared_library_package_live(
     catalog = resolved.catalog
     template = resolved.template
     selected_item_id = bundle.selected_item_id
+    evidence_outputs = _reserve_attempt_evidence(
+        evidence_namespace,
+        evidence_root_allocator,
+    )
     _validate_callbacks(
         detect_device=detect_device,
         query_capacity=query_capacity,
@@ -1477,6 +1629,7 @@ def execute_prepared_library_package_live(
     )
     sequence = ["live_preflight_seal_verified"]
     sender_calls = 0
+    approval_consumed = False
     try:
         preflight.verify_seal()
     except PreparedLibraryPackageLiveAdapterError:
@@ -1508,6 +1661,14 @@ def execute_prepared_library_package_live(
             audit={"operation_sequence": sequence},
         )
 
+    # A live attempt becomes single-use before any safety-relevant device
+    # callback.  Preflight-only mode deliberately does not consume the claim;
+    # safe cancellation above is the only live path that may exit without
+    # expiring the approval after it has been accepted.
+    if not preflight_only:
+        preflight._consume_execution_claim()
+        approval_consumed = True
+
     try:
         detected = detect_device()
         if detected != P17_005_DEVICE_IDENTITY:
@@ -1527,7 +1688,7 @@ def execute_prepared_library_package_live(
             raise ValueError("sealed preflight backup changed before execution")
         sequence.append("sealed_preflight_backup_revalidated")
         before = capture_and_verify_fresh_backup(
-            Path(bundle.fresh_backup_destination),
+            evidence_outputs.before_backup,
             lambda destination: capture(
                 destination,
                 cancelled=cancelled,
@@ -1549,6 +1710,8 @@ def execute_prepared_library_package_live(
             sequence=sequence,
             sender_calls=sender_calls,
             primary_error=str(exc),
+            evidence_outputs=evidence_outputs,
+            approval_consumed=approval_consumed,
         ) from exc
 
     try:
@@ -1580,6 +1743,8 @@ def execute_prepared_library_package_live(
             sequence=sequence,
             sender_calls=sender_calls,
             primary_error=str(exc),
+            evidence_outputs=evidence_outputs,
+            approval_consumed=approval_consumed,
         ) from exc
 
     try:
@@ -1596,9 +1761,24 @@ def execute_prepared_library_package_live(
             sender_calls=sender_calls,
             candidate=candidate,
             authorization=authorization,
+            evidence_outputs=evidence_outputs,
+            approval_consumed=approval_consumed,
         ) from exc
 
     try:
+        if preflight_only:
+            raise PreparedLibraryPackageLiveAdapterError(
+                "P17-005 preflight-only mode reached the sender boundary without a send",
+                stage="sender",
+                state="preflight_only_sender_boundary",
+                audit={
+                    "operation_sequence": sequence,
+                    "evidence_outputs": evidence_outputs.to_dict(),
+                    "sender_calls": sender_calls,
+                    "approval_consumed": approval_consumed,
+                    "write_started": False,
+                },
+            )
         if not all(
             hasattr(backend, name)
             for name in ("control_out", "control_in", "bulk_write")
@@ -1607,12 +1787,14 @@ def execute_prepared_library_package_live(
                 "P17-005 requires a write backend at the approved boundary",
                 stage="sender",
                 state="failed",
+                audit={
+                    "operation_sequence": sequence,
+                    "evidence_outputs": evidence_outputs.to_dict(),
+                    "sender_calls": sender_calls,
+                    "approval_consumed": approval_consumed,
+                    "write_started": False,
+                },
             )
-        # Consume the claim before constructing the sender. This makes the
-        # sealed preflight one-shot across repeated calls on the same object,
-        # including post-start indeterminate failures; only a new fresh
-        # preflight can establish a new execution boundary.
-        preflight._consume_execution_claim()
         from .write_protocol import AuthorizedWriteSender as _AuthorizedWriteSender
 
         sender_impl = _AuthorizedWriteSender(
@@ -1670,6 +1852,8 @@ def execute_prepared_library_package_live(
                 write_started=False,
                 candidate=candidate,
                 authorization=authorization,
+                evidence_outputs=evidence_outputs,
+                approval_consumed=approval_consumed,
             ) from exc
         if not isinstance(
             getattr(exc, "write_failure_assessment", None), WriteFailureAssessment
@@ -1694,6 +1878,8 @@ def execute_prepared_library_package_live(
             candidate=candidate,
             authorization=authorization,
             primary_error=assessment.primary_error,
+            evidence_outputs=evidence_outputs,
+            approval_consumed=approval_consumed,
         ) from exc
 
     if isinstance(completion, bool) or not isinstance(completion, int) or completion != 0:
@@ -1708,12 +1894,14 @@ def execute_prepared_library_package_live(
             candidate=candidate,
             authorization=authorization,
             primary_error=f"completion={value}",
+            evidence_outputs=evidence_outputs,
+            approval_consumed=approval_consumed,
         )
     sequence.append("completion_0x0000")
 
     try:
         after = capture_and_verify_fresh_backup(
-            Path(bundle.post_operation_destination),
+            evidence_outputs.after_backup,
             lambda destination: capture(
                 destination,
                 cancelled=cancelled,
@@ -1743,7 +1931,9 @@ def execute_prepared_library_package_live(
             "expected_folder_name": preflight.expected_folder_name,
             "usb_transmission_performed": True,
             "device_changing_operation_performed": True,
+            "approval_consumed": approval_consumed,
             "preflight_seal_sha256": preflight.seal_sha256,
+            "evidence_outputs": evidence_outputs.to_dict(),
             "backup_state_comparison": compare_verified_backups(
                 preflight.before_backup,
                 before,
@@ -1760,7 +1950,7 @@ def execute_prepared_library_package_live(
             },
         }
         write_prepared_library_package_evidence_manifest(
-            Path(bundle.evidence_manifest_destination),
+            evidence_outputs.manifest,
             preflight=preflight,
             before_backup=before,
             after_backup=after,
@@ -1779,6 +1969,8 @@ def execute_prepared_library_package_live(
             candidate=candidate,
             authorization=authorization,
             primary_error=str(exc),
+            evidence_outputs=evidence_outputs,
+            approval_consumed=approval_consumed,
         ) from exc
 
     return PreparedLibraryPackageLiveResult(
@@ -1871,6 +2063,25 @@ def write_prepared_library_package_evidence_manifest(
         before_backup=verified_before,
         after_backup=verified_after,
     )
+    output_record = _validate_evidence_output_record(
+        validated_result_audit["evidence_outputs"]
+    )
+    expected_output_record = {
+        "root": str(path.parent),
+        "before_backup": str(
+            path.parent / P17_017_EVIDENCE_OUTPUT_POLICY["before_backup_name"]
+        ),
+        "after_backup": str(
+            path.parent / P17_017_EVIDENCE_OUTPUT_POLICY["post_operation_name"]
+        ),
+        "manifest": str(path),
+    }
+    if output_record != expected_output_record:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit evidence outputs do not match the manifest destination",
+            stage="evidence_manifest",
+            state="failed",
+        )
     if (
         verified_before.device_identity != _expected_device_hex()
         or verified_after.device_identity != _expected_device_hex()
@@ -1961,6 +2172,7 @@ def write_prepared_library_package_evidence_manifest(
 
 
 __all__ = [
+    "EvidenceRootAllocator",
     "P17_005_CONFIRMATION",
     "P17_005_DEVICE_IDENTITY",
     "P17_005_EVIDENCE_MANIFEST_FORMAT",
@@ -1973,6 +2185,8 @@ __all__ = [
     "P17_009_CONFIRMATION_POLICY",
     "P17_009_OWNER_APPROVAL",
     "P17_012_SEALED_PREFLIGHT_KEYS",
+    "P17_017_EVIDENCE_OUTPUT_POLICY",
+    "PreparedLibraryPackageAttemptEvidence",
     "PreparedLibraryPackageLiveAdapterError",
     "PreparedLibraryPackageLivePreflight",
     "PreparedLibraryPackageLiveResult",

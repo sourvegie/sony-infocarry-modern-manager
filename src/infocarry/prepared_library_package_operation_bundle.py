@@ -23,7 +23,15 @@ from types import MappingProxyType
 from typing import Any, Mapping, Optional
 
 
-OPERATION_BUNDLE_FORMAT = "infocarry-p17-015-library-package-operation-bundle-v1"
+OPERATION_BUNDLE_FORMAT = "infocarry-p17-017-library-package-operation-bundle-v1"
+EVIDENCE_OUTPUT_POLICY = MappingProxyType(
+    {
+        "namespace_scope": "direct_child_atomic_reservation",
+        "before_backup_name": "backup-before-0001",
+        "post_operation_name": "backup-after-0001",
+        "manifest_name": "result-manifest-0001.json",
+    }
+)
 _SHA256_LENGTH = 64
 
 
@@ -188,7 +196,7 @@ class OperationArtifact:
 
 @dataclass(frozen=True)
 class PreparedLibraryPackageOperationBundle:
-    """Single immutable input to the isolated P17-005 live runner."""
+    """Single immutable safety input to the isolated Library live runner."""
 
     sealed_report: OperationArtifact
     baseline_backup: OperationArtifact
@@ -217,9 +225,6 @@ class PreparedLibraryPackageOperationBundle:
     library_binding_sha256: str
     package_children: tuple[Mapping[str, Any], ...]
     expected_post_operation: Mapping[str, Any]
-    fresh_backup_destination: str
-    post_operation_destination: str
-    evidence_manifest_destination: str
     format: str = OPERATION_BUNDLE_FORMAT
 
     def __post_init__(self) -> None:
@@ -285,17 +290,6 @@ class PreparedLibraryPackageOperationBundle:
             raise OperationBundleError("package child order is not deterministic")
         if not isinstance(self.expected_post_operation, Mapping):
             raise OperationBundleError("expected_post_operation is required")
-        for label, value in (
-            ("fresh_backup_destination", self.fresh_backup_destination),
-            ("post_operation_destination", self.post_operation_destination),
-            ("evidence_manifest_destination", self.evidence_manifest_destination),
-        ):
-            canonical = _absolute_path(value, label)
-            if label == "evidence_manifest_destination" and Path(canonical).suffix.lower() != ".json":
-                raise OperationBundleError(
-                    "evidence_manifest_destination must be a JSON file path"
-                )
-            object.__setattr__(self, label, canonical)
         object.__setattr__(
             self,
             "package_children",
@@ -314,17 +308,14 @@ class PreparedLibraryPackageOperationBundle:
         *,
         template_path: Path,
         capacity_response_path: Path,
-        fresh_backup_destination: Path,
-        post_operation_destination: Path,
-        evidence_manifest_destination: Path,
     ) -> "PreparedLibraryPackageOperationBundle":
         """Create a bundle from one sealed report and its exact artifacts.
 
         Values that identify the package, baseline, candidate, transaction,
         policy, and approvals are copied only from the sealed report.  The
-        caller supplies only the reviewed template/capacity files and fresh
-        non-overwriting output destinations; all of them are hash-bound in
-        the resulting envelope.
+        caller supplies only the reviewed template and capacity files.
+        Per-attempt evidence destinations are allocated by the live runner and
+        are deliberately excluded from this safety identity.
         """
 
         report_path = Path(sealed_report_path).expanduser().resolve()
@@ -391,9 +382,6 @@ class PreparedLibraryPackageOperationBundle:
             library_binding_sha256=str(authorization["bridge"]["library_binding_sha256"]),
             package_children=tuple(dict(child) for child in children),
             expected_post_operation=dict(expected_post),
-            fresh_backup_destination=str(fresh_backup_destination),
-            post_operation_destination=str(post_operation_destination),
-            evidence_manifest_destination=str(evidence_manifest_destination),
         )
 
     def to_dict(self, *, include_bundle_hash: bool = True) -> dict[str, Any]:
@@ -428,11 +416,7 @@ class PreparedLibraryPackageOperationBundle:
             "library_binding_sha256": self.library_binding_sha256,
             "package_children": [_thaw(child) for child in self.package_children],
             "expected_post_operation": _thaw(self.expected_post_operation),
-            "outputs": {
-                "fresh_backup_destination": self.fresh_backup_destination,
-                "post_operation_destination": self.post_operation_destination,
-                "evidence_manifest_destination": self.evidence_manifest_destination,
-            },
+            "evidence_output_policy": dict(EVIDENCE_OUTPUT_POLICY),
             "safety": {
                 "automatic_retry_allowed": False,
                 "max_sender_calls": 1,
@@ -515,7 +499,7 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
         "library_binding_sha256",
         "package_children",
         "expected_post_operation",
-        "outputs",
+        "evidence_output_policy",
         "safety",
         "bundle_sha256",
     }
@@ -539,13 +523,9 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
         "package_manifest",
     }:
         raise OperationBundleError("operation bundle artifact schema differs")
-    outputs = value["outputs"]
-    if not isinstance(outputs, Mapping) or set(outputs) != {
-        "fresh_backup_destination",
-        "post_operation_destination",
-        "evidence_manifest_destination",
-    }:
-        raise OperationBundleError("operation bundle output schema differs")
+    output_policy = value["evidence_output_policy"]
+    if output_policy != EVIDENCE_OUTPUT_POLICY:
+        raise OperationBundleError("operation bundle evidence output policy differs")
     safety = value["safety"]
     if safety != {
         "automatic_retry_allowed": False,
@@ -583,9 +563,6 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
             library_binding_sha256=value["library_binding_sha256"],
             package_children=tuple(value["package_children"]),
             expected_post_operation=value["expected_post_operation"],
-            fresh_backup_destination=outputs["fresh_backup_destination"],
-            post_operation_destination=outputs["post_operation_destination"],
-            evidence_manifest_destination=outputs["evidence_manifest_destination"],
             format=value["format"],
         )
     except (TypeError, ValueError) as exc:
@@ -600,6 +577,7 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
 
 
 __all__ = [
+    "EVIDENCE_OUTPUT_POLICY",
     "OPERATION_BUNDLE_FORMAT",
     "OperationArtifact",
     "OperationBundleError",
