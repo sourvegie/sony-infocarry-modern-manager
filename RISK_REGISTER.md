@@ -582,3 +582,36 @@ The audit proves `write_started=false`, `sender_calls=0`,
 is expired. Control requires correcting the offline pairing, independently
 reviewing it, and performing a new fresh read-only preflight with new exact
 owner phrases before any future sender construction.
+
+## P17-015 immutable operation bundle and production-entrypoint rehearsal (R3)
+
+P17-015 addresses the P17-014 cross-generation artifact-pairing defect. The
+isolated live entrypoint now accepts one immutable
+`infocarry-p17-015-library-package-operation-bundle-v1` input. Its strict
+hash-bound envelope covers the sealed report, exact baseline backup manifest,
+catalog, reviewed template, native `0x0019` response, package manifest and
+ordered child source/prepared bindings, selected item, destination, raw-state
+identity, candidate/transaction/core/outer seals, authorization/policy, and
+non-overwriting output paths. Before any runtime callback, the adapter
+verifies all artifact bytes, loads the canonical P17-013 schema, and
+reconstructs the candidate from that exact bundle. Candidate and transaction
+bytes are never stored in the bundle or Git.
+
+The bundle rejects stale or substituted members, including a P17-014 sealed
+report paired with a P17-012-style baseline, without detection, capture,
+sender construction, approval consumption, or transmission. It also rejects
+duplicate/malformed bundle JSON, changed safety policy, output collisions,
+package-child drift, source/template/capacity/catalog changes, and every
+candidate/state/seal mismatch. Existing corrected freshness, capacity,
+fixed/display-history, one-shot, no-retry, post-backup, read-back, and
+normal GUI/CLI isolation controls remain in force.
+
+The real production entrypoint passed two fresh nominal injected-fake
+rehearsals, each with exactly one fake send, explicit `0x0000`, complete
+post-backup, and independent read-back. A third fake rehearsal reached the
+sender boundary with zero sends. Focused mutation and failure tests prove
+pre-send fail-closed behavior and preserve terminal post-start outcomes.
+P17-015 is **READY_FOR_HARDWARE_TEST** only for the exact reviewed Library
+package profile after strong independent R3 review and CI. No hardware,
+real sender, approval phrase, or `0x101b` was used; a later task must create a
+new fresh read-only preflight and obtain new exact owner approval.

@@ -24,6 +24,11 @@ from infocarry.prepared_library_package_live_adapter import (
     prepare_prepared_library_package_live_preflight,
     write_prepared_library_package_evidence_manifest,
 )
+from infocarry.prepared_library_package_operation_bundle import (
+    OperationBundleError,
+    PreparedLibraryPackageOperationBundle,
+    load_operation_bundle,
+)
 import infocarry.prepared_library_package_bridge as bridge_module
 import infocarry.prepared_library_package_live_adapter as adapter_module
 import infocarry.prepared_package_multi_candidate as candidate_module
@@ -32,7 +37,7 @@ from infocarry.prepared_media_package import (
     export_prepared_media_package,
 )
 from infocarry.protocol import REQUEST_COMPLETION, TransferTimeoutError
-from infocarry.write_protocol import REQUEST_BEGIN_TRANSMIT, WritePolicy
+from infocarry.write_protocol import REQUEST_BEGIN_TRANSMIT
 
 try:
     from test_new_txt import _write_archive
@@ -182,6 +187,26 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             )
         preflight = prepare_prepared_library_package_live_preflight(**common)
         current["candidate"] = preflight.candidate
+        report_path = root / "sealed-preflight.json"
+        report_path.write_text(
+            json.dumps(preflight.to_dict(), ensure_ascii=True, indent=2, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
+        template_path = root / "reviewed-template.bin"
+        template_path.write_bytes(template.data)
+        capacity_path = root / "capacity-response.bin"
+        capacity_path.write_bytes(_response().raw_response)
+        bundle = PreparedLibraryPackageOperationBundle.from_sealed_report(
+            report_path,
+            template_path=template_path,
+            capacity_response_path=capacity_path,
+            fresh_backup_destination=root / "execution-before",
+            post_operation_destination=root / "after",
+            evidence_manifest_destination=root / "evidence/result-manifest.json",
+        )
+        bundle_path = bundle.write(root / "operation-bundle.json")
+        bundle = load_operation_bundle(bundle_path)
         backend = backend or PackageWorkflowBackend()
         return {
             "temporary": temporary,
@@ -190,6 +215,11 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "item": item,
             "template": template,
             "preflight": preflight,
+            "original_preflight": preflight,
+            "bundle": bundle,
+            "report_path": report_path,
+            "template_path": template_path,
+            "capacity_path": capacity_path,
             "current": current,
             "capture": capture,
             "captures": captures,
@@ -220,28 +250,65 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         )
 
     def _execute(self, setup, **overrides):
+        preflight = setup["preflight"]
+        bundle = setup["bundle"]
+        if preflight is not setup["original_preflight"]:
+            setup["report_path"].write_text(
+                json.dumps(preflight.to_dict(), ensure_ascii=True, indent=2, sort_keys=True)
+                + "\n",
+                encoding="utf-8",
+            )
+            try:
+                bundle = PreparedLibraryPackageOperationBundle.from_sealed_report(
+                    setup["report_path"],
+                    template_path=setup["template_path"],
+                    capacity_response_path=setup["capacity_path"],
+                    fresh_backup_destination=setup["root"] / "execution-before",
+                    post_operation_destination=setup["root"] / "after",
+                    evidence_manifest_destination=setup["root"] / "evidence/result-manifest.json",
+                )
+            except OperationBundleError as exc:
+                raise PreparedLibraryPackageLiveAdapterError(
+                    str(exc), stage="operation_bundle", state="failed"
+                ) from exc
+        output_overrides = {
+            key: overrides.pop(key)
+            for key in (
+                "backup_destination",
+                "post_operation_destination",
+                "evidence_manifest_destination",
+            )
+            if key in overrides
+        }
+        if output_overrides:
+            bundle = replace(
+                bundle,
+                fresh_backup_destination=str(
+                    output_overrides.get("backup_destination", bundle.fresh_backup_destination)
+                ),
+                post_operation_destination=str(
+                    output_overrides.get(
+                        "post_operation_destination", bundle.post_operation_destination
+                    )
+                ),
+                evidence_manifest_destination=str(
+                    output_overrides.get(
+                        "evidence_manifest_destination", bundle.evidence_manifest_destination
+                    )
+                ),
+            )
         arguments = {
-            "catalog": setup["catalog"],
-            "selected_item_id": setup["item"].item_id,
-            "backup_destination": setup["root"] / "execution-before",
-            "post_operation_destination": setup["root"] / "after",
-            "evidence_manifest_destination": setup["root"] / "evidence/result-manifest.json",
             "owner_approval": P17_005_OWNER_APPROVAL,
             "confirmation": P17_005_CONFIRMATION,
             "detect_device": setup["common"]["detect_device"],
             "query_capacity": setup["common"]["query_capacity"],
             "backend": setup["backend"],
-            "bulk_out_endpoint": 0x01,
-            "policy": WritePolicy(
-                busy_timeout_seconds=0.25,
-                busy_poll_interval_seconds=0.01,
-            ),
             "capture": setup["capture"],
             "now": self.now,
             "max_age_seconds": None,
         }
         arguments.update(overrides)
-        return execute_prepared_library_package_live(setup["preflight"], **arguments)
+        return execute_prepared_library_package_live(bundle, **arguments)
 
     @staticmethod
     def _sender_calls(setup):
@@ -503,7 +570,10 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
         forged = replace(setup["preflight"], audit={"state": "forged"})
-        with self.assertRaisesRegex(PreparedLibraryPackageLiveAdapterError, "report bindings"):
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "report bindings|sealed report lacks canonical",
+        ):
             self._execute({**setup, "preflight": forged})
         self.assertEqual(self._sender_calls(setup), 0)
 
@@ -515,7 +585,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             tampered[key] = value
             with self.assertRaisesRegex(
                 PreparedLibraryPackageLiveAdapterError,
-                "report bindings|seal was modified",
+                "report bindings|seal was modified|operation bundle|reviewed value",
             ):
                 self._execute({**setup, "preflight": replace(setup["preflight"], audit=tampered)})
         self.assertEqual(self._sender_calls(setup), 0)
@@ -810,6 +880,233 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 now=self.now,
                 max_age_seconds=None,
             )
+
+    @staticmethod
+    def _bundle_json_with_mutation(setup, mutate, name):
+        value = json.loads(json.dumps(setup["bundle"].to_dict()))
+        mutate(value)
+        unsigned = dict(value)
+        unsigned.pop("bundle_sha256", None)
+        value["bundle_sha256"] = hashlib.sha256(
+            json.dumps(
+                unsigned,
+                ensure_ascii=True,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        path = setup["root"] / f"{name}.json"
+        path.write_text(
+            json.dumps(value, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return path
+
+    def _assert_bundle_rejected_before_runtime(self, setup, mutate, name):
+        path = self._bundle_json_with_mutation(setup, mutate, name)
+        bundle = load_operation_bundle(path, verify_artifacts=False)
+        events = []
+
+        def detect():
+            events.append("detect")
+            return (0x054C, 0x001E)
+
+        def capacity():
+            events.append("capacity")
+            return _response()
+
+        def capture(*args, **kwargs):
+            events.append("capture")
+            return setup["capture"](*args, **kwargs)
+
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError):
+            execute_prepared_library_package_live(
+                bundle,
+                owner_approval=P17_005_OWNER_APPROVAL,
+                confirmation=P17_005_CONFIRMATION,
+                detect_device=detect,
+                query_capacity=capacity,
+                backend=setup["backend"],
+                capture=capture,
+                now=self.now,
+                max_age_seconds=None,
+            )
+        self.assertEqual(events, [])
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_production_entrypoint_has_two_nominal_fake_rehearsals(self):
+        for name in ("nominal-a", "nominal-b"):
+            with self.subTest(name=name):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+                result = self._execute(setup)
+                self.assertEqual(result.completion, 0)
+                self.assertTrue(result.verification.success)
+                self.assertEqual(self._sender_calls(setup), 1)
+                self.assertEqual(len(setup["captures"]), 3)
+                self.assertEqual(
+                    json.loads(
+                        (setup["root"] / "evidence/result-manifest.json").read_text(
+                            encoding="utf-8"
+                        )
+                    )["result_audit"]["completion"],
+                    "0x0000",
+                )
+
+    def test_production_entrypoint_preflight_reaches_sender_boundary_without_send(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "write backend",
+        ):
+            self._execute(setup, backend=None)
+        self.assertEqual(len(setup["captures"]), 2)
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_operation_bundle_rejects_p17_014_report_with_p17_012_baseline_substitution(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        wrong_baseline = setup["root"] / "p17-012-baseline"
+        _write_archive(
+            wrong_baseline,
+            setup["preflight"].before_backup.directory.joinpath(
+                setup["preflight"].before_backup.object_filename("0x8004:backup-blob")
+            ).read_bytes(),
+            self.now,
+            fixed_state=setup["fixed_state"],
+        )
+
+        def substitute_baseline(value):
+            artifact = value["artifacts"]["baseline_backup"]
+            manifest = wrong_baseline / "manifest.json"
+            artifact["path"] = str(wrong_baseline.resolve())
+            artifact["sha256"] = hashlib.sha256(manifest.read_bytes()).hexdigest()
+            artifact["size_bytes"] = manifest.stat().st_size
+
+        self._assert_bundle_rejected_before_runtime(
+            setup,
+            substitute_baseline,
+            "p17-014-report-p17-012-baseline",
+        )
+
+    def test_operation_bundle_mutations_fail_before_detection_or_sender(self):
+        mutations = (
+            ("sealed-report-hash", lambda value: value["artifacts"]["sealed_report"].update(sha256="0" * 64)),
+            ("sealed-report-path", lambda value: value["artifacts"]["sealed_report"].update(path=value["artifacts"]["template"]["path"])),
+            ("baseline-hash", lambda value: value["artifacts"]["baseline_backup"].update(sha256="0" * 64)),
+            ("catalog-hash", lambda value: value["artifacts"]["catalog"].update(sha256="0" * 64)),
+            ("catalog-path", lambda value: value["artifacts"]["catalog"].update(path=value["artifacts"]["template"]["path"])),
+            ("template-hash", lambda value: value["artifacts"]["template"].update(sha256="0" * 64)),
+            ("template-path", lambda value: value["artifacts"]["template"].update(path=value["artifacts"]["capacity_response"]["path"])),
+            ("capacity-hash", lambda value: value["artifacts"]["capacity_response"].update(sha256="0" * 64)),
+            ("capacity-path", lambda value: value["artifacts"]["capacity_response"].update(path=value["artifacts"]["template"]["path"])),
+            ("package-manifest-hash", lambda value: value["artifacts"]["package_manifest"].update(sha256="0" * 64)),
+            ("package-manifest-path", lambda value: value["artifacts"]["package_manifest"].update(path=value["artifacts"]["catalog"]["path"])),
+            ("selected-item", lambda value: value.update(selected_item_id="wrong-item")),
+            ("target", lambda value: value.update(expected_folder_name="wrong-target")),
+            ("timestamp", lambda value: value.update(new_record_timestamp_be32=1)),
+            ("owner-phrase", lambda value: value.update(owner_approval_phrase="wrong approval")),
+            ("confirmation-phrase", lambda value: value.update(confirmation_phrase="wrong confirmation")),
+            ("confirmation-policy", lambda value: value.update(confirmation_policy="wrong-policy")),
+            ("raw-state", lambda value: value.update(baseline_state_identity_sha256="0" * 64)),
+            ("capacity-binding", lambda value: value.update(capacity_response_sha256="0" * 64)),
+            ("candidate-audit", lambda value: value.update(candidate_audit_sha256="0" * 64)),
+            ("authorization", lambda value: value.update(authorization_sha256="0" * 64)),
+            ("post-state", lambda value: value.update(expected_post_operation_sha256="0" * 64)),
+            ("candidate", lambda value: value.update(candidate_blob_sha256="0" * 64)),
+            ("transaction", lambda value: value.update(transaction_sha256="0" * 64)),
+            ("core-seal", lambda value: value.update(core_preflight_seal_sha256="0" * 64)),
+            ("outer-seal", lambda value: value.update(preflight_seal_sha256="0" * 64)),
+            ("library-binding", lambda value: value.update(library_binding_sha256="0" * 64)),
+            ("package-child", lambda value: value["package_children"][0].update(source_sha256="0" * 64)),
+            ("expected-post-state", lambda value: value["expected_post_operation"].update(mutation=True)),
+            ("fresh-output", lambda value: value["outputs"].update(fresh_backup_destination=str(Path(value["outputs"]["fresh_backup_destination"]).parent))),
+            ("post-output", lambda value: value["outputs"].update(post_operation_destination=str(Path(value["outputs"]["post_operation_destination"]).parent))),
+            ("evidence-output", lambda value: value["outputs"].update(evidence_manifest_destination=value["artifacts"]["sealed_report"]["path"])),
+        )
+        for name, mutate in mutations:
+            with self.subTest(name=name):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+                self._assert_bundle_rejected_before_runtime(setup, mutate, name)
+
+    def test_operation_bundle_rejects_every_safety_policy_mutation_at_load(self):
+        for name, mutate in (
+            ("retry", lambda value: value["safety"].update(automatic_retry_allowed=True)),
+            ("sender-count", lambda value: value["safety"].update(max_sender_calls=2)),
+            ("request", lambda value: value["safety"].update(transaction_request="0x0024")),
+            ("completion", lambda value: value["safety"].update(accepted_completion="0x0001")),
+        ):
+            with self.subTest(name=name):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+                path = self._bundle_json_with_mutation(setup, mutate, f"safety-{name}")
+                with self.assertRaises(OperationBundleError):
+                    load_operation_bundle(path, verify_artifacts=False)
+
+    def test_operation_bundle_rejects_fixed_identity_and_policy_mutations_at_load(self):
+        for name, mutate in (
+            ("device", lambda value: value.update(device_identity=["0x054c", "0x001f"])),
+            ("timestamp-policy", lambda value: value.update(timestamp_policy="legacy_global_rewrite")),
+            ("endpoint", lambda value: value.update(bulk_out_endpoint=2)),
+            ("child-order", lambda value: value["package_children"][0].update(order=1)),
+        ):
+            with self.subTest(name=name):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+                path = self._bundle_json_with_mutation(setup, mutate, f"fixed-{name}")
+                with self.assertRaises(OperationBundleError):
+                    load_operation_bundle(path, verify_artifacts=False)
+
+    def test_operation_bundle_rejects_each_ordered_child_binding_before_runtime(self):
+        child_mutations = (
+            ("kind", lambda child: child.update(kind="bmp")),
+            ("name", lambda child: child.update(name="changed")),
+            ("target-path", lambda child: child.update(target_path="root\\changed.txt")),
+            ("source-path", lambda child: child.update(source_path="/tmp/changed.txt")),
+            ("source-archive-path", lambda child: child.update(source_archive_path="changed")),
+            ("prepared-archive-path", lambda child: child.update(prepared_archive_path="changed")),
+            ("source-hash", lambda child: child.update(source_sha256="0" * 64)),
+            ("source-size", lambda child: child.update(source_bytes=999)),
+            ("prepared-hash", lambda child: child.update(prepared_payload_sha256="0" * 64)),
+            ("prepared-size", lambda child: child.update(prepared_payload_bytes=999)),
+            ("package-root", lambda child: child.update(package_root="/tmp/changed-package")),
+        )
+        for name, mutate_child in child_mutations:
+            with self.subTest(name=name):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+
+                def mutate(value, mutate_child=mutate_child):
+                    mutate_child(value["package_children"][0])
+
+                self._assert_bundle_rejected_before_runtime(setup, mutate, f"child-{name}")
+
+    def test_operation_bundle_is_recursively_immutable(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        with self.assertRaises(TypeError):
+            setup["bundle"].package_children[0]["name"] = "changed"
+        with self.assertRaises(TypeError):
+            setup["bundle"].expected_post_operation["changed"] = True
+
+    def test_operation_bundle_live_signature_has_no_manual_artifact_pairing(self):
+        import inspect
+
+        names = set(inspect.signature(execute_prepared_library_package_live).parameters)
+        self.assertEqual(
+            names & {
+                "catalog",
+                "selected_item_id",
+                "backup_destination",
+                "execution_template",
+                "post_operation_destination",
+                "evidence_manifest_destination",
+                "bulk_out_endpoint",
+            },
+            set(),
+        )
 
 
 if __name__ == "__main__":
