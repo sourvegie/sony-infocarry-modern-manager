@@ -4,11 +4,11 @@ Date: 2026-09-02
 
 ## Canonical checkpoint
 
-Canonical `main` is `9c43db6` (merged PR #27, P18-002/P18-002B). P18-003 is
-complete on `task/P18-003-hierarchical-library`; no live device work is
-authorized by this task.
+Canonical `main` is `00d4836` (merged PR #28). P18-003 is complete, including
+the bounded owner-observed human workflow check. No live device work is
+authorized by the current governance task.
 
-## Current sprint
+## Current product checkpoint
 
 P18-003 adds the host workflow Select files/folder → Arrange → Prepare →
 Preview through the P18-002 façade. Normal multi-file and recursive-folder
@@ -93,14 +93,28 @@ Portable baseline through merged P18-002/P18-002B: 673 passing, 3 intentional
 skips. P18-003 focused validation is 37 passing; the full portable suite is
 688 passing with 3 intentional skips. Compilation and `git diff --check` pass.
 Independent R2 re-review is PASS with no remaining material findings. PR #28
-is open and its GitHub Python 3.12 offline-suite check passed; no hardware or
-live validation is claimed.
+was merged after its GitHub Python 3.12 offline-suite check passed; no hardware
+or live validation is claimed.
 
 Task outcome: `COMPLETE` for the bounded host GUI/workflow gate. The owner
 reported “Everything works as expected” and supplied the offline Prepare and
 device-tree Preview artifacts for the expected ordered TXT/BMP/TXT package.
 This is bounded human GUI/workflow evidence only; it does not claim hardware,
 USB, candidate, authorization, or live-write behavior.
+
+## Execution workflow
+
+The canonical working model is one **Fresh Codex Task Executor** per meaningful
+task. It implements directly inside an approved scope, validates, updates only
+affected durable documentation, coordinates required independent review, and
+escalates material decisions. Dispatch is a responsibility rather than a
+permanent intermediary; there are no permanent Junior Engineer or Secretary
+roles. Hardware, capability-expansion, fail-safe lock, indeterminate-write,
+and no-automatic-retry boundaries are unchanged.
+
+Use the model for the next 3–5 meaningful engineering tasks before considering
+further workflow restructuring. Record only material findings from that
+evaluation.
 
 ## Historical records
 
