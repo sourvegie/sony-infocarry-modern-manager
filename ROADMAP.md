@@ -32,6 +32,17 @@ in `analysis/` and in the archived roadmap through P18-001A.
 9. **Standing Experimental decision:** enable only the exact capability rows
    whose evidence, product controls, and recovery posture support it.
 
+## Model boundary
+
+VNW-V15 remains the only verified model and the only model associated with the
+current transfer profile. VNW-V10 is a declared product target, but its next
+step is a separately reviewed read-only characterization: identify USB
+descriptors, use only independently established safe read commands, and
+validate its complete baseline/capacity semantics before any profile work.
+Do not reuse V15 protocol or format assumptions. The indeterminate-write
+control remains one installation-wide persistent lock across all sessions and
+models because no stable physical-unit identity is proven.
+
 ## Later, separately scoped work
 
 Deletion remains a separate delete/re-add lifecycle. Restore, synchronization,

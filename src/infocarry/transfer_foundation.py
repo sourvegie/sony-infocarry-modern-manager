@@ -21,6 +21,7 @@ from .capability_profile import (
     CapabilityProfileError,
     initial_capability_profile,
 )
+from .device_model_profile import CapacityObservation, DeviceModelProfile
 
 
 TRANSFER_FOUNDATION_FORMAT = "infocarry-transfer-foundation-v1"
@@ -173,6 +174,7 @@ class TransferPlan:
     fresh_backup_required: bool = True
     capacity_validation_required: bool = True
     execution_enabled: bool = False
+    capacity: CapacityObservation | None = None
 
     def __post_init__(self) -> None:
         reviewed_profile = initial_capability_profile()
@@ -196,6 +198,8 @@ class TransferPlan:
             raise TransferFoundationError(
                 "the initial foundation cannot enable live execution"
             )
+        if self.capacity is not None and not isinstance(self.capacity, CapacityObservation):
+            raise TransferFoundationError("capacity observation is malformed")
 
     @property
     def plan_sha256(self) -> str:
@@ -212,6 +216,7 @@ class TransferPlan:
             "fresh_complete_backup_required": self.fresh_backup_required,
             "capacity_validation_required": self.capacity_validation_required,
             "execution_enabled": self.execution_enabled,
+            "capacity": None if self.capacity is None else self.capacity.to_dict(),
         }
 
 
@@ -253,6 +258,8 @@ class Authorization:
 
     candidate_sha256: str
     transaction_sha256: str
+    capacity_response_sha256: str
+    capacity: CapacityObservation
     confirmation_required: bool = True
     confirmation_mode: str = "in_app_transaction_confirmation"
     status: str = "not_issued"
@@ -263,6 +270,11 @@ class Authorization:
     def __post_init__(self) -> None:
         _digest(self.candidate_sha256, "authorization candidate_sha256")
         _digest(self.transaction_sha256, "authorization transaction_sha256")
+        _digest(self.capacity_response_sha256, "authorization capacity_response_sha256")
+        if not isinstance(self.capacity, CapacityObservation):
+            raise TransferFoundationError("authorization capacity observation is malformed")
+        if self.capacity_response_sha256 != self.capacity.capacity_response_sha256:
+            raise TransferFoundationError("authorization capacity response binding differs")
         if not self.confirmation_required or self.confirmation_mode != "in_app_transaction_confirmation":
             raise TransferFoundationError("authorization must require in-app confirmation")
         if self.status != "not_issued":
@@ -278,6 +290,8 @@ class Authorization:
         return {
             "candidate_sha256": self.candidate_sha256,
             "transaction_sha256": self.transaction_sha256,
+            "capacity_response_sha256": self.capacity_response_sha256,
+            "capacity": self.capacity.to_dict(),
             "confirmation_required": self.confirmation_required,
             "confirmation_mode": self.confirmation_mode,
             "status": self.status,
@@ -354,6 +368,8 @@ class TransferFoundation:
 
     profile_id: str
     profile_sha256: str
+    device_model_profile_id: str
+    device_model_lock_key: str
     prepared_items: tuple[PreparedItem, ...]
     plan: TransferPlan
     candidate: Optional[CandidateLibrary]
@@ -367,10 +383,25 @@ class TransferFoundation:
         prepared_items: Sequence[PreparedItem],
         *,
         profile: Optional[CapabilityProfile] = None,
+        device_model_profile: DeviceModelProfile | None = None,
     ) -> "TransferFoundation":
         selected_profile = profile or initial_capability_profile()
         if not isinstance(selected_profile, CapabilityProfile):
             raise TransferFoundationError("profile must be the reviewed capability profile")
+        if not isinstance(device_model_profile, DeviceModelProfile):
+            raise TransferFoundationError(
+                "an explicit reviewed device-model profile is required"
+            )
+        expected_model_profile_id = selected_profile.device_model_profile_id
+        if (
+            device_model_profile.profile_id != expected_model_profile_id
+            or not device_model_profile.transfer_capable
+            or device_model_profile.transfer_capability_profile_id
+            != selected_profile.profile_id
+        ):
+            raise TransferFoundationError(
+                "device-model profile does not authorize this capability profile"
+            )
         if selected_profile.live_enabled:
             raise TransferFoundationError("live-enabled profiles are not accepted here")
         items = tuple(prepared_items)
@@ -386,6 +417,8 @@ class TransferFoundation:
         return cls(
             profile_id=selected_profile.profile_id,
             profile_sha256=selected_profile.sha256,
+            device_model_profile_id=device_model_profile.profile_id,
+            device_model_lock_key=device_model_profile.lock_key.value,
             prepared_items=items,
             plan=plan,
             candidate=None,
@@ -411,13 +444,30 @@ class TransferFoundation:
             or authorization.transaction_sha256 != self.candidate.transaction_sha256
         ):
             raise TransferFoundationError("authorization does not match the candidate")
+        if self.plan.capacity is None or authorization.capacity != self.plan.capacity:
+            raise TransferFoundationError(
+                "authorization must bind the exact fresh model capacity observation"
+            )
         return replace(self, authorization=authorization)
+
+    def attach_capacity(self, capacity: CapacityObservation) -> "TransferFoundation":
+        if not isinstance(capacity, CapacityObservation):
+            raise TransferFoundationError("capacity observation is malformed")
+        if capacity.model_profile_id != self.device_model_profile_id:
+            raise TransferFoundationError(
+                "capacity observation does not match the device-model profile"
+            )
+        if self.plan.capacity is not None:
+            raise TransferFoundationError("capacity observation cannot be replaced")
+        return replace(self, plan=replace(self.plan, capacity=capacity))
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "format": TRANSFER_FOUNDATION_FORMAT,
             "profile_id": self.profile_id,
             "profile_sha256": self.profile_sha256,
+            "device_model_profile_id": self.device_model_profile_id,
+            "device_model_lock_key": self.device_model_lock_key,
             "prepared_items": [item.to_dict() for item in self.prepared_items],
             "plan": self.plan.to_dict(),
             "candidate": None if self.candidate is None else self.candidate.to_dict(),

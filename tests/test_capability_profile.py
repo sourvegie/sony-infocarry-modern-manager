@@ -32,6 +32,9 @@ class CapabilityProfileTests(unittest.TestCase):
 
         self.assertEqual(document["format"], CAPABILITY_PROFILE_FORMAT)
         self.assertEqual(profile.profile_id, INITIAL_EXPERIMENTAL_PROFILE_ID)
+        self.assertEqual(
+            document["device_model_profile_id"], "sony-vnw-v15-reviewed-v1"
+        )
         self.assertFalse(profile.live_enabled)
         self.assertEqual(document["children"]["minimum"], 1)
         self.assertEqual(document["children"]["maximum"], 8)

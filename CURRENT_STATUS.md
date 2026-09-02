@@ -4,10 +4,10 @@ Date: 2026-09-02
 
 ## Canonical checkpoint
 
-Canonical `main` is `5ad2dbc` (merged P18-001A). The P18-002 host/offline
-implementation is complete on `codex/p18-002-experimental-transfer-foundation`
-and is awaiting its review PR/CI boundary; no live device work is authorized
-by this task.
+Canonical `main` is `5ad2dbc` (merged P18-001A). P18-002 and its narrowly
+scoped P18-002B multi-model correction are staged on
+`codex/p18-002-experimental-transfer-foundation` for the PR #27 review
+boundary; no live device work is authorized by this task.
 
 ## Current sprint
 
@@ -15,16 +15,31 @@ P18-002 defines the accelerated product-delivery policy and a host-only,
 framework-independent transfer foundation. The initial machine-enforced
 profile is `experimental-flat-root-folder-txt-bmp-v1` at
 `src/infocarry/capability_profile.py` (profile SHA-256
-`ec69e0076e57f2eeca1634966777413f205880303dd8be7528218c77b3a7abc4`). It
+`bd556ba933213e36b9bfc121c8f349a9022cebcdbbccdd1623b6b1ec814cb15b`). It
 allows review of one explicitly grouped flat root folder with 1–8 ordered
 strict TXT or validated 1-bit BMP children, but remains
 `defined_not_live_enabled`.
 
+The profile is explicitly associated with reviewed model profile
+`sony-vnw-v15-reviewed-v1`; it is not generic InfoCarry capability. VNW-V15
+is the only verified model, with observed session identity `0x054c:0x001e`.
+VNW-V10 is an explicit target with status
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`: no V10 protocol, capacity,
+format, candidate, authorization, or write behavior is enabled or implied.
+V15 sessions must freshly obtain `0x0019` capacity evidence (64-byte response,
+big-endian `+0x08`) and bind total, baseline, candidate growth, remaining-growth
+capacity (total minus baseline), and remaining-after-transfer margin (total minus
+candidate); V10 capacity semantics remain unknown.
+
 The host façade records `PreparedItem[] → TransferPlan → CandidateLibrary →
 Authorization → ExecuteOnce → ReadBackVerification` without USB access,
 candidate bytes, sender construction, or a GUI/CLI write action. The
-persistent indeterminate-write lock contract is defined separately and does
-not auto-clear after restart or reconnect.
+persistent indeterminate-write lock is installation-wide, not per-device:
+an ambiguous outcome blocks every model/session across restart and reconnect.
+It deliberately over-blocks because no stable physical-unit identifier is
+proven. It never auto-clears from VID/PID; clearing binds the original
+incident/attempt, complete read-only diagnostic evidence, and a documented
+recovery decision.
 
 ## Verified recent result
 
@@ -50,7 +65,7 @@ evidence records. The capability authority is
   capacity evidence, exact in-app confirmation, one logical transaction,
   explicit integer `0x0000`, complete post-write backup, independent semantic
   read-back, and no automatic retry. Backup is not undo.
-- Any ambiguous live outcome requires persistent per-device read-only
+- Any ambiguous live outcome requires persistent installation-wide read-only
   diagnosis before a documented recovery decision can clear the lock.
 
 ## Delivery and review
@@ -63,10 +78,10 @@ execution, offline tamper coverage, Oracle comparison, and one combined GUI
 hardware smoke before standing Experimental enablement.
 
 Portable baseline before P18-002 changes: 644 passing, 3 intentional skips.
-Current P18-002 validation: 665 passing, 3 intentional skips; focused profile,
-foundation, lock, and Experimental checks pass; compilation, diff hygiene, and
-excluded-evidence audit pass. Independent R2 verification is PASS, including
-the exact-`True` lock-evidence correction.
+Current P18-002/P18-002B validation: 673 passing, 3 intentional skips;
+focused profile, model, capacity, foundation, lock, and Experimental checks
+pass. The P18-002B independent R2 verification is PASS; the final PR/CI
+boundary remains open. The exact-`True` lock-evidence rule remains enforced.
 
 ## Historical records
 

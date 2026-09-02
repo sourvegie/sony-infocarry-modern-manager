@@ -120,7 +120,7 @@ def _preflight():
             "allocation": {
                 "candidate_growth_bytes": 16036,
                 "capacity_limit_bytes": 3145728,
-                "remaining_growth_bytes": 1054436,
+                "remaining_growth_bytes": 1070472,
                 "baseline_model_bytes": 2075256,
                 "candidate_model_bytes": 2091292,
             },
@@ -202,7 +202,11 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
         )
         self.assertEqual(contract["maximum_logical_sender_calls"], 1)
         self.assertFalse(contract["automatic_retry_allowed"])
-        self.assertTrue(contract["indeterminate_write_lock"]["persistent_per_device"])
+        self.assertEqual(
+            contract["indeterminate_write_lock"]["scope"], "installation-wide"
+        )
+        self.assertFalse(contract["indeterminate_write_lock"]["physical_unit_identity_proven"])
+        self.assertTrue(contract["indeterminate_write_lock"]["deliberate_same_model_overblocking"])
         self.assertFalse(contract["indeterminate_write_lock"]["automatic_clear"])
 
     def test_non_mapping_plan_is_rejected(self):

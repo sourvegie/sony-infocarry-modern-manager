@@ -58,12 +58,16 @@ def experimental_safety_contract() -> dict[str, Any]:
         "read_back": "independent candidate-core reconciliation required",
         "indeterminate_outcome": "stop and diagnose read-only; never retry",
         "indeterminate_write_lock": {
-            "persistent_per_device": True,
+            "scope": "installation-wide",
+            "persistent_across_sessions_restart_and_reconnect": True,
+            "physical_unit_identity_proven": False,
+            "deliberate_same_model_overblocking": True,
             "restart_or_reconnect_clears": False,
             "automatic_clear": False,
             "clear_requires": [
                 "complete_read_only_diagnostic_backup",
                 "documented_recovery_decision",
+                "original_incident_and_attempt_binding",
             ],
         },
         "terminal_failure_boundaries": list(EXPERIMENTAL_FAILURE_BOUNDARIES),

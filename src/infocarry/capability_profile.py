@@ -55,6 +55,7 @@ def _thaw(value: Any) -> Any:
 _PROFILE_DOCUMENT: dict[str, Any] = {
     "format": CAPABILITY_PROFILE_FORMAT,
     "profile_id": INITIAL_EXPERIMENTAL_PROFILE_ID,
+    "device_model_profile_id": "sony-vnw-v15-reviewed-v1",
     "version": 1,
     "status": CAPABILITY_PROFILE_STATUS,
     "operation": {
@@ -199,6 +200,10 @@ class CapabilityProfile:
     @property
     def profile_id(self) -> str:
         return str(self.document["profile_id"])
+
+    @property
+    def device_model_profile_id(self) -> str:
+        return str(self.document["device_model_profile_id"])
 
     @property
     def sha256(self) -> str:

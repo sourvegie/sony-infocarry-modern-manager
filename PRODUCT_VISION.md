@@ -197,6 +197,21 @@ Mode. Host Library capacity and device capacity must always be labeled
 separately. Routine success uses status and console feedback; modal dialogs
 are reserved for ambiguity, destructive risk, or unrecoverable failure.
 
+## Device-model boundary
+
+The first capability is explicitly bound to the reviewed Sony InfoCarry
+VNW-V15 model profile (`0x054c:0x001e` for the observed USB session). VNW-V10
+is also an intended compatibility target, but is currently
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`; it does not inherit V15's
+USB, protocol, storage, capacity, display, candidate, authorization, or write
+rules. No V10 transfer, delete, restore, or capability-envelope claim is
+available until a separate safe read-only characterization establishes it.
+VID/PID and bus/address are session observations rather than proven
+physical-unit identity. An ambiguous write therefore requires one persistent
+installation-wide fail-safe lock, deliberately over-blocking all models until
+the original incident/attempt is cleared through read-only diagnosis and a
+documented recovery decision.
+
 ## Explicitly Deferred
 
 - firmware flashing, unlocking, and alternate or service-mode commands;

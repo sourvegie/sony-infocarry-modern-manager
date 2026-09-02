@@ -32,18 +32,46 @@ directs the user to read-only diagnosis and preserved evidence.
 This matrix records capability status; it is not an owner approval, a hardware
 preflight, or permission to transmit `0x101b`.
 
+## Device-model boundary
+
+The only verified device-model profile is `sony-vnw-v15-reviewed-v1` for Sony
+InfoCarry VNW-V15. Its observed session USB identity is `0x054c:0x001e` and
+its supported capacity interpreter is read-only `0x0019`, a 64-byte response
+with the big-endian total candidate-model capacity at `+0x08`. Session
+capacity observations are fresh and bind total capacity, verified baseline
+model length, candidate growth, remaining-growth capacity (total minus
+baseline), and remaining-after-transfer margin (total minus candidate); a
+previous session's capacity is never reused.
+
+Sony InfoCarry VNW-V10 is an explicit product target with profile
+`sony-vnw-v10-uncharacterized-v1`, status **UNCHARACTERIZED / READ-ONLY
+DISCOVERY REQUIRED**. Its USB identity, protocol, storage format, capacity
+query/interpreter, display profile, and write envelope are not established.
+It has no candidate, authorization, transfer, delete, or restore capability;
+do not infer V15 behavior from the model name.
+
+VID/PID and bus/address are session observations, not proven physical-unit
+identity. Until a stable unit identifier is established, any ambiguous
+device-changing outcome sets one installation-wide persistent fail-safe lock
+that deliberately blocks every model/session. A lock never auto-clears from
+matching VID/PID or reconnect; clearing requires the original incident and
+attempt, complete read-only diagnostic evidence, and a documented recovery
+decision.
+
 ## Machine-enforced initial envelope
 
 The conservative product envelope is defined by the versioned
 `experimental-flat-root-folder-txt-bmp-v1` profile in
 `src/infocarry/capability_profile.py` (profile SHA-256
-`ec69e0076e57f2eeca1634966777413f205880303dd8be7528218c77b3a7abc4`). It is
+`bd556ba933213e36b9bfc121c8f349a9022cebcdbbccdd1623b6b1ec814cb15b`). It is
 `defined_not_live_enabled`: one explicitly grouped, new, absent flat root
 folder with 1–8 ordered children, strict supported TXT or validated 237×320
 1-bit monochrome BMP only. The profile machine-enforces CP932-safe names,
 child/source/prepared-size limits, duplicate/path rejection, capacity and
 verification requirements, no overwrite/merge/delete/nesting, one package,
 one logical transaction, explicit `0x0000`, and no automatic retry.
+The profile is explicitly associated with
+`sony-vnw-v15-reviewed-v1`; it is not a generic InfoCarry profile.
 
 This envelope is broader than any one physical proof. Until each exact shape
 has its own evidence and later R3 enablement, it is preparation/review-only;

@@ -30,7 +30,7 @@ modules or parallel live pipelines.
 
 `src/infocarry/capability_profile.py` defines the reviewed, versioned profile
 `experimental-flat-root-folder-txt-bmp-v1` with SHA-256
-`ec69e0076e57f2eeca1634966777413f205880303dd8be7528218c77b3a7abc4`. It
+`bd556ba933213e36b9bfc121c8f349a9022cebcdbbccdd1623b6b1ec814cb15b`. It
 allows the host product to validate and review one explicitly grouped new
 root folder containing 1–8 ordered flat children. Children are strict
 supported TXT or validated 237×320, 1-bit monochrome BMP. The profile also
@@ -61,14 +61,34 @@ R3 integration path.
 
 ## Indeterminate-write contract
 
-`src/infocarry/indeterminate_write_lock.py` defines a persistent per-device
-lock for a future live boundary. An ambiguous post-transmission result locks
-the device across process restart and reconnect. No automatic clear is
-possible. Clearing requires a complete read-only diagnostic backup, a
-documented recovery decision, and a separately hash-bound decision record;
-backup is not undo. The store is not connected to GUI/CLI or hardware in
-P18-002, so the live path remains fail-closed until a later R3 task integrates
-it.
+`src/infocarry/indeterminate_write_lock.py` defines one persistent
+installation-wide lock for a future live boundary. An ambiguous
+post-transmission result blocks every model and session across process restart
+and reconnect. No stable physical-unit identifier is proven, so this is an
+intentional safe over-block rather than a claim that the lock identifies one
+unit. Model keys are validated profile metadata only; VID/PID and bus/address
+are session observations and never partition the lock. No automatic clear is
+possible. Clearing requires the original incident and attempt, a complete
+read-only diagnostic backup, a documented recovery decision, and a separately
+hash-bound decision record; backup is not undo. The store is not connected to
+GUI/CLI or hardware in P18-002, so the live path remains fail-closed until a
+later R3 task integrates it.
+
+## Device-model boundary
+
+`sony-vnw-v15-reviewed-v1` is the only verified model profile. It is the sole
+model associated with the initial capability profile and its observed session
+identity is `0x054c:0x001e`. Its fresh capacity rule is read-only `0x0019`, a
+64-byte response whose big-endian `+0x08` field is total candidate-model
+capacity; the TransferPlan/authorization bind total, verified baseline model
+length, candidate growth, remaining-growth capacity (total minus baseline),
+and remaining-after-transfer margin (total minus candidate) for that session.
+VNW-V10 is
+declared as `sony-vnw-v10-uncharacterized-v1`, with status
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`; it carries no V15 protocol,
+capacity interpreter, candidate, authorization, transfer, delete, or restore
+permission. A future V10 task may only characterize USB identity, independently
+safe read commands, complete baseline length, and capacity relationships.
 
 ## Legacy Oracle workstream
 
@@ -116,9 +136,10 @@ display environments.
 ## P18-002 verification checkpoint
 
 The host/offline implementation is **COMPLETE** for this policy-foundation
-scope, pending the normal PR/CI merge boundary. Focused profile, façade, lock,
-and Experimental-contract tests pass. The complete portable suite passes 665
-tests with 3 intentional evidence-dependent skips; Python compilation,
+scope, pending the normal PR/CI merge boundary. Focused profile, model,
+capacity, façade, lock, and Experimental-contract tests pass. The complete
+portable suite passes 673 tests with 3 intentional evidence-dependent skips;
+Python compilation,
 `git diff --check`, and the excluded-evidence/history audit pass. The final
 independent R2 verification is **PASS**. Its bounded correction required
 `DiagnosticBackupEvidence.complete`, `.read_only`, and `.integrity_verified`

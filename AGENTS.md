@@ -45,6 +45,15 @@ smoke-named production modules or parallel live pipelines.
 
 A successful fixture, fake transport, offline candidate comparison, or previous narrow live smoke does not authorize a broader live operation.
 
+Device-model boundaries are explicit: VNW-V15 is the only verified model and
+its reviewed capability profile is not generic InfoCarry behavior. VNW-V10 is
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED` and must not inherit V15
+protocol, format, capacity, candidate, authorization, or write rules. VID/PID
+and bus/address are session observations, not physical-unit identity. Use one
+installation-wide persistent fail-safe write lock until a stable unit identity
+is proven; deliberate over-blocking across models is safer than false
+precision. Route capability questions to `CAPABILITY_MATRIX.md`.
+
 Never intentionally test interrupted-write recovery on the only valuable VNW-V15. Physical commit atomicity and recovery are unresolved.
 
 Never automatically retry a device-changing operation after transfer start if completion is missing, malformed, ambiguous, nonzero, interrupted, timed out, disconnected, or otherwise indeterminate.

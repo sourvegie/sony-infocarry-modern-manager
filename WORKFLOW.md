@@ -81,6 +81,16 @@ transaction-specific confirmation. Keep at most two active streams—Product
 Delivery and Legacy Oracle—and at most two material correction rounds. Do not
 add phase/milestone/smoke-named production modules or parallel live pipelines.
 
+Model support is explicit, not inferred from the product name. VNW-V15 is the
+only verified model profile; VNW-V10 remains
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED` and cannot inherit V15
+protocol, format, capacity, candidate, authorization, or write behavior. USB
+VID/PID and bus/address are session observations, not proven unit identity.
+Until a unit identifier is independently established, an ambiguous write
+sets one installation-wide persistent fail-safe lock that deliberately
+over-blocks every model/session and clears only through the documented
+incident-bound diagnostic/recovery process.
+
 ## Task lifecycle
 
 For each meaningful engineering task, use a concise task brief containing:
