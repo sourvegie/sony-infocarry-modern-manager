@@ -25,8 +25,16 @@ from .prepared_package import PreparedPackageError, _validate_component
 
 
 LIBRARY_FORMAT = "infocarry-library-v1"
-LIBRARY_VERSION = 1
+LIBRARY_VERSION = 2
+LEGACY_LIBRARY_VERSION = 1
 SUPPORTED_TEXT_FORMAT = "utf-8-txt"
+SUPPORTED_BITMAP_FORMAT = "validated-237x320-1bit-bmp"
+
+NODE_FILE = "file"
+NODE_FOLDER = "folder"
+NODE_PREPARED_PACKAGE = "prepared_package"
+VALID_NODE_KINDS = frozenset({NODE_FILE, NODE_FOLDER, NODE_PREPARED_PACKAGE})
+_EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 
 STATE_IMPORTED = "imported"
 STATE_READY = "ready"
@@ -222,13 +230,36 @@ def _source_details(path: Path) -> dict[str, Any]:
 
     source_sha256 = _hash_file(path)
     suffix = path.suffix.lower()
+    if suffix == ".bmp":
+        from .prepared_media_package import PreparedMediaPackageError, validate_bmp_payload
+
+        try:
+            validate_bmp_payload(path.read_bytes())
+        except (OSError, PreparedMediaPackageError) as exc:
+            return {
+                "sha256": source_sha256,
+                "size_bytes": stat.st_size,
+                "detected_format": SUPPORTED_BITMAP_FORMAT,
+                "supported": True,
+                "validation_error": f"BMP failed the exact 237x320 1-bit profile: {exc}",
+            }
+        return {
+            "sha256": source_sha256,
+            "size_bytes": stat.st_size,
+            "detected_format": SUPPORTED_BITMAP_FORMAT,
+            "supported": True,
+            "validation_error": None,
+        }
     if suffix != ".txt":
         return {
             "sha256": source_sha256,
             "size_bytes": stat.st_size,
             "detected_format": suffix[1:] if suffix else "unknown",
             "supported": False,
-            "validation_error": "unsupported source format; only UTF-8 .txt is supported",
+            "validation_error": (
+                "unsupported source format; only UTF-8 .txt and exact "
+                "237x320 1-bit .bmp are supported"
+            ),
         }
 
     try:
@@ -275,10 +306,19 @@ class LibraryItem:
     last_validation_error: Optional[str] = None
     source_observations: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     package: Optional[LibraryPackageReference] = None
+    node_kind: str = NODE_FILE
+    parent_id: Optional[str] = None
+    sibling_order: int = 0
 
     def __post_init__(self) -> None:
         if not self.item_id or not self.source_path or not self.source_filename:
             raise LibraryCatalogError("Library item identity and source fields are required")
+        if self.node_kind not in VALID_NODE_KINDS:
+            raise LibraryCatalogError(f"unsupported Library node kind: {self.node_kind}")
+        if isinstance(self.sibling_order, bool) or not isinstance(self.sibling_order, int) or self.sibling_order < 0:
+            raise LibraryCatalogError("Library sibling_order must be a non-negative integer")
+        if self.parent_id is not None and (not isinstance(self.parent_id, str) or not self.parent_id):
+            raise LibraryCatalogError("Library parent_id must be a non-empty string or null")
         _validate_sha256(self.source_sha256, "source_sha256")
         if self.state not in VALID_STATES:
             raise LibraryCatalogError(f"unsupported Library state: {self.state}")
@@ -307,6 +347,15 @@ class LibraryItem:
                 raise LibraryCatalogError("prepared package manifest identity is inconsistent")
             if self.prepared_manifest_path != self.package.manifest_path:
                 raise LibraryCatalogError("prepared package manifest path is inconsistent")
+            if self.node_kind != NODE_PREPARED_PACKAGE:
+                raise LibraryCatalogError("prepared package must use the prepared_package node kind")
+        elif self.node_kind == NODE_PREPARED_PACKAGE:
+            raise LibraryCatalogError("prepared_package node is missing its package reference")
+        if self.node_kind == NODE_FOLDER:
+            if self.package is not None or self.detected_format != "folder":
+                raise LibraryCatalogError("folder node metadata is inconsistent")
+            if self.source_sha256 != _EMPTY_SHA256 or self.source_size_bytes != 0:
+                raise LibraryCatalogError("folder nodes cannot claim file bytes")
 
     def to_dict(self) -> dict[str, Any]:
         value = {
@@ -330,6 +379,9 @@ class LibraryItem:
             "observed_timestamp_utc": self.observed_timestamp_utc,
             "last_validation_error": self.last_validation_error,
             "source_observations": [dict(observation) for observation in self.source_observations],
+            "node_kind": self.node_kind,
+            "parent_id": self.parent_id,
+            "sibling_order": self.sibling_order,
         }
         # Keep legacy v1 item serialization unchanged.  Package records are
         # an additive optional extension, so old catalogs load without being
@@ -357,6 +409,24 @@ class LibraryItem:
         missing = sorted(required.difference(value))
         if missing:
             raise LibraryCatalogError(f"Library item is missing fields: {', '.join(missing)}")
+        string_fields = (
+            "item_id",
+            "source_path",
+            "source_filename",
+            "source_sha256",
+            "import_timestamp_utc",
+            "detected_format",
+            "state",
+        )
+        if any(not isinstance(value[field], str) for field in string_fields):
+            raise LibraryCatalogError("Library item string fields must be strings")
+        if not isinstance(value["supported"], bool):
+            raise LibraryCatalogError("Library item supported must be a boolean")
+        if (
+            isinstance(value["source_size_bytes"], bool)
+            or not isinstance(value["source_size_bytes"], int)
+        ):
+            raise LibraryCatalogError("Library item source_size_bytes must be an integer")
         observations = value.get("source_observations", [])
         if not isinstance(observations, list) or any(
             not isinstance(observation, dict) for observation in observations
@@ -369,6 +439,12 @@ class LibraryItem:
         if package is not None and value.get("item_kind") != LIBRARY_PACKAGE_ITEM_KIND:
             raise LibraryCatalogError("prepared package item kind is missing")
         try:
+            node_kind = value.get("node_kind")
+            if node_kind is None:
+                node_kind = NODE_PREPARED_PACKAGE if package is not None else NODE_FILE
+            sibling_order = value.get("sibling_order", 0)
+            if isinstance(sibling_order, bool) or not isinstance(sibling_order, int):
+                raise LibraryCatalogError("Library sibling_order must be an integer")
             return cls(
                 item_id=str(value["item_id"]),
                 source_path=str(value["source_path"]),
@@ -397,6 +473,9 @@ class LibraryItem:
                 last_validation_error=value.get("last_validation_error"),
                 source_observations=tuple(dict(observation) for observation in observations),
                 package=package,
+                node_kind=str(node_kind),
+                parent_id=value.get("parent_id"),
+                sibling_order=sibling_order,
             )
         except (TypeError, ValueError) as exc:
             raise LibraryCatalogError("Library item contains invalid field types") from exc
@@ -409,11 +488,32 @@ class LibraryCatalog:
         self.path = Path(path) if path is not None else default_catalog_path()
         self.previous_path = self.path.with_name(f"{self.path.stem}.previous{self.path.suffix}")
         self._items: dict[str, LibraryItem] = {}
+        self._loaded_version = LIBRARY_VERSION
         self.load()
 
     @property
     def items(self) -> tuple[LibraryItem, ...]:
-        return tuple(self._items[key] for key in sorted(self._items))
+        ordered: list[LibraryItem] = []
+
+        def append_children(parent_id: Optional[str]) -> None:
+            for item in self.children(parent_id):
+                ordered.append(item)
+                append_children(item.item_id)
+
+        append_children(None)
+        return tuple(ordered)
+
+    @property
+    def roots(self) -> tuple[LibraryItem, ...]:
+        return self.children(None)
+
+    def children(self, parent_id: Optional[str]) -> tuple[LibraryItem, ...]:
+        return tuple(
+            sorted(
+                (item for item in self._items.values() if item.parent_id == parent_id),
+                key=lambda item: item.sibling_order,
+            )
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -432,19 +532,81 @@ class LibraryCatalog:
             raise LibraryCatalogError(f"cannot read Library catalog: {self.path}") from exc
         if not isinstance(raw, dict) or raw.get("format") != LIBRARY_FORMAT:
             raise LibraryCatalogError("unsupported or malformed Library catalog format")
-        if raw.get("version") != LIBRARY_VERSION:
+        version = raw.get("version")
+        if version not in {LEGACY_LIBRARY_VERSION, LIBRARY_VERSION}:
             raise LibraryCatalogError("unsupported Library catalog version")
         values = raw.get("items")
         if not isinstance(values, list):
             raise LibraryCatalogError("Library catalog items must be a list")
         parsed = [LibraryItem.from_dict(value) for value in values]
+        if version == LEGACY_LIBRARY_VERSION:
+            parsed = [
+                replace(
+                    item,
+                    parent_id=None,
+                    sibling_order=index,
+                    node_kind=(
+                        NODE_PREPARED_PACKAGE if item.package is not None else NODE_FILE
+                    ),
+                )
+                for index, item in enumerate(parsed)
+            ]
         items = {item.item_id: item for item in parsed}
         if len(items) != len(parsed):
             raise LibraryCatalogError("Library catalog contains duplicate item IDs")
         self._items = items
+        self._loaded_version = int(version)
+        self._validate_tree()
         return self.items
 
+    def _validate_tree(self) -> None:
+        for item in self._items.values():
+            if item.parent_id is not None:
+                parent = self._items.get(item.parent_id)
+                if parent is None:
+                    raise LibraryCatalogError(
+                        f"Library node {item.item_id} has a missing parent"
+                    )
+                if parent.node_kind != NODE_FOLDER:
+                    raise LibraryCatalogError("only folders may contain Library children")
+                cursor = parent
+                seen = {item.item_id}
+                while cursor is not None:
+                    if cursor.item_id in seen:
+                        raise LibraryCatalogError("Library hierarchy contains a cycle")
+                    seen.add(cursor.item_id)
+                    cursor = (
+                        None
+                        if cursor.parent_id is None
+                        else self._items.get(cursor.parent_id)
+                    )
+        parent_ids = {None, *(item.item_id for item in self._items.values())}
+        for parent_id in parent_ids:
+            children = [item for item in self._items.values() if item.parent_id == parent_id]
+            orders = sorted(item.sibling_order for item in children)
+            if orders != list(range(len(children))):
+                raise LibraryCatalogError("Library sibling order must be contiguous")
+            names: set[str] = set()
+            for child in children:
+                folded = child.source_filename.casefold()
+                if folded in names:
+                    raise LibraryCatalogError(
+                        f"duplicate sibling name in Library: {child.source_filename}"
+                    )
+                names.add(folded)
+
+    def _commit_items(self, updated: dict[str, LibraryItem]) -> None:
+        previous = self._items
+        self._items = updated
+        try:
+            self._validate_tree()
+            self.save()
+        except Exception:
+            self._items = previous
+            raise
+
     def save(self) -> None:
+        self._validate_tree()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         previous_exists = self.path.exists()
         if previous_exists:
@@ -471,6 +633,7 @@ class LibraryCatalog:
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary_path, self.path)
+            self._loaded_version = LIBRARY_VERSION
             temporary_path = None
             try:
                 directory_fd = os.open(self.path.parent, os.O_RDONLY)
@@ -497,15 +660,23 @@ class LibraryCatalog:
             raise LibraryError(f"Library item not found: {item_id}") from exc
 
     def import_file(self, source: Path, *, now: Optional[str] = None) -> LibraryItem:
-        path = Path(source).expanduser().resolve()
+        selected = Path(source).expanduser()
+        if selected.is_symlink():
+            raise LibraryImportError("symbolic-link sources are not supported")
+        path = selected.resolve()
         details = _source_details(path)
         timestamp = now or _utc_now()
         item_id = _stable_item_id(path)
         existing = self._items.get(item_id)
         if existing is None:
-            item = self._new_item(path, details, timestamp)
-            self._items[item.item_id] = item
-            self.save()
+            item = self._new_item(
+                path,
+                details,
+                timestamp,
+                parent_id=None,
+                sibling_order=len(self.roots),
+            )
+            self._commit_items({**self._items, item.item_id: item})
             return item
 
         # An explicit re-import of the same present bytes is intentionally a
@@ -523,9 +694,130 @@ class LibraryCatalog:
 
         updated = self._observe(existing, details, timestamp)
         if updated != existing:
-            self._items[item_id] = updated
-            self.save()
+            self._commit_items({**self._items, item_id: updated})
         return updated
+
+    def import_files(
+        self,
+        sources: Iterable[Path],
+        *,
+        now: Optional[str] = None,
+    ) -> tuple[LibraryItem, ...]:
+        """Import picker-ordered individual files as explicit root siblings."""
+
+        selected_paths = [Path(source).expanduser() for source in sources]
+        if any(path.is_symlink() for path in selected_paths):
+            raise LibraryImportError("symbolic-link sources are not supported")
+        paths = [path.resolve() for path in selected_paths]
+        if not paths:
+            raise LibraryImportError("at least one source file must be selected")
+        if len(set(paths)) != len(paths):
+            raise LibraryImportError("the file selection contains a duplicate source path")
+        timestamp = now or _utc_now()
+        updated = dict(self._items)
+        imported: list[LibraryItem] = []
+        next_order = len(self.roots)
+        for path in paths:
+            item_id = _stable_item_id(path)
+            if item_id in updated:
+                raise LibraryImportError(f"source is already in the Library: {path}")
+            details = _source_details(path)
+            item = self._new_item(
+                path,
+                details,
+                timestamp,
+                parent_id=None,
+                sibling_order=next_order,
+            )
+            updated[item.item_id] = item
+            imported.append(item)
+            next_order += 1
+        self._commit_items(updated)
+        return tuple(imported)
+
+    def import_folder(
+        self,
+        source: Path,
+        *,
+        now: Optional[str] = None,
+    ) -> LibraryItem:
+        """Recursively import one hierarchy in explicit deterministic name order.
+
+        Folder enumeration uses the UTF-8 byte representation of each visible
+        name.  The order is persisted immediately and may then be changed only
+        through the explicit sibling move operations.
+        """
+
+        selected_root = Path(source).expanduser()
+        if selected_root.is_symlink():
+            raise LibraryImportError("symbolic-link folders are not imported")
+        root_path = selected_root.resolve()
+        if not root_path.is_dir():
+            raise LibraryImportError(f"source is not a directory: {root_path}")
+        root_id = _stable_item_id(root_path)
+        if root_id in self._items:
+            raise LibraryImportError(f"folder is already in the Library: {root_path}")
+        timestamp = now or _utc_now()
+        updated = dict(self._items)
+
+        def sorted_entries(path: Path) -> list[Path]:
+            try:
+                entries = list(path.iterdir())
+            except OSError as exc:
+                raise LibraryImportError(f"cannot enumerate source folder: {path}") from exc
+            return sorted(entries, key=lambda entry: entry.name.encode("utf-8", "surrogatepass"))
+
+        def add_directory(path: Path, parent_id: Optional[str], order: int) -> LibraryItem:
+            node_id = _stable_item_id(path)
+            if node_id in updated:
+                raise LibraryImportError(f"source path is already represented in the Library: {path}")
+            folder = LibraryItem(
+                item_id=node_id,
+                source_path=str(path),
+                source_filename=path.name,
+                source_sha256=_EMPTY_SHA256,
+                import_timestamp_utc=timestamp,
+                source_size_bytes=0,
+                detected_format="folder",
+                supported=True,
+                state=STATE_IMPORTED,
+                source_status=SOURCE_PRESENT,
+                observed_timestamp_utc=timestamp,
+                node_kind=NODE_FOLDER,
+                parent_id=parent_id,
+                sibling_order=order,
+            )
+            updated[node_id] = folder
+            entries = sorted_entries(path)
+            for child_order, entry in enumerate(entries):
+                if entry.is_symlink():
+                    raise LibraryImportError(
+                        f"symbolic-link entry is not supported: {entry.relative_to(root_path)}"
+                    )
+                if entry.is_dir():
+                    add_directory(entry, node_id, child_order)
+                elif entry.is_file():
+                    child_id = _stable_item_id(entry)
+                    if child_id in updated:
+                        raise LibraryImportError(
+                            f"duplicate source path in hierarchy: {entry.relative_to(root_path)}"
+                        )
+                    updated[child_id] = self._new_item(
+                        entry,
+                        _source_details(entry),
+                        timestamp,
+                        parent_id=node_id,
+                        sibling_order=child_order,
+                    )
+                else:
+                    raise LibraryImportError(
+                        f"non-regular folder entry is not supported: {entry.relative_to(root_path)}"
+                    )
+            return folder
+
+        root = add_directory(root_path, None, len(self.roots))
+        self._commit_items(updated)
+        return root
 
     def import_prepared_package(
         self,
@@ -597,9 +889,11 @@ class LibraryCatalog:
                 last_validation_error=None,
                 source_observations=(observation,),
                 package=reference,
+                node_kind=NODE_PREPARED_PACKAGE,
+                parent_id=None,
+                sibling_order=len(self.roots),
             )
-            self._items[item.item_id] = item
-            self.save()
+            self._commit_items({**self._items, item.item_id: item})
             return item
         if (
             existing.source_status == SOURCE_PRESENT
@@ -621,15 +915,33 @@ class LibraryCatalog:
             )
         updated = self._observe_package(existing, imported.manifest_sha256, manifest_size, timestamp)
         if updated != existing:
-            self._items[item_id] = updated
-            self.save()
+            self._commit_items({**self._items, item_id: updated})
         return updated
 
     def refresh(self, item_id: str, *, now: Optional[str] = None) -> LibraryItem:
         existing = self.get(item_id)
         timestamp = now or _utc_now()
         path = Path(existing.source_path)
-        if existing.package is not None:
+        if existing.node_kind == NODE_FOLDER:
+            if not path.exists():
+                updated = self._observe_missing(existing, timestamp)
+            elif not path.is_dir():
+                updated = replace(
+                    existing,
+                    state=STATE_BLOCKED,
+                    source_status=SOURCE_CHANGED,
+                    observed_timestamp_utc=timestamp,
+                    last_validation_error="source folder is no longer a directory",
+                )
+            else:
+                updated = replace(
+                    existing,
+                    state=STATE_IMPORTED,
+                    source_status=SOURCE_PRESENT,
+                    observed_timestamp_utc=timestamp,
+                    last_validation_error=None,
+                )
+        elif existing.package is not None:
             from .prepared_media_package import PreparedMediaPackageError, load_prepared_media_package
 
             if not path.exists():
@@ -652,16 +964,56 @@ class LibraryCatalog:
             details = _source_details(path)
             updated = self._observe(existing, details, timestamp)
         if updated != existing:
-            self._items[item_id] = updated
-            self.save()
+            self._commit_items({**self._items, item_id: updated})
         return updated
 
     def remove(self, item_id: str) -> bool:
         if item_id not in self._items:
             return False
-        del self._items[item_id]
-        self.save()
+        removed = {item_id}
+        pending = [item_id]
+        while pending:
+            parent = pending.pop()
+            descendants = [
+                item.item_id for item in self._items.values() if item.parent_id == parent
+            ]
+            removed.update(descendants)
+            pending.extend(descendants)
+        parent_id = self._items[item_id].parent_id
+        updated = {
+            key: value for key, value in self._items.items() if key not in removed
+        }
+        siblings = sorted(
+            (item for item in updated.values() if item.parent_id == parent_id),
+            key=lambda item: item.sibling_order,
+        )
+        for order, sibling in enumerate(siblings):
+            updated[sibling.item_id] = replace(sibling, sibling_order=order)
+        self._commit_items(updated)
         return True
+
+    def move_up(self, item_id: str) -> LibraryItem:
+        return self._move(item_id, -1)
+
+    def move_down(self, item_id: str) -> LibraryItem:
+        return self._move(item_id, 1)
+
+    def _move(self, item_id: str, delta: int) -> LibraryItem:
+        if delta not in {-1, 1}:
+            raise LibraryError("Library move delta must be -1 or 1")
+        item = self.get(item_id)
+        siblings = list(self.children(item.parent_id))
+        index = next(index for index, sibling in enumerate(siblings) if sibling.item_id == item_id)
+        target = index + delta
+        if target < 0 or target >= len(siblings):
+            direction = "up" if delta < 0 else "down"
+            raise LibraryError(f"Library node cannot move {direction} beyond its siblings")
+        other = siblings[target]
+        updated = dict(self._items)
+        updated[item.item_id] = replace(item, sibling_order=other.sibling_order)
+        updated[other.item_id] = replace(other, sibling_order=item.sibling_order)
+        self._commit_items(updated)
+        return updated[item.item_id]
 
     def update_preparation(
         self,
@@ -692,8 +1044,7 @@ class LibraryCatalog:
             prepared_manifest_path=prepared_manifest_path,
             last_validation_error=last_validation_error,
         )
-        self._items[item_id] = updated
-        self.save()
+        self._commit_items({**self._items, item_id: updated})
         return updated
 
     @staticmethod
@@ -775,7 +1126,14 @@ class LibraryCatalog:
         )
 
     @staticmethod
-    def _new_item(path: Path, details: dict[str, Any], timestamp: str) -> LibraryItem:
+    def _new_item(
+        path: Path,
+        details: dict[str, Any],
+        timestamp: str,
+        *,
+        parent_id: Optional[str],
+        sibling_order: int,
+    ) -> LibraryItem:
         if not details["supported"]:
             state = STATE_UNSUPPORTED
         elif details["validation_error"] is not None:
@@ -803,6 +1161,9 @@ class LibraryCatalog:
             observed_timestamp_utc=timestamp,
             last_validation_error=details["validation_error"],
             source_observations=(observation,),
+            node_kind=NODE_FILE,
+            parent_id=parent_id,
+            sibling_order=sibling_order,
         )
 
     @staticmethod
@@ -892,7 +1253,11 @@ class LibraryCatalog:
             last_validation_error=(
                 "prepared package directory is missing"
                 if existing.package is not None
-                else "source file is missing"
+                else (
+                    "source folder is missing"
+                    if existing.node_kind == NODE_FOLDER
+                    else "source file is missing"
+                )
             ),
             source_observations=observations,
         )
@@ -902,11 +1267,16 @@ __all__ = [
     "LIBRARY_FORMAT",
     "LIBRARY_PACKAGE_ITEM_KIND",
     "LIBRARY_VERSION",
+    "LEGACY_LIBRARY_VERSION",
+    "NODE_FILE",
+    "NODE_FOLDER",
+    "NODE_PREPARED_PACKAGE",
     "PREPARATION_BLOCKED",
     "PREPARATION_PREPARED",
     "PREPARATION_STALE",
     "PREPARATION_UNPREPARED",
     "PREPARED_MEDIA_PACKAGE_FORMAT",
+    "SUPPORTED_BITMAP_FORMAT",
     "STATE_BLOCKED",
     "STATE_IMPORTED",
     "STATE_READY",

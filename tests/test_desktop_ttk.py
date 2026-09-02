@@ -10,6 +10,7 @@ from infocarry.desktop_ttk import (
     LIBRARY_LIST_MIN_WIDTH,
     LIBRARY_MINIMUM_GEOMETRY,
     _library_package_shape,
+    format_library_device_tree_preview,
     format_library_preparation_audit,
     format_library_transfer_plan,
     format_experimental_library_transfer_review,
@@ -53,8 +54,119 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "library_experimental_group",
             "keep_library_sash_in_bounds",
             "sashpos",
+            "library_folder_import_button",
+            "library_move_up_button",
+            "library_move_down_button",
+            "library_preview_button",
         ):
             self.assertIn(control, source)
+
+    def test_library_layout_wires_hierarchy_chooser_order_and_host_preview(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        for contract in (
+            "askopenfilenames",
+            "askdirectory",
+            "library_workflow.import_files",
+            "library_workflow.import_folder",
+            "library_catalog.children(parent_id)",
+            "library_workflow.move_up",
+            "library_workflow.move_down",
+            "library_workflow.remove",
+            "library_workflow.prepare_preview",
+            "format_library_device_tree_preview",
+            "unavailable without TkDND",
+        ):
+            self.assertIn(contract, source)
+        self.assertNotIn("prepared_library_package_live_adapter", source)
+
+    def test_existing_replacement_confirmation_keeps_simpledialog_imported(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("from tkinter import filedialog, messagebox, simpledialog, ttk", source)
+        self.assertIn("simpledialog.askstring", inspect.getsource(launch_ttk_desktop))
+
+    def test_hierarchical_device_tree_preview_is_exact_and_capacity_is_explicit(self):
+        summary = format_library_device_tree_preview(
+            {
+                "profile_id": "host-offline-hierarchical-library-v1",
+                "profile_status": "host_offline_only_not_live_enabled",
+                "plan_sha256": "a" * 64,
+                "ordered_nodes": [
+                    {
+                        "node_id": "book",
+                        "parent_id": None,
+                        "order": 0,
+                        "kind": "folder",
+                        "name": "Book",
+                        "path": "root\\Book",
+                        "prepared_payload_bytes": 0,
+                        "validation": "passed",
+                        "conflict": "not_evaluated",
+                    },
+                    {
+                        "node_id": "chapter",
+                        "parent_id": "book",
+                        "order": 0,
+                        "kind": "txt",
+                        "name": "chapter.txt",
+                        "path": "root\\Book\\chapter.txt",
+                        "prepared_payload_bytes": 12,
+                        "validation": "passed",
+                        "conflict": "not_evaluated",
+                    },
+                ],
+                "validation": {
+                    "prepared_manifest": "passed",
+                    "internal_paths_and_order": "passed",
+                    "existing_device_paths": "not_evaluated_without_fresh_verified_baseline",
+                    "conflicts": [],
+                    "capability_match": "host_offline_only_not_live_capable",
+                },
+                "capacity": {
+                    "total_model_limit_bytes": "not_evaluated",
+                    "fresh_baseline_model_length_bytes": "not_evaluated",
+                    "candidate_growth_bytes": "not_evaluated",
+                    "remaining_after_transfer_bytes": "not_evaluated",
+                },
+                "execution": {
+                    "enabled": False,
+                    "candidate_constructed": False,
+                    "usb_accessed": False,
+                    "device_change": "none",
+                },
+            }
+        )
+        self.assertIn("host/offline only", summary)
+        self.assertIn("order=0 type=FOLDER name=Book", summary)
+        self.assertIn("  order=0 type=TXT name=chapter.txt", summary)
+        self.assertIn("Destination: root\\Book\\chapter.txt", summary)
+        self.assertIn("Prepared size: 12 bytes", summary)
+        self.assertIn("Validation: passed", summary)
+        self.assertIn("Conflict: not_evaluated", summary)
+        for label in (
+            "Total model limit",
+            "Fresh baseline length",
+            "Candidate growth",
+            "Remaining after transfer",
+        ):
+            self.assertIn(f"{label}: Not evaluated", summary)
+        self.assertIn("Execution enabled: no", summary)
+        self.assertIn("USB accessed: no", summary)
+
+    def test_device_tree_formatter_fails_closed_on_out_of_order_parent(self):
+        with self.assertRaisesRegex(ValueError, "parent"):
+            format_library_device_tree_preview(
+                {
+                    "ordered_nodes": [
+                        {
+                            "node_id": "child",
+                            "parent_id": "missing",
+                        }
+                    ],
+                    "validation": {"conflicts": []},
+                    "capacity": {},
+                    "execution": {},
+                }
+            )
 
     def test_library_prepare_summary_is_explicitly_offline(self):
         summary = format_library_preparation_audit(

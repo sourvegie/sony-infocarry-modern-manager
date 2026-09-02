@@ -25,8 +25,15 @@ from .offline_conversion import (
     export_text_document,
     load_utf8_text_document,
 )
-from .library import LibraryCatalog, LibraryCatalogError, LibraryError
-from .library_prepare import LibraryPreparationError, prepare_library_item
+from .library import (
+    NODE_FOLDER,
+    NODE_PREPARED_PACKAGE,
+    LibraryCatalog,
+    LibraryCatalogError,
+    LibraryError,
+)
+from .library_prepare import LibraryPreparationError
+from .library_workflow import LibraryWorkflowService
 from .library_transfer_plan import (
     LibraryTransferPlanError,
     SELECTION_ALL_READY,
@@ -276,6 +283,99 @@ def format_library_preparation_audit(report: Dict[str, Any]) -> str:
     )
 
 
+def _capacity_preview_value(value: Any) -> str:
+    if value is None or value == "not_evaluated":
+        return "Not evaluated"
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError("device-tree capacity value is malformed")
+    return f"{value:,} bytes"
+
+
+def format_library_device_tree_preview(report: Dict[str, Any]) -> str:
+    """Render one exact ordered host/offline device-tree preview."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Library device-tree preview must be a mapping")
+    nodes = report.get("ordered_nodes")
+    validation = report.get("validation")
+    capacity = report.get("capacity")
+    execution = report.get("execution")
+    if (
+        not isinstance(nodes, list)
+        or not isinstance(validation, dict)
+        or not isinstance(capacity, dict)
+        or not isinstance(execution, dict)
+    ):
+        raise ValueError("Library device-tree preview is malformed")
+
+    lines = [
+        "PREPARED DEVICE-TREE PREVIEW — host/offline only; no device change occurred",
+        "",
+        f"Profile: {report.get('profile_id', 'unknown')}",
+        f"Profile status: {report.get('profile_status', 'unknown')}",
+        f"Plan SHA-256: {report.get('plan_sha256', 'unknown')}",
+        "",
+        "Exact ordered destinations",
+    ]
+    depths: dict[str, int] = {}
+    for node in nodes:
+        if not isinstance(node, dict):
+            raise ValueError("device-tree node is malformed")
+        node_id = node.get("node_id")
+        parent_id = node.get("parent_id")
+        if not isinstance(node_id, str) or not node_id or node_id in depths:
+            raise ValueError("device-tree node identity is missing or duplicated")
+        if parent_id is None:
+            depth = 0
+        elif not isinstance(parent_id, str) or parent_id not in depths:
+            raise ValueError("device-tree node parent is missing or out of order")
+        else:
+            depth = depths[parent_id] + 1
+        depths[node_id] = depth
+        indent = "  " * depth
+        lines.append(
+            f"{indent}order={node.get('order', '?')} "
+            f"type={str(node.get('kind', '?')).upper()} "
+            f"name={node.get('name', '?')}"
+        )
+        lines.extend(
+            (
+                f"{indent}  Destination: {node.get('path', 'unknown')}",
+                f"{indent}  Prepared size: {node.get('prepared_payload_bytes', '?')} bytes",
+                f"{indent}  Validation: {node.get('validation', 'unknown')}",
+                f"{indent}  Conflict: {node.get('conflict', 'unknown')}",
+            )
+        )
+
+    conflicts = validation.get("conflicts", [])
+    if not isinstance(conflicts, list):
+        raise ValueError("device-tree conflicts must be a list")
+    lines.extend(
+        (
+            "",
+            "Validation and conflicts",
+            f"  Prepared manifest: {validation.get('prepared_manifest', 'unknown')}",
+            f"  Paths and sibling order: {validation.get('internal_paths_and_order', 'unknown')}",
+            f"  Existing device paths: {validation.get('existing_device_paths', 'unknown')}",
+            f"  Capability match: {validation.get('capability_match', 'unknown')}",
+            f"  Conflicts: {', '.join(str(value) for value in conflicts) if conflicts else 'none'}",
+            "",
+            "Capacity",
+            f"  Total model limit: {_capacity_preview_value(capacity.get('total_model_limit_bytes'))}",
+            f"  Fresh baseline length: {_capacity_preview_value(capacity.get('fresh_baseline_model_length_bytes'))}",
+            f"  Candidate growth: {_capacity_preview_value(capacity.get('candidate_growth_bytes'))}",
+            f"  Remaining after transfer: {_capacity_preview_value(capacity.get('remaining_after_transfer_bytes'))}",
+            "",
+            "Safety",
+            f"  Execution enabled: {'yes' if execution.get('enabled') else 'no'}",
+            f"  Candidate constructed: {'yes' if execution.get('candidate_constructed') else 'no'}",
+            f"  USB accessed: {'yes' if execution.get('usb_accessed') else 'no'}",
+            f"  Device change: {execution.get('device_change', 'none')}",
+        )
+    )
+    return "\n".join(lines)
+
+
 def format_library_transfer_plan(report: Dict[str, Any]) -> str:
     """Render the Library queue review without implying transfer capability."""
 
@@ -486,9 +586,13 @@ def launch_ttk_desktop() -> None:
     worker: Optional[threading.Thread] = None
     try:
         library_catalog: Optional[LibraryCatalog] = LibraryCatalog()
+        library_workflow: Optional[LibraryWorkflowService] = LibraryWorkflowService(
+            library_catalog
+        )
         library_catalog_error: Optional[str] = None
     except LibraryCatalogError as exc:
         library_catalog = None
+        library_workflow = None
         library_catalog_error = str(exc)
 
     try:
@@ -520,7 +624,10 @@ def launch_ttk_desktop() -> None:
         value=(
             f"Library unavailable: {library_catalog_error}"
             if library_catalog_error
-            else "Import a UTF-8 TXT source or prepared flat TXT/BMP package; no device operation occurs."
+            else (
+                "Import TXT/BMP files or a folder hierarchy. External drag-and-drop "
+                "is unavailable without the optional TkDND adapter; no device operation occurs."
+            )
         )
     )
     library_detail_var = tk.StringVar(value="Select a Library item")
@@ -533,26 +640,38 @@ def launch_ttk_desktop() -> None:
     library_toolbar = ttk.Frame(library_tab)
     library_toolbar.pack(fill="x", pady=(0, 8))
     library_toolbar.columnconfigure(1, weight=1)
-    library_import_group = ttk.LabelFrame(library_toolbar, text="Import / prepare")
+    library_import_group = ttk.LabelFrame(library_toolbar, text="Select / arrange")
     library_import_group.grid(row=0, column=0, sticky="w")
-    library_review_group = ttk.LabelFrame(library_toolbar, text="Offline review")
+    library_review_group = ttk.LabelFrame(library_toolbar, text="Prepare / preview")
     library_review_group.grid(row=1, column=0, sticky="w", pady=(4, 0))
     library_experimental_group = ttk.LabelFrame(
-        library_toolbar, text="Experimental boundary — review only"
+        library_toolbar, text="Legacy flat-package review — no send"
     )
     library_experimental_group.grid(
         row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
     )
-    library_experimental_group.columnconfigure(1, weight=1)
-    library_import_button = ttk.Button(library_import_group, text="Import TXT…")
+    library_experimental_group.columnconfigure(2, weight=1)
+    library_import_button = ttk.Button(library_import_group, text="Import files…")
+    library_folder_import_button = ttk.Button(
+        library_import_group, text="Import folder…"
+    )
+    library_move_up_button = ttk.Button(
+        library_import_group, text="Move up", state="disabled"
+    )
+    library_move_down_button = ttk.Button(
+        library_import_group, text="Move down", state="disabled"
+    )
     library_package_import_button = ttk.Button(
-        library_import_group, text="Import prepared package…"
+        library_experimental_group, text="Import prepared package…"
     )
     library_remove_button = ttk.Button(
         library_import_group, text="Remove from Library", state="disabled"
     )
     library_prepare_button = ttk.Button(
-        library_import_group, text="Prepare…", state="disabled"
+        library_review_group, text="Prepare", state="disabled"
+    )
+    library_preview_button = ttk.Button(
+        library_review_group, text="Preview device tree", state="disabled"
     )
     library_selected_queue_button = ttk.Button(
         library_review_group, text="Review selected (offline)…", state="disabled"
@@ -567,25 +686,33 @@ def launch_ttk_desktop() -> None:
     )
     for button in (
         library_import_button,
-        library_package_import_button,
+        library_folder_import_button,
+        library_move_up_button,
+        library_move_down_button,
         library_remove_button,
-        library_prepare_button,
     ):
         button.pack(side="left", padx=3, pady=3)
-    for button in (library_selected_queue_button, library_all_queue_button):
+    for button in (
+        library_prepare_button,
+        library_preview_button,
+        library_selected_queue_button,
+        library_all_queue_button,
+    ):
         button.pack(side="left", padx=3, pady=3)
-    library_experimental_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
+    library_package_import_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
+    library_experimental_button.grid(row=0, column=1, sticky="w", padx=3, pady=3)
     ttk.Label(
         library_experimental_group,
         text="No approval or send action is available here.",
         foreground="#6b4f00",
         anchor="w",
-    ).grid(row=0, column=1, sticky="ew", padx=(8, 8), pady=3)
+    ).grid(row=0, column=2, sticky="ew", padx=(8, 8), pady=3)
     library_safety_notice = ttk.Label(
         library_toolbar,
         text=(
-            "Experimental review only — no send action. Fresh backup, candidate, "
-            "authorization, and device execution remain separately guarded."
+            "External file/folder drag-and-drop: unavailable without TkDND; use the "
+            "chooser buttons. All preparation and nested previews are host/offline "
+            "only; no send action is exposed."
         ),
         foreground="#6b4f00",
         anchor="w",
@@ -622,20 +749,20 @@ def launch_ttk_desktop() -> None:
     library_list_frame.rowconfigure(0, weight=1)
     library_tree = ttk.Treeview(
         library_list_frame,
-        columns=("state", "shape", "source", "target"),
+        columns=("type", "state", "size", "source"),
         show="tree headings",
         selectmode="extended",
     )
     library_tree.heading("#0", text="Item")
+    library_tree.heading("type", text="Type")
     library_tree.heading("state", text="State")
-    library_tree.heading("shape", text="Shape")
+    library_tree.heading("size", text="Size")
     library_tree.heading("source", text="Source")
-    library_tree.heading("target", text="Target")
     library_tree.column("#0", minwidth=150, width=190, stretch=True)
+    library_tree.column("type", minwidth=70, width=88, stretch=False)
     library_tree.column("state", minwidth=78, width=88, stretch=False)
-    library_tree.column("shape", minwidth=92, width=110, stretch=False)
-    library_tree.column("source", minwidth=150, width=190, stretch=True)
-    library_tree.column("target", minwidth=180, width=230, stretch=True)
+    library_tree.column("size", minwidth=75, width=86, stretch=False, anchor="e")
+    library_tree.column("source", minwidth=180, width=240, stretch=True)
     library_tree_scroll = ttk.Scrollbar(
         library_list_frame, orient="vertical", command=library_tree.yview
     )
@@ -878,37 +1005,75 @@ def launch_ttk_desktop() -> None:
         if selected:
             target.set(selected)
 
-    def refresh_library_view() -> None:
+    def visible_library_tree_items(parent: str = "") -> list[str]:
+        result: list[str] = []
+        for tree_item in library_tree.get_children(parent):
+            result.append(tree_item)
+            result.extend(visible_library_tree_items(tree_item))
+        return result
+
+    def refresh_library_view(*, selected_item_id: Optional[str] = None) -> None:
+        had_tree_items = bool(library_tree_items)
+        selected_ids = {
+            library_tree_items[tree_item]
+            for tree_item in library_tree.selection()
+            if tree_item in library_tree_items
+        }
+        if selected_item_id is not None:
+            selected_ids = {selected_item_id}
+        open_ids = {
+            item_id
+            for tree_item, item_id in library_tree_items.items()
+            if library_tree.item(tree_item, "open")
+        }
         library_tree.delete(*library_tree.get_children())
         library_tree_items.clear()
-        if library_catalog is None:
+        if library_catalog is None or library_workflow is None:
             library_import_button.configure(state="disabled")
+            library_folder_import_button.configure(state="disabled")
             library_package_import_button.configure(state="disabled")
+            library_move_up_button.configure(state="disabled")
+            library_move_down_button.configure(state="disabled")
             library_remove_button.configure(state="disabled")
             library_prepare_button.configure(state="disabled")
+            library_preview_button.configure(state="disabled")
             library_selected_queue_button.configure(state="disabled")
             library_all_queue_button.configure(state="disabled")
             library_experimental_button.configure(state="disabled")
             return
         library_import_button.configure(state="normal")
+        library_folder_import_button.configure(state="normal")
         library_package_import_button.configure(state="normal")
-        library_all_queue_button.configure(state="normal")
         library_experimental_button.configure(state="disabled")
-        for item in library_catalog.items:
-            target = ""
-            shape = "TXT"
-            if item.package is not None and item.target_folder_name:
-                target = f"root\\{item.target_folder_name} ({len(item.package.children)} children)"
-                shape = _library_package_shape(item.package)
-            elif item.target_folder_name and item.target_child_name:
-                target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
-            tree_item = library_tree.insert(
-                "",
-                "end",
-                text=item.source_filename,
-                values=(item.state, shape, item.source_filename, target),
-            )
-            library_tree_items[tree_item] = item.item_id
+
+        node_tree_items: dict[str, str] = {}
+
+        def insert_nodes(parent_id: Optional[str], parent_tree_item: str) -> None:
+            for item in library_catalog.children(parent_id):
+                node_type = item.node_kind
+                if item.package is not None and item.target_folder_name:
+                    node_type = _library_package_shape(item.package)
+                size = "" if item.node_kind == NODE_FOLDER else f"{item.source_size_bytes:,} B"
+                tree_item = library_tree.insert(
+                    parent_tree_item,
+                    "end",
+                    text=item.source_filename,
+                    values=(node_type, item.state, size, item.source_path),
+                    open=(
+                        item.item_id in open_ids
+                        or (not had_tree_items and item.node_kind == NODE_FOLDER)
+                    ),
+                )
+                library_tree_items[tree_item] = item.item_id
+                node_tree_items[item.item_id] = tree_item
+                insert_nodes(item.item_id, tree_item)
+
+        insert_nodes(None, "")
+        restored = [node_tree_items[item_id] for item_id in selected_ids if item_id in node_tree_items]
+        if restored:
+            library_tree.selection_set(restored)
+            library_tree.focus(restored[0])
+            library_tree.see(restored[0])
         show_library_selection()
 
     def selected_library_item() -> Optional[Any]:
@@ -932,7 +1097,7 @@ def launch_ttk_desktop() -> None:
             return []
         selected_tree_items = set(library_tree.selection())
         items = []
-        for tree_item in library_tree.get_children(""):
+        for tree_item in visible_library_tree_items():
             if tree_item not in selected_tree_items:
                 continue
             item_id = library_tree_items.get(tree_item)
@@ -948,25 +1113,40 @@ def launch_ttk_desktop() -> None:
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
         has_selection = bool(library_tree.selection()) and library_catalog is not None
+        hierarchy_enabled = enabled and item.node_kind != NODE_PREPARED_PACKAGE
+        selected_items = selected_library_items()
+        legacy_selection = bool(selected_items) and all(
+            selected.package is not None for selected in selected_items
+        )
+        legacy_items_available = bool(
+            library_catalog is not None
+            and any(value.package is not None for value in library_catalog.items)
+        )
         library_remove_button.configure(state="normal" if enabled else "disabled")
-        library_prepare_button.configure(
+        library_move_up_button.configure(
             state=(
                 "normal"
-                if enabled
-                and item.package is None
-                and item.supported
-                and item.state in {"imported", "ready", "blocked"}
+                if enabled and library_workflow is not None and library_workflow.can_move_up(item.item_id)
                 else "disabled"
             )
         )
+        library_move_down_button.configure(
+            state=(
+                "normal"
+                if enabled and library_workflow is not None and library_workflow.can_move_down(item.item_id)
+                else "disabled"
+            )
+        )
+        library_prepare_button.configure(state="normal" if hierarchy_enabled else "disabled")
+        library_preview_button.configure(state="normal" if hierarchy_enabled else "disabled")
         library_selected_queue_button.configure(
-            state="normal" if has_selection else "disabled"
+            state="normal" if has_selection and legacy_selection else "disabled"
         )
         library_all_queue_button.configure(
-            state="normal" if library_catalog is not None else "disabled"
+            state="normal" if legacy_items_available else "disabled"
         )
         library_experimental_button.configure(
-            state="normal" if enabled else "disabled"
+            state="normal" if enabled and item.package is not None else "disabled"
         )
         if item is None:
             library_detail_var.set("Select a Library item")
@@ -983,6 +1163,8 @@ def launch_ttk_desktop() -> None:
         library_detail_var.set(
             f"{item.source_filename}\n\n"
             f"State: {item.state}\n"
+            f"Type: {item.node_kind}\n"
+            f"Sibling order: {item.sibling_order}\n"
             f"Source: {item.source_path}\n"
             f"SHA-256: {item.source_sha256}\n"
             f"Target: {target}"
@@ -993,13 +1175,15 @@ def launch_ttk_desktop() -> None:
         )
 
     def library_import_action() -> None:
-        if library_catalog is None:
+        if library_workflow is None:
             messagebox.showerror("Library", library_catalog_error or "Library is unavailable", parent=root)
             return
-        selected = filedialog.askopenfilename(
-            title="Import local source into Library",
+        selected = filedialog.askopenfilenames(
+            title="Import TXT/BMP files into Library",
             filetypes=(
+                ("Supported TXT/BMP files", ("*.txt", "*.bmp")),
                 ("UTF-8 text files", "*.txt"),
+                ("237x320 1-bit bitmap files", "*.bmp"),
                 ("All files", "*"),
             ),
             parent=root,
@@ -1007,18 +1191,40 @@ def launch_ttk_desktop() -> None:
         if not selected:
             return
         try:
-            item = library_catalog.import_file(Path(selected))
-            refresh_library_view()
+            items = library_workflow.import_files(Path(value) for value in selected)
+            refresh_library_view(selected_item_id=items[0].item_id)
             library_status_var.set(
-                f"Imported {item.source_filename}; original source unchanged; no device access"
+                f"Imported {len(items)} file(s) in chooser order; originals unchanged; "
+                "external drag-and-drop unavailable without TkDND; no device access"
             )
             _set_readonly_text(
                 library_report,
-                json.dumps(item.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
+                json.dumps([item.to_dict() for item in items], ensure_ascii=False, indent=2, sort_keys=True),
             )
         except (LibraryError, OSError) as exc:
             library_status_var.set(f"Library import blocked: {exc}")
             messagebox.showerror("Library import", str(exc), parent=root)
+
+    def library_folder_import_action() -> None:
+        if library_workflow is None:
+            messagebox.showerror("Library", library_catalog_error or "Library is unavailable", parent=root)
+            return
+        selected = filedialog.askdirectory(
+            title="Recursively import folder hierarchy into Library",
+            parent=root,
+        )
+        if not selected:
+            return
+        try:
+            item = library_workflow.import_folder(Path(selected))
+            refresh_library_view(selected_item_id=item.item_id)
+            library_status_var.set(
+                f"Imported folder hierarchy {item.source_filename} in deterministic recorded order; "
+                "originals unchanged; no device access"
+            )
+        except (LibraryError, OSError) as exc:
+            library_status_var.set(f"Folder import blocked: {exc}")
+            messagebox.showerror("Library folder import", str(exc), parent=root)
 
     def library_package_import_action() -> None:
         if library_catalog is None:
@@ -1032,7 +1238,7 @@ def launch_ttk_desktop() -> None:
             return
         try:
             item = library_catalog.import_prepared_package(Path(selected))
-            refresh_library_view()
+            refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
                 f"Imported grouped package {item.source_filename}; original files unchanged; no device access"
             )
@@ -1045,67 +1251,104 @@ def launch_ttk_desktop() -> None:
             messagebox.showerror("Prepared package import", str(exc), parent=root)
 
     def library_remove_action() -> None:
-        if library_catalog is None:
+        if library_catalog is None or library_workflow is None:
             return
         item = selected_library_item()
         if item is None:
             return
+        def subtree_size(item_id: str) -> int:
+            return 1 + sum(
+                subtree_size(child.item_id) for child in library_catalog.children(item_id)
+            )
+
+        removed_count = subtree_size(item.item_id)
         if not messagebox.askyesno(
             "Remove from Library",
             (
-                f"Remove {item.source_filename} from the local catalog?\n\n"
-                "The original source file will not be moved or deleted."
+                f"Remove {item.source_filename} and {removed_count - 1} descendant(s) "
+                "from the local Library?\n\nThe original source files will not be "
+                "moved or deleted. The device will not be touched."
             ),
             parent=root,
         ):
             return
-        library_catalog.remove(item.item_id)
+        library_workflow.remove(item.item_id)
         refresh_library_view()
-        library_status_var.set("Removed catalog entry only; original source unchanged")
+        library_status_var.set(
+            f"Removed {removed_count} local Library node(s) only; originals and device unchanged"
+        )
 
-    def library_prepare_action() -> None:
-        if library_catalog is None:
+    def library_move_action(direction: str) -> None:
+        if library_workflow is None:
             return
         item = selected_library_item()
         if item is None:
-            messagebox.showinfo("Prepare", "Select exactly one supported TXT Library item.", parent=root)
-            return
-        folder_name = simpledialog.askstring(
-            "Prepare offline package",
-            "Root-level folder name:",
-            initialvalue=item.target_folder_name or Path(item.source_filename).stem,
-            parent=root,
-        )
-        if folder_name is None:
-            return
-        child_name = simpledialog.askstring(
-            "Prepare offline package",
-            "TXT child filename:",
-            initialvalue=item.target_child_name or item.source_filename,
-            parent=root,
-        )
-        if child_name is None:
             return
         try:
-            result = prepare_library_item(
-                library_catalog,
-                item.item_id,
-                folder_name,
-                child_name,
-            )
-            refresh_library_view()
-            _set_readonly_text(library_report, format_library_preparation_audit(dict(result.audit)))
+            if direction == "up":
+                library_workflow.move_up(item.item_id)
+            elif direction == "down":
+                library_workflow.move_down(item.item_id)
+            else:
+                raise ValueError("Library move direction is invalid")
+            refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
-                f"Prepared {result.package.target_item_path} offline; no device access"
+                f"Moved {item.source_filename} {direction} within its siblings; no device access"
             )
-        except LibraryPreparationError as exc:
-            refresh_library_view()
+        except (LibraryError, ValueError) as exc:
+            library_status_var.set(f"Move blocked: {exc}")
+
+    def library_prepare_action() -> None:
+        if library_workflow is None:
+            return
+        item = selected_library_item()
+        if item is None:
+            messagebox.showinfo("Prepare", "Select exactly one Library file or folder.", parent=root)
+            return
+        try:
+            result = library_workflow.prepare_preview(item.item_id)
+            _set_readonly_text(
+                library_report,
+                format_library_preparation_audit(result.prepared.to_dict()),
+            )
+            library_status_var.set(
+                f"Prepared {item.source_filename} hierarchy offline; choose Preview device tree "
+                "to inspect exact destinations; no device access"
+            )
+        except (LibraryPreparationError, LibraryError, ValueError, OSError) as exc:
             library_status_var.set(f"Prepare blocked; no device access: {exc}")
             _set_readonly_text(
                 library_report,
                 "OFFLINE LIBRARY PREPARE — blocked; no device change occurred\n\n" + str(exc),
             )
             messagebox.showerror("Offline Prepare", str(exc), parent=root)
+
+    def library_preview_action() -> None:
+        if library_workflow is None:
+            return
+        item = selected_library_item()
+        if item is None:
+            messagebox.showinfo("Preview", "Select exactly one Library file or folder.", parent=root)
+            return
+        try:
+            result = library_workflow.prepare_preview(item.item_id)
+            _set_readonly_text(
+                library_report,
+                format_library_device_tree_preview(
+                    result.to_dict()["device_tree_preview"]
+                ),
+            )
+            library_status_var.set(
+                "Exact ordered device-tree preview displayed; nested capability is host/offline "
+                "only and not live-enabled"
+            )
+        except (LibraryPreparationError, LibraryError, ValueError, OSError) as exc:
+            library_status_var.set(f"Preview blocked; no device access: {exc}")
+            _set_readonly_text(
+                library_report,
+                "PREPARED DEVICE-TREE PREVIEW — blocked; no device change occurred\n\n" + str(exc),
+            )
+            messagebox.showerror("Offline Preview", str(exc), parent=root)
 
     def library_transfer_review_action(selection_mode: str) -> None:
         """Render an offline queue review; this handler has no USB path."""
@@ -1202,9 +1445,13 @@ def launch_ttk_desktop() -> None:
 
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
     library_import_button.configure(command=library_import_action)
+    library_folder_import_button.configure(command=library_folder_import_action)
     library_package_import_button.configure(command=library_package_import_action)
+    library_move_up_button.configure(command=lambda: library_move_action("up"))
+    library_move_down_button.configure(command=lambda: library_move_action("down"))
     library_remove_button.configure(command=library_remove_action)
     library_prepare_button.configure(command=library_prepare_action)
+    library_preview_button.configure(command=library_preview_action)
     library_selected_queue_button.configure(
         command=lambda: library_transfer_review_action(SELECTION_SELECTED)
     )
@@ -1301,8 +1548,13 @@ def launch_ttk_desktop() -> None:
         if busy:
             for button in (
                 library_import_button,
+                library_folder_import_button,
+                library_package_import_button,
+                library_move_up_button,
+                library_move_down_button,
                 library_remove_button,
                 library_prepare_button,
+                library_preview_button,
                 library_selected_queue_button,
                 library_all_queue_button,
                 library_experimental_button,
@@ -1312,6 +1564,12 @@ def launch_ttk_desktop() -> None:
             show_library_selection()
             if library_catalog is None:
                 library_import_button.configure(state="disabled")
+                library_folder_import_button.configure(state="disabled")
+                library_package_import_button.configure(state="disabled")
+            else:
+                library_import_button.configure(state="normal")
+                library_folder_import_button.configure(state="normal")
+                library_package_import_button.configure(state="normal")
         export_button.configure(state="disabled" if busy or not tree.selection() else "normal")
         if busy:
             replacement_button.configure(state="disabled")
@@ -1741,6 +1999,7 @@ def launch_ttk_desktop() -> None:
 
 
 __all__ = [
+    "format_library_device_tree_preview",
     "format_library_preparation_audit",
     "format_prepared_package_readiness_preview",
     "format_text_replacement_preview",

@@ -58,7 +58,8 @@ def _i32(data: bytes, offset: int) -> int:
     return int.from_bytes(data[offset : offset + 4], "little", signed=True)
 
 
-def _validate_bmp(payload: bytes) -> dict[str, int]:
+def validate_bmp_payload(payload: bytes) -> dict[str, int]:
+    """Validate the exact conservative native BMP payload profile."""
     if len(payload) < 62 or payload[:2] != b"BM":
         raise PreparedMediaPackageError("BMP is too short or lacks the Windows BM signature")
     if _u32(payload, 2) != len(payload):
@@ -118,7 +119,7 @@ class PreparedBitmapSourceItem:
         _validate_component(self.name, label="item name", extension=".bmp")
         if not isinstance(self.source_bytes, bytes):
             raise PreparedMediaPackageError("BMP source bytes must be bytes")
-        _validate_bmp(self.source_bytes)
+        validate_bmp_payload(self.source_bytes)
 
     @property
     def source_sha256(self) -> str:
@@ -137,7 +138,7 @@ class PreparedBitmapSourceItem:
         return "bmp"
 
     def to_dict(self, order: int, folder_path: str) -> dict[str, Any]:
-        details = _validate_bmp(self.source_bytes)
+        details = validate_bmp_payload(self.source_bytes)
         return {
             "order": order,
             "kind": self.kind,
@@ -593,7 +594,7 @@ def load_prepared_media_package(root: Path) -> PreparedMediaPackageImport:
                 if wrapper.get("required") is not True or wrapper.get("length_bytes") != NATIVE_BMP_PREFIX_LENGTH:
                     raise PreparedMediaPackageError("BMP native wrapper metadata is not supported")
                 bmp_info = _require_mapping(item.get("bmp"), f"item {index} bmp")
-                details = _validate_bmp(source_bytes)
+                details = validate_bmp_payload(source_bytes)
                 for key in ("width", "height", "bits_per_pixel", "row_stride", "pixel_offset", "pixel_bytes"):
                     if bmp_info.get(key) != details[key]:
                         raise PreparedMediaPackageError(f"BMP metadata mismatch for item {index}: {key}")
@@ -677,4 +678,5 @@ __all__ = [
     "build_prepared_content_package",
     "export_prepared_media_package",
     "load_prepared_media_package",
+    "validate_bmp_payload",
 ]
