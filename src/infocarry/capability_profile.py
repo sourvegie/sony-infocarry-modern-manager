@@ -20,7 +20,10 @@ from typing import Any, Iterable, Mapping, Sequence
 CAPABILITY_PROFILE_FORMAT = "infocarry-capability-profile-v1"
 INITIAL_EXPERIMENTAL_PROFILE_ID = "experimental-flat-root-folder-txt-bmp-v1"
 CAPABILITY_PROFILE_STATUS = "defined_not_live_enabled"
+HIERARCHICAL_OFFLINE_PROFILE_ID = "host-offline-hierarchical-library-txt-bmp-v1"
+HIERARCHICAL_OFFLINE_PROFILE_STATUS = "host_offline_draft_not_live_enabled"
 _DIGEST_LENGTH = 64
+_EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 
 
 class CapabilityProfileError(ValueError):
@@ -148,6 +151,60 @@ INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
     _PROFILE_DOCUMENT
 )
 
+_HIERARCHICAL_PROFILE_DOCUMENT: dict[str, Any] = {
+    "format": CAPABILITY_PROFILE_FORMAT,
+    "profile_id": HIERARCHICAL_OFFLINE_PROFILE_ID,
+    "device_model_profile_id": "sony-vnw-v15-reviewed-v1",
+    "version": 1,
+    "status": HIERARCHICAL_OFFLINE_PROFILE_STATUS,
+    "operation": {
+        "name": "prepare_one_host_hierarchy_for_device_tree_preview",
+        "top_level_root_count": 1,
+        "allowed_record_types": ["folder", "txt", "bmp"],
+        "candidate_construction_allowed": False,
+        "authorization_allowed": False,
+        "execution_allowed": False,
+        "device_write_allowed": False,
+    },
+    "hierarchy": {
+        "minimum_leaf_items": 1,
+        "maximum_leaf_items": 8,
+        "maximum_directory_depth_below_device_root": 2,
+        "maximum_directory_nodes": 9,
+        "maximum_logical_nodes": 17,
+        "empty_directories_allowed": False,
+        "ordered_siblings": True,
+        "duplicate_names": "reject_case_insensitive",
+    },
+    "limits": {
+        "max_component_cp932_bytes": 39,
+        "max_relative_path_cp932_bytes": 259,
+        "max_source_bytes_per_leaf": 1048576,
+        "max_prepared_payload_bytes_per_leaf": 1048576,
+        "max_source_bytes_total": 4194304,
+        "max_prepared_payload_bytes_total": 1048576,
+    },
+    "txt": _PROFILE_DOCUMENT["txt"],
+    "bmp": _PROFILE_DOCUMENT["bmp"],
+    "capacity": {
+        "total_model_limit": "not_evaluated_without_fresh_native_evidence",
+        "fresh_baseline_model_length": "not_evaluated_without_fresh_verified_backup",
+        "candidate_growth": "not_evaluated_without_candidate",
+        "remaining_after_transfer": "not_evaluated_without_all_fresh_inputs",
+    },
+    "exposure": {
+        "live_enabled": False,
+        "normal_gui_send_exposed": False,
+        "normal_cli_send_exposed": False,
+        "host_preparation": True,
+        "device_tree_preview": True,
+    },
+}
+
+HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
+    _HIERARCHICAL_PROFILE_DOCUMENT
+)
+
 
 def _is_digest(value: Any) -> bool:
     if not isinstance(value, str) or len(value) != _DIGEST_LENGTH:
@@ -175,14 +232,14 @@ def _validate_component(value: Any, *, label: str, maximum: int) -> None:
 
 
 def validate_capability_profile(value: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate the complete immutable initial profile, rejecting drift."""
+    """Validate one complete immutable built-in profile, rejecting drift."""
 
     if not isinstance(value, Mapping):
         raise CapabilityProfileError("capability profile must be an object")
     normalized = _thaw(value)
-    if normalized != _PROFILE_DOCUMENT:
+    if normalized not in (_PROFILE_DOCUMENT, _HIERARCHICAL_PROFILE_DOCUMENT):
         raise CapabilityProfileError(
-            "capability profile differs from the reviewed initial envelope"
+            "capability profile differs from every reviewed built-in envelope"
         )
     return normalized
 
@@ -225,6 +282,8 @@ class CapabilityProfile:
     ) -> tuple[dict[str, Any], ...]:
         """Validate one explicitly ordered flat package against this policy."""
 
+        if self.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
+            raise CapabilityProfileError("flat package validation requires the exact flat profile")
         child_policy = self.document["children"]
         limits = self.document["limits"]
         operation = self.document["operation"]
@@ -335,6 +394,143 @@ class CapabilityProfile:
             )
         return tuple(normalized)
 
+    def validate_hierarchy(
+        self,
+        nodes: Sequence[Mapping[str, Any]],
+        *,
+        existing_paths: Iterable[str] = (),
+    ) -> tuple[dict[str, Any], ...]:
+        """Validate one immutable pre-order host hierarchy for offline preview."""
+
+        if self.profile_id != HIERARCHICAL_OFFLINE_PROFILE_ID:
+            raise CapabilityProfileError("hierarchy validation requires the host/offline profile")
+        if not isinstance(nodes, Sequence) or isinstance(nodes, (str, bytes)):
+            raise CapabilityProfileError("prepared hierarchy nodes must be an ordered sequence")
+        policy = self.document["hierarchy"]
+        limits = self.document["limits"]
+        if not 1 <= len(nodes) <= policy["maximum_logical_nodes"]:
+            raise CapabilityProfileError("prepared hierarchy logical node count is outside policy")
+        required = {
+            "node_id", "parent_id", "order", "kind", "name", "path",
+            "source_sha256", "prepared_payload_sha256", "source_bytes",
+            "prepared_payload_bytes", "validation",
+        }
+        normalized: list[dict[str, Any]] = []
+        by_id: dict[str, dict[str, Any]] = {}
+        children_by_parent: dict[Any, list[dict[str, Any]]] = {}
+        paths: set[str] = set()
+        existing = {str(path).casefold() for path in existing_paths}
+        leaf_count = directory_count = total_source = total_prepared = 0
+        for index, raw in enumerate(nodes):
+            if not isinstance(raw, Mapping) or set(raw) != required:
+                raise CapabilityProfileError(f"prepared hierarchy node {index} schema differs")
+            node = dict(raw)
+            node_id = node["node_id"]
+            parent_id = node["parent_id"]
+            if not isinstance(node_id, str) or not node_id or node_id in by_id:
+                raise CapabilityProfileError("prepared hierarchy node identity is invalid or duplicated")
+            if parent_id is not None and (not isinstance(parent_id, str) or parent_id not in by_id):
+                raise CapabilityProfileError("prepared hierarchy parent must precede its child")
+            order = node["order"]
+            if isinstance(order, bool) or not isinstance(order, int) or order < 0:
+                raise CapabilityProfileError("prepared hierarchy sibling order is invalid")
+            kind = node["kind"]
+            if kind not in {"folder", "txt", "bmp"}:
+                raise CapabilityProfileError(f"prepared hierarchy node {index} type is unsupported")
+            _validate_component(
+                node["name"],
+                label=f"prepared hierarchy node {index} name",
+                maximum=limits["max_component_cp932_bytes"],
+            )
+            expected_parent_path = "root" if parent_id is None else by_id[parent_id]["path"]
+            expected_path = f"{expected_parent_path}\\{node['name']}"
+            if node["path"] != expected_path:
+                raise CapabilityProfileError("prepared hierarchy destination path differs from its parent/order")
+            relative = expected_path[len("root\\") :]
+            if len(relative.encode("cp932", errors="strict")) > limits["max_relative_path_cp932_bytes"]:
+                raise CapabilityProfileError("prepared hierarchy destination exceeds the 259-byte CP932 path limit")
+            folded = expected_path.casefold()
+            if folded in paths:
+                raise CapabilityProfileError("prepared hierarchy contains a duplicate destination path")
+            if folded in existing:
+                raise CapabilityProfileError(f"prepared hierarchy destination already exists: {expected_path}")
+            paths.add(folded)
+            if node["validation"] != "passed":
+                raise CapabilityProfileError(f"prepared hierarchy node {index} validation did not pass")
+            for label in ("source_sha256", "prepared_payload_sha256"):
+                if not _is_digest(node[label]):
+                    raise CapabilityProfileError(f"prepared hierarchy node {index} {label} is invalid")
+            source_bytes = node["source_bytes"]
+            prepared_bytes = node["prepared_payload_bytes"]
+            if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in (source_bytes, prepared_bytes)):
+                raise CapabilityProfileError("prepared hierarchy sizes must be non-negative integers")
+            if kind == "folder":
+                directory_count += 1
+                if (
+                    source_bytes
+                    or prepared_bytes
+                    or node["source_sha256"] != _EMPTY_SHA256
+                    or node["prepared_payload_sha256"] != _EMPTY_SHA256
+                ):
+                    raise CapabilityProfileError("prepared hierarchy folders cannot claim payload bytes")
+                directory_depth = sum(1 for part in relative.split("\\"))
+                if directory_depth > policy["maximum_directory_depth_below_device_root"]:
+                    raise CapabilityProfileError("prepared hierarchy directory depth exceeds policy")
+            else:
+                leaf_count += 1
+                extension = f".{kind}"
+                if not node["name"].casefold().endswith(extension):
+                    raise CapabilityProfileError("prepared hierarchy leaf name does not match its type")
+                if source_bytes > limits["max_source_bytes_per_leaf"]:
+                    raise CapabilityProfileError("prepared hierarchy leaf source exceeds policy limit")
+                if prepared_bytes > limits["max_prepared_payload_bytes_per_leaf"]:
+                    raise CapabilityProfileError("prepared hierarchy leaf payload exceeds policy limit")
+                total_source += source_bytes
+                total_prepared += prepared_bytes
+            by_id[node_id] = node
+            children_by_parent.setdefault(parent_id, []).append(node)
+            normalized.append(node)
+        roots = children_by_parent.get(None, [])
+        if len(roots) != policy.get("top_level_root_count", self.document["operation"]["top_level_root_count"]):
+            raise CapabilityProfileError("prepared hierarchy must contain exactly one top-level root")
+        for parent_id, children in children_by_parent.items():
+            if [child["order"] for child in children] != list(range(len(children))):
+                raise CapabilityProfileError("prepared hierarchy sibling order is not contiguous")
+            names = [str(child["name"]).casefold() for child in children]
+            if len(names) != len(set(names)):
+                raise CapabilityProfileError("prepared hierarchy sibling names are duplicated")
+            if parent_id is not None and by_id[parent_id]["kind"] != "folder":
+                raise CapabilityProfileError("prepared hierarchy file node cannot contain children")
+        for node in normalized:
+            if node["kind"] == "folder" and node["node_id"] not in children_by_parent:
+                raise CapabilityProfileError("prepared hierarchy contains an empty directory")
+        # The manifest is consumed as a device-tree stream.  Require the
+        # deterministic depth-first pre-order produced by preparation so an
+        # otherwise valid set of parent/order records cannot be rearranged at
+        # the façade boundary.
+        expected_preorder: list[str] = []
+
+        def append_preorder(parent_id: str | None) -> None:
+            for child in children_by_parent.get(parent_id, ()):
+                expected_preorder.append(child["node_id"])
+                if child["kind"] == "folder":
+                    append_preorder(child["node_id"])
+
+        append_preorder(None)
+        if [node["node_id"] for node in normalized] != expected_preorder:
+            raise CapabilityProfileError(
+                "prepared hierarchy nodes must use deterministic depth-first pre-order"
+            )
+        if not policy["minimum_leaf_items"] <= leaf_count <= policy["maximum_leaf_items"]:
+            raise CapabilityProfileError("prepared hierarchy leaf count is outside the 1-8 policy")
+        if directory_count > policy["maximum_directory_nodes"]:
+            raise CapabilityProfileError("prepared hierarchy directory count exceeds policy")
+        if total_source > limits["max_source_bytes_total"]:
+            raise CapabilityProfileError("prepared hierarchy aggregate source exceeds policy limit")
+        if total_prepared > limits["max_prepared_payload_bytes_total"]:
+            raise CapabilityProfileError("prepared hierarchy aggregate payload exceeds policy limit")
+        return tuple(normalized)
+
 
 def initial_capability_profile() -> CapabilityProfile:
     """Return the reviewed initial profile without enabling live execution."""
@@ -342,13 +538,32 @@ def initial_capability_profile() -> CapabilityProfile:
     return CapabilityProfile(INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE)
 
 
+def hierarchical_offline_capability_profile() -> CapabilityProfile:
+    """Return the exact nested host/offline draft without live enablement."""
+
+    return CapabilityProfile(HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE)
+
+
+def capability_profile_by_id(profile_id: str) -> CapabilityProfile:
+    if profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID:
+        return initial_capability_profile()
+    if profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
+        return hierarchical_offline_capability_profile()
+    raise CapabilityProfileError(f"unsupported capability profile: {profile_id}")
+
+
 __all__ = [
     "CAPABILITY_PROFILE_FORMAT",
     "CAPABILITY_PROFILE_STATUS",
+    "HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE",
+    "HIERARCHICAL_OFFLINE_PROFILE_ID",
+    "HIERARCHICAL_OFFLINE_PROFILE_STATUS",
     "CapabilityProfile",
     "CapabilityProfileError",
     "INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE",
     "INITIAL_EXPERIMENTAL_PROFILE_ID",
     "initial_capability_profile",
+    "hierarchical_offline_capability_profile",
+    "capability_profile_by_id",
     "validate_capability_profile",
 ]

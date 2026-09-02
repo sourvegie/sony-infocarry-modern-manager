@@ -104,26 +104,31 @@ text preview reads UTF-8 input, normalizes it to CRLF, validates strict CP932
 encoding and an optional caller-supplied limit, and writes only a JSON audit;
 it never includes candidate payload bytes or transmits anything.
 
-The local Library foundation supports one original UTF-8 `.txt` source per
-logical item. Import is non-destructive and records the source path, filename,
-size, SHA-256, format, preparation state, target names, and stale/missing
-observations in the versioned per-user catalog at
+The local Library supports ordered hierarchical folders and TXT/BMP leaves.
+Normal multi-file and recursive-folder chooser imports are non-destructive;
+Move up/Move down changes explicit sibling order, and Library removal never
+touches a device or source file. The approved Tk runtime has no external
+file-drop API, so drag-and-drop is unavailable without the optional TkDND
+dependency. The versioned per-user catalog is stored at
 `${HOME}/Library/Application Support/SonyInfoCarryModernManager/library.json`
 on macOS. The catalog is outside this checkout and reverse-engineering
 evidence; its previous version is retained as `library.previous.json` after a
-successful update. Library removal deletes only the catalog entry.
+successful update.
 
-`Prepare…` uses the existing strict UTF-8 → CP932/CRLF `PreparedTextPackage`
-model for one root-level folder with one TXT child and produces an offline
-audit containing source/prepared hashes, sizes, target paths, compatibility,
-and an explicit no-device-change notice. Unsupported formats, invalid source
-bytes, unsafe names, and stale sources remain blocked. No package transfer
-control is exposed in the Library tab. The `Import prepared package…` action
-adds one explicitly grouped, flat `infocarry-prepared-typed-media-package-v1`
-record for an exported TXT/BMP package. Its manifest, source archive,
-prepared children, order, kinds, paths, sizes, and hashes are revalidated on
-import and queue review; the package remains offline-review-only and Library
-removal never deletes the package or its original sources.
+`Prepare` reuses strict UTF-8 → CP932/CRLF TXT preparation and validated
+237×320 uncompressed 1-bit BMP preparation. The separate
+`host-offline-hierarchical-library-txt-bmp-v1` draft accepts one prepared root,
+1–8 leaves, directory depth at most 2, no empty directories, at most 9
+directories/17 logical nodes, 39 CP932 bytes per component, 259 CP932 bytes per
+relative path, and the existing 1 MiB leaf / 4 MiB source-total / 1 MiB
+prepared-total limits. Its deterministic manifest and device-tree preview are
+offline only. Unsupported types, encoding/BMP failures, duplicates, stale
+sources, and limit or capability mismatch fail closed. A supplied fresh
+verified device-path baseline makes destination conflicts visible in the
+preview; conflicts remain preview-only and do not authorize an operation.
+Capacity fields remain **Not evaluated** without fresh verified evidence. The unchanged flat
+V15 profile remains `defined_not_live_enabled`; no Library send control is
+exposed.
 
 The no-write desktop Device Manager uses Tkinter/ttk and provides connection
 status, verified read-only backup, a hierarchical folder/file browser,

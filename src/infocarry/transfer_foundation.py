@@ -19,6 +19,9 @@ from typing import Any, Mapping, Optional, Sequence
 from .capability_profile import (
     CapabilityProfile,
     CapabilityProfileError,
+    HIERARCHICAL_OFFLINE_PROFILE_ID,
+    INITIAL_EXPERIMENTAL_PROFILE_ID,
+    capability_profile_by_id,
     initial_capability_profile,
 )
 from .device_model_profile import CapacityObservation, DeviceModelProfile
@@ -76,21 +79,37 @@ class PreparedItem:
     folder_name: str
     children: tuple[Mapping[str, Any], ...]
     grouping_contract: str = "explicit_prepared_package"
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID
 
     def __post_init__(self) -> None:
         if not isinstance(self.library_item_id, str) or not self.library_item_id:
             raise TransferFoundationError("Library item identity is required")
-        if self.grouping_contract != "explicit_prepared_package":
+        if self.grouping_contract not in {
+            "explicit_prepared_package",
+            "explicit_prepared_hierarchy",
+        }:
             raise TransferFoundationError("package grouping must be explicit")
         _digest(self.package_manifest_sha256, "package_manifest_sha256")
         if not isinstance(self.children, tuple):
             raise TransferFoundationError("prepared children must remain ordered")
-        profile = initial_capability_profile()
         try:
-            normalized = profile.validate_package(
-                folder_name=self.folder_name,
-                children=self.children,
-            )
+            profile = capability_profile_by_id(self.profile_id)
+        except CapabilityProfileError as exc:
+            raise TransferFoundationError(str(exc)) from exc
+        try:
+            if self.grouping_contract == "explicit_prepared_package":
+                if self.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
+                    raise CapabilityProfileError("flat package is bound to the wrong profile")
+                normalized = profile.validate_package(
+                    folder_name=self.folder_name,
+                    children=self.children,
+                )
+            else:
+                if self.profile_id != HIERARCHICAL_OFFLINE_PROFILE_ID:
+                    raise CapabilityProfileError("hierarchy is bound to the wrong profile")
+                normalized = profile.validate_hierarchy(self.children)
+                if not normalized or normalized[0]["name"] != self.folder_name:
+                    raise CapabilityProfileError("hierarchy root name is inconsistent")
         except CapabilityProfileError as exc:
             raise TransferFoundationError(str(exc)) from exc
         object.__setattr__(
@@ -146,21 +165,112 @@ class PreparedItem:
             raise TransferFoundationError("queue item destination is not bound to every child")
         return prepared
 
+    @classmethod
+    def from_hierarchy_manifest(cls, manifest: Mapping[str, Any]) -> "PreparedItem":
+        """Revalidate one deterministic hierarchy manifest at the façade boundary."""
+
+        if not isinstance(manifest, Mapping):
+            raise TransferFoundationError("prepared hierarchy manifest must be an object")
+        value = _copy(manifest)
+        if value.get("format") != "infocarry-prepared-library-hierarchy-v1":
+            raise TransferFoundationError("prepared hierarchy manifest format is unsupported")
+        if value.get("profile_id") != HIERARCHICAL_OFFLINE_PROFILE_ID:
+            raise TransferFoundationError("prepared hierarchy profile is unsupported")
+        profile = capability_profile_by_id(HIERARCHICAL_OFFLINE_PROFILE_ID)
+        required = {
+            "format",
+            "version",
+            "profile_id",
+            "profile_sha256",
+            "status",
+            "root_item_id",
+            "nodes",
+            "totals",
+            "capacity",
+            "safety",
+            "prepared_manifest_sha256",
+        }
+        if set(value) != required:
+            raise TransferFoundationError("prepared hierarchy manifest schema differs")
+        if value.get("version") != 1 or value.get("status") != "prepared_offline":
+            raise TransferFoundationError("prepared hierarchy manifest is not prepared offline")
+        if value.get("profile_sha256") != profile.sha256:
+            raise TransferFoundationError("prepared hierarchy profile hash differs")
+        manifest_sha256 = value.get("prepared_manifest_sha256")
+        if not isinstance(manifest_sha256, str):
+            raise TransferFoundationError("prepared hierarchy manifest hash is missing")
+        unsigned = dict(value)
+        unsigned.pop("prepared_manifest_sha256", None)
+        if hashlib.sha256(_canonical_json(unsigned)).hexdigest() != manifest_sha256:
+            raise TransferFoundationError("prepared hierarchy manifest hash differs")
+        nodes = value.get("nodes")
+        if not isinstance(nodes, list) or not nodes or not all(isinstance(node, Mapping) for node in nodes):
+            raise TransferFoundationError("prepared hierarchy ordered nodes are missing")
+        root_item_id = value.get("root_item_id")
+        if not isinstance(root_item_id, str) or not root_item_id:
+            raise TransferFoundationError("prepared hierarchy Library identity is missing")
+        try:
+            normalized = profile.validate_hierarchy(nodes)
+        except CapabilityProfileError as exc:
+            raise TransferFoundationError(str(exc)) from exc
+        if root_item_id != normalized[0]["node_id"]:
+            raise TransferFoundationError("prepared hierarchy root identity differs")
+        expected_totals = {
+            "logical_nodes": len(normalized),
+            "leaf_items": sum(node["kind"] != "folder" for node in normalized),
+            "directory_nodes": sum(node["kind"] == "folder" for node in normalized),
+            "source_bytes": sum(node["source_bytes"] for node in normalized),
+            "prepared_payload_bytes": sum(node["prepared_payload_bytes"] for node in normalized),
+        }
+        if value.get("totals") != expected_totals:
+            raise TransferFoundationError("prepared hierarchy totals differ from ordered nodes")
+        if value.get("capacity") != {
+            "total_model_limit_bytes": "not_evaluated",
+            "fresh_baseline_model_length_bytes": "not_evaluated",
+            "candidate_growth_bytes": "not_evaluated",
+            "remaining_after_transfer_bytes": "not_evaluated",
+        }:
+            raise TransferFoundationError("prepared hierarchy capacity must remain not evaluated")
+        if value.get("safety") != {
+            "usb_accessed": False,
+            "device_change": "none",
+            "candidate_constructed": False,
+            "live_enabled": False,
+        }:
+            raise TransferFoundationError("prepared hierarchy safety envelope is invalid")
+        return cls(
+            library_item_id=root_item_id,
+            package_manifest_sha256=manifest_sha256,
+            folder_name=str(nodes[0].get("name", "")),
+            children=tuple(dict(node) for node in nodes),
+            grouping_contract="explicit_prepared_hierarchy",
+            profile_id=HIERARCHICAL_OFFLINE_PROFILE_ID,
+        )
+
     @property
     def destination_paths(self) -> tuple[str, ...]:
+        if self.grouping_contract == "explicit_prepared_hierarchy":
+            return tuple(str(node["path"]) for node in self.children)
         return (
             f"root\\{self.folder_name}",
             *(str(child["path"]) for child in self.children),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "library_item_id": self.library_item_id,
             "package_manifest_sha256": self.package_manifest_sha256,
             "folder_name": self.folder_name,
             "grouping_contract": self.grouping_contract,
-            "ordered_children": [_copy(child) for child in self.children],
+            "profile_id": self.profile_id,
         }
+        key = (
+            "ordered_nodes"
+            if self.grouping_contract == "explicit_prepared_hierarchy"
+            else "ordered_children"
+        )
+        value[key] = [_copy(child) for child in self.children]
+        return value
 
 
 @dataclass(frozen=True)
@@ -177,13 +287,18 @@ class TransferPlan:
     capacity: CapacityObservation | None = None
 
     def __post_init__(self) -> None:
-        reviewed_profile = initial_capability_profile()
+        try:
+            reviewed_profile = capability_profile_by_id(self.profile_id)
+        except CapabilityProfileError as exc:
+            raise TransferFoundationError(str(exc)) from exc
         if self.profile_id != reviewed_profile.profile_id:
             raise TransferFoundationError("transfer plan profile is unsupported")
         if not isinstance(self.prepared_items, tuple):
             raise TransferFoundationError("transfer plan packages must remain ordered")
         if not all(isinstance(item, PreparedItem) for item in self.prepared_items):
             raise TransferFoundationError("transfer plan contains an invalid package")
+        if any(item.profile_id != self.profile_id for item in self.prepared_items):
+            raise TransferFoundationError("transfer plan item/profile binding differs")
         if len(self.prepared_items) != 1:
             raise TransferFoundationError(
                 "the initial foundation accepts one explicitly selected package"
@@ -205,7 +320,103 @@ class TransferPlan:
     def plan_sha256(self) -> str:
         return hashlib.sha256(_canonical_json(self.to_dict())).hexdigest()
 
+    def preview(self, *, existing_paths: Sequence[str] | None = None) -> dict[str, Any]:
+        """Return the exact ordered device-tree preview without a candidate."""
+
+        item = self.prepared_items[0]
+        if item.grouping_contract == "explicit_prepared_hierarchy":
+            nodes = [_copy(node) for node in item.children]
+        else:
+            folder_id = f"{item.library_item_id}:folder"
+            nodes = [
+                {
+                    "node_id": folder_id,
+                    "parent_id": None,
+                    "order": 0,
+                    "kind": "folder",
+                    "name": item.folder_name,
+                    "path": f"root\\{item.folder_name}",
+                    "source_bytes": 0,
+                    "prepared_payload_bytes": 0,
+                    "validation": "passed",
+                },
+                *(
+                    {
+                        **_copy(child),
+                        "node_id": f"{item.library_item_id}:child:{index}",
+                        "parent_id": folder_id,
+                        "validation": "passed",
+                    }
+                    for index, child in enumerate(item.children)
+                ),
+            ]
+        if existing_paths is None:
+            conflict_status = "not_evaluated_without_fresh_verified_baseline"
+            conflicts: list[str] = []
+        else:
+            existing = {str(path).casefold() for path in existing_paths}
+            conflicts = []
+            for node in nodes:
+                path = str(node["path"])
+                folded = path.casefold()
+                if any(
+                    folded == candidate
+                    or folded.startswith(candidate + "\\")
+                    or candidate.startswith(folded + "\\")
+                    for candidate in existing
+                ):
+                    conflicts.append(path)
+            conflict_status = "conflict" if conflicts else "passed"
+        for node in nodes:
+            node["conflict"] = (
+                "not_evaluated"
+                if existing_paths is None
+                else ("conflict" if str(node["path"]) in conflicts else "none")
+            )
+        plan = self.to_dict()
+        return {
+            "format": "infocarry-device-tree-preview-v1",
+            "profile_id": self.profile_id,
+            "profile_status": capability_profile_by_id(self.profile_id).document["status"],
+            "plan_sha256": self.plan_sha256,
+            "ordered_nodes": nodes,
+            "destination_paths": list(self.destination_paths),
+            "validation": {
+                "prepared_manifest": "passed",
+                "internal_paths_and_order": "passed",
+                "existing_device_paths": conflict_status,
+                "conflicts": conflicts,
+                "capability_match": (
+                    "host_offline_only_not_live_capable"
+                    if self.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
+                    else "defined_not_live_enabled"
+                ),
+            },
+            "capacity": plan["capacity_evaluation"],
+            "execution": {
+                "enabled": False,
+                "candidate_constructed": False,
+                "authorization_available": False,
+                "usb_accessed": False,
+                "device_change": "none",
+            },
+        }
+
     def to_dict(self) -> dict[str, Any]:
+        if self.capacity is None:
+            capacity_evaluation: dict[str, Any] = {
+                "total_model_limit_bytes": "not_evaluated",
+                "fresh_baseline_model_length_bytes": "not_evaluated",
+                "candidate_growth_bytes": "not_evaluated",
+                "remaining_after_transfer_bytes": "not_evaluated",
+            }
+        else:
+            capacity_evaluation = {
+                "total_model_limit_bytes": self.capacity.total_model_bytes,
+                "fresh_baseline_model_length_bytes": self.capacity.baseline_model_bytes,
+                "candidate_growth_bytes": self.capacity.candidate_growth_bytes,
+                "remaining_after_transfer_bytes": self.capacity.remaining_after_transfer_bytes,
+            }
         return {
             "format": "infocarry-transfer-plan-v1",
             "profile_id": self.profile_id,
@@ -217,6 +428,7 @@ class TransferPlan:
             "capacity_validation_required": self.capacity_validation_required,
             "execution_enabled": self.execution_enabled,
             "capacity": None if self.capacity is None else self.capacity.to_dict(),
+            "capacity_evaluation": capacity_evaluation,
         }
 
 
@@ -393,12 +605,16 @@ class TransferFoundation:
                 "an explicit reviewed device-model profile is required"
             )
         expected_model_profile_id = selected_profile.device_model_profile_id
-        if (
-            device_model_profile.profile_id != expected_model_profile_id
-            or not device_model_profile.transfer_capable
-            or device_model_profile.transfer_capability_profile_id
-            != selected_profile.profile_id
-        ):
+        wrong_model = device_model_profile.profile_id != expected_model_profile_id
+        flat_capability_mismatch = (
+            selected_profile.profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID
+            and (
+                not device_model_profile.transfer_capable
+                or device_model_profile.transfer_capability_profile_id
+                != selected_profile.profile_id
+            )
+        )
+        if wrong_model or flat_capability_mismatch:
             raise TransferFoundationError(
                 "device-model profile does not authorize this capability profile"
             )
@@ -423,11 +639,21 @@ class TransferFoundation:
             plan=plan,
             candidate=None,
             authorization=None,
-            execute_once=ExecuteOnce(),
+            execute_once=ExecuteOnce(
+                disabled_reason=(
+                    "host/offline hierarchical profile cannot construct or execute a live candidate"
+                    if selected_profile.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
+                    else "initial capability profile is defined but not live-enabled"
+                )
+            ),
             read_back=ReadBackVerification(),
         )
 
     def attach_candidate(self, candidate: CandidateLibrary) -> "TransferFoundation":
+        if self.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
+            raise TransferFoundationError(
+                "host/offline hierarchical profile cannot attach a device candidate"
+            )
         if tuple(candidate.expected_post_paths) != self.plan.destination_paths:
             raise TransferFoundationError("candidate expected paths differ from the plan")
         if self.authorization is not None:
@@ -437,6 +663,10 @@ class TransferFoundation:
         return replace(self, candidate=candidate)
 
     def attach_authorization(self, authorization: Authorization) -> "TransferFoundation":
+        if self.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
+            raise TransferFoundationError(
+                "host/offline hierarchical profile cannot attach authorization"
+            )
         if self.candidate is None:
             raise TransferFoundationError("candidate must be attached before authorization")
         if (
@@ -451,6 +681,10 @@ class TransferFoundation:
         return replace(self, authorization=authorization)
 
     def attach_capacity(self, capacity: CapacityObservation) -> "TransferFoundation":
+        if self.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
+            raise TransferFoundationError(
+                "host/offline hierarchical profile cannot attach live capacity evidence"
+            )
         if not isinstance(capacity, CapacityObservation):
             raise TransferFoundationError("capacity observation is malformed")
         if capacity.model_profile_id != self.device_model_profile_id:

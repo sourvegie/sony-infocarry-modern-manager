@@ -4,23 +4,28 @@ Date: 2026-09-02
 
 ## Canonical checkpoint
 
-Canonical `main` is `5ad2dbc` (merged P18-001A). P18-002 and its narrowly
-scoped P18-002B multi-model correction are staged on
-`codex/p18-002-experimental-transfer-foundation` for the PR #27 review
-boundary; no live device work is authorized by this task.
+Canonical `main` is `9c43db6` (merged PR #27, P18-002/P18-002B). P18-003 is
+complete on `task/P18-003-hierarchical-library`; no live device work is
+authorized by this task.
 
 ## Current sprint
 
-P18-002 defines the accelerated product-delivery policy and a host-only,
-framework-independent transfer foundation. The initial machine-enforced
-profile is `experimental-flat-root-folder-txt-bmp-v1` at
-`src/infocarry/capability_profile.py` (profile SHA-256
-`bd556ba933213e36b9bfc121c8f349a9022cebcdbbccdd1623b6b1ec814cb15b`). It
-allows review of one explicitly grouped flat root folder with 1–8 ordered
-strict TXT or validated 1-bit BMP children, but remains
-`defined_not_live_enabled`.
+P18-003 adds the host workflow Select files/folder → Arrange → Prepare →
+Preview through the P18-002 façade. Normal multi-file and recursive-folder
+choosers are available; the approved Tk runtime has no external file-drop API,
+so drag-and-drop remains unavailable without an optional TkDND dependency.
 
-The profile is explicitly associated with reviewed model profile
+The separate `host-offline-hierarchical-library-txt-bmp-v1` profile is
+`host_offline_draft_not_live_enabled`: exactly one prepared root, 1–8 TXT/BMP
+leaves, at most two directory levels below the conceptual device root, no
+empty directories, at most 9 directories and 17 logical nodes, 39 CP932 bytes
+per component, and 259 CP932 bytes per relative path. It retains the existing
+1 MiB per-leaf, 4 MiB source-total, and 1 MiB prepared-total limits.
+
+The exact V15 `experimental-flat-root-folder-txt-bmp-v1` profile remains
+unchanged and `defined_not_live_enabled`.
+
+The flat profile is explicitly associated with reviewed model profile
 `sony-vnw-v15-reviewed-v1`; it is not generic InfoCarry capability. VNW-V15
 is the only verified model, with observed session identity `0x054c:0x001e`.
 VNW-V10 is an explicit target with status
@@ -58,9 +63,16 @@ evidence records. The capability authority is
 
 - This task is R2 host/offline work. No hardware access, approval phrase,
   sender construction, `0x101b`, or live enablement is authorized.
-- Unsupported shapes, nesting, automatic grouping, batch operations,
-  overwrite/merge/delete, restore, synchronization, and recovery remain
-  unavailable or preview-only with a reason.
+- Nested content is host preparation/preview only within its exact draft
+  profile. Unsupported shapes, excessive limits, automatic grouping, batch
+  operations, overwrite/merge/delete, restore, synchronization, and recovery
+  remain unavailable with a precise reason.
+- Without fresh verified evidence, total model limit, fresh baseline model
+  length, candidate growth, and remaining after transfer are **Not evaluated**.
+- The supplied V10 manual statement says a new Manager transfer clears
+  Bookmarks, and the owner reports corresponding V15 documentation. Do not
+  infer that Marks or display history are cleared; no clear or write action is
+  enabled here.
 - A later enabled Experimental operation must use fresh verified backup and
   capacity evidence, exact in-app confirmation, one logical transaction,
   explicit integer `0x0000`, complete post-write backup, independent semantic
@@ -77,11 +89,18 @@ façade, add selection/order/prepare/preview, then separately review guarded
 execution, offline tamper coverage, Oracle comparison, and one combined GUI
 hardware smoke before standing Experimental enablement.
 
-Portable baseline before P18-002 changes: 644 passing, 3 intentional skips.
-Current P18-002/P18-002B validation: 673 passing, 3 intentional skips;
-focused profile, model, capacity, foundation, lock, and Experimental checks
-pass. The P18-002B independent R2 verification is PASS; the final PR/CI
-boundary remains open. The exact-`True` lock-evidence rule remains enforced.
+Portable baseline through merged P18-002/P18-002B: 673 passing, 3 intentional
+skips. P18-003 focused validation is 37 passing; the full portable suite is
+688 passing with 3 intentional skips. Compilation and `git diff --check` pass.
+Independent R2 re-review is PASS with no remaining material findings. PR #28
+is open and its GitHub Python 3.12 offline-suite check passed; no hardware or
+live validation is claimed.
+
+Task outcome: `COMPLETE` for the bounded host GUI/workflow gate. The owner
+reported “Everything works as expected” and supplied the offline Prepare and
+device-tree Preview artifacts for the expected ordered TXT/BMP/TXT package.
+This is bounded human GUI/workflow evidence only; it does not claim hardware,
+USB, candidate, authorization, or live-write behavior.
 
 ## Historical records
 

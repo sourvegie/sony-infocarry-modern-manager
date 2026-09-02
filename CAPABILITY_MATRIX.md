@@ -9,12 +9,13 @@ or recovery behavior.
 | Operation / exact shape | Legacy evidence | Offline model | Live proof | Product exposure | Remaining blocker | Next authorized action |
 | --- | --- | --- | --- | --- | --- | --- |
 | Initial conservative envelope: one new flat root folder with 1–8 ordered TXT/BMP children | Per-shape constrained evidence only; no envelope-wide native proof | Machine-enforced profile and host-only façade; exact package grouping, hashes, limits, conflict/capacity rules | None for the envelope as a whole | Preparation/review only; `defined_not_live_enabled` | Exact evidence and later R3 enablement for each operation shape; recovery remains unresolved | Continue selection/order/prepare/preview and offline Legacy Oracle work |
+| One host/offline hierarchy: one prepared root, 1–8 TXT/BMP leaves, depth/count/path/size limits below | Existing nested backup trees and format constraints support offline modeling; nested creation is not proven | Machine-enforced `host-offline-hierarchical-library-txt-bmp-v1`; deterministic ordered manifest and exact device-tree preview through the unified façade | None | Host prepare/preview only; `host_offline_draft_not_live_enabled` | No nested candidate, authorization, sender, completion proof, or recovery model | Continue offline validation and independent R2 review; do not enable live transfer |
 | Existing root TXT replacement | Guarded existing-TXT Manager/USB captures and read-back records | Candidate, authorization, fresh backup, and independent read-back verifier | One constrained existing-TXT replacement is read-back verified | Existing guarded Device Manager write remains available | Recovery after an indeterminate write; generalized replacement semantics | Keep the existing narrow flow; diagnose indeterminate outcomes read-only |
 | One root-level TXT creation | Clean native add capture and one-folder package evidence | Exact one-record construction and no-retry guarded workflow | One constrained modern root TXT add/read-back smoke | Experimental/narrow only; not a general Library transfer | Arbitrary names, state, and package shapes | Separate operation-specific review and approval for the proven shape |
 | Constrained root-level TXT deletion | Native deletion-effect evidence | Narrow surviving-state/delete candidate and verifier | One constrained modern root TXT deletion/read-back smoke | Not exposed as a normal destructive action | Recovery, generalized delete, and overwrite semantics | Preserve read-only diagnosis; no general delete exposure |
 | Ordered four-TXT package | P15-001 native ordered four-child capture | Exact ordered multi-child candidate and fake workflow | P15-003 exact four-TXT smoke/read-back | Not enabled by the P18 mixed-package product path | General child counts, profiles, and package combinations | Keep as historical constrained evidence |
 | Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation | P17-018 returned explicit `0x0000`; complete post-backup and independent read-back verified the exact `_03` folder and three ordered children. Physical opening remains a human acceptance check | Physical human opening, interrupted-write recovery, and broader shapes | P18-001 Experimental review/guarded path; later separately approved hardware use only |
-| Other flat TXT/BMP combinations, nesting, multiple packages, or batch | No sufficiently specific native evidence | Preparation may remain reviewable where the P17-002 contract accepts it | Not proven for transfer | Unavailable / preview-only with a precise reason | Missing exact evidence and safety model; no automatic grouping | Obtain a separately scoped evidence and review task |
+| Other flat TXT/BMP combinations, nesting outside the host/offline profile, multiple packages, or batch | No sufficiently specific native evidence | Preparation may remain reviewable only where an exact profile accepts it | Not proven for transfer | Unavailable / preview-only with a precise reason | Missing exact evidence and safety model; no automatic grouping | Obtain a separately scoped evidence and review task |
 | Restore, synchronization, recovery, or alternate modes | Not established for this product boundary | No enabled candidate or execution path | Unproven | Unavailable | Physical recovery and broader state semantics | Read-only diagnosis and evidence work only |
 
 ## Exposure policy
@@ -79,3 +80,19 @@ unsupported or differently shaped items remain unavailable with a precise
 reason. The host-only application foundation is implemented in
 `src/infocarry/transfer_foundation.py`; it records the staged contract without
 USB access, a sender, or candidate bytes.
+
+## Host/offline hierarchical draft
+
+`host-offline-hierarchical-library-txt-bmp-v1` is a separate preview-only
+profile, not an expansion of the V15 transfer envelope. It accepts exactly one
+prepared root with 1–8 ordered TXT/BMP leaves, maximum directory depth 2 below
+the conceptual device root, no empty directories, maximum 9 directories and
+17 logical nodes, maximum 39 CP932 bytes per component and 259 CP932 bytes per
+relative path. Source/prepared limits remain 1 MiB per leaf, 4 MiB aggregate
+source, and 1 MiB aggregate prepared payload. Any mismatch fails closed.
+
+The preview reports hierarchy, types, order, prepared sizes, destinations,
+validation, and conflicts. Without a fresh verified baseline and fresh native
+capacity evidence, total model limit, baseline model length, candidate growth,
+and remaining after transfer are **Not evaluated**. No nested candidate,
+authorization, sender, or write path exists.

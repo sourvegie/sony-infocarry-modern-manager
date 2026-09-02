@@ -53,6 +53,35 @@ Resize to `1120x760` or larger and confirm the same information remains
 visible without losing selection or keyboard focus. The Experimental review
 must continue to show no approval or send control.
 
+## Select, arrange, prepare, and preview
+
+Use **Import files…** for one or more supported files or **Import folder…** to
+recursively preserve a selected folder hierarchy. External drag-and-drop is
+not available in the approved Tk runtime without the optional TkDND dependency;
+the normal choosers provide the supported import path.
+
+The Library tree preserves imported sibling order and never silently sorts it.
+Select a node and use **Move up** or **Move down** to arrange siblings. Removing
+a Library node changes only the local catalog; it does not delete the source or
+anything on an InfoCarry.
+
+**Prepare** validates strict CP932/CRLF TXT or exact 237×320 uncompressed 1-bit
+BMP content. **Preview** shows the exact ordered device-tree proposal, types,
+prepared sizes, destinations, validation results, and conflicts. The nested
+draft accepts exactly one prepared root with 1–8 leaves, at most two directory
+levels below the device root, no empty folders, at most 9 directories and 17
+logical nodes, 39 CP932 bytes per component, 259 CP932 bytes per relative path,
+and the documented size limits. Unsupported types, encoding/BMP problems,
+duplicates, stale sources, and excessive limits block preparation with a
+reason. When a fresh verified device-path baseline is supplied to the preview
+service, destination conflicts are reported precisely; they remain
+preview-only here and never authorize a device operation.
+
+This nested preview is `host_offline_draft_not_live_enabled`. It cannot create
+a candidate or send to a device. Without a fresh verified backup and capacity
+response, total model limit, fresh baseline model length, candidate growth, and
+remaining after transfer all show **Not evaluated**.
+
 ## Read-only workflow
 
 1. Connect one InfoCarry and close the legacy Windows manager before starting
@@ -111,6 +140,11 @@ is added, replaced, or removed. Transfer time is therefore governed mainly by
 the complete device model and USB speed, not by the selected TXT or BMP size.
 Do not disconnect the device merely because a small selected file appears to
 be taking longer than expected.
+
+The supplied VNW-V10 manual statement says that a new Manager transfer clears
+Bookmarks, and the owner reports corresponding VNW-V15 documentation. Treat
+this as a bounded warning only: it does not establish that Marks or display
+history are cleared, and it does not enable any clear or write action.
 
 ## Recovery and troubleshooting
 
