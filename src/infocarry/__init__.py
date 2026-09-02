@@ -1,4 +1,4 @@
-"""Modern tools for the Sony InfoCarry VNW-V15."""
+"""Modern tools for explicitly profiled Sony InfoCarry models."""
 
 from .constants import INFOCARRY_PRODUCT_ID, SONY_VENDOR_ID
 

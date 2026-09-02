@@ -240,6 +240,49 @@ def _sealed_ready_bindings(
     allocation = candidate.get("allocation", {})
     if not isinstance(allocation, Mapping):
         raise ExperimentalLibraryTransferReviewError("candidate allocation is malformed")
+    capacity_values = {
+        "capacity_limit_bytes": allocation.get("capacity_limit_bytes"),
+        "baseline_model_bytes": allocation.get("baseline_model_bytes"),
+        "candidate_model_bytes": allocation.get("candidate_model_bytes"),
+        "candidate_growth_bytes": allocation.get("candidate_growth_bytes"),
+        "remaining_growth_bytes": allocation.get("remaining_growth_bytes"),
+    }
+    if any(
+        type(value) is not int or value < 0 for value in capacity_values.values()
+    ):
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate capacity facts are incomplete"
+        )
+    if capacity_values["candidate_model_bytes"] < capacity_values["baseline_model_bytes"]:
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate capacity model length regresses"
+        )
+    if capacity_values["candidate_growth_bytes"] != (
+        capacity_values["candidate_model_bytes"]
+        - capacity_values["baseline_model_bytes"]
+    ):
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate capacity growth is inconsistent"
+        )
+    if capacity_values["remaining_growth_bytes"] != (
+        capacity_values["capacity_limit_bytes"]
+        - capacity_values["baseline_model_bytes"]
+    ):
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate remaining growth capacity is inconsistent"
+        )
+    if capacity_values["candidate_growth_bytes"] > capacity_values["remaining_growth_bytes"]:
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate growth exceeds remaining capacity"
+        )
+    remaining_after_transfer = (
+        capacity_values["capacity_limit_bytes"]
+        - capacity_values["candidate_model_bytes"]
+    )
+    if remaining_after_transfer < 0:
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate exceeds total model capacity"
+        )
     return {
         "bundle_sha256": bundle["bundle_sha256"],
         "candidate_blob_sha256": bundle["candidate_blob_sha256"],
@@ -249,11 +292,12 @@ def _sealed_ready_bindings(
         "baseline_state_identity_sha256": bundle["baseline_state_identity_sha256"],
         "capacity_response_sha256": bundle["capacity_response_sha256"],
         "candidate_blob_length": candidate_summary.get("blob_length"),
-        "candidate_growth_bytes": allocation.get("candidate_growth_bytes"),
-        "capacity_limit_bytes": allocation.get("capacity_limit_bytes"),
+        "candidate_growth_bytes": capacity_values["candidate_growth_bytes"],
+        "capacity_limit_bytes": capacity_values["capacity_limit_bytes"],
         "remaining_growth_bytes": allocation.get("remaining_growth_bytes"),
-        "baseline_model_bytes": allocation.get("baseline_model_bytes"),
-        "candidate_model_bytes": allocation.get("candidate_model_bytes"),
+        "baseline_model_bytes": capacity_values["baseline_model_bytes"],
+        "candidate_model_bytes": capacity_values["candidate_model_bytes"],
+        "remaining_after_transfer_bytes": remaining_after_transfer,
         "fresh_backup_required": True,
     }
 
@@ -374,6 +418,12 @@ def build_experimental_library_transfer_review(
             "lower_bound_bytes": capacity.get("lower_bound_bytes") if isinstance(capacity, Mapping) else None,
             "candidate_growth_bytes": bindings.get("candidate_growth_bytes"),
             "capacity_limit_bytes": bindings.get("capacity_limit_bytes"),
+            "total_model_capacity_bytes": bindings.get("capacity_limit_bytes"),
+            "baseline_model_bytes": bindings.get("baseline_model_bytes"),
+            "candidate_model_bytes": bindings.get("candidate_model_bytes"),
+            "remaining_after_transfer_bytes": bindings.get(
+                "remaining_after_transfer_bytes"
+            ),
             "remaining_growth_bytes": bindings.get("remaining_growth_bytes"),
             "fresh_native_0x0019_required": True,
         },

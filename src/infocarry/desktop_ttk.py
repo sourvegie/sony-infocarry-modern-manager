@@ -379,9 +379,13 @@ def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
             f"  Conflicts: {'yes' if destination.get('conflicts') else 'no'}",
             "",
             "Capacity and backup state",
-            f"  Capacity: {capacity.get('status', 'unknown')}; available {capacity.get('available_bytes', 'unknown')}; "
-            f"candidate growth {capacity.get('candidate_growth_bytes', 'not sealed')}; "
-            f"margin {capacity.get('remaining_growth_bytes', 'not sealed')}",
+            f"  Validation: {capacity.get('status', 'unknown')}",
+            f"  Total model capacity: {capacity.get('total_model_capacity_bytes', 'not sealed')} bytes",
+            f"  Verified baseline/used model length: {capacity.get('baseline_model_bytes', 'not sealed')} bytes",
+            f"  Candidate model length: {capacity.get('candidate_model_bytes', 'not sealed')} bytes",
+            f"  Candidate growth: {capacity.get('candidate_growth_bytes', 'not sealed')} bytes",
+            f"  Remaining growth capacity: {capacity.get('remaining_growth_bytes', 'not sealed')} bytes",
+            f"  Remaining after transfer: {capacity.get('remaining_after_transfer_bytes', 'not sealed')} bytes",
             f"  Fresh complete backup: required; destination {report.get('fresh_backup', {}).get('destination', 'not specified')}",
             "",
             "Safety rules",

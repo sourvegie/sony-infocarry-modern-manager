@@ -11,6 +11,19 @@ from __future__ import annotations
 from typing import Any
 
 
+APPLICATION_TRANSFER_STAGES = (
+    "select",
+    "arrange",
+    "prepare",
+    "preview",
+    "backup",
+    "confirm",
+    "transfer_once",
+    "read_back",
+    "verify",
+)
+
+
 EXPERIMENTAL_FAILURE_BOUNDARIES = (
     "stale_or_future_backup",
     "wrong_device",
@@ -34,6 +47,8 @@ def experimental_safety_contract() -> dict[str, Any]:
     """Return the reviewed contract inventory for hash-only reports."""
 
     return {
+        "application_stages": list(APPLICATION_TRANSFER_STAGES),
+        "one_package_one_logical_transaction": True,
         "fresh_complete_backup": "required before every live attempt",
         "immediate_revalidation": "required before sender construction",
         "maximum_logical_sender_calls": 1,
@@ -42,8 +57,25 @@ def experimental_safety_contract() -> dict[str, Any]:
         "post_operation_backup": "complete and independently verified",
         "read_back": "independent candidate-core reconciliation required",
         "indeterminate_outcome": "stop and diagnose read-only; never retry",
+        "indeterminate_write_lock": {
+            "scope": "installation-wide",
+            "persistent_across_sessions_restart_and_reconnect": True,
+            "physical_unit_identity_proven": False,
+            "deliberate_same_model_overblocking": True,
+            "restart_or_reconnect_clears": False,
+            "automatic_clear": False,
+            "clear_requires": [
+                "complete_read_only_diagnostic_backup",
+                "documented_recovery_decision",
+                "original_incident_and_attempt_binding",
+            ],
+        },
         "terminal_failure_boundaries": list(EXPERIMENTAL_FAILURE_BOUNDARIES),
     }
 
 
-__all__ = ["EXPERIMENTAL_FAILURE_BOUNDARIES", "experimental_safety_contract"]
+__all__ = [
+    "APPLICATION_TRANSFER_STAGES",
+    "EXPERIMENTAL_FAILURE_BOUNDARIES",
+    "experimental_safety_contract",
+]

@@ -68,6 +68,29 @@ Conversation history is transient. Approved decisions, implementation state, tes
 
 Do not duplicate chronological milestone history or capability tables into every governance file. Prefer the capability matrix for exact operation status and `analysis/` for evidence/history; keep `CURRENT_STATUS.md` focused on the current sprint.
 
+The accelerated delivery policy classifies work by reachability. Offline
+selection, preparation, Library review, and host-only planning are not R3
+solely because their subject is transfer. R3 begins at authorization, final
+candidate construction, sender reachability, or live-success determination.
+PM may approve reviewed R0/R1/R2 work; the Project Owner retains approval for
+physical device changes, capability-envelope expansion, fundamental
+write/authorization/recovery changes, exact restore, interruption testing,
+firmware/service/alternate modes, and destructive operations outside an
+enabled profile. An enabled Experimental operation uses an in-app,
+transaction-specific confirmation. Keep at most two active streams—Product
+Delivery and Legacy Oracle—and at most two material correction rounds. Do not
+add phase/milestone/smoke-named production modules or parallel live pipelines.
+
+Model support is explicit, not inferred from the product name. VNW-V15 is the
+only verified model profile; VNW-V10 remains
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED` and cannot inherit V15
+protocol, format, capacity, candidate, authorization, or write behavior. USB
+VID/PID and bus/address are session observations, not proven unit identity.
+Until a unit identifier is independently established, an ambiguous write
+sets one installation-wide persistent fail-safe lock that deliberately
+over-blocks every model/session and clears only through the documented
+incident-bound diagnostic/recovery process.
+
 ## Task lifecycle
 
 For each meaningful engineering task, use a concise task brief containing:

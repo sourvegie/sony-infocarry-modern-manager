@@ -102,15 +102,17 @@ A user can additionally:
 - import supported sources into a persistent local Library by picker or
   drag-and-drop;
 - prepare and preview them using tested conversion profiles;
-- select one or more ready items for a transfer queue;
+- select one explicitly grouped ready package for a transfer plan;
 - review destinations, conflicts, estimated size, device capacity, additions,
   and any explicitly requested removals before authorization; and
 - execute only operation types already proven by the earlier release gates.
 
-The batch label is **Transfer all ready items**, not “full transfer.” It means
-queue every compatible prepared item. It never means synchronize, delete
-unmatched device content, restore a side, or reproduce the legacy send-all
-operation. Unsupported queued items remain preview-only and cannot be sent.
+The accelerated delivery plan keeps selection and physical transfer distinct:
+one selected Library item is one logical package, while the device protocol
+may transfer a complete candidate library image. It never means synchronize,
+delete unmatched device content, restore a side, or reproduce the legacy
+send-all operation. Unsupported, stale, conflicting, nested, multi-package,
+or differently shaped items remain preview-only and cannot be sent.
 
 For both single-item and future queued operations, selection describes a
 logical Library item; it never means merge or synchronization. The
@@ -162,10 +164,12 @@ timestamp-only normalization. One constrained modern root-level TXT deletion
 smoke has also completed with `0x0000` and exact independent read-back. That
 result is limited to its tested scope; the provisional modern timestamp
 policy, physical recovery risk, generalized deletion, and separate owner
-review requirement remain explicit. J.0–J.2 local Library foundations are complete,
-while J.3 device-aware planning remains deferred. Arbitrary package transfer,
-normal GUI/CLI exposure, generalized live deletion, and interrupted-write
-recovery remain unproven or prohibited.
+review requirement remain explicit. J.0–J.3 local Library foundations and
+device-aware planning are complete. P18-002 defines the next conservative
+machine-enforced envelope and host-only application façade; it does not enable
+that envelope for live execution. Capability status belongs in
+[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md), not in repeated milestone
+narratives.
 
 The P18-001 UI surface is deliberately crude and review-only: it reports
 ordered children, sizes, destination/conflicts, fresh-backup and capacity
@@ -178,16 +182,35 @@ recovery and broader compatibility remain unresolved.
 
 ## Canonical Desktop Workflow
 
-The primary workflow is:
+The accelerated product workflow is:
 
-`Import → Prepare → Inspect → Queue → Transfer → Verify`
+`Select files/folder → Arrange → Prepare → Preview → Back up → Confirm → Transfer once → Read back → Verify`
 
-The main window follows the approved three-pane direction: local Library,
-content/selection workspace, and a persistent Device Bay, with a collapsible
-System Console and optional Geek Mode. Host Library capacity and device
-capacity must always be labeled separately. Routine success uses status and
-console feedback; modal dialogs are reserved for ambiguity, destructive risk,
-or unrecoverable failure.
+Package grouping is explicit at selection/preparation time; selecting several
+unrelated Library rows never merges them. The initial machine-enforced profile
+allows one new flat root folder with 1–8 ordered strict TXT or validated 1-bit
+BMP children, but is defined and reviewable only until its exact operation has
+the required evidence and R3 enablement. The main window follows the approved
+three-pane direction: local Library, content/selection workspace, and a
+persistent Device Bay, with a collapsible System Console and optional Geek
+Mode. Host Library capacity and device capacity must always be labeled
+separately. Routine success uses status and console feedback; modal dialogs
+are reserved for ambiguity, destructive risk, or unrecoverable failure.
+
+## Device-model boundary
+
+The first capability is explicitly bound to the reviewed Sony InfoCarry
+VNW-V15 model profile (`0x054c:0x001e` for the observed USB session). VNW-V10
+is also an intended compatibility target, but is currently
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`; it does not inherit V15's
+USB, protocol, storage, capacity, display, candidate, authorization, or write
+rules. No V10 transfer, delete, restore, or capability-envelope claim is
+available until a separate safe read-only characterization establishes it.
+VID/PID and bus/address are session observations rather than proven
+physical-unit identity. An ambiguous write therefore requires one persistent
+installation-wide fail-safe lock, deliberately over-blocking all models until
+the original incident/attempt is cleared through read-only diagnosis and a
+documented recovery decision.
 
 ## Explicitly Deferred
 

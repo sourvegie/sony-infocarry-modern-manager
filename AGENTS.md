@@ -28,9 +28,31 @@ Original Sony software, ISO contents, raw USB captures, complete device backups,
 
 The project is read-first and fail-closed. Preserve all proven narrow scopes without generalizing beyond their evidence.
 
-Normal product-facing generalized write, package-transfer, delete, destructive synchronization, restore, firmware/unlock, and alternate-mode controls remain disabled unless `CURRENT_STATUS.md`, `CAPABILITY_MATRIX.md`, `RISK_REGISTER.md`, and an explicit approved task say otherwise. A proven narrow operation may be labeled Experimental only when its matrix row and exact safety gate support it.
+Normal product-facing generalized write, package-transfer, delete, destructive synchronization, restore, firmware/unlock, and alternate-mode controls remain disabled unless `CURRENT_STATUS.md`, `CAPABILITY_MATRIX.md`, `RISK_REGISTER.md`, and an explicit approved task say otherwise. A proven narrow operation may be labeled Experimental only when its matrix row and exact safety gate support it. `CAPABILITY_MATRIX.md` is the authoritative operation-status register; use `CURRENT_STATUS.md` only for the present sprint and avoid duplicating milestone narratives in either file.
+
+The accelerated delivery policy classifies risk by reachability: offline
+preparation and review are not R3 merely because they describe transfers;
+R3 begins when code can authorize, construct the final transaction, transmit,
+or decide live-write success. PM may approve reviewed R0/R1/R2 work. Owner
+approval remains reserved for physical device changes, capability-envelope
+expansion, fundamental write/authorization/recovery changes, exact restore,
+interrupted-write experiments, firmware/service/alternate modes, and
+destructive operations outside an enabled profile. An already enabled,
+reviewed Experimental operation uses transaction-specific in-app confirmation.
+Keep at most two active streams (Product Delivery and Legacy Oracle), allow at
+most two material review-correction rounds, and do not add phase/milestone/
+smoke-named production modules or parallel live pipelines.
 
 A successful fixture, fake transport, offline candidate comparison, or previous narrow live smoke does not authorize a broader live operation.
+
+Device-model boundaries are explicit: VNW-V15 is the only verified model and
+its reviewed capability profile is not generic InfoCarry behavior. VNW-V10 is
+`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED` and must not inherit V15
+protocol, format, capacity, candidate, authorization, or write rules. VID/PID
+and bus/address are session observations, not physical-unit identity. Use one
+installation-wide persistent fail-safe write lock until a stable unit identity
+is proven; deliberate over-blocking across models is safer than false
+precision. Route capability questions to `CAPABILITY_MATRIX.md`.
 
 Never intentionally test interrupted-write recovery on the only valuable VNW-V15. Physical commit atomicity and recovery are unresolved.
 
