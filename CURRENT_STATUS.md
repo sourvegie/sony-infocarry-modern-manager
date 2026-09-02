@@ -92,9 +92,9 @@ hardware smoke before standing Experimental enablement.
 Portable baseline through merged P18-002/P18-002B: 673 passing, 3 intentional
 skips. P18-003 focused validation is 37 passing; the full portable suite is
 688 passing with 3 intentional skips. Compilation and `git diff --check` pass.
-Independent R2 re-review is PASS with no remaining material findings. CI and
-the final PR state are recorded separately once the branch is pushed; no
-hardware or live validation is claimed.
+Independent R2 re-review is PASS with no remaining material findings. PR #28
+is open and its GitHub Python 3.12 offline-suite check passed; no hardware or
+live validation is claimed.
 
 ## Historical records
 

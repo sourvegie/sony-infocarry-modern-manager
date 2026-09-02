@@ -1,8 +1,8 @@
 # P18-003 — hierarchical Library evidence and boundary
 
 Date: 2026-09-02
-Status: host implementation and independent R2 review complete; CI and PR
-completion are recorded after push. No hardware/live validation is claimed.
+Status: host implementation, independent R2 review, and CI complete; PR #28
+is open after push. No hardware/live validation is claimed.
 
 ## Product boundary
 
@@ -75,8 +75,8 @@ checks pass (37 tests). The full portable suite passes (688 tests, 3
 intentional skips); compilation and `git diff --check` pass. Independent R2
 review and correction re-review both completed with no remaining material
 findings. The exclusion audit found no changes under `samples/reference/` and
-no private evidence paths in the task diff. CI and final PR state are recorded
-after branch push. No hardware/live validation occurred.
+no private evidence paths in the task diff. GitHub CI for PR #28 passed (Python
+3.12 offline suite, 1m22s). No hardware/live validation occurred.
 
 The first independent R2 pass identified four material issues: a missing
 legacy `simpledialog` import, an offline capacity-attachment escape, root-folder
