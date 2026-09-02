@@ -1,16 +1,15 @@
 # Sony InfoCarry Toolkit — Agent Instructions
 
-## Read first
+## Operational bootstrap
 
-For every engineering task:
+For ordinary engineering work, begin with:
 
-1. Read `CURRENT_STATUS.md` for the current verified checkpoint, blockers, and next approved work.
-2. Read `WORKFLOW.md` for task lifecycle, risk levels, review requirements, escalation, and human/hardware boundaries.
-3. Read `CAPABILITY_MATRIX.md` when an operation's support, exposure, or blocker is in question; it is the authoritative capability register.
-4. Read `PRODUCT_VISION.md` when product scope or behavior matters.
-5. Read `RISK_REGISTER.md` for any change with device, persistence, data-loss, or release risk.
-6. Inspect only the relevant `ROADMAP.md` / `analysis/` records needed for the task. Do not reread the entire project history by default.
-7. Use `README.md` for supported setup, commands, and developer/user entry points.
+1. this file;
+2. `CURRENT_STATUS.md`;
+3. the approved task brief; and
+4. relevant source files and tests.
+
+Load other material only when triggered: `WORKFLOW.md` for risk/review/escalation/hardware/process questions; `CAPABILITY_MATRIX.md` for support or exposure; `RISK_REGISTER.md` for safety, persistence, recovery, or data-loss; `PRODUCT_VISION.md` for product scope/behavior; `ROADMAP.md` for sequencing; and only specifically relevant `analysis/` records for evidence/history. Legacy Oracle, protocol reconstruction, candidate/state construction, recovery, and R3 review must inspect their relevant evidence. Do not broadly scan `analysis/` during ordinary product work. Use `README.md` for supported setup and commands.
 
 Repository state and canonical documents override remembered conversation history.
 
@@ -69,33 +68,19 @@ Never automatically retry a device-changing operation after transfer start if co
 
 ## Task execution
 
-Use one main coding conversation as the Dispatcher for each meaningful task when practical. Start from the approved task brief and inspect repository state before editing.
+Use one Fresh Codex Task Executor for each meaningful task when practical. It inspects relevant state, implements directly by default inside the already authorized scope, validates, updates only genuinely affected durable documentation, coordinates required review, applies findings within the two-round limit, and escalates material decisions. Dispatch is a responsibility, not a permanent intermediary role. There are no permanent Junior Engineer or Secretary roles; invoke temporary specialists only when technically justified.
 
 Resolve ordinary implementation details locally. Do not escalate naming, formatting, straightforward refactors, ordinary test organization, or small internal choices consistent with established architecture.
 
-Escalate only material issues such as:
-
-- ambiguous requirements;
-- architecture conflict;
-- persistent schema/file-format change;
-- public API change;
-- security or data-loss risk;
-- external/native/hardware behavior that blocks safe implementation;
-- repeated implementation/review failure; or
-- consequential product decisions.
-
-If correct behavior is known but implementation is difficult, increase implementation reasoning or use a bounded specialist. If correct behavior itself cannot be determined without changing requirements, architecture, persistence, interfaces, or risk posture, return `ESCALATION_REQUIRED`.
+If correct behavior is known but implementation is difficult, keep working or use a bounded specialist. If correct behavior cannot be determined without a material requirement, architecture, persistence-format, interface, security/data-loss, evidence, or hardware decision, follow `WORKFLOW.md` and return `ESCALATION_REQUIRED`.
 
 ## Risk and independent review
 
-Classify substantive tasks according to `WORKFLOW.md`.
-
-- **R0:** trivial documentation/formatting/mechanical correction — targeted validation; review normally unnecessary.
-- **R1:** ordinary engineering — tests; independent review optional when regression risk is low.
-- **R2:** regression-sensitive persistence, Unicode/CP932 semantics, parsing/serialization, metadata, cross-module state, public/internal interfaces, rendering/performance-sensitive paths — independent review required.
-- **R3:** device/safety-critical `write_*`, `delete_*`, USB transport, live candidate/state construction, authorization gates, live verification or runners — complete host validation and strong independent review required before `READY_FOR_HARDWARE_TEST`.
+Classify substantive tasks according to `WORKFLOW.md`; direct execution grants no new authority. R0/R1 may proceed inside established behavior. R2 remains inside its approved task boundary and requires independent review. R3 requires complete host validation and strong independent review, then stops at `READY_FOR_HARDWARE_TEST` before physical use.
 
 Use at most two correction rounds for material review findings. Persistent material disagreement becomes `ESCALATION_REQUIRED`; do not create endless agent loops.
+
+For required R2/R3 review, provide a bounded review packet. The reviewer must independently inspect the exact commit/diff, relevant source, tests and results, cited evidence where applicable, and the applicable safety/acceptance requirements. The executor summary is navigation, not evidence.
 
 ## Human and hardware boundary
 
@@ -146,15 +131,4 @@ After a meaningful verified checkpoint, update `CURRENT_STATUS.md`. Update `PROD
 
 ## Final task report
 
-Finish substantive tasks with:
-
-- **Outcome:** `COMPLETE`, `READY_FOR_HUMAN_TEST`, `READY_FOR_HARDWARE_TEST`, `BLOCKED_BY_EXTERNAL_EVIDENCE`, or `ESCALATION_REQUIRED`.
-- **Implementation summary**
-- **Files changed**
-- **Validation performed and results**
-- **Independent review status**
-- **Remaining external/hardware validation**
-- **Architectural/safety concerns**
-- **Commit / branch / push state**
-
-Do not call a task complete merely because coding stopped.
+Use the concise outcome and reporting format in `WORKFLOW.md`. Do not call a task complete merely because coding stopped.

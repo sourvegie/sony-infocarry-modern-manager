@@ -16,30 +16,30 @@ Use a project-lead conversation for ambiguous requirements, architecture choices
 
 Do not escalate ordinary implementation details such as naming, formatting, local refactors, test organization, or small internal design choices consistent with established architecture.
 
-### Codex Dispatcher
+### Fresh Codex Task Executor
 
-Use one main Codex conversation per meaningful engineering task. The main conversation acts as Dispatcher and should:
+Use one fresh Codex task per meaningful engineering task. The Task Executor works directly inside the already authorized task boundary and should:
 
 1. read `AGENTS.md` and `CURRENT_STATUS.md`;
 2. inspect the relevant repository state;
-3. implement directly or delegate bounded implementation/exploration when useful;
+3. implement directly by default, using a temporary specialist only when technically justified;
 4. run or confirm host-side validation;
 5. invoke independent review according to the task risk;
 6. route bounded findings back to implementation;
 7. stop and request human verification when external or hardware evidence is required;
-8. update durable project documentation after meaningful verified changes;
+8. update only durable project documentation genuinely affected by the change;
 9. create a coherent commit/checkpoint when appropriate; and
 10. escalate only material requirement, architecture, persistence-format, security/data-loss, or hardware-safety issues.
 
-The Dispatcher is not a second product owner and should not invent requirements.
+Dispatch and coordination are responsibilities of the Task Executor, not a permanent intermediary role. The Task Executor is not a second product owner and must not invent requirements or treat direct execution as new authority.
 
-### Implementation worker
+### Temporary specialists
 
-Implementation workers handle bounded coding and debugging. Routine engineering decisions should remain close to implementation. If correct behavior is known but implementation is difficult, increase implementation reasoning or use a specialist rather than escalating to the Project Lead.
+There are no permanent Junior Engineer or Secretary roles. The Task Executor owns implementation, validation, and affected documentation. It may invoke a temporary specialist for bounded coding, debugging, research, or review when technically justified. If correct behavior is known but implementation is difficult, keep the issue with the Task Executor or a specialist rather than escalating to the Project Lead.
 
 ### Reviewer
 
-Independent review is selective. A reviewer should examine the change and evidence, not merely repeat the implementation agent's reasoning. Use a finite repair loop: implementation -> review -> correction -> re-review, with at most two correction rounds before material disagreement becomes `ESCALATION_REQUIRED`.
+Independent review is selective. For required R2/R3 review, give the reviewer a bounded review packet, but require independent inspection of the exact commit or diff, relevant source, relevant tests and results, cited evidence where applicable, and applicable safety and acceptance requirements. The executor's summary is navigational context, not evidence of correctness. Use a finite repair loop: implementation -> review -> correction -> re-review, with at most two material correction rounds before disagreement becomes `ESCALATION_REQUIRED`.
 
 ### Human tester/operator
 
@@ -67,6 +67,26 @@ Conversation history is transient. Approved decisions, implementation state, tes
 - `AGENTS.md`: compact operational instructions for coding agents.
 
 Do not duplicate chronological milestone history or capability tables into every governance file. Prefer the capability matrix for exact operation status and `analysis/` for evidence/history; keep `CURRENT_STATUS.md` focused on the current sprint.
+
+## Context-loading policy
+
+For ordinary work, the default startup context is:
+
+- `AGENTS.md`;
+- `CURRENT_STATUS.md`;
+- the approved task brief; and
+- relevant source files and tests.
+
+Load additional governance or history only when the task triggers it:
+
+- `WORKFLOW.md` for risk classification, review, escalation, hardware, or process questions;
+- `CAPABILITY_MATRIX.md` for operation support or exposure;
+- `RISK_REGISTER.md` for safety, persistence, recovery, or data-loss implications;
+- `PRODUCT_VISION.md` for product-scope or behavior decisions;
+- `ROADMAP.md` for sequencing or prioritization; and
+- specifically relevant `analysis/` records for historical or evidence questions.
+
+Do not broadly scan `analysis/` during ordinary product work. Legacy Oracle, protocol reconstruction, candidate/state construction, recovery work, and R3 review must still inspect the specifically relevant evidence.
 
 The accelerated delivery policy classifies work by reachability. Offline
 selection, preparation, Library review, and host-only planning are not R3
@@ -104,7 +124,7 @@ For each meaningful engineering task, use a concise task brief containing:
 - required validation; and
 - escalation conditions.
 
-Use one fresh Codex Dispatcher conversation per meaningful task when practical. The Dispatcher should read repository state instead of depending on copied conversation history.
+Use one Fresh Codex Task Executor per meaningful task when practical. The executor should read repository state instead of depending on copied conversation history. Direct execution is permitted only inside the approved scope: R0/R1 may proceed when consistent with established behavior; R2 remains within the task boundary and requires independent review; authorized R3 host/offline work stops at `READY_FOR_HARDWARE_TEST` before physical hardware use. Capability-envelope expansion remains an owner decision.
 
 Task outcomes are:
 
@@ -183,7 +203,7 @@ Always label evidence according to its source. Fake transport success is not phy
 
 ## Final task report
 
-A Dispatcher final report should state:
+A Task Executor final report should state:
 
 - outcome;
 - implementation summary;
@@ -201,3 +221,5 @@ Keep the report concise and link to durable repository evidence rather than repr
 Reassess this workflow when repository size/interdependence rises materially, review begins catching significant issues, implementation/review failures become recurrent, hardware integration becomes more complex, model/tool economics change, or the process itself becomes a coordination burden.
 
 Add or remove roles only when demonstrated need justifies them. Do not create permanent agents merely because the tooling supports them.
+
+Use this simplified execution model for the next 3–5 meaningful engineering tasks. During that evaluation, do not add permanent roles or restructure the workflow again unless an observed failure or bottleneck justifies it. Assess time to useful implementation, unnecessary handoffs, repeated context loading, documentation and review quality, escalation correctness, and missed safety/evidence requirements. Afterward, report only material findings and recommend changes only for demonstrated need.
