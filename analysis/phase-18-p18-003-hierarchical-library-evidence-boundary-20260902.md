@@ -1,10 +1,9 @@
 # P18-003 — hierarchical Library evidence and boundary
 
 Date: 2026-09-02
-Status: `READY_FOR_HUMAN_TEST`: host implementation, independent R2 review, and
-CI complete; PR #28 is open after push. An owner visual check of the bounded
-980×680 / 1120×760 Library layouts remains. No hardware/live validation is
-claimed.
+Status: `COMPLETE` for the bounded host GUI/workflow task: host implementation,
+independent R2 review, CI, and owner human gate complete; PR #28 is open after
+push. No hardware/live validation is claimed.
 
 ## Product boundary
 
@@ -85,3 +84,14 @@ legacy `simpledialog` import, an offline capacity-attachment escape, root-folder
 symlink resolution before rejection, and conflict wording that overstated
 preparation blocking. One correction round fixed all four; the independent
 re-review returned PASS.
+
+## Owner human-test evidence
+
+The owner reported: “Everything works as expected.” The supplied bounded GUI
+evidence covered the Library workflow and showed the expected ordered TXT/BMP/
+TXT package in the OFFLINE LIBRARY PREPARE and PREPARED DEVICE-TREE PREVIEW
+views. All displayed validations passed; capacity and conflicts were correctly
+**Not evaluated** without a fresh verified baseline. The safety fields reported
+live disabled, candidate not constructed, USB not accessed, and no device
+change. This passes the P18-003 human GUI/workflow gate only; it is not
+hardware, USB, candidate, authorization, or live-write evidence.

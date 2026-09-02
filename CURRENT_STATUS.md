@@ -5,7 +5,7 @@ Date: 2026-09-02
 ## Canonical checkpoint
 
 Canonical `main` is `9c43db6` (merged PR #27, P18-002/P18-002B). P18-003 is
-in progress on `task/P18-003-hierarchical-library`; no live device work is
+complete on `task/P18-003-hierarchical-library`; no live device work is
 authorized by this task.
 
 ## Current sprint
@@ -96,9 +96,11 @@ Independent R2 re-review is PASS with no remaining material findings. PR #28
 is open and its GitHub Python 3.12 offline-suite check passed; no hardware or
 live validation is claimed.
 
-Task outcome: `READY_FOR_HUMAN_TEST` for an owner visual check of the Library
-tab at the bounded 980×680 minimum and 1120×760 default sizes. Static layout
-and formatter checks pass, but this environment did not launch a GUI window.
+Task outcome: `COMPLETE` for the bounded host GUI/workflow gate. The owner
+reported “Everything works as expected” and supplied the offline Prepare and
+device-tree Preview artifacts for the expected ordered TXT/BMP/TXT package.
+This is bounded human GUI/workflow evidence only; it does not claim hardware,
+USB, candidate, authorization, or live-write behavior.
 
 ## Historical records
 
