@@ -1,8 +1,10 @@
 # P18-003 — hierarchical Library evidence and boundary
 
 Date: 2026-09-02
-Status: host implementation, independent R2 review, and CI complete; PR #28
-is open after push. No hardware/live validation is claimed.
+Status: `READY_FOR_HUMAN_TEST`: host implementation, independent R2 review, and
+CI complete; PR #28 is open after push. An owner visual check of the bounded
+980×680 / 1120×760 Library layouts remains. No hardware/live validation is
+claimed.
 
 ## Product boundary
 

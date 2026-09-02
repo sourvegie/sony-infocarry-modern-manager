@@ -96,6 +96,10 @@ Independent R2 re-review is PASS with no remaining material findings. PR #28
 is open and its GitHub Python 3.12 offline-suite check passed; no hardware or
 live validation is claimed.
 
+Task outcome: `READY_FOR_HUMAN_TEST` for an owner visual check of the Library
+tab at the bounded 980×680 minimum and 1120×760 default sizes. Static layout
+and formatter checks pass, but this environment did not launch a GUI window.
+
 ## Historical records
 
 The pre-P18-002 long-form status, risk register, and roadmap are preserved in
