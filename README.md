@@ -156,6 +156,14 @@ Run the offline tests:
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 ```
 
+This portable suite is offline: it uses repository-owned fixtures, temporary
+directories, and fake transports, and does not require USB hardware, the
+reverse-engineering checkout, the separate conversion toolkit, private
+evidence, network access, or a user's application data. The three
+evidence-dependent checks remain explicit skips when their excluded evidence
+is absent. GitHub Actions runs the same suite on macOS and Windows with Python
+3.12.
+
 For interim package validation, install the packaging-only tools in the
 canonical environment and build a reproducible wheel (the script refuses to
 overwrite an existing output directory):
@@ -215,3 +223,10 @@ Reverse-engineering and hardware evidence is recorded in
 [`analysis/phase-4-read-only-transport.md`](analysis/phase-4-read-only-transport.md).
 Current device-information progress is in
 [`analysis/phase-5-device-info.md`](analysis/phase-5-device-info.md).
+
+## License
+
+This project's own source code is released under the MIT License; see
+[`LICENSE`](LICENSE). The license does not grant rights to Sony proprietary
+software, firmware, documentation, trademarks, captures, backups, private
+evidence, or the separate `InfoCarry-Toolkit` and reference archives.
