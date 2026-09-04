@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from infocarry.experimental_library_transfer_review import (
@@ -12,6 +14,7 @@ from infocarry.experimental_transfer_contract import (
     experimental_safety_contract,
 )
 import infocarry.experimental_library_transfer as integration
+from infocarry.indeterminate_write_lock import PersistentIndeterminateWriteLock
 
 
 def _paths():
@@ -67,9 +70,9 @@ def _bundle():
             "accepted_completion": "0x0000",
         },
         "package_children": [
-            {"order": 0, "kind": "txt", "name": "01-introduction.txt"},
-            {"order": 1, "kind": "bmp", "name": "02-page-01.bmp"},
-            {"order": 2, "kind": "txt", "name": "03-ending.txt"},
+            {"order": 0, "kind": "txt", "name": "01-introduction.txt", "source_sha256": "1" * 64, "source_bytes": 12, "prepared_payload_sha256": "2" * 64, "prepared_payload_bytes": 12},
+            {"order": 1, "kind": "bmp", "name": "02-page-01.bmp", "source_sha256": "3" * 64, "source_bytes": 9662, "prepared_payload_sha256": "4" * 64, "prepared_payload_bytes": 9662},
+            {"order": 2, "kind": "txt", "name": "03-ending.txt", "source_sha256": "5" * 64, "source_bytes": 8, "prepared_payload_sha256": "6" * 64, "prepared_payload_bytes": 8},
         ],
         "expected_post_operation": {"added_paths": _paths()},
         "candidate_blob_sha256": digest,
@@ -223,61 +226,60 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
             self.assertNotIn("import infocarry.experimental_library_transfer", source)
 
     def test_integration_delegates_one_bundle_to_canonical_runner_and_reconciler(self):
-        runner_result = object()
-        reconciled = object()
         bundle = object()
-        with patch.object(
-            integration,
-            "execute_prepared_library_package_live",
-            return_value=runner_result,
-        ) as execute, patch.object(
-            integration,
-            "reconcile_prepared_library_package_live_result",
-            return_value=reconciled,
-        ) as reconcile:
-            result = integration.run_experimental_library_transfer(
-                bundle,
-                low_level_bulk_write_calls=20,
-                detect_device=object(),
-                query_capacity=object(),
-                capture=object(),
-                evidence_namespace="external",
-            )
+        result = object()
+        with TemporaryDirectory() as temporary:
+            lock = PersistentIndeterminateWriteLock(Path(temporary) / "lock.json")
+            with patch.object(
+                integration.GuardedLibraryExecutionCoordinator,
+                "execute",
+                return_value=result,
+            ) as execute:
+                returned = integration.run_experimental_library_transfer(
+                    bundle,
+                    indeterminate_write_lock=lock,
+                    plan_report={},
+                    confirmation_interaction=lambda _review: "confirmed",
+                    low_level_bulk_write_calls=20,
+                    detect_device=object(),
+                    query_capacity=object(),
+                    capture=object(),
+                    evidence_namespace="external",
+                )
 
-        self.assertIs(result, reconciled)
+        self.assertIs(returned, result)
         execute.assert_called_once()
         self.assertIs(execute.call_args.args[0], bundle)
+        self.assertEqual(execute.call_args.kwargs["plan_report"], {})
         self.assertNotIn("candidate", execute.call_args.kwargs)
         self.assertNotIn("transaction", execute.call_args.kwargs)
         self.assertNotIn("before_backup", execute.call_args.kwargs)
         self.assertNotIn("capacity_response", execute.call_args.kwargs)
-        reconcile.assert_called_once_with(
-            runner_result,
-            low_level_bulk_write_calls=20,
-        )
 
     def test_integration_preflight_only_does_not_reconcile_or_add_a_sender(self):
         runner_result = object()
-        with patch.object(
-            integration,
-            "execute_prepared_library_package_live",
-            return_value=runner_result,
-        ) as execute, patch.object(
-            integration,
-            "reconcile_prepared_library_package_live_result",
-        ) as reconcile:
-            result = integration.run_experimental_library_transfer(
-                object(),
-                preflight_only=True,
-                detect_device=object(),
-                query_capacity=object(),
-                capture=object(),
-                evidence_namespace="external",
-            )
+        with TemporaryDirectory() as temporary:
+            lock = PersistentIndeterminateWriteLock(Path(temporary) / "lock.json")
+            with patch.object(
+                integration.GuardedLibraryExecutionCoordinator,
+                "execute",
+                return_value=runner_result,
+            ) as execute:
+                result = integration.run_experimental_library_transfer(
+                    object(),
+                    indeterminate_write_lock=lock,
+                    plan_report=None,
+                    confirmation_interaction=None,
+                    preflight_only=True,
+                    detect_device=object(),
+                    query_capacity=object(),
+                    capture=object(),
+                    evidence_namespace="external",
+                )
 
         self.assertIs(result, runner_result)
         execute.assert_called_once()
-        reconcile.assert_not_called()
+        self.assertTrue(execute.call_args.kwargs["preflight_only"])
 
 
 if __name__ == "__main__":

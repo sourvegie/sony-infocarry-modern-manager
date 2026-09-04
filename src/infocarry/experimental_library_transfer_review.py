@@ -227,12 +227,51 @@ def _sealed_ready_bindings(
             child.get("path"),
         ) != (order, kind, _expected_paths()[order + 1]):
             raise ExperimentalLibraryTransferReviewError("candidate ordered child summary differs")
-        if not isinstance(plan_child, Mapping) or any(
-            child.get(field) != plan_child.get(field)
-            for field in ("source_sha256", "source_bytes", "prepared_payload_sha256")
+        candidate_payload_sha256 = child.get(
+            "payload_sha256", child.get("prepared_payload_sha256")
+        )
+        candidate_payload_bytes = child.get(
+            "payload_length", child.get("prepared_payload_bytes")
+        )
+        if not isinstance(plan_child, Mapping) or (
+            child.get("source_sha256") != plan_child.get("source_sha256")
+            or candidate_payload_sha256 != plan_child.get("prepared_payload_sha256")
+            or (
+                candidate_payload_bytes is not None
+                and candidate_payload_bytes != plan_child.get("prepared_payload_bytes")
+            )
+            or (
+                child.get("source_bytes") is not None
+                and child.get("source_bytes") != plan_child.get("source_bytes")
+            )
         ):
             raise ExperimentalLibraryTransferReviewError(
                 "candidate child hashes or source size differ from the Library manifest"
+            )
+
+    bundle_children = bundle.get("package_children")
+    for bundle_child, plan_child, expected in zip(
+        bundle_children, plan_children, EXPERIMENTAL_CHILDREN
+    ):
+        if not isinstance(bundle_child, Mapping) or not isinstance(plan_child, Mapping):
+            raise ExperimentalLibraryTransferReviewError(
+                "operation bundle child manifest is malformed"
+            )
+        order, kind, name = expected
+        if (
+            bundle_child.get("order"),
+            bundle_child.get("kind"),
+            bundle_child.get("name"),
+        ) != expected or (
+            bundle_child.get("source_sha256") != plan_child.get("source_sha256")
+            or bundle_child.get("source_bytes") != plan_child.get("source_bytes")
+            or bundle_child.get("prepared_payload_sha256")
+            != plan_child.get("prepared_payload_sha256")
+            or bundle_child.get("prepared_payload_bytes")
+            != plan_child.get("prepared_payload_bytes")
+        ):
+            raise ExperimentalLibraryTransferReviewError(
+                f"operation bundle child {name} differs from the Library manifest"
             )
     if item.get("prepared_artifact", {}).get("manifest_sha256") != package.get("prepared_manifest_sha256"):
         raise ExperimentalLibraryTransferReviewError("Library manifest differs from the sealed candidate")
