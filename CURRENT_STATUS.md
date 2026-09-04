@@ -48,6 +48,17 @@ recovery decision.
 
 ## Verified recent result
 
+P18-004's foundation checkpoint is implemented on the local task branch at
+`0281633`: the portable Python 3.12 workflow now runs on both macOS and
+Windows, and the README records the offline-suite boundary. The focused suite
+passes 38 tests with the same 3 intentional evidence skips; the full suite
+passes 688 tests with 3 intentional skips both normally and under a sanitized
+environment. No test writes preserved evidence or uses hardware, network, the
+separate toolkit, or user application data. The branch is not pushed, so
+post-change macOS and Windows GitHub CI results remain pending. No project or
+package license has been authorized; owner selection is still required before
+adding licensing metadata or distribution terms.
+
 P18-001A’s bounded responsive Library correction is **COMPLETE** based on the
 owner’s human-observed retest at approximately 980×680 and 1120×760 or
 larger. This observation covers the tested GUI sizes only; it does not infer
