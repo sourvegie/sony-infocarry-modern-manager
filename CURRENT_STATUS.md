@@ -57,7 +57,11 @@ License in [`LICENSE`](LICENSE) and package metadata. The focused suite passes
 688 tests with 3 intentional skips both normally and under a sanitized
 environment. No test writes preserved evidence or uses hardware, network, the
 separate toolkit, or user application data. Post-change macOS and Windows
-GitHub CI results remain pending until the focused pull request runs.
+GitHub CI both pass in [PR #30 workflow run 33886273729](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33886273729)
+on `macos-latest` and `windows-latest` with Python 3.12. The generated
+evidence-package trees are explicitly preserved as byte-exact non-text files
+so their manifests and source hashes remain portable across checkout
+platforms.
 
 The MIT License applies only to this project's own source code. It does not
 grant rights to Sony proprietary software, firmware, documentation,
