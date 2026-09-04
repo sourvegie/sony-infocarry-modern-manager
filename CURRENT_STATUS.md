@@ -4,7 +4,7 @@ Date: 2026-09-04
 
 ## Canonical checkpoint
 
-Canonical `main` is `00d4836` (merged PR #28). P18-003 is complete, including
+Canonical `main` is `ca74248` (merged PR #29). P18-003 is complete, including
 the bounded owner-observed human workflow check. No live device work is
 authorized by the current governance task.
 
@@ -48,16 +48,23 @@ recovery decision.
 
 ## Verified recent result
 
-P18-004's foundation checkpoint is implemented on the local task branch at
-`0281633`: the portable Python 3.12 workflow now targets both macOS and
-Windows, and the README records the offline-suite boundary. The focused suite
-passes 38 tests with the same 3 intentional evidence skips; the full suite
-passes 688 tests with 3 intentional skips both normally and under a sanitized
+P18-004's foundation-quality closure is implemented on the fresh
+`task/P18-004-foundation-quality` branch from canonical `main`: the portable
+Python 3.12 workflow targets both macOS and Windows, the README records the
+offline-suite boundary, and the project declares the owner-authorized MIT
+License in [`LICENSE`](LICENSE) and package metadata. The focused suite passes
+38 tests with the same 3 intentional evidence skips; the full suite passes
+688 tests with 3 intentional skips both normally and under a sanitized
 environment. No test writes preserved evidence or uses hardware, network, the
-separate toolkit, or user application data. The branch is not pushed, so
-post-change macOS and Windows GitHub CI results remain pending. No project or
-package license has been authorized; owner selection is still required before
-adding licensing metadata or distribution terms.
+separate toolkit, or user application data. Post-change macOS and Windows
+GitHub CI results remain pending until the focused pull request runs.
+
+The MIT License applies only to this project's own source code. It does not
+grant rights to Sony proprietary software, firmware, documentation,
+trademarks, captures, backups, private evidence, or the separate
+`InfoCarry-Toolkit` and reference archives. The next Product Delivery gate is
+guarded execution and independent read-back verification under a separate
+reviewed task; no live behavior is enabled here.
 
 P18-001A’s bounded responsive Library correction is **COMPLETE** based on the
 owner’s human-observed retest at approximately 980×680 and 1120×760 or
