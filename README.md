@@ -223,3 +223,10 @@ Reverse-engineering and hardware evidence is recorded in
 [`analysis/phase-4-read-only-transport.md`](analysis/phase-4-read-only-transport.md).
 Current device-information progress is in
 [`analysis/phase-5-device-info.md`](analysis/phase-5-device-info.md).
+
+## License
+
+This project's own source code is released under the MIT License; see
+[`LICENSE`](LICENSE). The license does not grant rights to Sony proprietary
+software, firmware, documentation, trademarks, captures, backups, private
+evidence, or the separate `InfoCarry-Toolkit` and reference archives.
