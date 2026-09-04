@@ -156,6 +156,14 @@ Run the offline tests:
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
 ```
 
+This portable suite is offline: it uses repository-owned fixtures, temporary
+directories, and fake transports, and does not require USB hardware, the
+reverse-engineering checkout, the separate conversion toolkit, private
+evidence, network access, or a user's application data. The three
+evidence-dependent checks remain explicit skips when their excluded evidence
+is absent. GitHub Actions runs the same suite on macOS and Windows with Python
+3.12.
+
 For interim package validation, install the packaging-only tools in the
 canonical environment and build a reproducible wheel (the script refuses to
 overwrite an existing output directory):
