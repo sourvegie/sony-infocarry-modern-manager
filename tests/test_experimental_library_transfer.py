@@ -37,11 +37,27 @@ def _plan(*, selected_ids=None, children=None, paths=None):
         "state": "previewed_offline",
         "usb_accessed": False,
         "device_change": "none",
-        "selection": {"selected_item_ids": ["item-1"] if selected_ids is None else selected_ids},
-        "eligibility": {"queue_ready": True},
+        "selection": {"mode": "selected", "selected_item_ids": ["item-1"] if selected_ids is None else selected_ids},
+        "grouping": {"automatic_grouping": False, "overlap_status": "none"},
+        "eligibility": {
+            "offline_review_ready": True,
+            "queue_ready": True,
+            "device_candidate_eligible": False,
+            "transfer_enabled": False,
+        },
+        "safety": {
+            "source_mutated": False,
+            "catalog_mutated": False,
+            "candidate_constructed": False,
+            "authorization_created": False,
+            "transaction_constructed": False,
+            "sender_called": False,
+            "automatic_retry": False,
+        },
         "items": [{
             "item_id": "item-1",
             "operation_type": "prepared_flat_typed_package",
+            "execution_eligible": False,
             "prepared_artifact": {
                 "contract": "infocarry-prepared-typed-media-package-v1",
                 "manifest_sha256": "f" * 64,
@@ -193,6 +209,16 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
 
         self.assertEqual(review["eligibility"]["state"], "preview_only")
         self.assertIn("not fully revalidated", " ".join(review["eligibility"]["reasons"]))
+
+    def test_host_only_plan_flags_cannot_be_promoted_to_execution(self):
+        plan = _plan()
+        plan["eligibility"]["transfer_enabled"] = True
+        review = build_experimental_library_transfer_review(
+            plan, preflight_report=_preflight(), bundle_report=_bundle()
+        ).to_dict()
+
+        self.assertEqual(review["eligibility"]["state"], "preview_only")
+        self.assertIn("transfer_enabled", " ".join(review["eligibility"]["reasons"]))
 
     def test_safety_contract_covers_every_terminal_boundary_without_retry(self):
         contract = experimental_safety_contract()

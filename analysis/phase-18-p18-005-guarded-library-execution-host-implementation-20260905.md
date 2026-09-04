@@ -2,7 +2,7 @@
 
 Date: 2026-09-05  
 Base: canonical `main` at P18-004 commit `fbae39d`  
-Host disposition: **HOST_IMPLEMENTED_PENDING_INDEPENDENT_R3_REVIEW**
+Host disposition: **HOST_R3_REVIEW_PASS_PENDING_EXTERNAL_CI**
 
 ## Scope
 
@@ -45,7 +45,7 @@ confirmation, persistent lock after disconnect, active-lock blocking, and
 deterministic nonzero completion without a lock. Existing P17 adapter, bridge,
 operation-bundle, review, lock, and normal GUI/CLI isolation tests remain green.
 
-The full portable suite passes with 696 tests and 3 intentional
+The full portable suite passes with 697 tests and 3 intentional
 evidence-dependent skips. This is host/fake validation only. It does not
 change the capability profile from `defined_not_live_enabled` and does not
 authorize physical execution.
