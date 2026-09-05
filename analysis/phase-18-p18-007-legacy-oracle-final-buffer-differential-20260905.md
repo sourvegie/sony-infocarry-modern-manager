@@ -1,7 +1,7 @@
 # P18-007 — Legacy Oracle final-buffer differential
 
-Date: 2026-09-05  
-Base: `origin/main` at `359c27adf473c86a8f2770de64712b81dc893e25`  
+Date: 2026-09-05
+Base: `origin/main` at `359c27adf473c86a8f2770de64712b81dc893e25`
 Outcome: `COMPLETE` for the offline evidence and host-side differential boundary; no hardware or USB operation occurred.
 
 ## Legacy boundary
@@ -173,4 +173,3 @@ validation, `git diff --check`, macOS Python 3.12 CI, and Windows Python 3.12
 CI. Independent R2 review must challenge every “equivalent” statement that
 depends on normalization; at most two correction rounds are permitted. Any
 P13 R3 correction is explicitly out of this review scope.
-

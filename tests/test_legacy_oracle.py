@@ -99,6 +99,25 @@ class LegacyOracleDifferentialTests(unittest.TestCase):
         self.assertEqual(canonical_json(first), canonical_json(second))
         json.dumps(first, sort_keys=True)
 
+    def test_invalid_summary_classification_is_rejected(self):
+        metadata = self._metadata()
+        metadata["raw_differential_summary"]["candidate"]["classification"] = "EQUIVALENT"
+        with self.assertRaisesRegex(DifferentialError, "invalid classification"):
+            validate_corpus_metadata(metadata)
+
+    def test_not_comparable_requires_reason_and_status(self):
+        metadata = self._metadata()
+        metadata["raw_differential_summary"]["candidate"] = {
+            "classification": "NOT_COMPARABLE",
+        }
+        with self.assertRaisesRegex(DifferentialError, "requires a non-empty reason"):
+            validate_corpus_metadata(metadata)
+        metadata["raw_differential_summary"]["candidate"]["reason"] = "different baselines"
+        with self.assertRaisesRegex(DifferentialError, "interpretation_status"):
+            validate_corpus_metadata(metadata)
+        metadata["interpretation_status"] = "NOT_COMPARABLE_TEST_FIXTURE"
+        self.assertEqual(validate_corpus_metadata(metadata)["fixture_id"], "test-fixture")
+
     def test_sanitized_p18_corpus_metadata_is_valid(self):
         corpus_path = (
             Path(__file__).parents[1]
@@ -128,6 +147,11 @@ class LegacyOracleDifferentialTests(unittest.TestCase):
         changed = compare_transactions((b"fixed", b"legacy"), (b"fixed", b"modern"))
         self.assertEqual(changed["classification"], "UNEXPLAINED")
         self.assertEqual(changed["ranges"][1]["raw"]["difference_count"], 1)
+
+    def test_transaction_range_count_mismatch_cannot_be_exact(self):
+        result = compare_transactions((b"fixed",), (b"fixed", b""))
+        self.assertEqual(result["range_count_difference"], -1)
+        self.assertEqual(result["classification"], "UNEXPLAINED")
 
     def test_transaction_range_annotation_keeps_raw_difference(self):
         annotation = DifferenceAnnotation(
@@ -189,7 +213,10 @@ class LegacyOracleDifferentialTests(unittest.TestCase):
                 for identifier, value in values.items()
             ],
             "expected_volatile_fields": [],
-            "raw_differential_summary": {"candidate": {"difference_count": 0}},
+            "raw_differential_summary": {
+                "candidate": {"classification": "EXACT_MATCH", "raw_range_count": 0},
+                "transaction": {"classification": "EXACT_MATCH", "raw_range_count": 0},
+            },
             "interpretation_status": "test-only",
         }
 

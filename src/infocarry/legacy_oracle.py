@@ -450,7 +450,8 @@ def compare_transactions(
         DifferentialClassification(item["classification"])
         for item in range_differences
     )
-    if any(item == DifferentialClassification.UNEXPLAINED for item in classifications):
+    range_count_mismatch = len(left) != len(right)
+    if range_count_mismatch or any(item == DifferentialClassification.UNEXPLAINED for item in classifications):
         aggregate_classification = DifferentialClassification.UNEXPLAINED
     elif all(item == DifferentialClassification.EXACT_MATCH for item in classifications):
         aggregate_classification = DifferentialClassification.EXACT_MATCH
@@ -463,6 +464,7 @@ def compare_transactions(
         "classification": aggregate_classification.value,
         "left": left_inventory,
         "right": right_inventory,
+        "range_count_difference": len(left) - len(right),
         "header": header_difference.to_dict(),
         "ranges": range_differences,
     }
@@ -472,6 +474,49 @@ def canonical_json(data: Mapping[str, Any]) -> str:
     """Serialize a report deterministically for committed derived artifacts."""
 
     return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _validate_summary_classifications(value: Any, path: str = "raw_differential_summary") -> bool:
+    """Validate classification labels and explicit non-comparability reasons."""
+
+    found_not_comparable = False
+    if isinstance(value, Mapping):
+        if "classification" in value:
+            try:
+                classification = DifferentialClassification(value["classification"])
+            except (TypeError, ValueError) as exc:
+                raise DifferentialError(f"invalid classification at {path}.classification") from exc
+            if classification is DifferentialClassification.NOT_COMPARABLE:
+                reason = value.get("reason")
+                if not isinstance(reason, str) or not reason.strip():
+                    raise DifferentialError(f"NOT_COMPARABLE at {path} requires a non-empty reason")
+                found_not_comparable = True
+            if classification is DifferentialClassification.EXACT_MATCH:
+                raw_count = value.get("raw_range_count")
+                raw_bytes = value.get("raw_differing_byte_count")
+                if raw_count is not None and raw_count != 0:
+                    raise DifferentialError(f"EXACT_MATCH at {path} cannot retain raw differing ranges")
+                if raw_bytes is not None and raw_bytes != 0:
+                    raise DifferentialError(f"EXACT_MATCH at {path} cannot retain raw differing bytes")
+        for key, nested in value.items():
+            if key == "range_classifications":
+                if not isinstance(nested, Sequence) or isinstance(nested, (str, bytes, bytearray)):
+                    raise DifferentialError(f"{path}.range_classifications must be a sequence")
+                for index, item in enumerate(nested):
+                    try:
+                        DifferentialClassification(item)
+                    except (TypeError, ValueError) as exc:
+                        raise DifferentialError(
+                            f"invalid classification at {path}.range_classifications[{index}]"
+                        ) from exc
+                continue
+            if _validate_summary_classifications(nested, f"{path}.{key}"):
+                found_not_comparable = True
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for index, nested in enumerate(value):
+            if _validate_summary_classifications(nested, f"{path}[{index}]"):
+                found_not_comparable = True
+    return found_not_comparable
 
 
 def validate_corpus_metadata(
@@ -547,8 +592,18 @@ def validate_corpus_metadata(
         raise DifferentialError(f"corpus metadata is missing representations: {missing}")
     if not isinstance(metadata["expected_volatile_fields"], Sequence) or isinstance(metadata["expected_volatile_fields"], (str, bytes, bytearray)):
         raise DifferentialError("expected_volatile_fields must be a sequence")
-    if not isinstance(metadata["raw_differential_summary"], Mapping):
+    summary = metadata["raw_differential_summary"]
+    if not isinstance(summary, Mapping):
         raise DifferentialError("raw_differential_summary must be a mapping")
+    if not isinstance(summary.get("candidate"), Mapping):
+        raise DifferentialError("raw_differential_summary must contain a candidate mapping")
+    if not isinstance(summary.get("transaction"), Mapping):
+        raise DifferentialError("raw_differential_summary must contain a transaction mapping")
+    has_not_comparable = _validate_summary_classifications(summary)
+    if has_not_comparable and "NOT_COMPARABLE" not in metadata["interpretation_status"]:
+        raise DifferentialError(
+            "interpretation_status must explicitly retain a NOT_COMPARABLE result"
+        )
     return json.loads(canonical_json(metadata))
 
 
