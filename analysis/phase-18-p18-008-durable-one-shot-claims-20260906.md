@@ -3,7 +3,7 @@
 Date: 2026-09-06  
 Base: canonical `main` at `9cf01f49404e354c3704fbc6508afa8f7d20c509` (merged P18-007 / PR #33)  
 Branch: `task/P18-008-durable-one-shot-claims`  
-Disposition: **HOST IMPLEMENTATION COMPLETE — R3 REVIEW AND REMOTE CI PENDING**
+Disposition: **READY_FOR_HARDWARE_TEST — HOST-ONLY; NO HARDWARE PERFORMED**
 
 ## Scope and safety boundary
 
@@ -67,9 +67,13 @@ incident ID, and evidence root.
 Normal verified terminal success and determinate sender outcomes resolve only
 the sender marker; they never delete or reset the claim tombstone. An
 abandoned marker is never cleared by PID, time, reconnect, VID/PID, bus, or a
-new session. The coordinator accepts marker resolution only after the
-existing reviewed diagnostic/clear binding has produced an unlocked matching
-lock record; otherwise it records the existing global lock and stops.
+new session. Normal marker resolution requires a store-issued live-process
+sender handle. After a process crash, marker resolution is available only
+after the existing reviewed diagnostic/clear binding has produced a typed
+cleared lock record matching both incident ID and attempt ID; otherwise the
+coordinator records the existing global lock and stops. Marker reads, state
+transitions, and deletion validate every marker binding against its durable
+tombstone.
 
 ## Host evidence
 
@@ -86,11 +90,14 @@ abandoned-marker promotion, post-backup/read-back failure, reconstructed
 bundle replay, global-lock persistence, and the unchanged exact positive
 control.
 
-Local macOS focused validation currently passes 89 claim/adapter/coordinator
-tests and the full portable suite passes 745 tests with 3 intentional
-evidence-dependent skips. `compileall` and `git diff --check` pass. Remote
-macOS/Windows Python 3.12 CI and the independent R3 review are recorded here
-after they complete.
+Local validation passes 90 focused claim/adapter/coordinator tests and the full
+portable suite passes 746 tests with 3 intentional evidence-dependent skips.
+`compileall` and `git diff --check` pass. The P18-008 PR has passing macOS and
+Windows Python 3.12 offline checks in [workflow run 33976813020](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33976813020).
+Independent R3 re-review of `b41eccd` is PASS with no remaining P0/P1/P2
+findings. The only correction round addressed
+Windows SQLite/file-handle cleanup and prevented unproven generic marker
+resolution by splitting terminal-handle and typed-diagnostic APIs.
 
 ## Capability and hardware boundary
 
@@ -98,4 +105,6 @@ The exact reviewed TXT → BMP → TXT shape remains the only relevant
 physical-test candidate. The broader flat profile remains non-live,
 hierarchical packages remain preview-only, VNW-V10 remains non-write-capable,
 and normal GUI/CLI Send remains absent. No USB, `0x101b`, live transfer,
-intentional interruption, or hardware test was performed.
+intentional interruption, or hardware test was performed. This record is
+READY_FOR_HARDWARE_TEST for the exact reviewed TXT/BMP/TXT shape only; it is
+not a claim that the physical transaction is atomic or recoverable.
