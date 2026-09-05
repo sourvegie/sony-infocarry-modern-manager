@@ -181,5 +181,7 @@ nested-summary follow-up, within the two-round limit. It specifically verified
 raw/normalized retention, strict classification and `NOT_COMPARABLE` metadata
 rules, candidate/transaction separation, proprietary-evidence exclusion, and
 absence of USB/live reachability. Any P13 R3 correction is explicitly out of
-this review scope. macOS and Windows Python 3.12 CI remain required on the
-focused PR checkpoint.
+this review scope. Focused PR #33 CI also passed on [macOS Python
+3.12](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33961805274/job/101294857830)
+and [Windows Python
+3.12](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33961805274/job/101294857765).

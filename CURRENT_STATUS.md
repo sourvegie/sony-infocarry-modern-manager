@@ -4,9 +4,10 @@ Date: 2026-09-05
 
 ## Canonical checkpoint
 
-Canonical `main` is `63b7e7a` (merged PR #31). P18-004 is complete and P18-005
-is merged with its R3 review complete. P18-005 macOS and Windows Python 3.12
-offline CI both passed in [PR #31 workflow run 33944258579](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33944258579).
+Canonical `main` is `359c27adf473c86a8f2770de64712b81dc893e25` (merged P18-006 /
+PR #32). P18-004 is complete and P18-005 is merged with its R3 review
+complete. P18-005 macOS and Windows Python 3.12 offline CI both passed in
+[PR #31 workflow run 33944258579](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33944258579).
 No physical device work is authorized by the current governance task.
 
 ## Current product checkpoint
@@ -74,6 +75,29 @@ this host-only gate because normal GUI/CLI surfaces do not expose the
 coordinator; it must be resolved or explicitly accepted before standing
 physical-write enablement.
 
+## P18-007 Legacy Oracle checkpoint
+
+P18-007 is `COMPLETE` for the offline Legacy Oracle boundary and representative
+differential corpus. Corpus A covers one TXT, B covers four ordered TXT
+children, and C covers the exact TXT → BMP → TXT product shape. A retains an
+unexplained four-byte allocation/offset discrepancy; B normalizes only the
+independently established timestamp/checksum differences; C is
+`NOT_COMPARABLE` as a whole blob because the preserved native and modern
+baseline/target identities differ, while its typed package projection matches.
+Hierarchical Corpus D was not available and remains exploratory external
+evidence only.
+
+The final preserved host-side boundary is the `0x101b` command header and
+payload immediately before driver/USB submission. No transmission, hardware,
+or live Oracle operation occurred. The reusable comparator preserves raw
+differences alongside any normalized view, and no production transfer code or
+capability row was broadened. Independent R2 review/re-review passed with no
+remaining material findings. The focused PR is [PR #33](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/33), with both [macOS](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33961805274/job/101294857830)
+and [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33961805274/job/101294857765)
+Python 3.12 CI passing. A same-baseline P16 whole-blob observation or
+hierarchical fixture is not required for the completed A–C host-side result.
+The P18-006 process-local one-shot claim remains unresolved pre-hardware work.
+
 ## Verified recent result
 
 P18-004's foundation-quality closure is implemented on the fresh
@@ -134,13 +158,12 @@ evidence records. The capability authority is
 
 ## Delivery and review
 
-The two active streams are Product Delivery and Legacy Oracle. P18-004 and
-P18-005 are merged; P18-006 closes the host/offline guarded-boundary matrix.
-The next remaining gates are Legacy Oracle differential/comparison and then
-one combined owner-approved GUI hardware validation before any standing
-Experimental enablement.
+The two active streams are Product Delivery and Legacy Oracle. P18-004 through
+P18-006 are merged, and P18-007 closes the offline Legacy Oracle
+differential/comparison gate. The next gate is one combined owner-approved GUI
+hardware validation before any standing Experimental enablement.
 
-Portable baseline figures through P18-003 remain recorded below for history.
+Portable baseline figures through P18-006 remain recorded below for history.
 P18-006 focused validation is 17 passing; the guarded/P17 focused validation
 is 155 passing; the full portable suite is 714 passing with 3 intentional
 skips. Compilation and `git diff --check` pass.
