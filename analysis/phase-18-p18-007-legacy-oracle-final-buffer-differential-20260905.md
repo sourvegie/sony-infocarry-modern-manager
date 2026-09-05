@@ -163,13 +163,23 @@ task.
 Focused Oracle tests cover exact equality, single/multiple/separated ranges,
 length mismatch, volatile annotations with raw retention, unexplained
 differences, metadata/hash failures, deterministic reports, parsed structure,
-and transaction-wrapper annotation/classification. The sanitized corpus is
-loaded and validated by test code.
+transaction-wrapper annotation/classification, range-count mismatches, and
+nested classification validation. The sanitized corpus is loaded and
+validated by test code.
 
-The final validation record is maintained in the PR/CI checkpoint. The
-required checks are focused Oracle tests, relevant reconstruction/parser and
-P17/P18 regression tests, the full portable offline suite, compile/static
-validation, `git diff --check`, macOS Python 3.12 CI, and Windows Python 3.12
-CI. Independent R2 review must challenge every “equivalent” statement that
-depends on normalization; at most two correction rounds are permitted. Any
-P13 R3 correction is explicitly out of this review scope.
+The verified host-side validation checkpoint is 19 focused Oracle tests
+passing; 85 relevant reconstruction/parser/P17/P18 tests passing with two
+pre-existing capture-dependent skips; and the full portable offline suite
+passing 733 tests with three existing intentional skips. A read-only compile
+sweep covered 194 Python files. Direct `compileall` was not usable because
+the checkout contains protected pre-existing `__pycache__` entries; no source
+compile errors were found by the read-only sweep. `git diff --check` passes.
+
+Independent R2 review and re-review passed with no remaining material
+findings. The review performed one primary correction round plus one bounded
+nested-summary follow-up, within the two-round limit. It specifically verified
+raw/normalized retention, strict classification and `NOT_COMPARABLE` metadata
+rules, candidate/transaction separation, proprietary-evidence exclusion, and
+absence of USB/live reachability. Any P13 R3 correction is explicitly out of
+this review scope. macOS and Windows Python 3.12 CI remain required on the
+focused PR checkpoint.
