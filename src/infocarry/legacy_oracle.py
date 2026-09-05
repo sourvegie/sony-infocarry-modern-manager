@@ -502,13 +502,45 @@ def _validate_summary_classifications(value: Any, path: str = "raw_differential_
             if key == "range_classifications":
                 if not isinstance(nested, Sequence) or isinstance(nested, (str, bytes, bytearray)):
                     raise DifferentialError(f"{path}.range_classifications must be a sequence")
+                raw_counts = value.get("range_raw_difference_counts")
+                if raw_counts is not None:
+                    if not isinstance(raw_counts, Sequence) or isinstance(raw_counts, (str, bytes, bytearray)):
+                        raise DifferentialError(f"{path}.range_raw_difference_counts must be a sequence")
+                    if len(raw_counts) != len(nested):
+                        raise DifferentialError(
+                            f"{path}.range_raw_difference_counts must match range_classifications"
+                        )
+                    for index, count in enumerate(raw_counts):
+                        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                            raise DifferentialError(
+                                f"{path}.range_raw_difference_counts[{index}] is invalid"
+                            )
+                reasons = value.get("range_classification_reasons")
+                if reasons is not None:
+                    if not isinstance(reasons, Sequence) or isinstance(reasons, (str, bytes, bytearray)):
+                        raise DifferentialError(f"{path}.range_classification_reasons must be a sequence")
+                    if len(reasons) != len(nested):
+                        raise DifferentialError(
+                            f"{path}.range_classification_reasons must match range_classifications"
+                        )
                 for index, item in enumerate(nested):
                     try:
-                        DifferentialClassification(item)
+                        classification = DifferentialClassification(item)
                     except (TypeError, ValueError) as exc:
                         raise DifferentialError(
                             f"invalid classification at {path}.range_classifications[{index}]"
                         ) from exc
+                    if raw_counts is not None and classification is DifferentialClassification.EXACT_MATCH and raw_counts[index] != 0:
+                        raise DifferentialError(
+                            f"EXACT_MATCH at {path}.range_classifications[{index}] cannot retain raw differing bytes"
+                        )
+                    if classification is DifferentialClassification.NOT_COMPARABLE:
+                        reason = reasons[index] if reasons is not None else None
+                        if not isinstance(reason, str) or not reason.strip():
+                            raise DifferentialError(
+                                f"NOT_COMPARABLE at {path}.range_classifications[{index}] requires a non-empty reason"
+                            )
+                        found_not_comparable = True
                 continue
             if _validate_summary_classifications(nested, f"{path}.{key}"):
                 found_not_comparable = True

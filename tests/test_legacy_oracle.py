@@ -118,6 +118,21 @@ class LegacyOracleDifferentialTests(unittest.TestCase):
         metadata["interpretation_status"] = "NOT_COMPARABLE_TEST_FIXTURE"
         self.assertEqual(validate_corpus_metadata(metadata)["fixture_id"], "test-fixture")
 
+    def test_nested_range_classification_cannot_hide_raw_difference(self):
+        metadata = self._metadata()
+        summary = metadata["raw_differential_summary"]["transaction"]
+        summary["range_classifications"] = ["EXACT_MATCH"]
+        summary["range_raw_difference_counts"] = [1]
+        with self.assertRaisesRegex(DifferentialError, "cannot retain raw differing bytes"):
+            validate_corpus_metadata(metadata)
+        summary["range_classifications"] = ["NOT_COMPARABLE"]
+        summary["range_raw_difference_counts"] = [1]
+        with self.assertRaisesRegex(DifferentialError, "requires a non-empty reason"):
+            validate_corpus_metadata(metadata)
+        summary["range_classification_reasons"] = ["different baseline"]
+        metadata["interpretation_status"] = "NOT_COMPARABLE_TEST_FIXTURE"
+        self.assertEqual(validate_corpus_metadata(metadata)["fixture_id"], "test-fixture")
+
     def test_sanitized_p18_corpus_metadata_is_valid(self):
         corpus_path = (
             Path(__file__).parents[1]
