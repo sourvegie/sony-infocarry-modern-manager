@@ -2136,10 +2136,20 @@ def execute_prepared_library_package_live(
 
     if isinstance(completion, bool) or not isinstance(completion, int) or completion != 0:
         value = repr(completion) if not isinstance(completion, int) else f"0x{completion:04x}"
+        # The sender has already claimed the one-shot transaction.  A
+        # non-integer or boolean completion cannot be mapped to the native
+        # status word, so it is an ambiguous after-start outcome and must
+        # activate the persistent installation-wide lock.  A nonzero integer
+        # remains a determinate device-reported failure.
+        completion_state = (
+            "indeterminate_after_transaction_start"
+            if isinstance(completion, bool) or not isinstance(completion, int)
+            else "failed"
+        )
         raise _failure(
             f"P17-005 completion {value} is not 0x0000",
             stage="write_completion",
-            state="failed",
+            state=completion_state,
             sequence=sequence,
             sender_calls=sender_calls,
             write_started=True,

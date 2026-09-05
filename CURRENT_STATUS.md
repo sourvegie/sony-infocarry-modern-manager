@@ -1,12 +1,13 @@
 # Current Project Status
 
-Date: 2026-09-04
+Date: 2026-09-05
 
 ## Canonical checkpoint
 
-Canonical `main` is `ca74248` (merged PR #29). P18-003 is complete, including
-the bounded owner-observed human workflow check. No live device work is
-authorized by the current governance task.
+Canonical `main` is `63b7e7a` (merged PR #31). P18-004 is complete and P18-005
+is merged with its R3 review complete. P18-005 macOS and Windows Python 3.12
+offline CI both passed in [PR #31 workflow run 33944258579](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33944258579).
+No physical device work is authorized by the current governance task.
 
 ## Current product checkpoint
 
@@ -46,6 +47,33 @@ proven. It never auto-clears from VID/PID; clearing binds the original
 incident/attempt, complete read-only diagnostic evidence, and a documented
 recovery decision.
 
+## P18-005/P18-006 guarded-boundary checkpoint
+
+P18-005 is merged on canonical `main`. Its guarded coordinator reaches only
+the exact reviewed logical shape: one new absent root folder with ordered
+TXT → BMP → TXT children. It requires the exact reviewed VNW-V15 profile, the
+Experimental capability identifier, one sealed operation bundle, current
+hash-only confirmation, fresh backup/capacity revalidation, one sender claim,
+complete post-backup, and independent semantic read-back. The broader flat
+profile remains non-live; the hierarchical profile remains preview-only; VNW-
+V10 remains uncharacterized and non-write-capable.
+
+P18-006 adds the offline/fake A–O adversarial matrix and positive control. It
+covers shape/profile/content/binding/backup/capacity/drift/confirmation/lock/
+transport/one-shot/post-backup/read-back/auxiliary-state/GUI-CLI boundaries,
+including concurrent sender attempts. The matrix passes with no hardware or
+USB access. It found and corrected two R3 safety issues: exact reviewed
+profile-value substitution was not rejected, and malformed or boolean
+post-start completion values were not classified as indeterminate. The latter
+now activates the existing installation-wide persistent lock; nonzero integer
+completion remains determinate failure. No automatic retry is allowed.
+Independent R3 review passed with no correction round required. The reviewer
+recorded a P2 carry-forward: the one-shot claim is process-local, so crash or
+cross-process claim persistence is not proven. That limitation does not block
+this host-only gate because normal GUI/CLI surfaces do not expose the
+coordinator; it must be resolved or explicitly accepted before standing
+physical-write enablement.
+
 ## Verified recent result
 
 P18-004's foundation-quality closure is implemented on the fresh
@@ -66,9 +94,10 @@ platforms.
 The MIT License applies only to this project's own source code. It does not
 grant rights to Sony proprietary software, firmware, documentation,
 trademarks, captures, backups, private evidence, or the separate
-`InfoCarry-Toolkit` and reference archives. The next Product Delivery gate is
-guarded execution and independent read-back verification under a separate
-reviewed task; no live behavior is enabled here.
+`InfoCarry-Toolkit` and reference archives. The guarded execution and
+independent read-back boundary is now host-reviewed under P18-005/P18-006;
+no live behavior is enabled for normal application surfaces and no physical
+compatibility is claimed.
 
 P18-001A’s bounded responsive Library correction is **COMPLETE** based on the
 owner’s human-observed retest at approximately 980×680 and 1120×760 or
@@ -83,8 +112,9 @@ evidence records. The capability authority is
 
 ## Safety posture
 
-- This task is R2 host/offline work. No hardware access, approval phrase,
-  sender construction, `0x101b`, or live enablement is authorized.
+- This task is host/offline verification with two bounded R3 corrections. No
+  hardware access, approval phrase, sender construction, `0x101b`, or live
+  enablement is authorized.
 - Nested content is host preparation/preview only within its exact draft
   profile. Unsupported shapes, excessive limits, automatic grouping, batch
   operations, overwrite/merge/delete, restore, synchronization, and recovery
@@ -104,16 +134,16 @@ evidence records. The capability authority is
 
 ## Delivery and review
 
-The two active streams are Product Delivery and Legacy Oracle. The required
-sequence is recorded in the P18-002 ADR: close visual usability, resolve
-licensing/hermetic/Windows CI concerns, define the capability profile and
-façade, add selection/order/prepare/preview, then separately review guarded
-execution, offline tamper coverage, Oracle comparison, and one combined GUI
-hardware smoke before standing Experimental enablement.
+The two active streams are Product Delivery and Legacy Oracle. P18-004 and
+P18-005 are merged; P18-006 closes the host/offline guarded-boundary matrix.
+The next remaining gates are Legacy Oracle differential/comparison and then
+one combined owner-approved GUI hardware validation before any standing
+Experimental enablement.
 
-Portable baseline through merged P18-002/P18-002B: 673 passing, 3 intentional
-skips. P18-003 focused validation is 37 passing; the full portable suite is
-688 passing with 3 intentional skips. Compilation and `git diff --check` pass.
+Portable baseline figures through P18-003 remain recorded below for history.
+P18-006 focused validation is 17 passing; the guarded/P17 focused validation
+is 155 passing; the full portable suite is 714 passing with 3 intentional
+skips. Compilation and `git diff --check` pass.
 Independent R2 re-review is PASS with no remaining material findings. PR #28
 was merged after its GitHub Python 3.12 offline-suite check passed; no hardware
 or live validation is claimed.
@@ -123,6 +153,14 @@ reported “Everything works as expected” and supplied the offline Prepare and
 device-tree Preview artifacts for the expected ordered TXT/BMP/TXT package.
 This is bounded human GUI/workflow evidence only; it does not claim hardware,
 USB, candidate, authorization, or live-write behavior.
+
+P18-006 outcome: `COMPLETE` for host-verifiable offline guarded-transfer and
+tamper coverage, with the documented P2 cross-process claim carry-forward.
+This does not authorize a device write. The exact
+TXT/BMP/TXT shape remains the only guarded-execution shape; broader flat,
+hierarchical, and V10 paths remain unavailable or preview-only.
+The required GitHub Python 3.12 offline workflow passed on both
+`macos-latest` and `windows-latest` in [PR #32 workflow run 33950704593](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33950704593).
 
 ## Execution workflow
 
