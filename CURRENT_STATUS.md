@@ -92,8 +92,8 @@ payload immediately before driver/USB submission. No transmission, hardware,
 or live Oracle operation occurred. The reusable comparator preserves raw
 differences alongside any normalized view, and no production transfer code or
 capability row was broadened. Independent R2 review/re-review passed with no
-remaining material findings. The focused PR is [PR #33](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/33), with both [macOS](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33961805274/job/101294857830)
-and [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33961805274/job/101294857765)
+remaining material findings. The focused PR is [PR #33](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/33), with both [macOS](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33962042514/job/101295488675)
+and [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33962042514/job/101295488741)
 Python 3.12 CI passing. A same-baseline P16 whole-blob observation or
 hierarchical fixture is not required for the completed A–C host-side result.
 The P18-006 process-local one-shot claim remains unresolved pre-hardware work.
@@ -160,8 +160,20 @@ evidence records. The capability authority is
 
 The two active streams are Product Delivery and Legacy Oracle. P18-004 through
 P18-006 are merged, and P18-007 closes the offline Legacy Oracle
-differential/comparison gate. The next gate is one combined owner-approved GUI
-hardware validation before any standing Experimental enablement.
+differential/comparison gate. The pre-hardware sequence is:
+
+P18-007 Legacy Oracle complete
+↓
+pre-hardware crash/cross-process one-shot persistence closure
+↓
+required R3 host-side review/validation
+↓
+separate owner approval
+↓
+combined GUI hardware validation of the exact enabled profile
+
+The one-shot persistence issue remains unresolved and has not been accepted by
+the owner. Hardware validation is not the immediate next task.
 
 Portable baseline figures through P18-006 remain recorded below for history.
 P18-006 focused validation is 17 passing; the guarded/P17 focused validation
