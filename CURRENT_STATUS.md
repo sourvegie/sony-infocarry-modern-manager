@@ -159,6 +159,8 @@ tamper coverage, with the documented P2 cross-process claim carry-forward.
 This does not authorize a device write. The exact
 TXT/BMP/TXT shape remains the only guarded-execution shape; broader flat,
 hierarchical, and V10 paths remain unavailable or preview-only.
+The required GitHub Python 3.12 offline workflow passed on both
+`macos-latest` and `windows-latest` in [PR #32 workflow run 33950704593](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33950704593).
 
 ## Execution workflow
 

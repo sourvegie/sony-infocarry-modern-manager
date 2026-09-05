@@ -94,6 +94,17 @@ claim persistence. This does not block the host-only P18-006 outcome because
 normal GUI/CLI surfaces do not expose this coordinator. It must be resolved or
 explicitly accepted before standing physical-write enablement.
 
+## Validation record
+
+Local macOS validation passed: 17 P18-006 matrix tests, 155 guarded/P17
+focused tests, and the full portable suite of 714 tests with 3 intentional
+evidence-dependent skips. `compileall` and `git diff --check` passed. The
+required GitHub Python 3.12 offline workflow also passed on both
+`macos-latest` and `windows-latest` in [workflow run 33950704593](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33950704593).
+
+These results remain host/fake validation only and do not establish physical
+hardware compatibility.
+
 ## Review and remaining gates
 
 Because production safety code changed in profile gating and completion
