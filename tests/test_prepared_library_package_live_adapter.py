@@ -9,8 +9,19 @@ from unittest.mock import patch
 
 from infocarry.backup_format import calculate_backup_checksum, parse_backup_blob
 from infocarry.capacity_evidence import NativeCapacityResponse
+from infocarry.device_model_profile import VNW_V10_PROFILE
 from infocarry.device_info import RawInfoResponse
+from infocarry.experimental_library_transfer import (
+    GuardedLibraryExecutionCoordinator,
+    GuardedLibraryExecutionError,
+    run_experimental_library_transfer,
+)
+from infocarry.indeterminate_write_lock import (
+    IndeterminateWriteLockError,
+    PersistentIndeterminateWriteLock,
+)
 from infocarry.library import LibraryCatalog
+from infocarry.library_transfer_plan import build_library_transfer_plan
 from infocarry.prepared_library_package_live_adapter import (
     P17_005_CONFIRMATION,
     P17_005_OWNER_APPROVAL,
@@ -1303,6 +1314,173 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             setup["bundle"].package_children[0]["name"] = "changed"
         with self.assertRaises(TypeError):
             setup["bundle"].expected_post_operation["changed"] = True
+
+    def _guarded_plan(self, setup):
+        return build_library_transfer_plan(
+            setup["catalog"],
+            selected_item_ids=[setup["item"].item_id],
+            backup=setup["preflight"].before_backup,
+            available_capacity_bytes=1_000_000,
+        ).to_dict()
+
+    def _run_guarded(
+        self,
+        setup,
+        *,
+        plan=None,
+        confirmation=None,
+        confirmation_interaction=None,
+        **overrides,
+    ):
+        arguments = {
+            "indeterminate_write_lock": PersistentIndeterminateWriteLock(
+                setup["root"] / "indeterminate-write-lock.json"
+            ),
+            "plan_report": self._guarded_plan(setup) if plan is None else plan,
+            "confirmation_interaction": confirmation_interaction
+            or (
+                lambda _review: P17_005_CONFIRMATION
+                if confirmation is None
+                else confirmation
+            ),
+            "detect_device": setup["common"]["detect_device"],
+            "query_capacity": setup["common"]["query_capacity"],
+            "backend": setup["backend"],
+            "capture": setup["capture"],
+            "evidence_namespace": setup["evidence_namespace"],
+            "now": self.now,
+            "max_age_seconds": None,
+        }
+        arguments.update(overrides)
+        return run_experimental_library_transfer(setup["bundle"], **arguments)
+
+    def test_guarded_coordinator_runs_one_exact_reviewed_lifecycle(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        seen_review = []
+
+        result = self._run_guarded(
+            setup,
+            confirmation_interaction=lambda review: seen_review.append(review)
+            or P17_005_CONFIRMATION,
+            low_level_bulk_write_calls=20,
+        )
+
+        self.assertEqual(result.audit["state"], "readback_verified")
+        self.assertEqual(result.runner_result.audit["workflow"]["sender_calls"], 1)
+        self.assertEqual(self._sender_calls(setup), 1)
+        self.assertEqual(len(setup["captures"]), 3)
+        self.assertEqual(len(seen_review), 1)
+        self.assertFalse(seen_review[0]["eligibility"]["execution_action_exposed"])
+        self.assertIsNone(
+            PersistentIndeterminateWriteLock(
+                setup["root"] / "indeterminate-write-lock.json"
+            ).read()
+        )
+
+    def test_guarded_coordinator_rejects_v10_before_any_callback(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(GuardedLibraryExecutionError):
+                GuardedLibraryExecutionCoordinator(
+                    indeterminate_write_lock=PersistentIndeterminateWriteLock(
+                        Path(temporary) / "lock.json"
+                    ),
+                    device_model_profile=VNW_V10_PROFILE,
+                )
+
+    def test_guarded_coordinator_rejects_non_exact_plan_before_confirmation(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        plan = self._guarded_plan(setup)
+        plan["items"][0]["prepared_artifact"]["ordered_children"][1]["kind"] = "txt"
+        with self.assertRaises(GuardedLibraryExecutionError) as raised:
+            self._run_guarded(
+                setup,
+                plan=plan,
+                confirmation=lambda _review: self.fail("confirmation must not be shown"),
+            )
+        self.assertEqual(raised.exception.stage, "eligibility")
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertEqual(len(setup["captures"]), 1)
+
+    def test_guarded_coordinator_rejects_wrong_transaction_confirmation(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
+            self._run_guarded(setup, confirmation="wrong transaction")
+        self.assertEqual(raised.exception.stage, "approval")
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertEqual(len(setup["captures"]), 1)
+        self.assertIsNone(
+            PersistentIndeterminateWriteLock(
+                setup["root"] / "indeterminate-write-lock.json"
+            ).read()
+        )
+
+    def test_guarded_coordinator_revalidates_plan_after_confirmation_before_send(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        plan = self._guarded_plan(setup)
+        original_capture = setup["capture"]
+
+        def mutate_after_confirmation(destination, **kwargs):
+            if Path(destination).name == "backup-before-0001":
+                plan["items"][0]["destination"]["paths"][0] = "root\\changed"
+            return original_capture(destination, **kwargs)
+
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
+            self._run_guarded(setup, plan=plan, capture=mutate_after_confirmation)
+        self.assertEqual(raised.exception.stage, "pre_send_revalidation")
+        self.assertFalse(raised.exception.write_started)
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertEqual(len(setup["captures"]), 2)
+        self.assertIsNone(
+            PersistentIndeterminateWriteLock(
+                setup["root"] / "indeterminate-write-lock.json"
+            ).read()
+        )
+
+    def test_guarded_coordinator_persists_global_lock_for_indeterminate_write(self):
+        setup = self._setup(backend=PackageWorkflowBackend(bulk_error=OSError("disconnect")))
+        self.addCleanup(setup["temporary"].cleanup)
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
+            self._run_guarded(setup)
+        self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
+        record = PersistentIndeterminateWriteLock(
+            setup["root"] / "indeterminate-write-lock.json"
+        ).read()
+        self.assertIsNotNone(record)
+        self.assertTrue(record.locked)
+        self.assertEqual(record.model_key.value, "sony-vnw-v15")
+        calls_after_failure = len(setup["backend"].calls)
+        with self.assertRaises(IndeterminateWriteLockError):
+            self._run_guarded(setup)
+        self.assertEqual(len(setup["backend"].calls), calls_after_failure)
+
+    def test_guarded_coordinator_does_not_lock_determinate_nonzero_completion(self):
+        setup = self._setup(backend=PackageWorkflowBackend(completions=(1,)))
+        self.addCleanup(setup["temporary"].cleanup)
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
+            self._run_guarded(setup)
+        self.assertEqual(raised.exception.state, "failed")
+        self.assertTrue(raised.exception.write_started)
+        self.assertIsNone(
+            PersistentIndeterminateWriteLock(
+                setup["root"] / "indeterminate-write-lock.json"
+            ).read()
+        )
+
+    def test_guarded_coordinator_locks_when_post_backup_is_not_obtained(self):
+        setup = self._setup(capture_error=True)
+        self.addCleanup(setup["temporary"].cleanup)
+        with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
+            self._run_guarded(setup)
+        self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
+        record = PersistentIndeterminateWriteLock(
+            setup["root"] / "indeterminate-write-lock.json"
+        ).read()
+        self.assertIsNotNone(record)
+        self.assertTrue(record.locked)
 
     def test_operation_bundle_live_signature_has_no_manual_artifact_pairing(self):
         import inspect

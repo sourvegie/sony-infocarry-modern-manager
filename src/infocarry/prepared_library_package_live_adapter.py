@@ -1817,6 +1817,7 @@ def execute_prepared_library_package_live(
     evidence_namespace: Path,
     evidence_root_allocator: Optional[EvidenceRootAllocator] = None,
     preflight_only: bool = False,
+    pre_send_revalidator: Optional[Callable[[], None]] = None,
     policy: WritePolicy = WritePolicy(),
     clock: Clock = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
@@ -1854,6 +1855,12 @@ def execute_prepared_library_package_live(
         query_capacity=query_capacity,
         capture=capture,
     )
+    if pre_send_revalidator is not None and not callable(pre_send_revalidator):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "P17-005 pre_send_revalidator must be callable",
+            stage="preflight",
+            state="failed",
+        )
     sequence = ["live_preflight_seal_verified"]
     sender_calls = 0
     approval_consumed = False
@@ -1991,6 +1998,24 @@ def execute_prepared_library_package_live(
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
         ) from exc
+
+    if not preflight_only and pre_send_revalidator is not None:
+        try:
+            pre_send_revalidator()
+        except Exception as exc:
+            raise _failure(
+                f"P17-005 pre-send revalidation failed: {exc}",
+                stage="pre_send_revalidation",
+                state="failed",
+                sequence=sequence,
+                sender_calls=sender_calls,
+                write_started=False,
+                candidate=candidate,
+                authorization=authorization,
+                primary_error=str(exc),
+                evidence_outputs=evidence_outputs,
+                approval_consumed=approval_consumed,
+            ) from exc
 
     try:
         if preflight_only:

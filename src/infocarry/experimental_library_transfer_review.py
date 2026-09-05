@@ -227,12 +227,51 @@ def _sealed_ready_bindings(
             child.get("path"),
         ) != (order, kind, _expected_paths()[order + 1]):
             raise ExperimentalLibraryTransferReviewError("candidate ordered child summary differs")
-        if not isinstance(plan_child, Mapping) or any(
-            child.get(field) != plan_child.get(field)
-            for field in ("source_sha256", "source_bytes", "prepared_payload_sha256")
+        candidate_payload_sha256 = child.get(
+            "payload_sha256", child.get("prepared_payload_sha256")
+        )
+        candidate_payload_bytes = child.get(
+            "payload_length", child.get("prepared_payload_bytes")
+        )
+        if not isinstance(plan_child, Mapping) or (
+            child.get("source_sha256") != plan_child.get("source_sha256")
+            or candidate_payload_sha256 != plan_child.get("prepared_payload_sha256")
+            or (
+                candidate_payload_bytes is not None
+                and candidate_payload_bytes != plan_child.get("prepared_payload_bytes")
+            )
+            or (
+                child.get("source_bytes") is not None
+                and child.get("source_bytes") != plan_child.get("source_bytes")
+            )
         ):
             raise ExperimentalLibraryTransferReviewError(
                 "candidate child hashes or source size differ from the Library manifest"
+            )
+
+    bundle_children = bundle.get("package_children")
+    for bundle_child, plan_child, expected in zip(
+        bundle_children, plan_children, EXPERIMENTAL_CHILDREN
+    ):
+        if not isinstance(bundle_child, Mapping) or not isinstance(plan_child, Mapping):
+            raise ExperimentalLibraryTransferReviewError(
+                "operation bundle child manifest is malformed"
+            )
+        order, kind, name = expected
+        if (
+            bundle_child.get("order"),
+            bundle_child.get("kind"),
+            bundle_child.get("name"),
+        ) != expected or (
+            bundle_child.get("source_sha256") != plan_child.get("source_sha256")
+            or bundle_child.get("source_bytes") != plan_child.get("source_bytes")
+            or bundle_child.get("prepared_payload_sha256")
+            != plan_child.get("prepared_payload_sha256")
+            or bundle_child.get("prepared_payload_bytes")
+            != plan_child.get("prepared_payload_bytes")
+        ):
+            raise ExperimentalLibraryTransferReviewError(
+                f"operation bundle child {name} differs from the Library manifest"
             )
     if item.get("prepared_artifact", {}).get("manifest_sha256") != package.get("prepared_manifest_sha256"):
         raise ExperimentalLibraryTransferReviewError("Library manifest differs from the sealed candidate")
@@ -345,6 +384,18 @@ def build_experimental_library_transfer_review(
     eligibility = plan_report.get("eligibility")
     if not isinstance(eligibility, Mapping) or eligibility.get("queue_ready") is not True:
         reasons.append("the queue plan is not fully revalidated and queue-ready")
+    if not isinstance(selection, Mapping) or selection.get("mode") != "selected":
+        reasons.append("the Experimental operation requires explicit selected-item planning")
+    for key in ("offline_review_ready", "device_candidate_eligible", "transfer_enabled"):
+        expected = True if key == "offline_review_ready" else False
+        if not isinstance(eligibility, Mapping) or eligibility.get(key) is not expected:
+            reasons.append(f"the queue plan host-only eligibility flag {key!r} is not safe")
+    grouping = plan_report.get("grouping")
+    if not isinstance(grouping, Mapping) or (
+        grouping.get("automatic_grouping") is not False
+        or grouping.get("overlap_status") != "none"
+    ):
+        reasons.append("automatic package grouping or destination overlap is not permitted")
     exact_item = False
     item: Mapping[str, Any]
     try:
@@ -355,6 +406,8 @@ def build_experimental_library_transfer_review(
             reasons.append("the selected Library item identity does not match the queue selection")
         if item.get("queue_ready") is not True:
             reasons.append("the selected Library item is not fully revalidated and queue-ready")
+        if item.get("execution_eligible") is not False:
+            reasons.append("the host queue item cannot advertise execution eligibility")
         exact_item, profile_reasons = _package_is_exact(item)
         reasons.extend(profile_reasons)
     except ExperimentalLibraryTransferReviewError as exc:
@@ -363,6 +416,18 @@ def build_experimental_library_transfer_review(
 
     if not exact_item and not reasons:
         reasons.append("the selected package is outside the proven Experimental profile")
+    plan_safety = plan_report.get("safety")
+    for key in (
+        "source_mutated",
+        "catalog_mutated",
+        "candidate_constructed",
+        "authorization_created",
+        "transaction_constructed",
+        "sender_called",
+        "automatic_retry",
+    ):
+        if not isinstance(plan_safety, Mapping) or plan_safety.get(key) is not False:
+            reasons.append(f"the queue plan safety flag {key!r} is not host-only")
     bindings: dict[str, Any] = {}
     if exact_item and (preflight_report is None or bundle_report is None):
         reasons.extend(
