@@ -787,7 +787,9 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
         self.assertTrue(raised.exception.write_started)
         self.assertEqual(self._sender_calls(setup), 1)
-        self.assertIsNotNone(setup["execution_claim_store"].read_sender_in_flight())
+        marker = setup["execution_claim_store"].read_sender_in_flight()
+        self.assertIsNotNone(marker)
+        self.assertEqual(marker.state, "in_flight")
 
         for backend_error in (TransferTimeoutError("timeout"), OSError("disconnect")):
             failed = self._setup(backend=PackageWorkflowBackend(bulk_error=backend_error))
@@ -1545,7 +1547,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             incident_id="abandoned-incident",
             evidence_root=str(setup["evidence_namespace"]),
         )
-        self.assertEqual(marker.state, "in_flight")
+        self.assertEqual(marker.record.state, "in_flight")
 
         with self.assertRaises(IndeterminateWriteLockError):
             GuardedLibraryExecutionCoordinator(

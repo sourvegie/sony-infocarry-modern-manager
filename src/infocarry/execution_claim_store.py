@@ -22,6 +22,7 @@ import sqlite3
 from typing import Any, Mapping
 from uuid import uuid4
 
+from .indeterminate_write_lock import IndeterminateWriteLockRecord
 
 PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT = (
     "infocarry-persistent-execution-claim-store-v1"
@@ -34,12 +35,11 @@ SQLITE_BUSY_TIMEOUT_SECONDS = 5.0
 _METADATA_KEY = "format"
 _SENDER_MARKER_ID = 1
 _SENDER_MARKER_STATES = frozenset({"in_flight", "lock_recorded"})
-_SENDER_RESOLUTIONS = frozenset(
+_TERMINAL_SENDER_RESOLUTIONS = frozenset(
     {
         "determinate_no_start",
         "determinate_completion_failure",
         "verified_terminal_success",
-        "recovered_after_diagnostic",
     }
 )
 
@@ -248,6 +248,29 @@ class SenderInFlightRecord:
         }
 
 
+class SenderInFlightHandle:
+    """Non-persisted proof held by the process that entered the sender path."""
+
+    __slots__ = ("record", "_terminal_token")
+
+    def __init__(self) -> None:
+        raise TypeError("sender handles are issued by PersistentExecutionClaimStore")
+
+    @classmethod
+    def _create(
+        cls,
+        record: SenderInFlightRecord,
+        terminal_token: object,
+    ) -> "SenderInFlightHandle":
+        handle = object.__new__(cls)
+        handle.record = record
+        handle._terminal_token = terminal_token
+        return handle
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.record.to_dict()
+
+
 class PersistentExecutionClaimStore:
     """Installation-stable SQLite claim and sender-marker store.
 
@@ -299,6 +322,7 @@ class PersistentExecutionClaimStore:
             )
         self.path = resolved
         self._path_existed_at_open = resolved.exists()
+        self._terminal_resolution_token = object()
         connection = self._open_connection()
         try:
             self._ensure_schema(connection)
@@ -520,6 +544,73 @@ class PersistentExecutionClaimStore:
             record.capacity_response_sha256,
         ) == identities
 
+    def _assert_marker_claim_binding(
+        self,
+        connection: sqlite3.Connection,
+        marker: SenderInFlightRecord,
+    ) -> None:
+        claim_row = connection.execute(
+            self._claim_select_sql()
+            + " FROM execution_claims WHERE preflight_seal_sha256 = ?",
+            (marker.preflight_seal_sha256,),
+        ).fetchone()
+        if claim_row is None:
+            raise ExecutionClaimStoreError(
+                "sender marker does not reference a committed tombstone"
+            )
+        claim = self._claim_from_row(claim_row)
+        if (
+            not self._claim_bindings_match(
+                claim,
+                (
+                    marker.preflight_seal_sha256,
+                    marker.core_preflight_seal_sha256,
+                    marker.candidate_blob_sha256,
+                    marker.transaction_sha256,
+                    marker.authorization_sha256,
+                    marker.baseline_state_identity_sha256,
+                    marker.capacity_response_sha256,
+                ),
+            )
+            or claim.claim_id != marker.claim_id
+        ):
+            raise ExecutionClaimStoreError(
+                "sender marker bindings differ from the committed tombstone"
+            )
+
+    def _read_current_marker(
+        self,
+        connection: sqlite3.Connection,
+    ) -> SenderInFlightRecord:
+        row = connection.execute(
+            self._marker_select_sql()
+            + " FROM sender_in_flight WHERE marker_id = ?",
+            (_SENDER_MARKER_ID,),
+        ).fetchone()
+        if row is None:
+            raise ExecutionClaimStoreError("sender marker is no longer active")
+        return self._marker_from_row(row)
+
+    def _delete_marker(
+        self,
+        connection: sqlite3.Connection,
+        marker: SenderInFlightRecord,
+        *,
+        allowed_states: frozenset[str],
+    ) -> None:
+        current = self._read_current_marker(connection)
+        if current != marker:
+            raise ExecutionClaimStoreError("sender marker changed before resolution")
+        if current.state not in allowed_states:
+            raise ExecutionClaimStoreError(
+                f"sender marker state {current.state!r} cannot be resolved here"
+            )
+        self._assert_marker_claim_binding(connection, current)
+        connection.execute(
+            "DELETE FROM sender_in_flight WHERE marker_id = ?",
+            (_SENDER_MARKER_ID,),
+        )
+
     def consume(
         self,
         *,
@@ -632,7 +723,11 @@ class PersistentExecutionClaimStore:
                 + " FROM sender_in_flight WHERE marker_id = ?",
                 (_SENDER_MARKER_ID,),
             ).fetchone()
-            return None if row is None else self._marker_from_row(row)
+            if row is None:
+                return None
+            marker = self._marker_from_row(row)
+            self._assert_marker_claim_binding(connection, marker)
+            return marker
         except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
             raise ExecutionClaimStoreError(
                 f"sender marker could not be read: {exc}"
@@ -654,7 +749,7 @@ class PersistentExecutionClaimStore:
         attempt_id: str,
         incident_id: str,
         evidence_root: str,
-    ) -> SenderInFlightRecord:
+    ) -> SenderInFlightHandle:
         if not isinstance(claim, ExecutionClaimRecord):
             raise ExecutionClaimStoreError("sender marker requires a durable execution claim")
         _required_text(attempt_id, "attempt_id")
@@ -727,7 +822,10 @@ class PersistentExecutionClaimStore:
                     "another sender-start marker is already active"
                 ) from exc
             self._commit(connection)
-            return marker
+            return SenderInFlightHandle._create(
+                marker,
+                self._terminal_resolution_token,
+            )
         except (ExecutionClaimStoreError, SenderInFlightError):
             self._rollback(connection)
             raise
@@ -745,13 +843,10 @@ class PersistentExecutionClaimStore:
         connection = self._open_connection()
         try:
             connection.execute("BEGIN IMMEDIATE")
-            row = connection.execute(
-                self._marker_select_sql()
-                + " FROM sender_in_flight WHERE marker_id = ?",
-                (_SENDER_MARKER_ID,),
-            ).fetchone()
-            if row is None or self._marker_from_row(row) != marker:
+            current = self._read_current_marker(connection)
+            if current != marker:
                 raise ExecutionClaimStoreError("sender marker changed before lock transition")
+            self._assert_marker_claim_binding(connection, current)
             connection.execute(
                 "UPDATE sender_in_flight SET state = 'lock_recorded' WHERE marker_id = ?",
                 (_SENDER_MARKER_ID,),
@@ -769,29 +864,28 @@ class PersistentExecutionClaimStore:
         finally:
             connection.close()
 
-    def resolve_sender_in_flight(
+    def resolve_sender_terminal(
         self,
-        marker: SenderInFlightRecord,
+        handle: SenderInFlightHandle,
         *,
         resolution: str,
     ) -> None:
-        if not isinstance(marker, SenderInFlightRecord):
-            raise ExecutionClaimStoreError("sender resolution requires a sender marker")
-        if resolution not in _SENDER_RESOLUTIONS:
-            raise ExecutionClaimStoreError("sender resolution is unsupported")
+        if (
+            not isinstance(handle, SenderInFlightHandle)
+            or handle._terminal_token is not self._terminal_resolution_token
+        ):
+            raise ExecutionClaimStoreError(
+                "sender terminal resolution requires the live-process sender handle"
+            )
+        if resolution not in _TERMINAL_SENDER_RESOLUTIONS:
+            raise ExecutionClaimStoreError("sender terminal resolution is unsupported")
         connection = self._open_connection()
         try:
             connection.execute("BEGIN IMMEDIATE")
-            row = connection.execute(
-                self._marker_select_sql()
-                + " FROM sender_in_flight WHERE marker_id = ?",
-                (_SENDER_MARKER_ID,),
-            ).fetchone()
-            if row is None or self._marker_from_row(row) != marker:
-                raise ExecutionClaimStoreError("sender marker changed before resolution")
-            connection.execute(
-                "DELETE FROM sender_in_flight WHERE marker_id = ?",
-                (_SENDER_MARKER_ID,),
+            self._delete_marker(
+                connection,
+                handle.record,
+                allowed_states=frozenset({"in_flight"}),
             )
             self._commit(connection)
         except ExecutionClaimStoreError:
@@ -805,6 +899,50 @@ class PersistentExecutionClaimStore:
         finally:
             connection.close()
 
+    def resolve_sender_after_diagnostic(
+        self,
+        marker: SenderInFlightRecord,
+        *,
+        lock_record: IndeterminateWriteLockRecord,
+    ) -> None:
+        """Resolve only after the existing global lock was explicitly cleared."""
+
+        if not isinstance(marker, SenderInFlightRecord):
+            raise ExecutionClaimStoreError(
+                "diagnostic sender resolution requires a persisted sender marker"
+            )
+        if not isinstance(lock_record, IndeterminateWriteLockRecord):
+            raise ExecutionClaimStoreError(
+                "diagnostic sender resolution requires a typed lock record"
+            )
+        if (
+            lock_record.state != "cleared"
+            or lock_record.incident_id != marker.incident_id
+            or lock_record.attempt_id != marker.attempt_id
+        ):
+            raise ExecutionClaimStoreError(
+                "cleared lock does not bind the original sender incident and attempt"
+            )
+        connection = self._open_connection()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            self._delete_marker(
+                connection,
+                marker,
+                allowed_states=frozenset({"in_flight", "lock_recorded"}),
+            )
+            self._commit(connection)
+        except ExecutionClaimStoreError:
+            self._rollback(connection)
+            raise
+        except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+            self._rollback(connection)
+            raise ExecutionClaimStoreError(
+                f"diagnostic sender resolution could not be committed: {exc}"
+            ) from exc
+        finally:
+            connection.close()
+
 
 __all__ = [
     "EXECUTION_CLAIM_SCHEMA_VERSION",
@@ -814,6 +952,7 @@ __all__ = [
     "PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE",
     "PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT",
     "PersistentExecutionClaimStore",
+    "SenderInFlightHandle",
     "SenderInFlightError",
     "SenderInFlightRecord",
 ]

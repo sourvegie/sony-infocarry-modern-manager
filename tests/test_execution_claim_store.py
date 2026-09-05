@@ -8,11 +8,13 @@ import textwrap
 import unittest
 from unittest.mock import patch
 
+from infocarry.device_model_profile import DeviceModelLockKey
 from infocarry.execution_claim_store import (
     ExecutionClaimAlreadyConsumedError,
     ExecutionClaimStoreError,
     PersistentExecutionClaimStore,
 )
+from infocarry.indeterminate_write_lock import IndeterminateWriteLockRecord
 
 
 IDENTITIES = {
@@ -138,7 +140,7 @@ class PersistentExecutionClaimStoreTests(unittest.TestCase):
                 incident_id="incident-1",
                 evidence_root="/external/attempt-1",
             )
-            self.assertEqual(store.read_sender_in_flight(), marker)
+            self.assertEqual(store.read_sender_in_flight(), marker.record)
             with self.assertRaises(ExecutionClaimStoreError):
                 store.mark_sender_in_flight(
                     claim,
@@ -146,15 +148,77 @@ class PersistentExecutionClaimStoreTests(unittest.TestCase):
                     incident_id="incident-2",
                     evidence_root="/external/attempt-2",
                 )
-            recorded = store.mark_sender_lock_recorded(marker)
-            self.assertEqual(recorded.state, "lock_recorded")
-            store.resolve_sender_in_flight(
-                recorded,
-                resolution="recovered_after_diagnostic",
+            store.resolve_sender_terminal(
+                marker,
+                resolution="verified_terminal_success",
             )
             self.assertIsNone(store.read_sender_in_flight())
             with self.assertRaises(ExecutionClaimAlreadyConsumedError):
                 store.consume(**IDENTITIES)
+
+            different = dict(IDENTITIES)
+            different["preflight_seal_sha256"] = "1" * 64
+            second_claim = store.consume(**different)
+            second_marker = store.mark_sender_in_flight(
+                second_claim,
+                attempt_id="attempt-2",
+                incident_id="incident-2",
+                evidence_root="/external/attempt-2",
+            )
+            recorded = store.mark_sender_lock_recorded(second_marker.record)
+            self.assertEqual(recorded.state, "lock_recorded")
+            with self.assertRaises(ExecutionClaimStoreError):
+                store.resolve_sender_terminal(
+                    recorded,
+                    resolution="determinate_no_start",
+                )
+            cleared_lock = IndeterminateWriteLockRecord(
+                model_key=DeviceModelLockKey("sony-vnw-v15"),
+                incident_id="incident-2",
+                attempt_id="attempt-2",
+                state="cleared",
+                reason="abandoned sender marker",
+                evidence_root="/external/diagnostic",
+                recorded_at_utc="2026-09-06T00:00:00+00:00",
+                diagnostic_backup_sha256="2" * 64,
+                recovery_decision="clear",
+                decision_record_sha256="3" * 64,
+            )
+            store.resolve_sender_after_diagnostic(
+                recorded,
+                lock_record=cleared_lock,
+            )
+            self.assertIsNone(store.read_sender_in_flight())
+
+    def test_marker_logical_binding_corruption_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "claims.sqlite3"
+            store = PersistentExecutionClaimStore(path)
+            claim = store.consume(**IDENTITIES)
+            marker = store.mark_sender_in_flight(
+                claim,
+                attempt_id="attempt-corrupt",
+                incident_id="incident-corrupt",
+                evidence_root="/external/corrupt",
+            )
+            connection = sqlite3.connect(path)
+            try:
+                connection.execute(
+                    "UPDATE sender_in_flight SET transaction_sha256 = ? WHERE marker_id = 1",
+                    ("1" * 64,),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+            with self.assertRaises(ExecutionClaimStoreError):
+                store.read_sender_in_flight()
+            # The in-process terminal handle cannot bypass the persisted
+            # binding check after the row has been tampered with.
+            with self.assertRaises(ExecutionClaimStoreError):
+                store.resolve_sender_terminal(
+                    marker,
+                    resolution="verified_terminal_success",
+                )
 
     def test_restart_and_abrupt_crash_are_real_subprocess_boundaries(self):
         with tempfile.TemporaryDirectory() as temporary:

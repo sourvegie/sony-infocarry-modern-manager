@@ -39,6 +39,7 @@ from .execution_claim_store import (
     PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE,
     PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT,
     PersistentExecutionClaimStore,
+    SenderInFlightHandle,
     SenderInFlightRecord,
 )
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
@@ -2083,7 +2084,7 @@ def execute_prepared_library_package_live(
     approval_consumed = False
     claim_record: Optional[ExecutionClaimRecord] = None
     claim_audit: Optional[dict[str, Any]] = None
-    sender_marker: Optional[SenderInFlightRecord] = None
+    sender_marker: Optional[SenderInFlightHandle] = None
     try:
         preflight.verify_seal()
     except PreparedLibraryPackageLiveAdapterError:
@@ -2340,7 +2341,7 @@ def execute_prepared_library_package_live(
             )
             claim_audit = _execution_claim_audit(
                 claim_record,
-                sender_marker=sender_marker,
+                sender_marker=sender_marker.record,
                 sender_marker_state="in_flight",
             )
         except Exception as exc:
@@ -2388,7 +2389,7 @@ def execute_prepared_library_package_live(
             and assessment.device_outcome != "indeterminate"
         ):
             try:
-                execution_claim_store.resolve_sender_in_flight(
+                execution_claim_store.resolve_sender_terminal(
                     sender_marker,
                     resolution=(
                         "determinate_no_start"
@@ -2398,7 +2399,7 @@ def execute_prepared_library_package_live(
                 )
                 claim_audit = _execution_claim_audit(
                     claim_record,
-                    sender_marker=sender_marker,
+                    sender_marker=sender_marker.record,
                     sender_marker_state="resolved",
                     sender_marker_resolved=True,
                 )
@@ -2431,13 +2432,13 @@ def execute_prepared_library_package_live(
         value = repr(completion) if not isinstance(completion, int) else f"0x{completion:04x}"
         if sender_marker is not None and isinstance(completion, int) and not isinstance(completion, bool):
             try:
-                execution_claim_store.resolve_sender_in_flight(
+                execution_claim_store.resolve_sender_terminal(
                     sender_marker,
                     resolution="determinate_completion_failure",
                 )
                 claim_audit = _execution_claim_audit(
                     claim_record,
-                    sender_marker=sender_marker,
+                    sender_marker=sender_marker.record,
                     sender_marker_state="resolved",
                     sender_marker_resolved=True,
                 )
@@ -2532,13 +2533,13 @@ def execute_prepared_library_package_live(
             now=None,
             max_age_seconds=max_age_seconds,
         )
-        execution_claim_store.resolve_sender_in_flight(
+        execution_claim_store.resolve_sender_terminal(
             sender_marker,
             resolution="verified_terminal_success",
         )
         claim_audit = _execution_claim_audit(
             claim_record,
-            sender_marker=sender_marker,
+            sender_marker=sender_marker.record,
             sender_marker_state="resolved",
             sender_marker_resolved=True,
         )

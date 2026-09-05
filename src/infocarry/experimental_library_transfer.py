@@ -173,10 +173,11 @@ class GuardedLibraryExecutionCoordinator:
                 lock_record is not None
                 and not lock_record.locked
                 and lock_record.attempt_id == marker.attempt_id
+                and lock_record.incident_id == marker.incident_id
             ):
-                self.execution_claim_store.resolve_sender_in_flight(
+                self.execution_claim_store.resolve_sender_after_diagnostic(
                     marker,
-                    resolution="recovered_after_diagnostic",
+                    lock_record=lock_record,
                 )
                 return
             self.indeterminate_write_lock.record_indeterminate(
