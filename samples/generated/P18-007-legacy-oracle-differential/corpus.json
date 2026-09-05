@@ -1,0 +1,108 @@
+{
+  "format": "sony-infocarry-legacy-oracle-corpus-v1",
+  "generated_by": "P18-007 offline Oracle harness",
+  "raw_evidence_policy": "Only hashes, lengths, range summaries, projections and provenance are committed; raw proprietary captures and binaries remain external.",
+  "corpus": [
+    {
+      "format": "sony-infocarry-legacy-oracle-corpus-v1",
+      "fixture_id": "P18-007-A-P13-I7-single-root-txt",
+      "provenance": {
+        "source_evidence": "phase-13-i7-legacy-add-20260823-01",
+        "legacy_capture": "02-snoopypro-add-capture/01-add.usblog",
+        "modern_input": "existing offline template-backed reconstruction primitives",
+        "raw_external": true,
+        "raw_files_committed": false
+      },
+      "logical_input_shape": {
+        "profile": "single-item creation",
+        "children": ["root\\IC_I7_CLOCK_01.txt"],
+        "ordering": ["TXT"]
+      },
+      "representations": [
+        {"id": "legacy_candidate", "availability": "available", "length": 2053380, "sha256": "7d64a9dccc3bede003ee732d50a4ee25c02d324fa3c1f9f4b455e034ec1c805f"},
+        {"id": "legacy_transaction", "availability": "available", "length": 2118916, "sha256": "cc23dc8f1ef3d0837527fcf0a0057a954528901367ffd88b5cc0596ec0c6dff1"},
+        {"id": "modern_candidate", "availability": "available", "length": 2053384, "sha256": "fdb313d51d08270fef73b5bc84143a9b783ae739df4a00acbb3e52e7b72a8790"},
+        {"id": "modern_transaction", "availability": "available", "length": 2118920, "sha256": "1dae57af7497c36699f6b56a98fd0d9464a00f3253346f41f887781bf215b17e"}
+      ],
+      "expected_volatile_fields": [
+        {"field": "record timestamp", "classification": "EXPLAINED_VOLATILE_FIELD", "rule": "record offset +0x0c..+0x0f", "evidence": "P13/P15/P16 preserved native add evidence independently shows operation-time record timestamp rewrites; the Oracle does not generalize a timestamp value."},
+        {"field": "backup checksum", "classification": "EXPLAINED_DETERMINISTIC_DIFFERENCE", "rule": "blob offset +0x1c..+0x1f", "evidence": "Backup checksum is derived from changed backup bytes; the checksum field is not an independent semantic mismatch."}
+      ],
+      "raw_differential_summary": {
+        "candidate": {"classification": "UNEXPLAINED", "raw_range_count": 88274, "raw_differing_byte_count": 1394198, "raw_ranges_sha256": "fc8926b533bdc950162b6b58ed6f29aeb0c623a7cd6ea3dacbf829d06008369", "normalized_range_count": 87901, "normalized_differing_byte_count": 1393079, "normalized_ranges_sha256": "29462e604b7247e045cdd8fb33bf3a6cbf7146165c701bdfb12e6598579c3c4a", "first_divergence": [27, 32], "length_mismatch": 4, "normalization_rule": "Only independently established timestamp fields and the derived checksum were annotated; all remaining ranges stay unexplained."},
+        "transaction": {"classification": "UNEXPLAINED", "range_classifications": ["EXACT_MATCH", "EXACT_MATCH", "UNEXPLAINED", "EXACT_MATCH", "UNEXPLAINED", "EXACT_MATCH", "EXACT_MATCH", "UNEXPLAINED"], "range_raw_difference_counts": [0, 0, 1, 0, 3, 0, 0, 88271], "range_normalized_difference_counts": [0, 0, 1, 0, 3, 0, 0, 87898], "wrapper_note": "The first divergence is a one-byte staging M/length consequence of the candidate's four-byte allocation discrepancy."},
+        "structure": {"legacy_record_count": 374, "modern_record_count": 374, "legacy_reachable_count": 315, "modern_reachable_count": 315, "record_difference_count": 373, "changed_fields": {"field_04": 250, "timestamp_be32": 373}, "non_timestamp_difference_count": 250, "header_difference_count": 3},
+        "modern_builder_status": "The public build_new_root_txt_add guard rejects this preserved shape because it computes five allocation-padding bytes rather than the permitted zero-to-three. The low-level template reconstruction is retained only as an Oracle diagnostic input."
+      },
+      "interpretation_status": "UNEXPLAINED_R3_ALIGNMENT_DISCREPANCY"
+    },
+    {
+      "format": "sony-infocarry-legacy-oracle-corpus-v1",
+      "fixture_id": "P18-007-B-P15-capture11-four-txt",
+      "provenance": {
+        "source_evidence": "phase-15-p15-001-native-multi-txt-20260828-01",
+        "legacy_capture": "03-snoopypro-transaction/01-add.usblog",
+        "modern_artifact": "07-analysis/capture11-modern-candidate-01",
+        "raw_external": true,
+        "raw_files_committed": false
+      },
+      "logical_input_shape": {
+        "profile": "ordered multi-TXT",
+        "folder": "root\\IC_P15_MULTI_20260828_01",
+        "children": ["chapter-01.txt", "chapter-02.txt", "chapter-03.txt", "chapter-04.txt"],
+        "ordering": ["TXT", "TXT", "TXT", "TXT"]
+      },
+      "representations": [
+        {"id": "legacy_candidate", "availability": "available", "length": 2052272, "sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99"},
+        {"id": "legacy_transaction", "availability": "available", "length": 2117808, "sha256": "f44dfc7b717522d3a6531c0b19f9723b5c712a26c7156e42bacdc54b1e05030e"},
+        {"id": "modern_candidate", "availability": "available", "length": 2052272, "sha256": "12cf167f1c6486ac166d2cc95d6285c7bfdbffe143875ed8c6ddc30f836ec6f9"},
+        {"id": "modern_transaction", "availability": "available", "length": 2117808, "sha256": "63b2c991f87599a5d30b0649c06e9eb697abf2154bacab4d3d2f1bdf96f13286"}
+      ],
+      "expected_volatile_fields": [
+        {"field": "record timestamp", "classification": "EXPLAINED_VOLATILE_FIELD", "rule": "each differing metadata record timestamp at +0x0c..+0x0f", "evidence": "P13/P15/P16 preserved native add evidence independently shows operation-time record timestamp rewrites; the Oracle does not generalize a timestamp value."},
+        {"field": "backup checksum", "classification": "EXPLAINED_DETERMINISTIC_DIFFERENCE", "rule": "blob offset +0x1c..+0x1f and transaction range 5 +0x1c..+0x1f", "evidence": "Backup checksum is derived from changed backup bytes; the checksum field is not an independent semantic mismatch."}
+      ],
+      "raw_differential_summary": {
+        "candidate": {"classification": "EXPLAINED_VOLATILE_FIELD", "raw_range_count": 374, "raw_differing_byte_count": 1121, "raw_ranges_sha256": "827da07d8d9a7e9b6ed5b77e14229f6e4d91dfbdf6d8e863287491ca04595948", "normalized_range_count": 0, "normalized_differing_byte_count": 0, "normalized_ranges_sha256": "7473573b9b016fe3159113dbe147969bd5b9dba1341f7faae4dbab7659c570a2", "first_divergence": [28, 32], "normalization_rule": "Raw timestamp ranges and the checksum range are retained; normalization removes only those independently annotated fields."},
+        "transaction": {"classification": "EXPLAINED_VOLATILE_FIELD", "range_classifications": ["EXACT_MATCH", "EXACT_MATCH", "EXACT_MATCH", "EXACT_MATCH", "EXPLAINED_DETERMINISTIC_DIFFERENCE", "EXACT_MATCH", "EXACT_MATCH", "EXPLAINED_VOLATILE_FIELD"], "range_raw_difference_counts": [0, 0, 0, 0, 1, 0, 0, 373], "range_normalized_difference_counts": [0, 0, 0, 0, 0, 0, 0, 0], "range_lengths": [256, 64, 65216, 0, 64, 0, 0, 2052208]},
+        "structure": {"legacy_record_count": 378, "modern_record_count": 378, "legacy_reachable_count": 313, "modern_reachable_count": 313, "record_difference_count": 373, "changed_fields": {"timestamp_be32": 373}, "non_timestamp_difference_count": 0, "header_difference_count": 0},
+        "ordered_child_count": 4,
+        "ordered_child_rule": "Parsed reachable record order matches the four logical TXT children; no type-based reorder was observed."
+      },
+      "interpretation_status": "RAW_VOLATILE_DIFF_NORMALIZED_TO_EXACT"
+    },
+    {
+      "format": "sony-infocarry-legacy-oracle-corpus-v1",
+      "fixture_id": "P18-007-C-P16-native-txt-bmp-txt",
+      "provenance": {
+        "source_evidence": "phase-16-p16-001-native-mixed-txt-bmp-20260830-01",
+        "legacy_capture": "08-supplied-capture12-raw/usblog/01-add.usblog",
+        "modern_artifact": "phase-16-p16-002-modern-mixed-txt-bmp-20260830-01/02-candidate",
+        "raw_external": true,
+        "raw_files_committed": false
+      },
+      "logical_input_shape": {
+        "profile": "exact current product shape",
+        "folder": "root\\IC_P16_MIXED_20260830_01",
+        "children": ["01-introduction.txt", "02-page-01.bmp", "03-ending.txt"],
+        "ordering": ["TXT", "BMP", "TXT"]
+      },
+      "representations": [
+        {"id": "legacy_candidate", "availability": "available", "length": 2064268, "sha256": "6c654fe4ec4cd87092b90980471fc32df797c84d7817398c9b81edefcedf796b"},
+        {"id": "legacy_transaction", "availability": "available", "length": 2129804, "sha256": "a22deb5e784614c7d3860a9f0911733cb9361e56d603dd223d53a52cded7fc6a"},
+        {"id": "modern_candidate", "availability": "available", "length": 2075256, "sha256": "4bfe8a54bced7a5cabf1502d4e78d4bfacdc656dd1ab56111b4b013edce6f849"},
+        {"id": "modern_transaction", "availability": "available", "length": 2140792, "sha256": "af9d17348ed54cbea57e32acb2c48f67ea49dbf705151c97e795d0ea0fd9cffb"}
+      ],
+      "expected_volatile_fields": [
+        {"field": "operation timestamp", "classification": "EXPLAINED_VOLATILE_FIELD", "rule": "native package records use operation-specific timestamp; modern fixture uses its own frozen timestamp", "evidence": "P13/P15/P16 preserved native add evidence independently shows operation-time record timestamp rewrites; the Oracle does not generalize a timestamp value."},
+        {"field": "absolute offsets", "classification": "EXPLAINED_DETERMINISTIC_DIFFERENCE", "rule": "whole-blob comparison is not semantically equivalent because the baselines and target folder identities differ", "evidence": "P16 native _01 was created from its pre-operation baseline; modern P16-002 deliberately adds _02 to the preserved _01 post-state."}
+      ],
+      "raw_differential_summary": {
+        "candidate": {"classification": "NOT_COMPARABLE", "raw_range_count": 128906, "raw_differing_byte_count": 1735793, "raw_ranges_sha256": "39ea0eabd4ab94173e235480e4d8ec044a79f68fe10ebc8d34bcfe4adb33a8c1", "first_divergence": [26, 32], "length_mismatch": 10988, "reason": "The whole blobs have different baseline state and target folder identity; raw comparison is retained but is not a semantic equality test."},
+        "transaction": {"classification": "NOT_COMPARABLE", "range_lengths_legacy": [256, 64, 65216, 0, 64, 0, 0, 2064204], "range_lengths_modern": [256, 64, 65216, 0, 64, 0, 0, 2075192], "raw_range_counts": [0, 0, 1, 0, 5, 0, 0, 128901], "reason": "The same baseline/target non-equivalence applies to the wrapper payloads."},
+        "package_projection": {"classification": "EXACT_MATCH", "record_count": 4, "ordering": ["TXT", "BMP", "TXT"], "txt_prefix_length": 32, "bmp_prefix_length": 16, "txt_prefix_sha256": "d0bcc6bc85dc36cdc1ad3882952c5d3d4414869c0bdd75b3b58ba28a32deb92a", "bmp_prefix_sha256": "5ac6a5945f16500911219129984ba8b387a06f24fe383ce4e81a73294065461b", "payload_sha256": ["d16567039a003110d246cc6a0a4d0b2042efa9f2240485f6a5facbb09c00dcb1", "f795a8e1466c3988b804f344645a6208bdcfa27e9d51d8b314c99d9a5973aadd", "a31b66d8b27676dc0af07d32ba4d17b90c54ffa39f406c37a9475672e9e46eec"], "comparison_rule": "Ignore folder identity, absolute metadata/content offsets and operation timestamp; compare relative order, kinds, extensions, flags, fixed fields, native prefixes, payloads and alignment."}
+      },
+      "interpretation_status": "NOT_COMPARABLE_WHOLE_BLOB_STRUCTURAL_PROJECTION_MATCH"
+    }
+  ]
+}
