@@ -2,7 +2,7 @@
 
 Date: 2026-09-05  
 Base: canonical `main` at P18-004 commit `fbae39d`  
-Host disposition: **HOST_R3_REVIEW_PASS_PENDING_EXTERNAL_CI**
+Host disposition: **HOST_R3_REVIEW_PASS**
 
 ## Scope
 
@@ -50,11 +50,14 @@ evidence-dependent skips. This is host/fake validation only. It does not
 change the capability profile from `defined_not_live_enabled` and does not
 authorize physical execution.
 
-## Required next gate
+## Final checkpoint
 
-An independent R3 review must inspect the diff and host evidence, then either
-request bounded corrections or approve the exact operation for a later
-hardware-test gate. Until that review and any required owner/hardware evidence
-are complete, the project must not claim `READY_FOR_HARDWARE_TEST`, change
-normal GUI/CLI exposure, or run a physical device operation. P18-006 remains
-the separate offline evidence gate.
+P18-005 merged to canonical `main` as `63b7e7a` in PR #31 after the bounded
+R3 review passed. The required Python 3.12 offline CI passed on both
+`macos-latest` and `windows-latest` in [workflow run 33944258579](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33944258579).
+The implementation remains host/fake only: it does not claim physical
+compatibility, alter normal GUI/CLI exposure, or authorize a device operation.
+
+P18-006 is the separate offline guarded-transfer matrix and tamper-coverage
+gate. Its bounded R3 corrections and independent review are recorded in
+`analysis/phase-18-p18-006-offline-guarded-transfer-matrix-and-tamper-coverage-20260905.md`.

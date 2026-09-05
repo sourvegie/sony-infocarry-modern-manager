@@ -131,7 +131,7 @@ class GuardedLibraryExecutionCoordinator:
             )
         if (
             not isinstance(device_model_profile, DeviceModelProfile)
-            or device_model_profile.profile_id != VNW_V15_PROFILE.profile_id
+            or device_model_profile != VNW_V15_PROFILE
             or not device_model_profile.transfer_capable
         ):
             raise GuardedLibraryExecutionError(
