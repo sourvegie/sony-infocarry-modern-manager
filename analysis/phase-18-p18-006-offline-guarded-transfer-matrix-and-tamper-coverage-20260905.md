@@ -3,7 +3,7 @@
 Date: 2026-09-05
 Base: canonical `main` at `63b7e7a` (merged P18-005 / PR #31)
 Branch: `task/P18-006-offline-tamper-matrix`
-Disposition: **HOST_R3_REVIEW_PENDING**
+Disposition: **HOST_R3_REVIEW_PASS_WITH_P2_CARRY_FORWARD**
 
 ## Scope and boundary
 
@@ -77,12 +77,27 @@ complete post-operation backup, independent semantic read-back, one actual
 fake sender invocation, three backup captures, and no remaining indeterminate
 lock. A later invocation is refused by the consumed one-shot claim.
 
+## Independent review
+
+The independent R3 review passed with no correction round required. The
+review confirmed the exact-profile gate, completion classification, fake
+transport seams, persistent-lock behavior, retry resistance, concurrent-call
+coverage, independent read-back, and positive control. It also confirmed that
+no hardware or USB operation occurred.
+
+The reviewer recorded one P2 carry-forward limitation: the one-shot claim is
+process-local and the coordinator persists the indeterminate lock only after
+receiving an exception. A process crash or separate process could therefore
+reuse a bundle before the lock is persisted. P18-006 covers thread-level
+concurrency and lock-store reopen, but not crash recovery or cross-process
+claim persistence. This does not block the host-only P18-006 outcome because
+normal GUI/CLI surfaces do not expose this coordinator. It must be resolved or
+explicitly accepted before standing physical-write enablement.
+
 ## Review and remaining gates
 
 Because production safety code changed in profile gating and completion
-classification, this is an R3 delta. Strong independent review must inspect
-the two production hunks, their failing/passing regressions, the fake seams,
-and the matrix's positive-control evidence. No hardware validation is part of
+classification, this was an R3 delta. No hardware validation is part of
 P18-006. After host review and CI, the next product gate is offline Legacy
 Oracle differential/comparison, followed later by one combined owner-approved
 hardware validation.

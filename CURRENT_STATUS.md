@@ -67,6 +67,12 @@ profile-value substitution was not rejected, and malformed or boolean
 post-start completion values were not classified as indeterminate. The latter
 now activates the existing installation-wide persistent lock; nonzero integer
 completion remains determinate failure. No automatic retry is allowed.
+Independent R3 review passed with no correction round required. The reviewer
+recorded a P2 carry-forward: the one-shot claim is process-local, so crash or
+cross-process claim persistence is not proven. That limitation does not block
+this host-only gate because normal GUI/CLI surfaces do not expose the
+coordinator; it must be resolved or explicitly accepted before standing
+physical-write enablement.
 
 ## Verified recent result
 
@@ -149,7 +155,8 @@ This is bounded human GUI/workflow evidence only; it does not claim hardware,
 USB, candidate, authorization, or live-write behavior.
 
 P18-006 outcome: `COMPLETE` for host-verifiable offline guarded-transfer and
-tamper coverage. This does not authorize a device write. The exact
+tamper coverage, with the documented P2 cross-process claim carry-forward.
+This does not authorize a device write. The exact
 TXT/BMP/TXT shape remains the only guarded-execution shape; broader flat,
 hierarchical, and V10 paths remain unavailable or preview-only.
 
