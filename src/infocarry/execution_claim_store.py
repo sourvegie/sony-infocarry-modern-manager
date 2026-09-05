@@ -306,6 +306,7 @@ class PersistentExecutionClaimStore:
             connection.close()
 
     def _open_connection(self) -> sqlite3.Connection:
+        connection: sqlite3.Connection | None = None
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             connection = sqlite3.connect(
@@ -323,6 +324,11 @@ class PersistentExecutionClaimStore:
             connection.execute("PRAGMA synchronous=FULL")
             return connection
         except (OSError, sqlite3.Error) as exc:
+            if connection is not None:
+                try:
+                    connection.close()
+                except sqlite3.Error:
+                    pass
             raise ExecutionClaimStoreError(
                 f"execution claim store could not be opened: {exc}"
             ) from exc

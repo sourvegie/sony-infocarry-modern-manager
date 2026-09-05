@@ -63,12 +63,16 @@ class PersistentExecutionClaimStoreTests(unittest.TestCase):
             self.assertNotIn(b"candidate_bytes", raw)
             self.assertNotIn(b"transaction_bytes", raw)
             self.assertNotIn(b"private candidate payload", raw)
-            columns = {
-                row[1]
-                for row in sqlite3.connect(path).execute(
-                    "PRAGMA table_info(execution_claims)"
-                )
-            }
+            connection = sqlite3.connect(path)
+            try:
+                columns = {
+                    row[1]
+                    for row in connection.execute(
+                        "PRAGMA table_info(execution_claims)"
+                    )
+                }
+            finally:
+                connection.close()
             self.assertNotIn("candidate_bytes", columns)
             self.assertNotIn("transaction_bytes", columns)
 
