@@ -20,7 +20,6 @@ import hashlib
 import json
 from pathlib import Path
 import time
-from threading import Lock
 from types import MappingProxyType
 from typing import Any, Callable, Mapping, NoReturn, Optional
 from uuid import uuid4
@@ -33,6 +32,16 @@ from .backup_state_identity import (
 )
 from .capacity_evidence import NativeCapacityResponse
 from .device_info import RawInfoResponse
+from .execution_claim_store import (
+    ExecutionClaimAlreadyConsumedError,
+    ExecutionClaimRecord,
+    ExecutionClaimStoreError,
+    PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE,
+    PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT,
+    PersistentExecutionClaimStore,
+    SenderInFlightRecord,
+)
+from .indeterminate_write_lock import PersistentIndeterminateWriteLock
 from .library import LibraryCatalog
 from .prepared_library_package_bridge import (
     P17_003_CONFIRMATION_PHRASE,
@@ -295,37 +304,6 @@ class PreparedLibraryPackageLiveAdapterError(RuntimeError):
         self.audit.setdefault("automatic_retry_allowed", False)
 
 
-class _OneShotExecutionClaim:
-    """In-memory single-use claim for one sealed preflight object."""
-
-    __slots__ = ("_consumed", "_lock")
-
-    def __init__(self) -> None:
-        self._consumed = False
-        self._lock = Lock()
-
-    def consume(self) -> None:
-        with self._lock:
-            if self._consumed:
-                raise PreparedLibraryPackageLiveAdapterError(
-                    "P17-005 sealed preflight already attempted its one transaction",
-                    stage="write_guard",
-                    state="failed",
-                )
-            self._consumed = True
-
-
-_EXECUTION_CLAIMS_LOCK = Lock()
-_EXECUTION_CLAIMS: dict[str, _OneShotExecutionClaim] = {}
-
-
-def _execution_claim_for(seal_sha256: str) -> _OneShotExecutionClaim:
-    """Return the process-local single-use claim for one sealed operation."""
-
-    with _EXECUTION_CLAIMS_LOCK:
-        return _EXECUTION_CLAIMS.setdefault(seal_sha256, _OneShotExecutionClaim())
-
-
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -437,6 +415,80 @@ def _backup_identity(backup: VerifiedBackup) -> BackupStateIdentity:
     """Return canonical raw state identity, excluding capture provenance."""
 
     return derive_backup_state_identity(backup)
+
+
+def _execution_claim_bindings(
+    preflight: "PreparedLibraryPackageLivePreflight",
+) -> dict[str, str]:
+    """Return only reviewed hash identities for the durable claim."""
+
+    return {
+        "preflight_seal_sha256": preflight.seal_sha256,
+        "core_preflight_seal_sha256": preflight.core.seal_sha256,
+        "candidate_blob_sha256": preflight.candidate.candidate_blob_sha256,
+        "transaction_sha256": preflight.candidate.transaction_sha256,
+        "authorization_sha256": _sha256(
+            _canonical_json(preflight.authorization.to_dict())
+        ),
+        "baseline_state_identity_sha256": _backup_identity(
+            preflight.before_backup
+        ).sha256,
+        "capacity_response_sha256": _sha256(
+            _canonical_json(preflight.capacity_response.to_dict())
+        ),
+    }
+
+
+def _execution_claim_audit(
+    claim: Optional[ExecutionClaimRecord],
+    *,
+    attempted_bindings: Optional[Mapping[str, str]] = None,
+    sender_marker: Optional[SenderInFlightRecord] = None,
+    sender_marker_state: str = "not_started",
+    sender_marker_resolved: bool = False,
+) -> dict[str, Any]:
+    """Build the hash-only claim audit used by success and failure records."""
+
+    if claim is None:
+        result: dict[str, Any] = {
+            "format": PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT,
+            "store_format": PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT,
+            "persistence_mode": PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE,
+            "committed": False,
+            "state": "not_committed",
+            "preflight_seal_sha256": None,
+            "core_preflight_seal_sha256": None,
+            "candidate_blob_sha256": None,
+            "transaction_sha256": None,
+            "authorization_sha256": None,
+            "baseline_state_identity_sha256": None,
+            "capacity_response_sha256": None,
+            "claim_id": None,
+            "claimed_at_utc": None,
+            "sender_marker": {
+                "committed": False,
+                "state": "not_started",
+                "resolved": False,
+            },
+        }
+        if attempted_bindings is not None:
+            result.update(dict(attempted_bindings))
+        return result
+    marker = (
+        sender_marker.to_dict()
+        if sender_marker is not None
+        else {
+            "format": PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT,
+            "persistence_mode": PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE,
+            "state": sender_marker_state,
+        }
+    )
+    marker["committed"] = sender_marker is not None
+    marker["state"] = sender_marker_state
+    marker["resolved"] = sender_marker_resolved
+    result = claim.to_dict()
+    result["sender_marker"] = marker
+    return result
 
 
 def _candidate_comparison_view(
@@ -556,6 +608,103 @@ def _validate_evidence_output_record(outputs: Any) -> dict[str, str]:
     return result
 
 
+def _validate_execution_claim_audit(
+    claim_audit: Any,
+    *,
+    preflight: "PreparedLibraryPackageLivePreflight",
+) -> None:
+    if not isinstance(claim_audit, Mapping):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit execution claim is malformed",
+            stage="evidence_manifest",
+            state="failed",
+        )
+    required = {
+        "format",
+        "store_format",
+        "persistence_mode",
+        "state",
+        "committed",
+        "preflight_seal_sha256",
+        "core_preflight_seal_sha256",
+        "candidate_blob_sha256",
+        "transaction_sha256",
+        "authorization_sha256",
+        "baseline_state_identity_sha256",
+        "capacity_response_sha256",
+        "claim_id",
+        "claimed_at_utc",
+        "sender_marker",
+    }
+    if set(claim_audit) != required:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit execution claim fields differ",
+            stage="evidence_manifest",
+            state="failed",
+        )
+    expected = _execution_claim_bindings(preflight)
+    if (
+        claim_audit.get("format") != PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT
+        or claim_audit.get("store_format") != PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT
+        or claim_audit.get("persistence_mode")
+        != PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE
+        or claim_audit.get("state") != "consumed"
+        or claim_audit.get("committed") is not True
+        or any(claim_audit.get(key) != value for key, value in expected.items())
+        or type(claim_audit.get("claim_id")) is not str
+        or not claim_audit["claim_id"]
+        or type(claim_audit.get("claimed_at_utc")) is not str
+        or not claim_audit["claimed_at_utc"]
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit execution claim does not match the sealed operation",
+            stage="evidence_manifest",
+            state="failed",
+        )
+    marker = claim_audit.get("sender_marker")
+    if not isinstance(marker, Mapping):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit sender marker is malformed",
+            stage="evidence_manifest",
+            state="failed",
+        )
+    marker_required = {
+        "format",
+        "persistence_mode",
+        "state",
+        "committed",
+        "resolved",
+        "preflight_seal_sha256",
+        "core_preflight_seal_sha256",
+        "candidate_blob_sha256",
+        "transaction_sha256",
+        "authorization_sha256",
+        "baseline_state_identity_sha256",
+        "capacity_response_sha256",
+        "claim_id",
+        "attempt_id",
+        "incident_id",
+        "started_at_utc",
+        "evidence_root",
+    }
+    if set(marker) != marker_required or (
+        marker.get("format") != PERSISTENT_EXECUTION_CLAIM_STORE_FORMAT
+        or marker.get("persistence_mode")
+        != PERSISTENT_EXECUTION_CLAIM_PERSISTENCE_MODE
+        or marker.get("state") not in {"in_flight", "lock_recorded", "resolved"}
+        or marker.get("committed") is not True
+        or type(marker.get("resolved")) is not bool
+        or any(marker.get(key) != value for key, value in expected.items())
+        or marker.get("preflight_seal_sha256") != claim_audit.get("preflight_seal_sha256")
+        or marker.get("claim_id") != claim_audit.get("claim_id")
+    ):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "result_audit sender marker does not match the sealed operation",
+            stage="evidence_manifest",
+            state="failed",
+        )
+
+
 def _validate_result_audit(
     result_audit: Mapping[str, Any],
     *,
@@ -589,6 +738,7 @@ def _validate_result_audit(
         "verification",
         "workflow",
         "evidence_outputs",
+        "execution_claim",
     }
     if not required.issubset(value):
         missing = sorted(required - set(value))
@@ -606,6 +756,7 @@ def _validate_result_audit(
             state="failed",
         )
     _validate_evidence_output_record(value["evidence_outputs"])
+    _validate_execution_claim_audit(value["execution_claim"], preflight=preflight)
     if (
         value["format"] != P17_005_RUNNER_FORMAT
         or value["state"] != "readback_verified"
@@ -877,10 +1028,42 @@ class PreparedLibraryPackageLivePreflight:
     def template(self) -> ParsedBackupBlob:
         return self.core.template
 
-    def _consume_execution_claim(self) -> None:
-        """Consume the only sender-attempt claim for this sealed preflight."""
+    def _consume_execution_claim(
+        self,
+        execution_claim_store: PersistentExecutionClaimStore,
+    ) -> ExecutionClaimRecord:
+        """Atomically consume the only sender-attempt claim for this preflight."""
 
-        _execution_claim_for(self.seal_sha256).consume()
+        bindings = _execution_claim_bindings(self)
+        try:
+            return execution_claim_store.consume(**bindings)
+        except ExecutionClaimAlreadyConsumedError as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                "P17-005 sealed preflight already attempted its one transaction; "
+                f"durable claim rejected: {exc}",
+                stage="write_guard",
+                state="failed",
+                audit={
+                    "execution_claim": _execution_claim_audit(
+                        None,
+                        attempted_bindings=bindings,
+                    ),
+                    "operation_sequence": [],
+                },
+            ) from exc
+        except ExecutionClaimStoreError as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-005 durable execution claim was not committed: {exc}",
+                stage="write_guard",
+                state="failed",
+                audit={
+                    "execution_claim": _execution_claim_audit(
+                        None,
+                        attempted_bindings=bindings,
+                    ),
+                    "operation_sequence": [],
+                },
+            ) from exc
 
     def verify_seal(self) -> None:
         try:
@@ -1475,6 +1658,13 @@ def reconcile_prepared_library_package_live_result(
         or audit.get("preflight_seal_sha256") != result.preflight.seal_sha256
     ):
         fail("runner result is not a successful sealed operation", "runner_audit")
+    try:
+        _validate_execution_claim_audit(
+            audit.get("execution_claim"),
+            preflight=result.preflight,
+        )
+    except PreparedLibraryPackageLiveAdapterError as exc:
+        fail(str(exc), "execution_claim")
 
     workflow = audit.get("workflow")
     if not isinstance(workflow, Mapping):
@@ -1560,6 +1750,7 @@ def reconcile_prepared_library_package_live_result(
         "write_started": True,
         "approval_consumed": True,
         "preflight_seal_sha256": result.preflight.seal_sha256,
+        "execution_claim": dict(audit["execution_claim"]),
         "candidate_blob_sha256": result.candidate.candidate_blob_sha256,
         "transaction_sha256": result.candidate.transaction_sha256,
         "accounting": {
@@ -1599,6 +1790,7 @@ def _failure(
     primary_error: Optional[str] = None,
     evidence_outputs: Optional[PreparedLibraryPackageAttemptEvidence] = None,
     approval_consumed: bool = False,
+    execution_claim: Optional[Mapping[str, Any]] = None,
 ) -> PreparedLibraryPackageLiveAdapterError:
     audit: dict[str, Any] = {
         "format": P17_005_RUNNER_FORMAT,
@@ -1615,6 +1807,8 @@ def _failure(
     }
     audit["sender_calls"] = sender_calls
     audit["approval_consumed"] = approval_consumed
+    if execution_claim is not None:
+        audit["execution_claim"] = dict(execution_claim)
     if evidence_outputs is not None:
         audit["evidence_outputs"] = evidence_outputs.to_dict()
     if primary_error is not None:
@@ -1816,6 +2010,9 @@ def execute_prepared_library_package_live(
     capture: CaptureCallback,
     evidence_namespace: Path,
     evidence_root_allocator: Optional[EvidenceRootAllocator] = None,
+    execution_claim_store: Optional[PersistentExecutionClaimStore] = None,
+    indeterminate_write_lock: Optional[PersistentIndeterminateWriteLock] = None,
+    attempt_id: Optional[str] = None,
     preflight_only: bool = False,
     pre_send_revalidator: Optional[Callable[[], None]] = None,
     policy: WritePolicy = WritePolicy(),
@@ -1836,8 +2033,11 @@ def execute_prepared_library_package_live(
     remaining device boundaries. A live claim is consumed before any device
     callback, while preflight-only mode leaves the claim available for a later
     approved live attempt. A new complete backup is captured and verified
-    immediately before the sender call. Any post-start failure is terminal and
-    indeterminate; this function has no retry or corrective-write path.
+    immediately before the sender call. A durable sender-start marker remains
+    until verified terminal handling completes, so process death around the
+    sender cannot silently unlock a later write. Any post-start failure is
+    terminal and indeterminate; this function has no retry or corrective-write
+    path.
     """
 
     resolved = _resolve_prepared_library_package_operation_bundle(operation_bundle)
@@ -1855,6 +2055,23 @@ def execute_prepared_library_package_live(
         query_capacity=query_capacity,
         capture=capture,
     )
+    if not preflight_only:
+        if not isinstance(execution_claim_store, PersistentExecutionClaimStore):
+            raise PreparedLibraryPackageLiveAdapterError(
+                "P17-005 live execution requires an injected persistent execution claim store",
+                stage="write_guard",
+                state="failed",
+                audit={"execution_claim": _execution_claim_audit(None)},
+            )
+        if not isinstance(indeterminate_write_lock, PersistentIndeterminateWriteLock):
+            raise PreparedLibraryPackageLiveAdapterError(
+                "P17-005 live execution requires the persistent indeterminate-write lock",
+                stage="write_guard",
+                state="failed",
+                audit={"execution_claim": _execution_claim_audit(None)},
+            )
+        if attempt_id is None:
+            attempt_id = uuid4().hex
     if pre_send_revalidator is not None and not callable(pre_send_revalidator):
         raise PreparedLibraryPackageLiveAdapterError(
             "P17-005 pre_send_revalidator must be callable",
@@ -1864,6 +2081,9 @@ def execute_prepared_library_package_live(
     sequence = ["live_preflight_seal_verified"]
     sender_calls = 0
     approval_consumed = False
+    claim_record: Optional[ExecutionClaimRecord] = None
+    claim_audit: Optional[dict[str, Any]] = None
+    sender_marker: Optional[SenderInFlightRecord] = None
     try:
         preflight.verify_seal()
     except PreparedLibraryPackageLiveAdapterError:
@@ -1900,8 +2120,24 @@ def execute_prepared_library_package_live(
     # safe cancellation above is the only live path that may exit without
     # expiring the approval after it has been accepted.
     if not preflight_only:
-        preflight._consume_execution_claim()
-        approval_consumed = True
+        try:
+            indeterminate_write_lock.assert_unlocked()
+            execution_claim_store.assert_no_sender_in_flight()
+            claim_record = preflight._consume_execution_claim(execution_claim_store)
+            claim_audit = _execution_claim_audit(claim_record)
+            approval_consumed = True
+        except PreparedLibraryPackageLiveAdapterError:
+            raise
+        except Exception as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-005 live execution safety state could not be validated: {exc}",
+                stage="write_guard",
+                state="failed",
+                audit={
+                    "execution_claim": _execution_claim_audit(None),
+                    "operation_sequence": sequence,
+                },
+            ) from exc
 
     try:
         detected = detect_device()
@@ -1946,6 +2182,7 @@ def execute_prepared_library_package_live(
             primary_error=str(exc),
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
+            execution_claim=claim_audit,
         ) from exc
 
     try:
@@ -1979,6 +2216,7 @@ def execute_prepared_library_package_live(
             primary_error=str(exc),
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
+            execution_claim=claim_audit,
         ) from exc
 
     try:
@@ -1997,6 +2235,7 @@ def execute_prepared_library_package_live(
             authorization=authorization,
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
+            execution_claim=claim_audit,
         ) from exc
 
     if not preflight_only and pre_send_revalidator is not None:
@@ -2015,6 +2254,7 @@ def execute_prepared_library_package_live(
                 primary_error=str(exc),
                 evidence_outputs=evidence_outputs,
                 approval_consumed=approval_consumed,
+                execution_claim=claim_audit,
             ) from exc
 
     try:
@@ -2044,6 +2284,7 @@ def execute_prepared_library_package_live(
                     "evidence_outputs": evidence_outputs.to_dict(),
                     "sender_calls": sender_calls,
                     "approval_consumed": approval_consumed,
+                    "execution_claim": claim_audit,
                     "write_started": False,
                 },
             )
@@ -2090,6 +2331,32 @@ def execute_prepared_library_package_live(
                 progress=progress,
             )
 
+        try:
+            sender_marker = execution_claim_store.mark_sender_in_flight(
+                claim_record,
+                attempt_id=attempt_id,
+                incident_id=f"guarded-library-{attempt_id}",
+                evidence_root=str(evidence_outputs.root),
+            )
+            claim_audit = _execution_claim_audit(
+                claim_record,
+                sender_marker=sender_marker,
+                sender_marker_state="in_flight",
+            )
+        except Exception as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-005 sender-start marker was not committed: {exc}",
+                stage="write_guard",
+                state="failed",
+                audit={
+                    "operation_sequence": sequence,
+                    "sender_calls": sender_calls,
+                    "approval_consumed": approval_consumed,
+                    "execution_claim": claim_audit,
+                    "write_started": False,
+                },
+            ) from exc
+
         completion = send_once()
         sequence.append("single_0x101b_transaction")
     except Exception as exc:
@@ -2106,6 +2373,7 @@ def execute_prepared_library_package_live(
                 authorization=authorization,
                 evidence_outputs=evidence_outputs,
                 approval_consumed=approval_consumed,
+                execution_claim=claim_audit,
             ) from exc
         if not isinstance(
             getattr(exc, "write_failure_assessment", None), WriteFailureAssessment
@@ -2115,6 +2383,30 @@ def execute_prepared_library_package_live(
                 write_started=False,
                 device_outcome="not_started",
             )
+        if (
+            sender_marker is not None
+            and assessment.device_outcome != "indeterminate"
+        ):
+            try:
+                execution_claim_store.resolve_sender_in_flight(
+                    sender_marker,
+                    resolution=(
+                        "determinate_no_start"
+                        if not assessment.write_started
+                        else "determinate_completion_failure"
+                    ),
+                )
+                claim_audit = _execution_claim_audit(
+                    claim_record,
+                    sender_marker=sender_marker,
+                    sender_marker_state="resolved",
+                    sender_marker_resolved=True,
+                )
+            except ExecutionClaimStoreError:
+                # The consumed claim and active marker remain fail-closed. The
+                # coordinator will promote an unresolved marker to the global
+                # indeterminate lock on the next guarded attempt.
+                pass
         state = (
             "indeterminate_after_transaction_start"
             if assessment.device_outcome == "indeterminate"
@@ -2132,10 +2424,28 @@ def execute_prepared_library_package_live(
             primary_error=assessment.primary_error,
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
+            execution_claim=claim_audit,
         ) from exc
 
     if isinstance(completion, bool) or not isinstance(completion, int) or completion != 0:
         value = repr(completion) if not isinstance(completion, int) else f"0x{completion:04x}"
+        if sender_marker is not None and isinstance(completion, int) and not isinstance(completion, bool):
+            try:
+                execution_claim_store.resolve_sender_in_flight(
+                    sender_marker,
+                    resolution="determinate_completion_failure",
+                )
+                claim_audit = _execution_claim_audit(
+                    claim_record,
+                    sender_marker=sender_marker,
+                    sender_marker_state="resolved",
+                    sender_marker_resolved=True,
+                )
+            except ExecutionClaimStoreError:
+                # Keep the marker active if durable resolution is uncertain.
+                # This is conservative even though the device returned a
+                # determinate nonzero status.
+                pass
         # The sender has already claimed the one-shot transaction.  A
         # non-integer or boolean completion cannot be mapped to the native
         # status word, so it is an ambiguous after-start outcome and must
@@ -2158,6 +2468,7 @@ def execute_prepared_library_package_live(
             primary_error=f"completion={value}",
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
+            execution_claim=claim_audit,
         )
     sequence.append("completion_0x0000")
 
@@ -2195,6 +2506,7 @@ def execute_prepared_library_package_live(
             "device_changing_operation_performed": True,
             "approval_consumed": approval_consumed,
             "preflight_seal_sha256": preflight.seal_sha256,
+            "execution_claim": claim_audit,
             "evidence_outputs": evidence_outputs.to_dict(),
             "backup_state_comparison": compare_verified_backups(
                 preflight.before_backup,
@@ -2220,6 +2532,17 @@ def execute_prepared_library_package_live(
             now=None,
             max_age_seconds=max_age_seconds,
         )
+        execution_claim_store.resolve_sender_in_flight(
+            sender_marker,
+            resolution="verified_terminal_success",
+        )
+        claim_audit = _execution_claim_audit(
+            claim_record,
+            sender_marker=sender_marker,
+            sender_marker_state="resolved",
+            sender_marker_resolved=True,
+        )
+        audit["execution_claim"] = claim_audit
     except Exception as exc:
         raise _failure(
             f"P17-005 post-operation backup/read-back failed: {exc}",
@@ -2233,6 +2556,7 @@ def execute_prepared_library_package_live(
             primary_error=str(exc),
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
+            execution_claim=claim_audit,
         ) from exc
 
     return PreparedLibraryPackageLiveResult(

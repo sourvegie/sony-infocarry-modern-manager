@@ -15,6 +15,7 @@ from infocarry.experimental_transfer_contract import (
 )
 import infocarry.experimental_library_transfer as integration
 from infocarry.indeterminate_write_lock import PersistentIndeterminateWriteLock
+from infocarry.execution_claim_store import PersistentExecutionClaimStore
 
 
 def _paths():
@@ -256,6 +257,7 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
         result = object()
         with TemporaryDirectory() as temporary:
             lock = PersistentIndeterminateWriteLock(Path(temporary) / "lock.json")
+            store = PersistentExecutionClaimStore(Path(temporary) / "claims.sqlite3")
             with patch.object(
                 integration.GuardedLibraryExecutionCoordinator,
                 "execute",
@@ -264,6 +266,7 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
                 returned = integration.run_experimental_library_transfer(
                     bundle,
                     indeterminate_write_lock=lock,
+                    execution_claim_store=store,
                     plan_report={},
                     confirmation_interaction=lambda _review: "confirmed",
                     low_level_bulk_write_calls=20,
@@ -286,6 +289,7 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
         runner_result = object()
         with TemporaryDirectory() as temporary:
             lock = PersistentIndeterminateWriteLock(Path(temporary) / "lock.json")
+            store = PersistentExecutionClaimStore(Path(temporary) / "claims.sqlite3")
             with patch.object(
                 integration.GuardedLibraryExecutionCoordinator,
                 "execute",
@@ -294,6 +298,7 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
                 result = integration.run_experimental_library_transfer(
                     object(),
                     indeterminate_write_lock=lock,
+                    execution_claim_store=store,
                     plan_report=None,
                     confirmation_interaction=None,
                     preflight_only=True,

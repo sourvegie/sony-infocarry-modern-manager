@@ -38,6 +38,7 @@ from infocarry.experimental_library_transfer_review import (
     EXPERIMENTAL_TARGET_FOLDER,
     build_experimental_library_transfer_review,
 )
+from infocarry.execution_claim_store import PersistentExecutionClaimStore
 from infocarry.indeterminate_write_lock import (
     DiagnosticBackupEvidence,
     IndeterminateWriteLockError,
@@ -279,6 +280,9 @@ class _P18006Fixture:
         self.root = Path(self.temporary.name)
         self.evidence_namespace = self.root / "evidence-namespace"
         self.evidence_namespace.mkdir()
+        self.execution_claim_store = PersistentExecutionClaimStore(
+            self.root / "installation-state" / "execution-claims.sqlite3"
+        )
         baseline_blob, _template_blob = _template_blobs()
         self.baseline_blob = baseline_blob
         self.changed_unrelated_blob = _mutate_unrelated_blob(baseline_blob)
@@ -402,6 +406,8 @@ class _P18006Fixture:
             "backend": self.backend,
             "capture": self.capture,
             "evidence_namespace": self.evidence_namespace,
+            "execution_claim_store": self.execution_claim_store,
+            "indeterminate_write_lock": self.lock,
             "now": NOW,
             "max_age_seconds": None,
         }
@@ -409,7 +415,12 @@ class _P18006Fixture:
         if coordinator:
             arguments.pop("owner_approval", None)
             arguments.pop("confirmation", None)
-            return GuardedLibraryExecutionCoordinator(indeterminate_write_lock=self.lock).execute(
+            arguments.pop("execution_claim_store", None)
+            arguments.pop("indeterminate_write_lock", None)
+            return GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=self.lock,
+                execution_claim_store=self.execution_claim_store,
+            ).execute(
                 self.bundle,
                 plan_report=self.plan,
                 confirmation_interaction=lambda _review: P17_005_CONFIRMATION,
@@ -446,7 +457,10 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
     def assert_rejected_before_sender(self, fixture, *, plan=None, stage="eligibility"):
         confirmations = []
         with self.assertRaises(GuardedLibraryExecutionError) as raised:
-            GuardedLibraryExecutionCoordinator(indeterminate_write_lock=fixture.lock).execute(
+            GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=fixture.lock,
+                execution_claim_store=fixture.execution_claim_store,
+            ).execute(
                 fixture.bundle,
                 plan_report=fixture.plan if plan is None else plan,
                 confirmation_interaction=lambda review: confirmations.append(review) or P17_005_CONFIRMATION,
@@ -530,7 +544,11 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         ):
             with self.subTest(name=name):
                 with self.assertRaises(GuardedLibraryExecutionError) as raised:
-                    GuardedLibraryExecutionCoordinator(indeterminate_write_lock=fixture.lock, **kwargs)
+                    GuardedLibraryExecutionCoordinator(
+                        indeterminate_write_lock=fixture.lock,
+                        execution_claim_store=fixture.execution_claim_store,
+                        **kwargs,
+                    )
                 self.assertIn(raised.exception.stage, {"model_profile", "capability_profile"})
                 self.assertEqual(_sender_calls(fixture.backend), 0)
         with self.assertRaises(DeviceModelProfileError):
@@ -545,6 +563,7 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         with self.assertRaises(GuardedLibraryExecutionError) as raised:
             GuardedLibraryExecutionCoordinator(
                 indeterminate_write_lock=fixture.lock,
+                execution_claim_store=fixture.execution_claim_store,
                 device_model_profile=tampered_profile,
             )
         self.assertEqual(raised.exception.stage, "model_profile")
@@ -602,7 +621,10 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         with self.assertRaises((PreparedLibraryPackageBridgeError, PreparedMultiPackageGateError)):
             first.preflight.authorization.require_same_candidate(second.preflight.candidate)
         with self.assertRaises(GuardedLibraryExecutionError) as raised:
-            GuardedLibraryExecutionCoordinator(indeterminate_write_lock=first.lock).execute(
+            GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=first.lock,
+                execution_claim_store=first.execution_claim_store,
+            ).execute(
                 second.bundle,
                 plan_report=first.plan,
                 confirmation_interaction=lambda _review: P17_005_CONFIRMATION,
@@ -715,7 +737,10 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
                 fixture.plan["items"][0]["conflicts"] = [{"path": _paths()[0]}]
 
         with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as raised:
-            GuardedLibraryExecutionCoordinator(indeterminate_write_lock=fixture.lock).execute(
+            GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=fixture.lock,
+                execution_claim_store=fixture.execution_claim_store,
+            ).execute(
                 fixture.bundle,
                 plan_report=fixture.plan,
                 confirmation_interaction=lambda review: confirmed.append(review) or P17_005_CONFIRMATION,
@@ -746,7 +771,10 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
     def test_H_confirmation_decline_replay_and_double_call_cannot_send_twice(self):
         fixture = self.fixture()
         with self.assertRaises(GuardedLibraryExecutionError) as declined:
-            GuardedLibraryExecutionCoordinator(indeterminate_write_lock=fixture.lock).execute(
+            GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=fixture.lock,
+                execution_claim_store=fixture.execution_claim_store,
+            ).execute(
                 fixture.bundle,
                 plan_report=fixture.plan,
                 confirmation_interaction=lambda _review: "",
@@ -773,7 +801,8 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
                 malformed = self.fixture()
                 with self.assertRaises(GuardedLibraryExecutionError) as raised:
                     GuardedLibraryExecutionCoordinator(
-                        indeterminate_write_lock=malformed.lock
+                        indeterminate_write_lock=malformed.lock,
+                        execution_claim_store=malformed.execution_claim_store,
                     ).execute(
                         malformed.bundle,
                         plan_report=malformed.plan,
@@ -795,7 +824,8 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
 
         with self.assertRaises(GuardedLibraryExecutionError) as raised:
             GuardedLibraryExecutionCoordinator(
-                indeterminate_write_lock=changed.lock
+                indeterminate_write_lock=changed.lock,
+                execution_claim_store=changed.execution_claim_store,
             ).execute(
                 changed.bundle,
                 plan_report=changed.plan,
@@ -812,7 +842,8 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         premature = self.fixture()
         with self.assertRaises(GuardedLibraryExecutionError) as raised:
             GuardedLibraryExecutionCoordinator(
-                indeterminate_write_lock=premature.lock
+                indeterminate_write_lock=premature.lock,
+                execution_claim_store=premature.execution_claim_store,
             ).execute(
                 premature.bundle,
                 plan_report=premature.plan,
@@ -839,7 +870,10 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         with self.assertRaises(IndeterminateWriteLockError):
             reopened.assert_unlocked(VNW_V10_PROFILE.lock_key)
         with self.assertRaises(IndeterminateWriteLockError):
-            GuardedLibraryExecutionCoordinator(indeterminate_write_lock=reopened).execute(
+            GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=reopened,
+                execution_claim_store=fixture.execution_claim_store,
+            ).execute(
                 fixture.bundle,
                 plan_report=fixture.plan,
                 confirmation_interaction=lambda _review: P17_005_CONFIRMATION,
@@ -1048,6 +1082,7 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         self.assertEqual(_sender_calls(fixture.backend), 1)
         self.assertEqual(len(fixture.captures), 3)
         self.assertIsNone(fixture.lock.read())
+        self.assertIsNone(fixture.execution_claim_store.read_sender_in_flight())
         self.assertEqual(result.audit["accounting"]["logical_sender_calls"], 1)
         self.assertTrue(result.audit["post_backup_verified"])
         self.assertTrue(result.audit["independent_readback_verified"])

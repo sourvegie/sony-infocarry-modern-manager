@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from infocarry.experimental_library_transfer import (
     GuardedLibraryExecutionError,
     run_experimental_library_transfer,
 )
+from infocarry.execution_claim_store import PersistentExecutionClaimStore
 from infocarry.indeterminate_write_lock import (
     IndeterminateWriteLockError,
     PersistentIndeterminateWriteLock,
@@ -125,6 +127,9 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         root = Path(temporary.name)
         evidence_namespace = root / "evidence-namespace"
         evidence_namespace.mkdir()
+        execution_claim_store = PersistentExecutionClaimStore(
+            root / "installation-state" / "execution-claims.sqlite3"
+        )
         baseline_blob, _template_blob = _template_blobs()
         fixed_state = {
             command: b"\x00" * 64
@@ -243,6 +248,10 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "backend": backend,
             "fixed_state": fixed_state,
             "evidence_namespace": evidence_namespace,
+            "execution_claim_store": execution_claim_store,
+            "indeterminate_write_lock": PersistentIndeterminateWriteLock(
+                root / "indeterminate-write-lock.json"
+            ),
             "common": common,
         }
 
@@ -296,6 +305,8 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "backend": setup["backend"],
             "capture": setup["capture"],
             "evidence_namespace": evidence_namespace,
+            "execution_claim_store": setup["execution_claim_store"],
+            "indeterminate_write_lock": setup["indeterminate_write_lock"],
             "now": self.now,
             "max_age_seconds": None,
         }
@@ -631,6 +642,50 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertEqual(result.before_backup.directory.name, "backup-before-0001")
         self.assertEqual(result.after_backup.directory.name, "backup-after-0001")
         self.assertEqual(self._sender_calls(setup), 1)
+        self.assertIsNone(setup["execution_claim_store"].read_sender_in_flight())
+        self.assertEqual(result.audit["execution_claim"]["state"], "consumed")
+        self.assertEqual(
+            result.audit["execution_claim"]["sender_marker"]["state"],
+            "resolved",
+        )
+
+    def test_live_execution_requires_durable_store_before_device_callbacks(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        events = []
+        with self.assertRaisesRegex(
+            PreparedLibraryPackageLiveAdapterError,
+            "persistent execution claim store",
+        ):
+            self._execute(
+                setup,
+                execution_claim_store=None,
+                indeterminate_write_lock=None,
+                detect_device=lambda: events.append("detect"),
+            )
+        self.assertEqual(events, [])
+        self.assertEqual(self._sender_calls(setup), 0)
+
+    def test_claim_commit_failure_stops_before_device_callbacks(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        events = []
+        with patch.object(
+            setup["execution_claim_store"],
+            "_commit",
+            side_effect=sqlite3.OperationalError("simulated claim commit failure"),
+        ):
+            with self.assertRaisesRegex(
+                PreparedLibraryPackageLiveAdapterError,
+                "durable execution claim was not committed",
+            ):
+                self._execute(
+                    setup,
+                    detect_device=lambda: events.append("detect"),
+                )
+        self.assertEqual(events, [])
+        self.assertEqual(self._sender_calls(setup), 0)
+        self.assertIsNone(setup["execution_claim_store"].read_sender_in_flight())
 
     def test_pre_send_failure_after_claim_expires_approval_without_retry(self):
         setup = self._setup()
@@ -642,6 +697,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertFalse(raised.exception.write_started)
         self.assertTrue(raised.exception.audit["approval_consumed"])
         self.assertEqual(self._sender_calls(setup), 0)
+        self.assertIsNone(setup["execution_claim_store"].read_sender_in_flight())
 
         setup["captures"].clear()
         with self.assertRaisesRegex(
@@ -731,6 +787,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
         self.assertTrue(raised.exception.write_started)
         self.assertEqual(self._sender_calls(setup), 1)
+        self.assertIsNotNone(setup["execution_claim_store"].read_sender_in_flight())
 
         for backend_error in (TransferTimeoutError("timeout"), OSError("disconnect")):
             failed = self._setup(backend=PackageWorkflowBackend(bulk_error=backend_error))
@@ -739,6 +796,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 self._execute(failed)
             self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
             self.assertEqual(self._sender_calls(failed), 1)
+            self.assertIsNotNone(failed["execution_claim_store"].read_sender_in_flight())
 
         for backend in (
             PackageWorkflowBackend(completions=(1, 0)),
@@ -750,6 +808,12 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             with self.assertRaises(PreparedLibraryPackageLiveAdapterError):
                 self._execute(failed)
             self.assertEqual(self._sender_calls(failed), 1)
+            if isinstance(backend, MalformedCompletionBackend) or isinstance(
+                backend, MissingCompletionBackend
+            ):
+                self.assertIsNotNone(failed["execution_claim_store"].read_sender_in_flight())
+            else:
+                self.assertIsNone(failed["execution_claim_store"].read_sender_in_flight())
 
     def test_post_backup_and_readback_failures_are_indeterminate_without_retry(self):
         failed_backup = self._setup(capture_error=True)
@@ -758,6 +822,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             self._execute(failed_backup)
         self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
         self.assertEqual(self._sender_calls(failed_backup), 1)
+        self.assertIsNotNone(failed_backup["execution_claim_store"].read_sender_in_flight())
 
         mismatch = self._setup()
         self.addCleanup(mismatch["temporary"].cleanup)
@@ -783,6 +848,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             self._execute(mismatch)
         self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
         self.assertEqual(self._sender_calls(mismatch), 1)
+        self.assertIsNotNone(mismatch["execution_claim_store"].read_sender_in_flight())
 
     def test_external_manifest_is_hash_only_and_non_overwriting(self):
         setup = self._setup()
@@ -931,6 +997,8 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 backend=setup["backend"],
                 capture=capture,
                 evidence_namespace=setup["evidence_namespace"],
+                execution_claim_store=setup["execution_claim_store"],
+                indeterminate_write_lock=setup["indeterminate_write_lock"],
                 now=self.now,
                 max_age_seconds=None,
             )
@@ -1336,6 +1404,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
             "indeterminate_write_lock": PersistentIndeterminateWriteLock(
                 setup["root"] / "indeterminate-write-lock.json"
             ),
+            "execution_claim_store": setup["execution_claim_store"],
             "plan_report": self._guarded_plan(setup) if plan is None else plan,
             "confirmation_interaction": confirmation_interaction
             or (
@@ -1384,6 +1453,9 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                 GuardedLibraryExecutionCoordinator(
                     indeterminate_write_lock=PersistentIndeterminateWriteLock(
                         Path(temporary) / "lock.json"
+                    ),
+                    execution_claim_store=PersistentExecutionClaimStore(
+                        Path(temporary) / "claims.sqlite3"
                     ),
                     device_model_profile=VNW_V10_PROFILE,
                 )
@@ -1452,10 +1524,63 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertIsNotNone(record)
         self.assertTrue(record.locked)
         self.assertEqual(record.model_key.value, "sony-vnw-v15")
+        marker = setup["execution_claim_store"].read_sender_in_flight()
+        self.assertIsNotNone(marker)
+        self.assertEqual(marker.state, "lock_recorded")
+        self.assertEqual(marker.attempt_id, record.attempt_id)
         calls_after_failure = len(setup["backend"].calls)
         with self.assertRaises(IndeterminateWriteLockError):
             self._run_guarded(setup)
         self.assertEqual(len(setup["backend"].calls), calls_after_failure)
+
+    def test_abandoned_sender_marker_is_promoted_to_global_lock_after_restart(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        claim = setup["execution_claim_store"].consume(
+            **adapter_module._execution_claim_bindings(setup["preflight"])
+        )
+        marker = setup["execution_claim_store"].mark_sender_in_flight(
+            claim,
+            attempt_id="abandoned-attempt",
+            incident_id="abandoned-incident",
+            evidence_root=str(setup["evidence_namespace"]),
+        )
+        self.assertEqual(marker.state, "in_flight")
+
+        with self.assertRaises(IndeterminateWriteLockError):
+            GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=PersistentIndeterminateWriteLock(
+                    setup["root"] / "indeterminate-write-lock.json"
+                ),
+                execution_claim_store=PersistentExecutionClaimStore(
+                    setup["execution_claim_store"].path
+                ),
+            ).execute(
+                setup["bundle"],
+                plan_report=self._guarded_plan(setup),
+                confirmation_interaction=lambda _review: P17_005_CONFIRMATION,
+                detect_device=lambda: self.fail(
+                    "abandoned marker must block before detection"
+                ),
+                query_capacity=lambda: self.fail(
+                    "abandoned marker must block before capacity"
+                ),
+                backend=setup["backend"],
+                capture=lambda *_args, **_kwargs: self.fail(
+                    "abandoned marker must block before backup"
+                ),
+                evidence_namespace=setup["evidence_namespace"],
+            )
+        record = PersistentIndeterminateWriteLock(
+            setup["root"] / "indeterminate-write-lock.json"
+        ).read()
+        self.assertIsNotNone(record)
+        self.assertTrue(record.locked)
+        persisted_marker = setup["execution_claim_store"].read_sender_in_flight()
+        self.assertIsNotNone(persisted_marker)
+        self.assertEqual(persisted_marker.state, "lock_recorded")
+        self.assertEqual(persisted_marker.attempt_id, "abandoned-attempt")
+        self.assertEqual(self._sender_calls(setup), 0)
 
     def test_guarded_coordinator_does_not_lock_determinate_nonzero_completion(self):
         setup = self._setup(backend=PackageWorkflowBackend(completions=(1,)))

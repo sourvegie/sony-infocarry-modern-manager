@@ -23,6 +23,10 @@ from .experimental_library_transfer_review import (
     ExperimentalLibraryTransferReviewError,
     build_experimental_library_transfer_review,
 )
+from .execution_claim_store import (
+    ExecutionClaimStoreError,
+    PersistentExecutionClaimStore,
+)
 from .indeterminate_write_lock import (
     IndeterminateWriteLockError,
     PersistentIndeterminateWriteLock,
@@ -121,6 +125,7 @@ class GuardedLibraryExecutionCoordinator:
         self,
         *,
         indeterminate_write_lock: PersistentIndeterminateWriteLock,
+        execution_claim_store: PersistentExecutionClaimStore,
         device_model_profile: DeviceModelProfile = VNW_V15_PROFILE,
         capability_profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
     ) -> None:
@@ -144,8 +149,57 @@ class GuardedLibraryExecutionCoordinator:
                 stage="capability_profile",
             )
         self.indeterminate_write_lock = indeterminate_write_lock
+        if not isinstance(execution_claim_store, PersistentExecutionClaimStore):
+            raise GuardedLibraryExecutionError(
+                "the guarded Library lifecycle requires a persistent execution claim store",
+                stage="claim_configuration",
+            )
+        self.execution_claim_store = execution_claim_store
         self.device_model_profile = device_model_profile
         self.capability_profile_id = capability_profile_id
+
+    def _assert_execution_boundary_available(self) -> None:
+        """Fail closed when a prior process died around sender entry."""
+
+        self.indeterminate_write_lock.assert_unlocked(self.device_model_profile.lock_key)
+        try:
+            marker = self.execution_claim_store.read_sender_in_flight()
+            if marker is None:
+                return
+            lock_record = self.indeterminate_write_lock.read(
+                self.device_model_profile.lock_key
+            )
+            if (
+                lock_record is not None
+                and not lock_record.locked
+                and lock_record.attempt_id == marker.attempt_id
+            ):
+                self.execution_claim_store.resolve_sender_in_flight(
+                    marker,
+                    resolution="recovered_after_diagnostic",
+                )
+                return
+            self.indeterminate_write_lock.record_indeterminate(
+                reason=(
+                    "abandoned sender-start marker found after process restart; "
+                    "physical outcome is indeterminate"
+                ),
+                evidence_root=marker.evidence_root,
+                model_key=self.device_model_profile.lock_key,
+                incident_id=marker.incident_id,
+                attempt_id=marker.attempt_id,
+            )
+            self.execution_claim_store.mark_sender_lock_recorded(marker)
+        except (ExecutionClaimStoreError, IndeterminateWriteLockError, OSError, ValueError) as exc:
+            raise GuardedLibraryExecutionError(
+                f"abandoned sender-start state could not be safely resolved: {exc}",
+                stage="indeterminate_lock",
+                state="indeterminate_after_transaction_start",
+            ) from exc
+        raise IndeterminateWriteLockError(
+            "InfoCarry writes are globally locked after an abandoned sender-start boundary; "
+            "read-only diagnosis is required"
+        )
 
     def _review(
         self,
@@ -184,13 +238,29 @@ class GuardedLibraryExecutionCoordinator:
         audit = getattr(exc, "audit", {})
         if not isinstance(audit, Mapping):
             audit = {}
+        claim_audit = audit.get("execution_claim")
+        marker_audit = (
+            claim_audit.get("sender_marker")
+            if isinstance(claim_audit, Mapping)
+            else None
+        )
+        lock_incident_id = (
+            marker_audit.get("incident_id")
+            if isinstance(marker_audit, Mapping)
+            else None
+        )
+        lock_attempt_id = (
+            marker_audit.get("attempt_id")
+            if isinstance(marker_audit, Mapping)
+            else None
+        )
         try:
             record = self.indeterminate_write_lock.record_indeterminate(
                 reason=str(exc),
                 evidence_root=_evidence_root(audit, evidence_root),
                 model_key=self.device_model_profile.lock_key,
-                incident_id=f"guarded-library-{uuid4().hex}",
-                attempt_id=attempt_id,
+                incident_id=lock_incident_id or f"guarded-library-{uuid4().hex}",
+                attempt_id=lock_attempt_id or attempt_id,
             )
         except (IndeterminateWriteLockError, OSError, ValueError) as lock_exc:
             raise GuardedLibraryExecutionError(
@@ -205,6 +275,15 @@ class GuardedLibraryExecutionCoordinator:
             ) from exc
         if hasattr(exc, "audit") and isinstance(getattr(exc, "audit"), dict):
             getattr(exc, "audit")["indeterminate_write_lock"] = record.to_dict()
+        try:
+            marker = self.execution_claim_store.read_sender_in_flight()
+            if marker is not None:
+                self.execution_claim_store.mark_sender_lock_recorded(marker)
+        except ExecutionClaimStoreError:
+            # The global JSON lock is already committed. Retaining the
+            # SQLite marker is fail-closed and allows recovery to bind it
+            # to the same incident after an interrupted cleanup.
+            pass
         setattr(exc, "indeterminate_write_lock_record", record)
 
     def execute(
@@ -218,7 +297,7 @@ class GuardedLibraryExecutionCoordinator:
     ) -> PreparedLibraryPackageLiveResult | PreparedLibraryPackageLiveWrapperResult:
         """Run one confirmed operation through the canonical P17 lifecycle."""
 
-        self.indeterminate_write_lock.assert_unlocked(self.device_model_profile.lock_key)
+        self._assert_execution_boundary_available()
         if not isinstance(operation_bundle, PreparedLibraryPackageOperationBundle):
             raise GuardedLibraryExecutionError(
                 "the guarded lifecycle requires one immutable prepared Library operation bundle",
@@ -248,6 +327,14 @@ class GuardedLibraryExecutionCoordinator:
             raise GuardedLibraryExecutionError(
                 "the guarded lifecycle owns the final pre-send revalidation",
                 stage="pre_send_revalidation",
+            )
+        if any(
+            name in runner_kwargs
+            for name in ("execution_claim_store", "indeterminate_write_lock", "attempt_id")
+        ):
+            raise GuardedLibraryExecutionError(
+                "execution claim and sender recovery state are owned by the guarded lifecycle",
+                stage="claim_configuration",
             )
 
         attempt_id = uuid4().hex
@@ -303,6 +390,9 @@ class GuardedLibraryExecutionCoordinator:
         runner_kwargs["owner_approval"] = P17_005_OWNER_APPROVAL
         runner_kwargs["confirmation"] = confirmation
         runner_kwargs["pre_send_revalidator"] = pre_send_revalidate
+        runner_kwargs["execution_claim_store"] = self.execution_claim_store
+        runner_kwargs["indeterminate_write_lock"] = self.indeterminate_write_lock
+        runner_kwargs["attempt_id"] = attempt_id
         try:
             result = execute_prepared_library_package_live(operation_bundle, **runner_kwargs)
             reconciliation_kwargs: dict[str, Any] = {
@@ -336,6 +426,7 @@ def run_experimental_library_transfer(
     operation_bundle: PreparedLibraryPackageOperationBundle,
     *,
     indeterminate_write_lock: PersistentIndeterminateWriteLock,
+    execution_claim_store: PersistentExecutionClaimStore,
     plan_report: Optional[Mapping[str, Any]],
     confirmation_interaction: Optional[ConfirmationInteraction],
     low_level_bulk_write_calls: int | None = None,
@@ -345,6 +436,7 @@ def run_experimental_library_transfer(
 
     return GuardedLibraryExecutionCoordinator(
         indeterminate_write_lock=indeterminate_write_lock,
+        execution_claim_store=execution_claim_store,
     ).execute(
         operation_bundle,
         plan_report=plan_report,
