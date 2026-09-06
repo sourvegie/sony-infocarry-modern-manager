@@ -8,8 +8,10 @@ Canonical `main` is `c5877a53988f603f765f5c89acbacf624bcd5d67` after merged
 P18-008 / PR #34. P18-004 through P18-008 are complete on `main`, and the
 required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
 owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
-the attempt is recorded below as `BLOCKED_BY_EXTERNAL_EVIDENCE` because no
-Sony InfoCarry device was available for the required read-only identification.
+the resumed attempt is recorded below as `ESCALATION_REQUIRED` because the
+exact destination already exists and fresh auxiliary-state evidence includes
+unresolved bookmark/display-history state. No device-changing operation was
+performed.
 
 ## Current product checkpoint
 
@@ -135,22 +137,29 @@ ordered TXT → BMP → TXT children, against the expected session identity
 `task/P18-009-v15-hardware-validation`, based directly on canonical
 `c5877a53988f603f765f5c89acbacf624bcd5d67`; no production code changed.
 
-The result is `BLOCKED_BY_EXTERNAL_EVIDENCE`. The required read-only device
-enumeration returned no matching InfoCarry device, so the task stopped before
-interface claim, model/profile confirmation, fresh `0x0019` capacity evidence,
-backup, destination conflict check, runtime confirmation, claim consumption,
-sender-marker creation, or `0x101b`. No device-changing operation occurred;
-there is no post-write backup, read-back, or human screen acceptance evidence.
-The real installation-stable claim-store schema was validated with zero claims
-and no active sender marker; the global indeterminate-write lock was absent or
-inactive and was not cleared or activated.
+The resumed result is `ESCALATION_REQUIRED`. Fresh read-only enumeration and
+descriptor validation matched Sony InfoCarry VNW-V15, reviewed profile
+`sony-vnw-v15-reviewed-v1`, and session identity `0x054c:0x001e`. Fresh native
+`0x0019` evidence was 64 bytes with big-endian `+0x08` capacity
+`3,145,728` bytes. A complete integrity-verified fresh backup was captured.
 
-The host gates passed 94 focused tests and the full portable suite of 746 tests
-with 3 intentional evidence-dependent skips, plus Python 3.12 compilation and
-`git diff --check`. No capability row gains new physical evidence. Broader flat
-shapes remain non-live, hierarchy remains preview-only, VNW-V10 remains
-non-write-capable, and standing Experimental physical-write exposure remains
-disabled. See the sanitized [P18-009 analysis record](analysis/phase-18-p18-009-v15-hardware-validation-20260906.md).
+The exact required destination `root/IC_P17_LIBRARY_20260831_03` was already
+present in that backup with existing children `01-introduction`, `02-page-01`,
+and `03-ending`. The reviewed candidate builder stopped before candidate or
+transaction construction. Independent read-only fixed-state assessment found
+7 display-history references in `0x001b` and 4 nonzero bookmark values in
+`0x001f`; no auxiliary state was changed. No alternate destination, overwrite,
+delete, merge, or retry is authorized.
+
+Sender calls: 0; runtime confirmation: not accepted; durable claim: not
+consumed; sender marker: none; `0x101b`: not transmitted; post-backup,
+semantic read-back, and human acceptance: not applicable. The real
+installation-stable claim store remains schema-valid with zero claims and no
+sender marker; the installation-wide indeterminate-write lock remains
+inactive. No capability row gains physical evidence. Broader flat shapes remain
+non-live, hierarchy remains preview-only, VNW-V10 remains non-write-capable,
+and standing Experimental physical-write exposure remains disabled. See the
+sanitized [P18-009 analysis record](analysis/phase-18-p18-009-v15-hardware-validation-20260906.md).
 
 ## Verified recent result
 
@@ -190,9 +199,10 @@ evidence records. The capability authority is
 
 ## Safety posture
 
-- This task is host/offline durability and safety verification. No hardware
-  access, approval phrase, sender construction, `0x101b`, or live enablement is
-  authorized.
+- P18-009 reached fresh read-only VNW-V15 evidence but stopped before sender
+  entry because the exact destination existed and auxiliary state was not
+  within the established safe proof. No approval phrase was accepted, no
+  sender was constructed, no `0x101b` was sent, and no live enablement occurred.
 - Nested content is host preparation/preview only within its exact draft
   profile. Unsupported shapes, excessive limits, automatic grouping, batch
   operations, overwrite/merge/delete, restore, synchronization, and recovery
@@ -214,9 +224,11 @@ evidence records. The capability authority is
 
 The two active streams are Product Delivery and Legacy Oracle. P18-004 through
 P18-008 are complete on canonical `main`; P18-009 received its separate owner
-approval but is blocked before hardware because no matching VNW-V15 was
-available. A future run would require fresh external device access and must
-remain limited to the same exact TXT → BMP → TXT scope.
+approval, obtained fresh read-only VNW-V15 evidence, and escalated before any
+device-changing operation because the exact destination existed and auxiliary
+state was unresolved. Any future physical write would require a fresh R3 review
+and owner decision for changed scope; this task remains limited to the exact
+TXT → BMP → TXT boundary.
 
 P18-008 implementation, local validation, remote macOS/Windows CI, and R3
 review are complete on merged PR #34. P18-009 performed no device-changing
