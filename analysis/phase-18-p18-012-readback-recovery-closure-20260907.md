@@ -5,7 +5,7 @@ Repository: `sourvegie/sony-infocarry-modern-manager`
 Canonical base: `a0ac0765d3a358898f665c8e3dca3a0027db83d7`
 Branch: `task/P18-012-readback-recovery-closure`
 Risk: R3 host/read-only
-Outcome: **REVIEW_CORRECTIONS_REQUIRED** for host/read-only closure; P18-011 remains
+Outcome: **COMPLETE** for host/read-only closure; P18-011 remains
 **ESCALATION_REQUIRED**
 
 ## Safety boundary
@@ -127,15 +127,16 @@ P18-006 adversarial coverage remains passing.
 - `git diff --check`: passed;
 - device-changing operations: **0**.
 
-Independent strong R3 review: the initial review found `P0: 0`, `P1: 0`, and
-`P2: 2` documentation corrections required: remove committed trailing
-whitespace and correct the premature review/closure disposition. This record
-is being corrected before final re-review.
+Independent strong R3 review correction loop: the initial review found `P0: 0`,
+`P1: 0`, and `P2: 2` documentation corrections required. After removing the
+committed trailing whitespace and correcting the premature review/closure
+disposition, the final independent re-review found `P0: 0`, `P1: 0`, and
+`P2: 0`, with no required corrections: **PASS**.
 
 ## Disposition
 
-P18-012 implementation and incident-diagnosis evidence are complete, but final
-host/read-only closure remains pending the R3 correction loop. P18-011 remains
-`ESCALATION_REQUIRED`; its missing durable terminal success record was not
-synthesized. The installation-wide lock remains `locked`, the sender marker
-remains `lock_recorded`, and no device write was performed.
+P18-012 is complete for the host/read-only verifier and incident-diagnosis
+boundary. P18-011 remains `ESCALATION_REQUIRED`; its missing durable terminal
+success record was not synthesized. The installation-wide lock remains
+`locked`, the sender marker remains `lock_recorded`, and no device write was
+performed.

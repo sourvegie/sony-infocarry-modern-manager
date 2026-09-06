@@ -52,8 +52,7 @@ separate host/read-only P18-012 closure task; it is not changed in PR #37.
 
 ## P18-012 read-only incident diagnosis and verifier closure
 
-P18-012 implementation and evidence validation are complete, but final
-host/read-only closure is **PENDING_R3_CORRECTION_LOOP** on
+P18-012 is **COMPLETE** for the host/read-only closure boundary on
 `task/P18-012-readback-recovery-closure`, based on canonical
 `a0ac0765d3a358898f665c8e3dca3a0027db83d7`. It narrowly corrected
 `prepared_package_multi_verify.py` so bookmark verification is enabled only by
@@ -77,7 +76,9 @@ The documented recovery recommendation is **no corrective device write** and
 a later explicit decision may clear the installation-wide lock. P18-012 did
 not clear the lock or resolve the marker. P18-011 remains
 `ESCALATION_REQUIRED`; no durable terminal-success manifest or physical write
-capability claim was manufactured. See the sanitized
+capability claim was manufactured. Independent strong R3 review completed its
+correction loop with final disposition `P0: none`, `P1: none`, `P2: none`.
+See the sanitized
 [P18-012 analysis record](analysis/phase-18-p18-012-readback-recovery-closure-20260907.md).
 
 ## Current product checkpoint
