@@ -24,13 +24,12 @@ passed. The installation claim store was valid with zero claims and no
 sender-in-flight marker, and the persistent global indeterminate-write lock
 was inactive.
 
-The resumed physical validation remains `BLOCKED_BY_EXTERNAL_EVIDENCE`: fresh
-read-only gates initially found the exact VNW-V15 and captured a new native
-`0x0019` capacity response plus a complete verified eight-object backup, but
-the device disappeared before the adapter's authoritative fresh preflight
-could complete its first detection callback. No candidate, confirmation,
-claim, sender marker, `0x101b`, post-backup, or read-back was attempted. No
-production code changed and no capability claim was expanded. See the sanitized
+The latest fresh restart remains `BLOCKED_BY_EXTERNAL_EVIDENCE`: both the
+initial detection gate and one read-only reconnect recheck found no matching
+VNW-V15, so no previously captured capacity, backup, candidate, or derived
+identity was reused and no later gate ran. No candidate, confirmation, claim,
+sender marker, `0x101b`, post-backup, or read-back was attempted. No production
+code changed and no capability claim was expanded. See the sanitized
 [P18-011 analysis record](analysis/phase-18-p18-011-v15-physical-validation-20260906.md).
 
 ## Current product checkpoint

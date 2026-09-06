@@ -82,6 +82,15 @@ fresh capacity/backup callback sequence could complete and before candidate
 construction. No sender was created and no device-changing operation was
 attempted.
 
+### Further fresh restart
+
+At the user's request, a new run namespace
+`/private/tmp/p18-011-resume.8lrxpY` was created and the authoritative gates
+were restarted at detection. Both the initial `infocarry detect --json` and a
+single two-second read-only reconnect recheck returned an empty device list.
+No descriptor, capacity, backup, package, candidate, or derived identity from
+the earlier run was reused. This restart stopped at the first gate.
+
 ## Transaction and physical result
 
 No current P18-011 candidate, transaction, preflight seal, authorization
@@ -91,7 +100,7 @@ prior P18-010 offline hashes were not reused as current physical evidence.
 
 | Gate | Result |
 | --- | --- |
-| Fresh VNW-V15 identity/profile | Passed initially; absent at adapter preflight recheck |
+| Fresh VNW-V15 identity/profile | Prior run passed initially; current fresh restart absent at detection |
 | Fresh native `0x0019` capacity | Passed; 3,145,728 bytes |
 | Fresh complete pre-write backup | Passed; eight objects, integrity verified |
 | Destination absence | Passed against the fresh 335-path baseline |
@@ -112,12 +121,12 @@ expansion occurred. No raw device evidence or private backup was added to Git.
 
 ## Review disposition
 
-The previously completed independent P18-010 host-side R3 review remains the
+The latest fresh restart remains blocked at detection. The previously completed independent P18-010 host-side R3 review remains the
 review basis for the unchanged implementation. The P18-011 post-physical
 evidence review is **not applicable/pending** because the external device
-disappeared before the current adapter preflight could seal a transaction. A
-new operation-specific physical attempt would require the device to remain
-enumerable through the fresh adapter gates; this run authorized no transaction.
+was not enumerable at the current first gate. A new operation-specific
+physical attempt would require the device to remain enumerable through the
+fresh adapter gates; this run authorized no transaction.
 
 `CAPABILITY_MATRIX.md` is unchanged. The fixed TXT → BMP → TXT operation has
 not gained new physical evidence, and standing Experimental exposure remains
