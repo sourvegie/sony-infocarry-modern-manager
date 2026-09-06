@@ -5,6 +5,7 @@ Repository: `sourvegie/sony-infocarry-modern-manager`
 Base: `a67d448a803838c6f16b4c21961496ce3e8d9fc9`
 Branch: `task/P18-010-aux-state-preservation`
 Risk: R3 host-only safety work
+Outcome: **READY_FOR_HARDWARE_TEST**
 
 ## Scope and evidence identity
 
@@ -137,5 +138,9 @@ the product review and added six negative cases. Final re-review: **PASS**, no
 remaining P0–P2 findings. The final real-evidence product review reports
 `ready_for_hardware_test` with no reasons.
 
-macOS and Windows Python 3.12 CI results are recorded in the focused PR before
-the final task disposition.
+The focused [PR #36](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/36)
+passes the Python 3.12 portable suite and whitespace gate on
+[macOS](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34026718806/job/101468883272)
+and [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34026718806/job/101468883228).
+The host-side disposition is therefore `READY_FOR_HARDWARE_TEST`. This is not
+authorization to begin physical validation.

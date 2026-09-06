@@ -189,8 +189,10 @@ review.
 
 Focused tests pass 109 tests; the full portable suite passes 751 tests with 3
 intentional evidence-dependent skips. Independent strong R3 review passed after
-two bounded correction rounds with no remaining P0–P2 findings. macOS/Windows
-Python 3.12 CI is required before the branch is reported ready. No USB,
+two bounded correction rounds with no remaining P0–P2 findings. Python 3.12 CI
+passes on macOS and Windows in
+[PR #36](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/36).
+The host-side result is `READY_FOR_HARDWARE_TEST`. No USB,
 hardware, `0x101b`, claim consumption, or device-changing operation was used.
 See the sanitized [P18-010 analysis record](analysis/phase-18-p18-010-fresh-target-aux-state-preservation-20260906.md).
 
