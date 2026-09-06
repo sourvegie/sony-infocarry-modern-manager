@@ -4,14 +4,33 @@ Date: 2026-09-06
 
 ## Canonical checkpoint
 
-Canonical `main` is `a67d448a803838c6f16b4c21961496ce3e8d9fc9` after the
-P18-009 evidence record. P18-004 through P18-009 are complete on `main`, and the
+Canonical `main` is `1c16d48856328de53171a13f8e5665da0a46e47a` after merged
+P18-010. P18-004 through P18-010 are complete on the canonical history, and the
 required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
 owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
 that attempt is recorded below as `ESCALATION_REQUIRED` because the
 exact destination already exists and fresh auxiliary-state evidence includes
 unresolved bookmark/display-history state. No device-changing operation was
 performed.
+
+## P18-011 owner-approved VNW-V15 physical validation
+
+P18-011 created the fresh branch
+`task/P18-011-v15-physical-validation` from canonical
+`1c16d48856328de53171a13f8e5665da0a46e47a`. Python 3.12 host validation
+passed: 128 focused safety tests and 751 full portable tests with 3
+intentional evidence-dependent skips; compilation and `git diff --check` also
+passed. The installation claim store was valid with zero claims and no
+sender-in-flight marker, and the persistent global indeterminate-write lock
+was inactive.
+
+The physical validation is `BLOCKED_BY_EXTERNAL_EVIDENCE`: fresh read-only USB
+enumeration found no device matching the required VNW-V15 session identity
+`0x054c:0x001e`, so no native `0x0019` capacity response, backup, auxiliary
+state assessment, candidate, confirmation, claim, sender marker, `0x101b`,
+post-backup, or read-back was attempted. No production code changed and no
+capability claim was expanded. See the sanitized
+[P18-011 analysis record](analysis/phase-18-p18-011-v15-physical-validation-20260906.md).
 
 ## Current product checkpoint
 
