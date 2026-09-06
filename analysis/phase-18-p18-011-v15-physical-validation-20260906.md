@@ -70,7 +70,7 @@ candidate, seal, transaction, or derived identity was reused:
 - fresh descriptors confirmed active configuration 1, interface 0 alternate 0,
   bulk OUT `0x01`, bulk IN `0x82`, and 64-byte packets;
 - a new native `0x0019` response was captured and parsed as a 3,145,728-byte
-  capacity (`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662`);
+  capacity (`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a`);
 - a new complete eight-object backup was captured and verified: manifest
   `2a686bcc2907cd395712fc809f0c69793df356c753a0f42a683610bb0da33816`, dynamic
   blob `4d17326ef236015321bbad71e5ebde837c12f928c98b59cc4f4d0c34751f4ea9`
@@ -94,7 +94,10 @@ and the single sender entered; no second transaction or retry was attempted.
 ## Transaction and physical result
 
 The sender reported the one authorized `0x101b` transfer header and payload
-progress, then the live process ended before terminal result-manifest handling.
+progress. Adapter control flow reached post-write backup and independent
+read-back handling only after the native sender returned the exact integer
+`0x0000`. The live process then ended before durable terminal result-manifest
+handling.
 The preserved complete post-write backup has manifest
 `8bf3d26ddbd28e9c91c0861889943548dc5082d5c5f20bf14ac6496b1b953c6f` and
 dynamic blob
@@ -114,11 +117,17 @@ terminal completion record.
 | Sender-in-flight marker | `lock_recorded` after live-process failure |
 | Sender invocations | `1`; no retry |
 | `0x101b` transmissions | One authorized transfer entered; no second transaction |
-| Completion type/value | Indeterminate; terminal result manifest absent |
+| Native sender return | Passed the exact integer `0x0000` gate |
+| Durable terminal-success closure | Not established; no durable result manifest or independently verified terminal-success record exists |
 | Post-write backup | Complete and verified; dynamic blob matches candidate |
 | Independent read-back | Not safely closable: verifier rejected nonzero `0x001f` bookmark values |
 | Human screen acceptance | Not captured |
 | Global lock after attempt | Active installation-wide indeterminate-write lock |
+
+Native sender return: passed the exact integer `0x0000` gate.
+
+Durable terminal-success closure: not established because no durable result
+manifest or independently verified terminal-success record exists.
 
 The approved bookmark-preservation preflight allowed the nonzero `0x001f`
 bookmark group, but the terminal read-back verifier was invoked without the
@@ -129,6 +138,22 @@ sender-start marker therefore require escalation. No overwrite, deletion,
 alternate destination, corrective write, retry, or capability expansion is
 authorized. No raw device evidence or private backup was added to Git.
 
+## Independent R3 review disposition
+
+The independent R3 review found:
+
+```yaml
+P0: none
+P1: none
+P2: corrections required
+```
+
+The production-code P2 is that
+`prepared_package_multi_verify.py` does not derive and pass the sealed P18-010
+bookmark-preservation allowance during terminal read-back assessment. This
+defect is deferred to a separate host/read-only P18-012 closure task. It is
+not fixed in this documentation-only PR.
+
 ## Review disposition
 
 The result is **ESCALATION_REQUIRED**, not `COMPLETE` and not
@@ -136,7 +161,8 @@ The result is **ESCALATION_REQUIRED**, not `COMPLETE` and not
 R3 review remains the review basis for the unchanged implementation. The
 installation-wide lock must remain active. Recovery is limited to a later
 read-only diagnostic and an explicit documented recovery decision; another
-write or automatic retry is prohibited.
+write or automatic retry is prohibited. The P18-012 closure task must address
+the deferred host verifier defect before any terminal-success assessment.
 
 `CAPABILITY_MATRIX.md` is unchanged. The fixed TXT → BMP → TXT operation has
 not gained new physical evidence, and standing Experimental exposure remains
