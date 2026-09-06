@@ -3,9 +3,9 @@
 The builder is deliberately narrower than a general ebook writer. It reuses
 the capture-7 folder geometry and requires an existing native record template
 for every child kind. The mixed-package path may preserve one verified
-display-history response only through the separately reviewed semantic-rebase
-rule; it never invents a TXT or BMP wrapper, touches USB, or assigns
-Manager-side state.
+display-history and bookmark pointers only through the separately reviewed
+semantic-rebase rule; opaque auxiliary values remain byte-identical. It never
+invents a TXT or BMP wrapper, touches USB, or assigns Manager-side state.
 """
 
 from __future__ import annotations
@@ -231,17 +231,13 @@ def _compare_template_shared(
     baseline_paths = set(baseline.paths.values())
     if allow_template_path_subset and template_paths < baseline_paths:
         allowed_read_state_paths: list[str] = []
+        allowed_native_state_prefix_paths: list[str] = []
+        template_source_paths = set(template_item_paths.values())
         for path in sorted(template_paths):
             old = _record_for_path(baseline, path)
             new = _record_for_path(template, path)
             old_raw = bytes.fromhex(old.raw_hex)
             new_raw = bytes.fromhex(new.raw_hex)
-            direct_child = (
-                len(path) == len(template_folder_path) + 1
-                and path[: len(template_folder_path)] == template_folder_path
-                and old.kind == "file"
-                and new.kind == "file"
-            )
             if old.kind != new.kind or old.extension != new.extension or old.name != new.name:
                 raise PreparedMultiCandidateError(
                     f"template changed preserved metadata at {_display_path(path)}"
@@ -251,7 +247,12 @@ def _compare_template_shared(
                     f"template changed preserved content at {_display_path(path)}"
                 )
             if old.flag != new.flag:
-                if not (direct_child and old.flag == 0x20 and new.flag == 0xE0):
+                if not (
+                    old.kind == "file"
+                    and new.kind == "file"
+                    and old.flag == 0x20
+                    and new.flag == 0xE0
+                ):
                     raise PreparedMultiCandidateError(
                         f"template changed preserved metadata at {_display_path(path)}"
                     )
@@ -259,10 +260,16 @@ def _compare_template_shared(
             if old.kind == "file":
                 old_prefix, old_payload = baseline.payload_parts(old)
                 new_prefix, new_payload = template.payload_parts(new)
-                if old_prefix != new_prefix or old_payload != new_payload:
+                if old_payload != new_payload:
                     raise PreparedMultiCandidateError(
                         f"template changed preserved content at {_display_path(path)}"
                     )
+                if old_prefix != new_prefix:
+                    if path in template_source_paths:
+                        raise PreparedMultiCandidateError(
+                            f"template changed a selected native wrapper at {_display_path(path)}"
+                        )
+                    allowed_native_state_prefix_paths.append(_display_path(path))
         return {
             "baseline_template_identical": False,
             "template_is_verified_path_subset": True,
@@ -270,7 +277,8 @@ def _compare_template_shared(
             "shared_records_verified": len(template.paths),
             "baseline_extra_paths": len(baseline_paths - template_paths),
             "allowed_read_state_paths": allowed_read_state_paths,
-            "allowed_difference": "template covers a verified subset of the fresh baseline; metadata geometry/timestamp fields may be rebased, and only direct-child 0xe0-to-0x20 file flags may differ",
+            "allowed_native_state_prefix_paths": allowed_native_state_prefix_paths,
+            "allowed_difference": "template covers a verified subset of the fresh baseline; metadata geometry/timestamp fields may be rebased, established 0xe0-to-0x20 shared-file read-state flags may differ, and non-template-source native state prefixes may differ while payloads remain exact; candidate bytes always preserve the fresh baseline",
             "extra_baseline_paths_preserved": True,
         }
     expected = set(baseline.paths.values()) | {template_folder_path}
@@ -383,6 +391,7 @@ def build_prepared_multi_package_candidate(
     template_folder_path: tuple[str, ...] = ("root", "IC_I_FOLDER_20260823_01"),
     template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
     template_subset_policy_sha256: Optional[str] = None,
+    allow_verified_bookmarks: bool = False,
 ) -> PreparedMultiPackageCandidate:
     """Build one ordered multi-child candidate using only native capacity evidence."""
 
@@ -563,13 +572,18 @@ def build_prepared_multi_package_candidate(
     fixed_assessment = assess_prepared_fixed_state(
         backup,
         allow_verified_display_history=True,
+        allow_verified_bookmarks=allow_verified_bookmarks,
     )
     try:
         fixed = fixed_assessment.require_supported()
     except PreparedFixedStateError as exc:
         raise PreparedMultiCandidateError(f"fresh fixed state is unsupported: {exc}") from exc
     try:
-        fixed, display_history_validation = fixed.rebase_display_history(
+        (
+            fixed,
+            display_history_validation,
+            bookmark_validation,
+        ) = fixed.rebase_auxiliary_state(
             baseline,
             candidate,
             insertion_offset=root_marker_offset - baseline.header.metadata_start,
@@ -639,6 +653,14 @@ def build_prepared_multi_package_candidate(
             "insertion_offset_absolute": (
                 _hex(root_marker_offset)
                 if display_history_validation.get("insertion_offset") is not None
+                else None
+            ),
+        },
+        "bookmark_validation": {
+            **bookmark_validation,
+            "insertion_offset_absolute": (
+                _hex(root_marker_offset)
+                if bookmark_validation.get("insertion_offset") is not None
                 else None
             ),
         },
