@@ -54,34 +54,48 @@ The store and lock were inspected under the existing user application-data
 location. No claim, marker, lock, or recovery state was created, consumed,
 cleared, or modified by this task.
 
-## Fresh device preflight
+## Resumed fresh device preflight
 
-Read-only USB enumeration found **zero** connected devices matching the exact
-required session identity:
+The resumed run began with new read-only gates in the external run namespace
+`/private/tmp/p18-011-run.zCOJwz`:
 
-- VID: `0x054c`;
-- PID: `0x001e`;
-- profile: `sony-vnw-v15-reviewed-v1`.
+- `infocarry detect --json` found one device matching the exact profile
+  identity: VID `0x054c`, PID `0x001e`;
+- fresh descriptors confirmed active configuration 1, interface 0 alternate 0,
+  bulk OUT `0x01`, bulk IN `0x82`, and 64-byte packets;
+- a new native `0x0019` response was captured and parsed as a 3,145,728-byte
+  capacity (`c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662`);
+- a new complete eight-object backup was captured and verified: manifest
+  `83a9e6b111e195a50b78ce7fafe31a10390490077308bd402581a52be28ee38b`, dynamic
+  blob `4d17326ef236015321bbad71e5ebde837c12f928c98b59cc4f4d0c34751f4ea9`
+  (2,091,292 bytes), and state identity
+  `a6ea8922c0a1fa3231b04cbcf5de9791acf7536329b4eaf8d65a64352cacf9b9`;
+- the fresh baseline contained 399 records / 335 paths, the exact target was
+  absent, seven display-history entries and one bookmark group were valid for
+  the reviewed semantic-preservation policy, and `0x001c`–`0x001e` were
+  zero-count.
 
-No device session was opened and no native command was issued. Consequently,
-the required fresh identity evidence, native `0x0019` 64-byte capacity
-response, complete pre-write backup, fresh auxiliary-state assessment,
-destination absence check, candidate construction, transaction construction,
-runtime confirmation, and physical sender operation could not safely begin.
+The required full adapter preflight then re-ran its first detection callback,
+but the device was no longer enumerable. A follow-up `detect --json` also
+returned an empty list. The adapter therefore stopped before its authoritative
+fresh capacity/backup callback sequence could complete and before candidate
+construction. No sender was created and no device-changing operation was
+attempted.
 
 ## Transaction and physical result
 
 No current P18-011 candidate, transaction, preflight seal, authorization
-binding, or operation-bundle hash was produced from fresh device evidence.
-The prior P18-010 offline hashes were not reused as current physical evidence.
+binding, or operation-bundle hash was produced because the device disappeared
+before the complete adapter preflight could reach candidate construction. The
+prior P18-010 offline hashes were not reused as current physical evidence.
 
 | Gate | Result |
 | --- | --- |
-| Fresh VNW-V15 identity/profile | Not obtained; device absent |
-| Fresh native `0x0019` capacity | Not obtained |
-| Fresh complete pre-write backup | Not attempted |
-| Destination absence | Not assessed against a fresh device baseline |
-| Fresh `0x001b`–`0x001f` state | Not assessed |
+| Fresh VNW-V15 identity/profile | Passed initially; absent at adapter preflight recheck |
+| Fresh native `0x0019` capacity | Passed; 3,145,728 bytes |
+| Fresh complete pre-write backup | Passed; eight objects, integrity verified |
+| Destination absence | Passed against the fresh 335-path baseline |
+| Fresh `0x001b`–`0x001f` state | Passed reviewed class; `0x001b`/`0x001f` semantic-preservation inputs, `0x001c`–`0x001e` zero-count |
 | Runtime confirmation | Not presented or accepted |
 | Durable execution claim | Not consumed |
 | Sender-in-flight marker | Not committed |
@@ -101,10 +115,9 @@ expansion occurred. No raw device evidence or private backup was added to Git.
 The previously completed independent P18-010 host-side R3 review remains the
 review basis for the unchanged implementation. The P18-011 post-physical
 evidence review is **not applicable/pending** because the external device
-prerequisite was absent and no physical result exists to review. A new
-operation-specific physical attempt would require fresh device availability
-and a new review of the resulting evidence; this task authorizes no second
-transaction.
+disappeared before the current adapter preflight could seal a transaction. A
+new operation-specific physical attempt would require the device to remain
+enumerable through the fresh adapter gates; this run authorized no transaction.
 
 `CAPABILITY_MATRIX.md` is unchanged. The fixed TXT → BMP → TXT operation has
 not gained new physical evidence, and standing Experimental exposure remains
