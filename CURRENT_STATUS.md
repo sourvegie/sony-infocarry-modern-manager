@@ -4,14 +4,51 @@ Date: 2026-09-06
 
 ## Canonical checkpoint
 
-Canonical `main` is `a67d448a803838c6f16b4c21961496ce3e8d9fc9` after the
-P18-009 evidence record. P18-004 through P18-009 are complete on `main`, and the
+Canonical `main` is `1c16d48856328de53171a13f8e5665da0a46e47a` after merged
+P18-010. P18-004 through P18-010 are complete on the canonical history, and the
 required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
 owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
-that attempt is recorded below as `ESCALATION_REQUIRED` because the
-exact destination already exists and fresh auxiliary-state evidence includes
+that attempt is recorded below as `ESCALATION_REQUIRED` because the exact
+destination already exists and fresh auxiliary-state evidence includes
 unresolved bookmark/display-history state. No device-changing operation was
-performed.
+performed in P18-009.
+
+## P18-011 owner-approved VNW-V15 physical validation
+
+P18-011 resumed on the existing branch
+`task/P18-011-v15-physical-validation` and PR #37. Host-level USB detection
+confirmed the connected Sony InfoCarry VNW-V15 (`0x054c:0x001e`), and the
+complete authoritative fresh preflight passed from a new session. It rebuilt
+capacity, descriptors, the eight-object baseline backup, destination absence,
+auxiliary-state eligibility, candidate, seal, transaction, and execution-time
+capacity evidence without reusing stale evidence.
+
+The exact owner confirmation `ADD IC_P18_LIBRARY_20260906_01 ONCE` was accepted
+once. One durable claim was consumed and the sender entered one authorized
+`0x101b` transaction; no retry or second transaction occurred. The native
+sender result passed the exact integer `0x0000` gate, and a complete post-write
+backup was captured whose dynamic blob matches the sealed candidate. Durable
+terminal verification is unresolved because the bookmark-policy verifier did
+not derive/pass the sealed P18-010 bookmark-preservation allowance and no
+durable result manifest exists. The physical result is therefore
+**ESCALATION_REQUIRED**, not complete and not a capability proof.
+
+The sender marker is durably `lock_recorded` and the installation-wide
+indeterminate-write lock is active. No further USB write, automatic retry,
+overwrite, deletion, corrective write, or capability expansion is authorized.
+Recovery requires a later read-only diagnostic and an explicit documented
+recovery decision. No production code changed. See the sanitized
+[P18-011 analysis record](analysis/phase-18-p18-011-v15-physical-validation-20260906.md).
+
+This is distinct from the earlier P18-009 event: P18-009 stopped before
+sender entry because its old target already existed and its auxiliary state
+required closure; no write occurred there. P18-011 is the later
+owner-approved operation against the fresh target and already-closed P18-010
+auxiliary-state policy, and it reached one physical transaction.
+
+The independent R3 review found `P0: none`, `P1: none`, and
+`P2: corrections required`. The production-code P2 is deferred to the
+separate host/read-only P18-012 closure task; it is not changed in PR #37.
 
 ## Current product checkpoint
 
@@ -233,6 +270,11 @@ evidence records. The capability authority is
 [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
 
 ## Safety posture
+
+- P18-011 reached sender entry once after complete fresh gates. Its post-write
+  backup is preserved, but terminal closure is indeterminate; the
+  installation-wide lock is intentionally active and must not be cleared by a
+  reconnect or by assuming that the device matches the candidate.
 
 - P18-009 reached fresh read-only VNW-V15 evidence but stopped before sender
   entry because the exact destination existed and auxiliary state was not
