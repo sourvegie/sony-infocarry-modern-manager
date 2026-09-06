@@ -4,14 +4,12 @@ Date: 2026-09-06
 
 ## Canonical checkpoint
 
-Canonical `main` is `9cf01f49404e354c3704fbc6508afa8f7d20c509` (merged P18-007 /
-PR #33). P18-004 through P18-007 are complete on `main`, and P18-005/P18-006
-have completed their required R3 reviews. P18-008 is implemented on
-`task/P18-008-durable-one-shot-claims` at
-`b41eccd24244c5746feefcb9e9cdbc2e1cf0c049`, with the open
-[PR #34](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/34)
-awaiting owner disposition. No physical device work is authorized by the
-current governance task.
+Canonical `main` is `c5877a53988f603f765f5c89acbacf624bcd5d67` after merged
+P18-008 / PR #34. P18-004 through P18-008 are complete on `main`, and the
+required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
+owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
+the attempt is recorded below as `BLOCKED_BY_EXTERNAL_EVIDENCE` because no
+Sony InfoCarry device was available for the required read-only identification.
 
 ## Current product checkpoint
 
@@ -72,10 +70,11 @@ post-start completion values were not classified as indeterminate. The latter
 now activates the existing installation-wide persistent lock; nonzero integer
 completion remains determinate failure. No automatic retry is allowed.
 Independent R3 review passed with no correction round required. P18-008 closes
-the prior process-local one-shot claim carry-forward on its PR branch: SQLite
-is now the cross-process/restart authority, with real subprocess crash/race
-coverage and a durable sender-start marker. This is a host-side safety closure;
-it does not enable a physical write or claim physical transaction atomicity.
+the prior process-local one-shot claim carry-forward on canonical `main`:
+SQLite is now the cross-process/restart authority, with real subprocess
+crash/race coverage and a durable sender-start marker. This is a host-side
+safety closure; it does not enable a physical write or claim physical
+transaction atomicity.
 
 ## P18-007 Legacy Oracle checkpoint
 
@@ -99,8 +98,8 @@ and [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions
 Python 3.12 CI passing. A same-baseline P16 whole-blob observation or
 hierarchical fixture is not required for the completed A–C host-side result.
 The former P18-006 process-local one-shot claim carry-forward is resolved by
-the P18-008 branch described below; the P18-007 Oracle boundary and its
-limitations are unchanged.
+P18-008 on canonical `main`; the P18-007 Oracle boundary and its limitations
+are unchanged.
 
 ## P18-008 durable one-shot claim checkpoint
 
@@ -122,10 +121,36 @@ The host evidence uses actual independent subprocesses for restart persistence,
 `os._exit` crash persistence, and a same-seal two-process race with exactly one
 winner. The focused claim/adapter/coordinator tests pass 90 tests; the full
 portable suite passes 746 tests with 3 intentional evidence-dependent skips.
-The P18-008 pull request has passing macOS and Windows Python 3.12 offline
+The merged P18-008 change has passing macOS and Windows Python 3.12 offline
 checks in [workflow run 33976813020](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/33976813020).
-Independent R3 re-review of `b41eccd` is PASS with no remaining
+Independent R3 re-review of `c5877a5` is PASS with no remaining
 P0/P1/P2 findings. No USB, hardware, `0x101b`, or live transfer was used.
+
+## P18-009 owner-approved VNW-V15 physical validation
+
+P18-009 received explicit owner approval for exactly one physical validation of
+the reviewed `sony-vnw-v15-reviewed-v1` operation: one new absent root with
+ordered TXT → BMP → TXT children, against the expected session identity
+`0x054c:0x001e`. The fresh branch is
+`task/P18-009-v15-hardware-validation`, based directly on canonical
+`c5877a53988f603f765f5c89acbacf624bcd5d67`; no production code changed.
+
+The result is `BLOCKED_BY_EXTERNAL_EVIDENCE`. The required read-only device
+enumeration returned no matching InfoCarry device, so the task stopped before
+interface claim, model/profile confirmation, fresh `0x0019` capacity evidence,
+backup, destination conflict check, runtime confirmation, claim consumption,
+sender-marker creation, or `0x101b`. No device-changing operation occurred;
+there is no post-write backup, read-back, or human screen acceptance evidence.
+The real installation-stable claim-store schema was validated with zero claims
+and no active sender marker; the global indeterminate-write lock was absent or
+inactive and was not cleared or activated.
+
+The host gates passed 94 focused tests and the full portable suite of 746 tests
+with 3 intentional evidence-dependent skips, plus Python 3.12 compilation and
+`git diff --check`. No capability row gains new physical evidence. Broader flat
+shapes remain non-live, hierarchy remains preview-only, VNW-V10 remains
+non-write-capable, and standing Experimental physical-write exposure remains
+disabled. See the sanitized [P18-009 analysis record](analysis/phase-18-p18-009-v15-hardware-validation-20260906.md).
 
 ## Verified recent result
 
@@ -188,18 +213,14 @@ evidence records. The capability authority is
 ## Delivery and review
 
 The two active streams are Product Delivery and Legacy Oracle. P18-004 through
-P18-007 are complete on canonical `main`; P18-008 closes the offline durable
-one-shot claim gate on PR #34. The remaining pre-hardware sequence is:
-
-P18-008 owner disposition
-↓
-separate owner approval for physical validation
-↓
-combined GUI hardware validation of the exact enabled profile
+P18-008 are complete on canonical `main`; P18-009 received its separate owner
+approval but is blocked before hardware because no matching VNW-V15 was
+available. A future run would require fresh external device access and must
+remain limited to the same exact TXT → BMP → TXT scope.
 
 P18-008 implementation, local validation, remote macOS/Windows CI, and R3
-review are complete on PR #34. The next gate is separate owner disposition;
-hardware validation remains a distinct later task.
+review are complete on merged PR #34. P18-009 performed no device-changing
+operation and does not change the standing Experimental exposure decision.
 
 Portable baseline figures through P18-006 remain recorded below for history.
 P18-006 focused validation is 17 passing; the guarded/P17 focused validation
@@ -217,7 +238,7 @@ USB, candidate, authorization, or live-write behavior.
 
 P18-006 outcome: `COMPLETE` for host-verifiable offline guarded-transfer and
 tamper coverage. Its P2 cross-process claim carry-forward is resolved by
-P18-008 on PR #34; this still does not authorize a device write. The exact
+merged P18-008 on canonical `main`; this still does not authorize a device write. The exact
 TXT/BMP/TXT shape remains the only guarded-execution shape; broader flat,
 hierarchical, and V10 paths remain unavailable or preview-only.
 The required GitHub Python 3.12 offline workflow passed on both
