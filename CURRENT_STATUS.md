@@ -50,6 +50,35 @@ The independent R3 review found `P0: none`, `P1: none`, and
 `P2: corrections required`. The production-code P2 is deferred to the
 separate host/read-only P18-012 closure task; it is not changed in PR #37.
 
+## P18-012 read-only incident diagnosis and verifier closure
+
+P18-012 is **COMPLETE** for the host/read-only closure boundary on
+`task/P18-012-readback-recovery-closure`, based on canonical
+`a0ac0765d3a358898f665c8e3dca3a0027db83d7`. It narrowly corrected
+`prepared_package_multi_verify.py` so bookmark verification is enabled only by
+the exact validated sealed P18-010 bookmark-preservation policy and matching
+fixed-state snapshot. The public verifier has no caller-controlled bookmark
+permission switch. Wrong-policy, malformed, pointer/path, opaque-byte,
+unused-tail, unsupported-state, and policy/snapshot tampering remain fail-closed.
+
+The corrected verifier independently passed the preserved P18-011 immediate
+post-write backup and the fresh incident-bound VNW-V15 diagnostic. Both match
+the sealed candidate blob
+`6fd27699ca6c13a46f8d75467ba72860af8b865b7cf19046b7a91f63bf471e01`; the fresh
+diagnostic is complete, exact-profile `0x054c:0x001e`, and bound to the
+original incident, attempt, consumed claim, sender marker, and active global
+lock. It verifies the exact target and ordered TXT → BMP → TXT children, all
+335 baseline paths, shared-state preservation, seven display-history
+references, one bookmark group, exact opaque bookmark values and unused tail,
+and zero-count `0x001c`–`0x001e`.
+
+The documented recovery recommendation is **no corrective device write** and
+a later explicit decision may clear the installation-wide lock. P18-012 did
+not clear the lock or resolve the marker. P18-011 remains
+`ESCALATION_REQUIRED`; no durable terminal-success manifest or physical write
+capability claim was manufactured. See the sanitized
+[P18-012 analysis record](analysis/phase-18-p18-012-readback-recovery-closure-20260907.md).
+
 ## Current product checkpoint
 
 P18-003 adds the host workflow Select files/folder → Arrange → Prepare →
