@@ -180,6 +180,42 @@ class PreparedFixedStateTests(unittest.TestCase):
         with self.assertRaisesRegex(PreparedFixedStateError, "shifted"):
             snapshot.validate_display_history_unshifted(parsed, shifted)
 
+    def test_verified_bookmark_mode_binds_pointer_and_preserves_opaque_stale_bytes(self):
+        state = self._zero_state()
+        display = bytearray(64)
+        display[0:4] = (1).to_bytes(4, "big")
+        display[8:12] = (0x80).to_bytes(4, "big")
+        display[60:] = b"TAIL"
+        state[0x001B] = bytes(display)
+        for command in (0x001C, 0x001D, 0x001E):
+            raw = bytearray(64)
+            raw[56:] = b"STALEBYT"
+            state[command] = bytes(raw)
+        bookmark = bytearray(64)
+        values = (0x80, 0xC00, 0, 0x14, 0xFFF101C5, 0, 0, 0, 0, 0)
+        bookmark[:40] = b"".join(value.to_bytes(4, "big") for value in values)
+        bookmark[40:] = b"B" * 24
+        state[0x001F] = bytes(bookmark)
+        temporary, backup = self._backup(state)
+        self.addCleanup(temporary.cleanup)
+
+        rejected = assess_prepared_fixed_state(
+            backup, allow_verified_display_history=True
+        )
+        self.assertFalse(rejected.eligible)
+        accepted = assess_prepared_fixed_state(
+            backup,
+            allow_verified_display_history=True,
+            allow_verified_bookmarks=True,
+        ).require_supported()
+        self.assertEqual(accepted.bookmark_groups[0], values[:5])
+        self.assertEqual(
+            accepted.bookmark_group_paths,
+            ((0, 0x80, ("root", "source")),),
+        )
+        self.assertEqual(accepted.raw_blocks[1:4], tuple(state[c] for c in (0x001C, 0x001D, 0x001E)))
+
+
 
 if __name__ == "__main__":
     unittest.main()

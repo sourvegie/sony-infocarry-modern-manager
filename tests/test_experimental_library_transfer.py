@@ -4,6 +4,9 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from infocarry.experimental_library_transfer_review import (
+    EXPERIMENTAL_CONFIRMATION,
+    EXPERIMENTAL_CONFIRMATION_POLICY,
+    EXPERIMENTAL_OWNER_APPROVAL,
     EXPERIMENTAL_TARGET_FOLDER,
     ExperimentalLibraryTransferReviewError,
     build_experimental_library_transfer_review,
@@ -80,6 +83,9 @@ def _bundle():
         "bundle_sha256": "b" * 64,
         "device_identity": ["0x054c", "0x001e"],
         "expected_folder_name": EXPERIMENTAL_TARGET_FOLDER,
+        "owner_approval_phrase": EXPERIMENTAL_OWNER_APPROVAL,
+        "confirmation_phrase": EXPERIMENTAL_CONFIRMATION,
+        "confirmation_policy": EXPERIMENTAL_CONFIRMATION_POLICY,
         "safety": {
             "automatic_retry_allowed": False,
             "max_sender_calls": 1,
@@ -102,6 +108,10 @@ def _bundle():
         "authorization_sha256": "4" * 64,
         "expected_post_operation_sha256": "5" * 64,
         "library_binding_sha256": "6" * 64,
+        "fixed_state_policy": "capture7_exact_all_zero_fixed_state",
+        "fixed_state_before_sha256": ["7" * 64] * 5,
+        "fixed_state_candidate_sha256": ["7" * 64] * 5,
+        "bookmark_binding_sha256": "8" * 64,
     }
 
 
@@ -112,6 +122,9 @@ def _preflight():
         "profile": "one_selected_library_item_root_txt_bmp_txt",
         "device_identity": ["0x054c", "0x001e"],
         "expected_folder_name": EXPERIMENTAL_TARGET_FOLDER,
+        "owner_approval_phrase": EXPERIMENTAL_OWNER_APPROVAL,
+        "confirmation_phrase": EXPERIMENTAL_CONFIRMATION,
+        "confirmation_policy": EXPERIMENTAL_CONFIRMATION_POLICY,
         "read_only_preflight": True,
         "device_changing_operation_performed": False,
         "usb_transmission_performed": False,
@@ -144,8 +157,15 @@ def _preflight():
                 "baseline_model_bytes": 2075256,
                 "candidate_model_bytes": 2091292,
             },
+            "policy": {"fixed_state": bundle["fixed_state_policy"]},
         },
-        "authorization": {"candidate_transaction_sha256": bundle["transaction_sha256"]},
+        "authorization": {
+            "candidate_transaction_sha256": bundle["transaction_sha256"],
+            "fixed_state_policy": bundle["fixed_state_policy"],
+            "fixed_state_before_sha256": bundle["fixed_state_before_sha256"],
+            "fixed_state_candidate_sha256": bundle["fixed_state_candidate_sha256"],
+            "bookmark_binding_sha256": bundle["bookmark_binding_sha256"],
+        },
     }
 
 
@@ -174,6 +194,23 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
             review["safety"]["contract"]["terminal_failure_boundaries"],
             list(EXPERIMENTAL_FAILURE_BOUNDARIES),
         )
+
+    def test_stale_or_mutated_approval_never_reports_hardware_readiness(self):
+        cases = (
+            ("owner_approval_phrase", "APPROVE P17-003 MODERN LIBRARY PACKAGE SMOKE 01"),
+            ("confirmation_phrase", "CONFIRM P17-003 ONE INFOCARRY MULTI-CHILD PACKAGE"),
+            ("confirmation_policy", "fixed_confirmation_phrase_v1"),
+        )
+        for location in ("preflight", "bundle"):
+            for field, stale_value in cases:
+                with self.subTest(location=location, field=field):
+                    preflight = _preflight()
+                    bundle = _bundle()
+                    (preflight if location == "preflight" else bundle)[field] = stale_value
+                    review = build_experimental_library_transfer_review(
+                        _plan(), preflight_report=preflight, bundle_report=bundle
+                    )
+                    self.assertFalse(review.ready_for_hardware_test)
 
     def test_multiple_selection_is_never_a_package(self):
         review = build_experimental_library_transfer_review(

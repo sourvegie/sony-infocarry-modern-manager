@@ -4,11 +4,11 @@ Date: 2026-09-06
 
 ## Canonical checkpoint
 
-Canonical `main` is `c5877a53988f603f765f5c89acbacf624bcd5d67` after merged
-P18-008 / PR #34. P18-004 through P18-008 are complete on `main`, and the
+Canonical `main` is `a67d448a803838c6f16b4c21961496ce3e8d9fc9` after the
+P18-009 evidence record. P18-004 through P18-009 are complete on `main`, and the
 required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
 owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
-the resumed attempt is recorded below as `ESCALATION_REQUIRED` because the
+that attempt is recorded below as `ESCALATION_REQUIRED` because the
 exact destination already exists and fresh auxiliary-state evidence includes
 unresolved bookmark/display-history state. No device-changing operation was
 performed.
@@ -160,6 +160,39 @@ inactive. No capability row gains physical evidence. Broader flat shapes remain
 non-live, hierarchy remains preview-only, VNW-V10 remains non-write-capable,
 and standing Experimental physical-write exposure remains disabled. See the
 sanitized [P18-009 analysis record](analysis/phase-18-p18-009-v15-hardware-validation-20260906.md).
+
+## P18-010 fresh target and auxiliary-state preservation
+
+P18-010 is an R3 host-only closure on
+`task/P18-010-aux-state-preservation`, based directly on canonical
+`a67d448a803838c6f16b4c21961496ce3e8d9fc9`. It fixes the next validation
+destination to `IC_P18_LIBRARY_20260906_01`, which is absent from the preserved
+P18-009 baseline, and reuses the existing exact TXT → BMP → TXT pipeline.
+
+The real P18-009 state has seven `0x001b` display-history references, zero
+counts in `0x001c`–`0x001e`, and one active `0x001f` bookmark group with four
+nonzero values. The host candidate rebases only the seven established history
+pointers and the independently resolved bookmark record pointer by the exact
+`0x140` metadata delta. The bookmark group's other four dwords, its unused
+tail, all zero-count mark blocks, every referenced existing payload, and all
+unrelated baseline state remain exact.
+
+The resulting 2,107,328-byte candidate has SHA-256
+`6fd27699ca6c13a46f8d75467ba72860af8b865b7cf19046b7a91f63bf471e01`;
+the 2,172,864-byte transaction has SHA-256
+`9373330cd78f58faaa0cfe61590e4cd0ce489ea5c8069c3112144e69aafe10f4`.
+Against native capacity 3,145,728 bytes, projected post-candidate margin is
+1,038,400 bytes. The fixed-state policy and before/candidate hashes, semantic
+bookmark binding, destination, candidate, and transaction are carried through
+authorization, sealed preflight, immutable operation bundle, and product
+review.
+
+Focused tests pass 109 tests; the full portable suite passes 751 tests with 3
+intentional evidence-dependent skips. Independent strong R3 review passed after
+two bounded correction rounds with no remaining P0–P2 findings. macOS/Windows
+Python 3.12 CI is required before the branch is reported ready. No USB,
+hardware, `0x101b`, claim consumption, or device-changing operation was used.
+See the sanitized [P18-010 analysis record](analysis/phase-18-p18-010-fresh-target-aux-state-preservation-20260906.md).
 
 ## Verified recent result
 

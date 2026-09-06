@@ -3,6 +3,7 @@ import unittest
 
 from infocarry.write_state import (
     StateSerializationError,
+    rebase_fixed_state_responses,
     serialize_grouped_values_state,
     serialize_offset_list_ranges,
     serialize_offset_list_state,
@@ -19,6 +20,28 @@ def offset_state(count=2, first=0x10203040):
 
 
 class FixedWriteStateSerializerTests(unittest.TestCase):
+    def test_rebase_changes_only_counted_offsets_and_bookmark_group_dword_one(self):
+        ranges = []
+        for index in range(4):
+            raw = bytearray([0xA0 + index] * 64)
+            raw[0:8] = b"\x00" * 8
+            if index == 0:
+                raw[0:4] = (2).to_bytes(4, "big")
+                raw[8:12] = (0x80).to_bytes(4, "big")
+                raw[12:16] = (0x140).to_bytes(4, "big")
+            ranges.append(bytes(raw))
+        grouped = bytearray([0xEE] * 64)
+        values = (0x140, 0xC00, 0, 0x14, 0xFFF101C5, 0, 0, 0, 0, 0)
+        grouped[:40] = b"".join(value.to_bytes(4, "big") for value in values)
+        rebased_ranges, rebased_grouped = rebase_fixed_state_responses(
+            ranges, bytes(grouped), insertion_offset=0x100, metadata_delta=0x140
+        )
+        self.assertEqual(rebased_ranges[0][8:16], (0x80).to_bytes(4, "big") + (0x280).to_bytes(4, "big"))
+        self.assertEqual(rebased_ranges[0][16:], ranges[0][16:])
+        self.assertEqual(rebased_ranges[1:], tuple(ranges[1:]))
+        self.assertEqual(rebased_grouped[:4], (0x280).to_bytes(4, "big"))
+        self.assertEqual(rebased_grouped[4:], bytes(grouped[4:]))
+
     def test_offset_list_is_big_endian_and_zero_fills_unused_tail(self):
         result = serialize_offset_list_state(offset_state())
         expected = (

@@ -471,6 +471,60 @@ class PreparedMultiCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(PreparedMultiPackageGateError, "raw-preservation"):
             replace(authorization, display_history_raw_preserved_exactly=True)
 
+    def test_bookmark_pointer_rebases_while_opaque_values_and_zero_count_marks_remain_exact(self):
+        temporary, package, _zero_backup, _zero_candidate, template = self._case(mixed=True)
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        now = datetime(2026, 8, 27, tzinfo=timezone.utc)
+        state = {command: bytearray(64) for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)}
+        state[0x001B][0:4] = (1).to_bytes(4, "big")
+        state[0x001B][8:12] = (0x140).to_bytes(4, "big")
+        state[0x001B][60:] = b"HIST"
+        for command in (0x001C, 0x001D, 0x001E):
+            state[command][56:] = b"STALEBYT"
+        bookmark_values = (0x140, 0xC00, 0, 0x14, 0xFFF101C5)
+        state[0x001F][:20] = b"".join(value.to_bytes(4, "big") for value in bookmark_values)
+        state[0x001F][40:] = b"B" * 24
+        raw_state = {command: bytes(value) for command, value in state.items()}
+        backup_path = _write_archive(root / "bookmark-before", template.data, now, fixed_state=raw_state)
+        backup = verify_fresh_backup(backup_path, now=now, max_age_seconds=None)
+        with self.assertRaisesRegex(PreparedMultiCandidateError, "bookmark"):
+            build_prepared_multi_package_candidate(
+                package, backup, template,
+                new_record_timestamp_be32=0x6A8ABA6F,
+                native_capacity_response=self._response(),
+                template_folder_path=("root", "Template"),
+                template_item_paths={"txt": ("root", "Template", "chapter"), "bmp": ("root", "Template", "page")},
+            )
+        candidate = build_prepared_multi_package_candidate(
+            package, backup, template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=self._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={"txt": ("root", "Template", "chapter"), "bmp": ("root", "Template", "page")},
+            allow_verified_bookmarks=True,
+        )
+        validation = candidate.audit["bookmark_validation"]
+        self.assertEqual(validation["references_rebased"], 1)
+        self.assertEqual(validation["groups"][0]["path"], "root\\Template\\chapter")
+        self.assertTrue(validation["opaque_values_preserved_exactly"])
+        self.assertEqual(candidate.fixed_state.candidate_raw_blocks[4][:4], (0x280).to_bytes(4, "big"))
+        self.assertEqual(candidate.fixed_state.candidate_raw_blocks[4][4:], raw_state[0x001F][4:])
+        self.assertEqual(candidate.fixed_state.candidate_raw_blocks[1:4], tuple(raw_state[c] for c in (0x001C, 0x001D, 0x001E)))
+        self.assertIn("bookmark_0x001f", candidate.audit["policy"]["fixed_state"])
+        from infocarry.prepared_multi_package_gate import (
+            PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE,
+            PreparedMultiPackageGateError,
+            authorize_prepared_multi_package,
+        )
+        authorization = authorize_prepared_multi_package(candidate, confirmation=PREPARED_MULTI_PACKAGE_CONFIRMATION_PHRASE)
+        self.assertEqual(authorization.bookmark_group_count, 1)
+        self.assertTrue(authorization.bookmark_opaque_values_preserved_exactly)
+        altered = deepcopy(candidate.audit_dict())
+        altered["bookmark_validation"]["groups"][0]["path"] = "root\\other"
+        with self.assertRaisesRegex(PreparedMultiPackageGateError, "bookmark"):
+            authorization.require_same_candidate(replace(candidate, audit=altered))
+
     def test_fresh_baseline_allows_only_verified_template_read_state_flags(self):
         temporary, package, _zero_backup, _zero_candidate, template = self._case(mixed=True)
         self.addCleanup(temporary.cleanup)

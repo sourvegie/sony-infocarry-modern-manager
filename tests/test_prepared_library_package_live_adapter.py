@@ -204,8 +204,8 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         if explicit:
             common.update(
                 {
-                    "owner_approval_phrase": "APPROVE P17-011 MODERN LIBRARY PACKAGE PREFLIGHT 01",
-                    "confirmation_phrase": "CONFIRM P17-011 ONE INFOCARRY MULTI-CHILD PACKAGE",
+                    "owner_approval_phrase": P17_005_OWNER_APPROVAL,
+                    "confirmation_phrase": P17_005_CONFIRMATION,
                     "confirmation_policy": P17_009_CONFIRMATION_POLICY,
                 }
             )
@@ -474,56 +474,44 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         )
         self.assertEqual(self._sender_calls(setup), 0)
 
-    def test_p17_009_phrases_are_new_and_sealed_into_authorization(self):
+    def test_only_p18_010_phrases_are_sealed_into_authorization(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
-        common = dict(setup["common"])
-        common.update(
-            {
-                "backup_destination": setup["root"] / "p17-009-before",
-                "owner_approval_phrase": P17_009_OWNER_APPROVAL,
-                "confirmation_phrase": P17_009_CONFIRMATION,
-                "confirmation_policy": P17_009_CONFIRMATION_POLICY,
-            }
-        )
-        preflight = prepare_prepared_library_package_live_preflight(**common)
+        preflight = setup["preflight"]
         preflight.verify_seal()
         report = preflight.to_dict()
-        self.assertEqual(report["owner_approval_phrase"], P17_009_OWNER_APPROVAL)
-        self.assertEqual(report["confirmation_phrase"], P17_009_CONFIRMATION)
+        self.assertEqual(report["owner_approval_phrase"], P17_005_OWNER_APPROVAL)
+        self.assertEqual(report["confirmation_phrase"], P17_005_CONFIRMATION)
         self.assertEqual(report["confirmation_policy"], P17_009_CONFIRMATION_POLICY)
         self.assertEqual(
-            preflight.authorization.core.confirmation_phrase, P17_009_CONFIRMATION
+            preflight.authorization.core.confirmation_phrase, P17_005_CONFIRMATION
         )
         self.assertNotEqual(P17_009_OWNER_APPROVAL, P17_005_OWNER_APPROVAL)
         self.assertNotEqual(P17_009_CONFIRMATION, P17_005_CONFIRMATION)
 
-    def test_explicit_policy_rejects_expired_p17_007_phrases(self):
+    def test_rejects_all_non_p18_010_operation_phrases(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
-        for field in ("owner_approval_phrase", "confirmation_phrase"):
-            with self.subTest(field=field):
+        cases = (
+            ("APPROVE P17-003 MODERN LIBRARY PACKAGE SMOKE 01", P17_005_CONFIRMATION),
+            (P17_005_OWNER_APPROVAL, "CONFIRM P17-003 ONE INFOCARRY MULTI-CHILD PACKAGE"),
+            (P17_009_OWNER_APPROVAL, P17_009_CONFIRMATION),
+        )
+        for index, (owner_phrase, confirmation_phrase) in enumerate(cases):
+            with self.subTest(index=index):
                 common = dict(setup["common"])
                 common.update(
                     {
-                        "backup_destination": setup["root"] / f"p17-009-expired-{field}",
-                        "owner_approval_phrase": (
-                            P17_005_OWNER_APPROVAL
-                            if field == "owner_approval_phrase"
-                            else P17_009_OWNER_APPROVAL
-                        ),
-                        "confirmation_phrase": (
-                            P17_005_CONFIRMATION
-                            if field == "confirmation_phrase"
-                            else P17_009_CONFIRMATION
-                        ),
+                        "backup_destination": setup["root"] / f"rejected-phrases-{index}",
+                        "owner_approval_phrase": owner_phrase,
+                        "confirmation_phrase": confirmation_phrase,
                         "confirmation_policy": P17_009_CONFIRMATION_POLICY,
                     }
                 )
                 with self.assertRaises(PreparedLibraryPackageLiveAdapterError) as context:
                     prepare_prepared_library_package_live_preflight(**common)
                 self.assertEqual(context.exception.stage, "approval")
-                self.assertIn("expired P17-007", str(context.exception))
+                self.assertIn("exact explicit operation phrases", str(context.exception))
 
     def test_adapter_is_unreachable_from_normal_cli_and_gui(self):
         cli = (Path(__file__).parents[1] / "src/infocarry/cli.py").read_text()

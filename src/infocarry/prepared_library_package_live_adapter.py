@@ -7,7 +7,7 @@ not open USB merely by being imported.  Callers must inject every detection,
 capacity, backup, and write boundary; host tests inject fakes only.
 
 The supported operation is exactly the P17-004 profile: one explicitly
-imported Library package, destination ``IC_P17_LIBRARY_20260831_03``, and
+imported Library package, destination ``IC_P18_LIBRARY_20260906_01``, and
 ordered TXT/BMP/TXT children.  The adapter is a future execution boundary,
 not a product transfer API and not a claim of physical compatibility.
 """
@@ -45,7 +45,6 @@ from .execution_claim_store import (
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
 from .library import LibraryCatalog
 from .prepared_library_package_bridge import (
-    P17_003_CONFIRMATION_PHRASE,
     P17_003_TEMPLATE_FOLDER_PATH,
     P17_003_TEMPLATE_ITEM_PATHS,
     PreparedLibraryPackageAuthorization,
@@ -63,7 +62,6 @@ from .prepared_library_package_operation_bundle import (
 )
 from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
-    PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
 )
 from .prepared_package_multi_verify import (
     PreparedMultiPackageReadback,
@@ -85,11 +83,18 @@ from .write_protocol import (
 from .write_artifact import ProspectiveWriteTransaction
 
 
-P17_005_TARGET_FOLDER = "IC_P17_LIBRARY_20260831_03"
+P18_010_TARGET_FOLDER = "IC_P18_LIBRARY_20260906_01"
+# Compatibility names retain the settled pipeline API while their values bind
+# the new one-shot P18-010 operation. No parallel task-specific pipeline exists.
+P17_005_TARGET_FOLDER = P18_010_TARGET_FOLDER
 P17_005_DEVICE_IDENTITY = (0x054C, 0x001E)
 P17_005_PROFILE = "one_selected_library_item_root_txt_bmp_txt"
-P17_005_OWNER_APPROVAL = "APPROVE P17-003 MODERN LIBRARY PACKAGE SMOKE 01"
-P17_005_CONFIRMATION = P17_003_CONFIRMATION_PHRASE
+P18_010_OWNER_APPROVAL = "APPROVE P18-010 AUX STATE PRESERVATION TEST 01"
+P18_010_CONFIRMATION = "ADD IC_P18_LIBRARY_20260906_01 ONCE"
+# Compatibility names retain the established API but no longer retain or
+# accept expired P17 authorization tokens.
+P17_005_OWNER_APPROVAL = P18_010_OWNER_APPROVAL
+P17_005_CONFIRMATION = P18_010_CONFIRMATION
 P17_009_OWNER_APPROVAL = "APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01"
 P17_009_CONFIRMATION = "CONFIRM P17-009 ONE INFOCARRY MULTI-CHILD PACKAGE"
 P17_009_CONFIRMATION_POLICY = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
@@ -933,7 +938,7 @@ def _validate_callbacks(
 def _validate_expected_folder(expected_folder_name: str) -> None:
     if expected_folder_name != P17_005_TARGET_FOLDER:
         raise PreparedLibraryPackageLiveAdapterError(
-            "P17-005 destination is fixed to the reviewed P17-004 folder",
+            "P18-010 destination is fixed to IC_P18_LIBRARY_20260906_01",
             stage="package",
             state="failed",
         )
@@ -1253,12 +1258,14 @@ def load_prepared_library_package_live_preflight(
         )
     _validate_operation_phrase(report["owner_approval_phrase"], "owner approval phrase")
     _validate_operation_phrase(report["confirmation_phrase"], "confirmation phrase")
-    if report["confirmation_policy"] not in (
-        PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
-        PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+    if (
+        report["confirmation_policy"]
+        != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
+        or report["owner_approval_phrase"] != P18_010_OWNER_APPROVAL
+        or report["confirmation_phrase"] != P18_010_CONFIRMATION
     ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "confirmation_policy is not a supported reviewed policy",
+            "sealed preflight does not contain the exact P18-010 operation phrases",
             stage="preflight_load",
             state="failed",
             audit={"operation_sequence": []},
@@ -1447,6 +1454,14 @@ def _resolve_prepared_library_package_operation_bundle(
             raise OperationBundleError("operation bundle timestamp differs")
         if bundle.timestamp_policy != candidate_audit["policy"]["timestamp"]:
             raise OperationBundleError("operation bundle timestamp policy differs")
+        if bundle.fixed_state_policy != candidate_audit["policy"]["fixed_state"]:
+            raise OperationBundleError("operation bundle fixed-state policy differs")
+        if tuple(report_authorization["fixed_state_before_sha256"]) != bundle.fixed_state_before_sha256:
+            raise OperationBundleError("operation bundle before fixed-state hashes differ")
+        if tuple(report_authorization["fixed_state_candidate_sha256"]) != bundle.fixed_state_candidate_sha256:
+            raise OperationBundleError("operation bundle candidate fixed-state hashes differ")
+        if report_authorization["bookmark_binding_sha256"] != bundle.bookmark_binding_sha256:
+            raise OperationBundleError("operation bundle bookmark binding differs")
         if report_capacity.get("raw_response_sha256") != bundle.capacity_response_sha256:
             raise OperationBundleError("operation bundle capacity response hash differs")
         if report_authorization["candidate_transaction_sha256"] != bundle.transaction_sha256:
@@ -1845,7 +1860,7 @@ def prepare_prepared_library_package_live_preflight(
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
     owner_approval_phrase: str = P17_005_OWNER_APPROVAL,
     confirmation_phrase: str = P17_005_CONFIRMATION,
-    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
 ) -> PreparedLibraryPackageLivePreflight:
     """Run and seal the required fresh, read-only injected preflight.
 
@@ -1858,12 +1873,13 @@ def prepare_prepared_library_package_live_preflight(
     _validate_expected_folder(expected_folder_name)
     _validate_operation_phrase(owner_approval_phrase, "owner approval phrase")
     _validate_operation_phrase(confirmation_phrase, "confirmation phrase")
-    if confirmation_policy == PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT and (
-        owner_approval_phrase == P17_005_OWNER_APPROVAL
-        or confirmation_phrase == P17_005_CONFIRMATION
+    if (
+        confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
+        or owner_approval_phrase != P18_010_OWNER_APPROVAL
+        or confirmation_phrase != P18_010_CONFIRMATION
     ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "explicit operation phrases must not reuse expired P17-007 phrases",
+            "P18-010 requires its exact explicit operation phrases",
             stage="approval",
             state="failed",
         )
@@ -2760,6 +2776,9 @@ def write_prepared_library_package_evidence_manifest(
 
 __all__ = [
     "EvidenceRootAllocator",
+    "P18_010_CONFIRMATION",
+    "P18_010_OWNER_APPROVAL",
+    "P18_010_TARGET_FOLDER",
     "P17_005_CONFIRMATION",
     "P17_005_DEVICE_IDENTITY",
     "P17_005_EVIDENCE_MANIFEST_FORMAT",

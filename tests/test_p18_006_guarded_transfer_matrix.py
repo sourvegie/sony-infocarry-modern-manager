@@ -275,7 +275,7 @@ def _plan_from_fixture(fixture):
 class _P18006Fixture:
     """One real P17 bundle with an injected fake-only transport boundary."""
 
-    def __init__(self, *, backend=None, after_mode=None, prewrite_mode=None, content_suffix=""):
+    def __init__(self, *, backend=None, after_mode=None, prewrite_mode=None, content_suffix="", auxiliary_state=False):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.evidence_namespace = self.root / "evidence-namespace"
@@ -287,6 +287,19 @@ class _P18006Fixture:
         self.baseline_blob = baseline_blob
         self.changed_unrelated_blob = _mutate_unrelated_blob(baseline_blob)
         self.fixed_state = {command: b"\x00" * 64 for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)}
+        if auxiliary_state:
+            display = bytearray(64)
+            display[0:4] = (1).to_bytes(4, "big")
+            display[8:12] = (0x80).to_bytes(4, "big")
+            display[60:] = b"HIST"
+            bookmark = bytearray(64)
+            bookmark[:20] = b"".join(
+                value.to_bytes(4, "big")
+                for value in (0x80, 0xC00, 0, 0x14, 0xFFF101C5)
+            )
+            bookmark[40:] = b"B" * 24
+            self.fixed_state[0x001B] = bytes(display)
+            self.fixed_state[0x001F] = bytes(bookmark)
         intro = self.root / "intro.txt"
         image = self.root / "page.bmp"
         ending = self.root / "ending.txt"
@@ -1052,6 +1065,13 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
         audit = fixture.preflight.candidate.audit_dict()
         self.assertEqual(audit["policy"]["manager_sidecars"], "not part of device transaction")
         self.assertIn("display_history_validation", audit)
+        self.assertIn("bookmark_validation", audit)
+        tampered_audit = deepcopy(audit)
+        tampered_audit["bookmark_validation"]["opaque_values_preserved_exactly"] = False
+        with self.assertRaises(PreparedMultiPackageGateError):
+            fixture.preflight.authorization.core.require_same_candidate(
+                replace(fixture.preflight.candidate.core, audit=tampered_audit)
+            )
         after = fixture.root / "after-fixed-state"
         _write_archive(after, fixture.preflight.candidate.candidate_blob, NOW, fixed_state={**fixture.fixed_state, 0x001B: b"changed" * 16})
         with self.assertRaises(PreparedMultiVerificationError):
@@ -1062,6 +1082,33 @@ class P18006GuardedTransferMatrixTests(unittest.TestCase):
                 now=NOW,
                 max_age_seconds=None,
             )
+
+    def test_N2_nonzero_bookmark_is_bound_through_preflight_bundle_and_product_review(self):
+        fixture = self.fixture(auxiliary_state=True)
+        candidate = fixture.preflight.candidate.audit_dict()
+        bookmarks = candidate["bookmark_validation"]
+        self.assertEqual(bookmarks["references_rebased"], 0)
+        self.assertTrue(bookmarks["opaque_values_preserved_exactly"])
+        self.assertEqual(
+            fixture.bundle.bookmark_binding_sha256,
+            fixture.preflight.authorization.core.bookmark_binding_sha256,
+        )
+        fixture.preflight.verify_seal()
+        review = build_experimental_library_transfer_review(
+            fixture.plan,
+            preflight_report=fixture.preflight.to_dict(),
+            bundle_report=fixture.bundle.to_dict(),
+        )
+        self.assertTrue(review.ready_for_hardware_test)
+        tampered_bundle = fixture.bundle.to_dict()
+        tampered_bundle["bookmark_binding_sha256"] = "0" * 64
+        tampered_review = build_experimental_library_transfer_review(
+            fixture.plan,
+            preflight_report=fixture.preflight.to_dict(),
+            bundle_report=tampered_bundle,
+        )
+        self.assertFalse(tampered_review.ready_for_hardware_test)
+        self.assertTrue(tampered_review.to_dict()["eligibility"]["reasons"])
 
     def test_O_normal_surfaces_remain_review_only_and_imports_are_usb_free(self):
         root = Path(__file__).resolve().parents[1]

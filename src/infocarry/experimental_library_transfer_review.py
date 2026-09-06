@@ -18,7 +18,10 @@ from .experimental_transfer_contract import experimental_safety_contract
 EXPERIMENTAL_LIBRARY_REVIEW_FORMAT = "infocarry-experimental-library-transfer-review-v1"
 EXPERIMENTAL_LIBRARY_PROFILE = "one_selected_library_item_root_txt_bmp_txt"
 EXPERIMENTAL_OPERATION = "experimental_library_package_one_shot"
-EXPERIMENTAL_TARGET_FOLDER = "IC_P17_LIBRARY_20260831_03"
+EXPERIMENTAL_TARGET_FOLDER = "IC_P18_LIBRARY_20260906_01"
+EXPERIMENTAL_OWNER_APPROVAL = "APPROVE P18-010 AUX STATE PRESERVATION TEST 01"
+EXPERIMENTAL_CONFIRMATION = "ADD IC_P18_LIBRARY_20260906_01 ONCE"
+EXPERIMENTAL_CONFIRMATION_POLICY = "explicit_operation_phrase_v1"
 EXPERIMENTAL_CHILDREN = (
     (0, "txt", "01-introduction.txt"),
     (1, "bmp", "02-page-01.bmp"),
@@ -119,7 +122,7 @@ def _package_is_exact(item: Mapping[str, Any]) -> tuple[bool, list[str]]:
                     break
     destination = item.get("destination", {})
     if not isinstance(destination, Mapping) or destination.get("paths") != _expected_paths():
-        reasons.append("the destination is not the reviewed root-level P17 package")
+        reasons.append("the destination is not the fixed root-level P18-010 package")
     if item.get("conflicts"):
         reasons.append("the destination conflicts with the verified device state")
     return not reasons, reasons
@@ -138,6 +141,12 @@ def _sealed_ready_bindings(
         raise ExperimentalLibraryTransferReviewError("operation bundle device identity is not Sony 054c:001e")
     if bundle.get("expected_folder_name") != EXPERIMENTAL_TARGET_FOLDER:
         raise ExperimentalLibraryTransferReviewError("operation bundle destination differs from the reviewed profile")
+    if (
+        bundle.get("owner_approval_phrase") != EXPERIMENTAL_OWNER_APPROVAL
+        or bundle.get("confirmation_phrase") != EXPERIMENTAL_CONFIRMATION
+        or bundle.get("confirmation_policy") != EXPERIMENTAL_CONFIRMATION_POLICY
+    ):
+        raise ExperimentalLibraryTransferReviewError("operation bundle approval differs from P18-010")
     if bundle.get("safety") != EXPERIMENTAL_SAFETY_POLICY:
         raise ExperimentalLibraryTransferReviewError("operation bundle safety policy differs from the reviewed one-shot policy")
     children = bundle.get("package_children")
@@ -163,6 +172,7 @@ def _sealed_ready_bindings(
         "authorization_sha256",
         "expected_post_operation_sha256",
         "library_binding_sha256",
+        "bookmark_binding_sha256",
     ):
         _digest(bundle.get(key), f"bundle.{key}")
 
@@ -174,6 +184,12 @@ def _sealed_ready_bindings(
         raise ExperimentalLibraryTransferReviewError("sealed preflight device identity differs")
     if preflight.get("expected_folder_name") != EXPERIMENTAL_TARGET_FOLDER:
         raise ExperimentalLibraryTransferReviewError("sealed preflight destination differs")
+    if (
+        preflight.get("owner_approval_phrase") != EXPERIMENTAL_OWNER_APPROVAL
+        or preflight.get("confirmation_phrase") != EXPERIMENTAL_CONFIRMATION
+        or preflight.get("confirmation_policy") != EXPERIMENTAL_CONFIRMATION_POLICY
+    ):
+        raise ExperimentalLibraryTransferReviewError("sealed preflight approval differs from P18-010")
     for key, expected in (
         ("read_only_preflight", True),
         ("device_changing_operation_performed", False),
@@ -206,6 +222,17 @@ def _sealed_ready_bindings(
         raise ExperimentalLibraryTransferReviewError("sealed preflight authorization is malformed")
     if authorization.get("candidate_transaction_sha256") != bundle.get("transaction_sha256"):
         raise ExperimentalLibraryTransferReviewError("transaction hash differs from the operation bundle")
+    candidate_policy = candidate.get("policy")
+    if not isinstance(candidate_policy, Mapping):
+        raise ExperimentalLibraryTransferReviewError("candidate safety policy is malformed")
+    if (
+        authorization.get("fixed_state_policy") != bundle.get("fixed_state_policy")
+        or candidate_policy.get("fixed_state") != bundle.get("fixed_state_policy")
+        or authorization.get("fixed_state_before_sha256") != bundle.get("fixed_state_before_sha256")
+        or authorization.get("fixed_state_candidate_sha256") != bundle.get("fixed_state_candidate_sha256")
+        or authorization.get("bookmark_binding_sha256") != bundle.get("bookmark_binding_sha256")
+    ):
+        raise ExperimentalLibraryTransferReviewError("fixed-state policy differs across candidate, authorization, and bundle")
     if preflight.get("preflight_seal_sha256") != bundle.get("preflight_seal_sha256"):
         raise ExperimentalLibraryTransferReviewError("preflight seal differs from the operation bundle")
     if preflight.get("core_preflight_seal_sha256") != bundle.get("core_preflight_seal_sha256"):

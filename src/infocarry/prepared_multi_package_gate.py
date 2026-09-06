@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
+import json
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
@@ -26,6 +27,10 @@ class PreparedMultiPackageGateError(RuntimeError):
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _canonical_json(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def _digest(value: Any, label: str) -> str:
@@ -53,6 +58,8 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         fixed_snapshot = fixed_state["snapshot"]
         display_history = fixed_snapshot["display_history"]
         display_history_rebase = audit["display_history_validation"]
+        bookmarks = fixed_snapshot["bookmarks"]
+        bookmark_rebase = audit["bookmark_validation"]
         items = tuple(package["ordered_items"])
         values = {
             "device_identity": (device["vendor_id"], device["product_id"]),
@@ -120,6 +127,14 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
             "display_history_raw_preserved_exactly": bool(
                 display_history_rebase["raw_preserved_exactly"]
             ),
+            "bookmark_binding_sha256": _sha256(
+                _canonical_json({"snapshot": bookmarks, "validation": bookmark_rebase})
+            ),
+            "bookmark_group_count": len(bookmark_rebase.get("groups", [])),
+            "bookmark_references_rebased": int(bookmark_rebase["references_rebased"]),
+            "bookmark_opaque_values_preserved_exactly": bool(
+                bookmark_rebase["opaque_values_preserved_exactly"]
+            ),
             "expected_added_paths": tuple(expected_post["added_paths"]),
             "expected_removed_paths": tuple(expected_post["removed_paths"]),
             "expected_ordered_kinds": tuple(expected_post["ordered_kinds"]),
@@ -165,6 +180,7 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
     if values["fixed_state_policy"] not in {
         "capture7_exact_all_zero_fixed_state",
         "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f",
+        "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e",
     }:
         raise PreparedMultiPackageGateError("candidate fixed-state policy is not supported")
     if len(values["display_history_record_offsets"]) != len(values["display_history_paths"]):
@@ -192,6 +208,34 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         raise PreparedMultiPackageGateError("zero fixed-state policy cannot contain display history")
     if values["fixed_state_policy"] == "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f" and not values["display_history_record_offsets"]:
         raise PreparedMultiPackageGateError("display-history policy has no active references")
+    bookmark_policy = values["fixed_state_policy"].startswith(
+        "verified_display_history_0x001b_and_bookmark_0x001f"
+    )
+    if bookmark_policy:
+        if (
+            values["bookmark_group_count"] <= 0
+            or not values["bookmark_opaque_values_preserved_exactly"]
+            or bookmarks.get("present") is not True
+            or bookmark_rebase.get("semantic_preserved") is not True
+            or bookmark_rebase.get("preservation_policy")
+            != "record_pointer_semantic_rebase_opaque_values_raw_exact"
+        ):
+            raise PreparedMultiPackageGateError("candidate bookmark preservation binding is incomplete")
+        for group in bookmark_rebase.get("groups", []):
+            if (
+                not isinstance(group, Mapping)
+                or not isinstance(group.get("group_index"), int)
+                or not isinstance(group.get("path"), str)
+                or not group.get("path")
+                or group.get("opaque_values_preserved_exactly") is not True
+            ):
+                raise PreparedMultiPackageGateError("candidate bookmark group binding is invalid")
+            _digest(group.get("opaque_values_sha256"), "bookmark opaque-values hash")
+    elif values["bookmark_group_count"] or bookmarks.get("present"):
+        raise PreparedMultiPackageGateError("non-bookmark policy contains bookmark state")
+    values["bookmark_binding_sha256"] = _digest(
+        values["bookmark_binding_sha256"], "bookmark binding hash"
+    )
     if values["fixed_state_policy"] == "capture7_exact_all_zero_fixed_state":
         if (
             values["display_history_rebase_policy"] != "raw_exact"
@@ -301,6 +345,7 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
     actual_fixed_snapshot = candidate.fixed_state.to_dict()
     actual_display_history = actual_fixed_snapshot["display_history"]
     actual_rebase = candidate.audit.get("display_history_validation")
+    actual_bookmark_rebase = candidate.audit.get("bookmark_validation")
     if (
         actual_fixed_snapshot["policy"] != values["fixed_state_policy"]
         or tuple(actual_display_history["relative_record_offsets"])
@@ -352,6 +397,14 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         != values["display_history_insertion_offset_absolute"]
     ):
         raise PreparedMultiPackageGateError("candidate display-history preservation binding does not match")
+    if (
+        not isinstance(actual_bookmark_rebase, Mapping)
+        or _sha256(_canonical_json({
+            "snapshot": actual_fixed_snapshot["bookmarks"],
+            "validation": actual_bookmark_rebase,
+        })) != values["bookmark_binding_sha256"]
+    ):
+        raise PreparedMultiPackageGateError("candidate bookmark preservation binding does not match")
     evidence_object = candidate.native_capacity_evidence
     if (
         evidence_object.device_identity != tuple(int(value, 16) for value in candidate.backup.device_identity)
@@ -420,6 +473,10 @@ class PreparedMultiPackageAuthorization:
     display_history_references_rebased: int
     display_history_semantic_preserved: bool
     display_history_raw_preserved_exactly: bool
+    bookmark_binding_sha256: str
+    bookmark_group_count: int
+    bookmark_references_rebased: int
+    bookmark_opaque_values_preserved_exactly: bool
     capacity_response_sha256: str
     capacity_response_command: int
     capacity_response_field_offset: int
@@ -494,6 +551,7 @@ class PreparedMultiPackageAuthorization:
         if self.fixed_state_policy not in {
             "capture7_exact_all_zero_fixed_state",
             "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f",
+            "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e",
         }:
             raise PreparedMultiPackageGateError("authorization fixed-state policy is not supported")
         if len(self.display_history_record_offsets) != len(self.display_history_paths):
@@ -581,6 +639,23 @@ class PreparedMultiPackageAuthorization:
                     raise PreparedMultiPackageGateError(f"{label} is invalid")
             if self.display_history_metadata_delta <= 0 or self.display_history_metadata_delta % 0x40:
                 raise PreparedMultiPackageGateError("semantic display-history metadata delta is invalid")
+        _digest(self.bookmark_binding_sha256, "bookmark binding hash")
+        bookmark_policy = self.fixed_state_policy.startswith(
+            "verified_display_history_0x001b_and_bookmark_0x001f"
+        )
+        if (
+            isinstance(self.bookmark_group_count, bool)
+            or not isinstance(self.bookmark_group_count, int)
+            or self.bookmark_group_count < 0
+            or isinstance(self.bookmark_references_rebased, bool)
+            or not isinstance(self.bookmark_references_rebased, int)
+            or self.bookmark_references_rebased < 0
+        ):
+            raise PreparedMultiPackageGateError("authorization bookmark counts are invalid")
+        if bookmark_policy != (self.bookmark_group_count > 0):
+            raise PreparedMultiPackageGateError("authorization bookmark policy/count binding is inconsistent")
+        if bookmark_policy and not self.bookmark_opaque_values_preserved_exactly:
+            raise PreparedMultiPackageGateError("authorization does not preserve opaque bookmark values")
         if self.target_kinds[0] != "directory" or any(isinstance(value, bool) or not isinstance(value, int) or value < 0 or value % 0x40 for value in self.target_record_offsets):
             raise PreparedMultiPackageGateError("authorization target record binding is invalid")
         if isinstance(self.new_record_timestamp_be32, bool) or not 0 <= self.new_record_timestamp_be32 <= 0xFFFFFFFF:
@@ -594,7 +669,7 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError("authorization capacity binding is inconsistent")
 
     def _expected(self) -> dict[str, Any]:
-        return {key: getattr(self, key) for key in ("device_identity", "baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "source_sha256", "source_paths", "template_blob_sha256", "template_folder_path", "template_item_paths", "template_item_record_offsets", "template_prefix_sha256", "timestamp_policy", "fixed_state_policy", "display_history_record_offsets", "display_history_candidate_record_offsets", "display_history_paths", "display_history_metadata_start", "display_history_rebase_policy", "display_history_reference_pairs", "display_history_insertion_offset", "display_history_insertion_offset_absolute", "display_history_metadata_delta", "display_history_references_rebased", "display_history_semantic_preserved", "display_history_raw_preserved_exactly", "expected_added_paths", "expected_removed_paths", "expected_ordered_kinds", "expected_new_payload_sha256", "target_paths", "target_kinds", "target_record_offsets", "new_record_timestamp_be32", "candidate_blob_sha256", "candidate_transaction_sha256", "fixed_state_before_sha256", "fixed_state_candidate_sha256", "fixed_state_sha256", "capacity_response_sha256", "capacity_response_command", "capacity_response_field_offset", "capacity_evidence_source", "capacity_evidence_version", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_result")}
+        return {key: getattr(self, key) for key in ("device_identity", "baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "source_sha256", "source_paths", "template_blob_sha256", "template_folder_path", "template_item_paths", "template_item_record_offsets", "template_prefix_sha256", "timestamp_policy", "fixed_state_policy", "display_history_record_offsets", "display_history_candidate_record_offsets", "display_history_paths", "display_history_metadata_start", "display_history_rebase_policy", "display_history_reference_pairs", "display_history_insertion_offset", "display_history_insertion_offset_absolute", "display_history_metadata_delta", "display_history_references_rebased", "display_history_semantic_preserved", "display_history_raw_preserved_exactly", "bookmark_binding_sha256", "bookmark_group_count", "bookmark_references_rebased", "bookmark_opaque_values_preserved_exactly", "expected_added_paths", "expected_removed_paths", "expected_ordered_kinds", "expected_new_payload_sha256", "target_paths", "target_kinds", "target_record_offsets", "new_record_timestamp_be32", "candidate_blob_sha256", "candidate_transaction_sha256", "fixed_state_before_sha256", "fixed_state_candidate_sha256", "fixed_state_sha256", "capacity_response_sha256", "capacity_response_command", "capacity_response_field_offset", "capacity_evidence_source", "capacity_evidence_version", "capacity_limit_bytes", "baseline_model_bytes", "candidate_model_bytes", "remaining_growth_bytes", "candidate_growth_bytes", "capacity_result")}
 
     def require_same_candidate(self, candidate: PreparedMultiPackageCandidate) -> None:
         actual = _candidate_binding(candidate)
@@ -620,6 +695,9 @@ class PreparedMultiPackageAuthorization:
         fresh_fixed = assess_prepared_fixed_state(
             backup,
             allow_verified_display_history=True,
+            allow_verified_bookmarks=self.fixed_state_policy.startswith(
+                "verified_display_history_0x001b_and_bookmark_0x001f"
+            ),
         ).require_supported()
         if tuple(_sha256(block) for block in fresh_fixed.raw_blocks) != self.fixed_state_before_sha256:
             raise PreparedMultiPackageGateError("fresh backup fixed-state before hashes differ")

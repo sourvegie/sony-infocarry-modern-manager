@@ -208,6 +208,10 @@ class PreparedLibraryPackageOperationBundle:
     device_identity: tuple[str, str]
     expected_folder_name: str
     timestamp_policy: str
+    fixed_state_policy: str
+    fixed_state_before_sha256: tuple[str, ...]
+    fixed_state_candidate_sha256: tuple[str, ...]
+    bookmark_binding_sha256: str
     new_record_timestamp_be32: int
     bulk_out_endpoint: int
     owner_approval_phrase: str
@@ -250,6 +254,18 @@ class PreparedLibraryPackageOperationBundle:
             raise OperationBundleError("expected_folder_name is required")
         if self.timestamp_policy != "one_explicit_frozen_value_for_new_records_only":
             raise OperationBundleError("unsupported timestamp policy")
+        if self.fixed_state_policy not in {
+            "capture7_exact_all_zero_fixed_state",
+            "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f",
+            "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e",
+        }:
+            raise OperationBundleError("unsupported fixed-state policy")
+        if len(self.fixed_state_before_sha256) != 5 or len(self.fixed_state_candidate_sha256) != 5:
+            raise OperationBundleError("operation bundle must bind five before/candidate fixed-state hashes")
+        for label, values in (("before fixed state", self.fixed_state_before_sha256), ("candidate fixed state", self.fixed_state_candidate_sha256)):
+            for digest in values:
+                _digest(digest, label)
+        _digest(self.bookmark_binding_sha256, "bookmark_binding_sha256")
         if (
             isinstance(self.new_record_timestamp_be32, bool)
             or not isinstance(self.new_record_timestamp_be32, int)
@@ -365,6 +381,10 @@ class PreparedLibraryPackageOperationBundle:
             device_identity=tuple(report["device_identity"]),
             expected_folder_name=str(report["expected_folder_name"]),
             timestamp_policy=str(candidate.get("policy", {}).get("timestamp", "")),
+            fixed_state_policy=str(authorization["fixed_state_policy"]),
+            fixed_state_before_sha256=tuple(authorization["fixed_state_before_sha256"]),
+            fixed_state_candidate_sha256=tuple(authorization["fixed_state_candidate_sha256"]),
+            bookmark_binding_sha256=str(authorization["bookmark_binding_sha256"]),
             new_record_timestamp_be32=timestamp,
             bulk_out_endpoint=1,
             owner_approval_phrase=str(report["owner_approval_phrase"]),
@@ -399,6 +419,10 @@ class PreparedLibraryPackageOperationBundle:
             "device_identity": list(self.device_identity),
             "expected_folder_name": self.expected_folder_name,
             "timestamp_policy": self.timestamp_policy,
+            "fixed_state_policy": self.fixed_state_policy,
+            "fixed_state_before_sha256": list(self.fixed_state_before_sha256),
+            "fixed_state_candidate_sha256": list(self.fixed_state_candidate_sha256),
+            "bookmark_binding_sha256": self.bookmark_binding_sha256,
             "new_record_timestamp_be32": self.new_record_timestamp_be32,
             "bulk_out_endpoint": self.bulk_out_endpoint,
             "owner_approval_phrase": self.owner_approval_phrase,
@@ -482,6 +506,10 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
         "device_identity",
         "expected_folder_name",
         "timestamp_policy",
+        "fixed_state_policy",
+        "fixed_state_before_sha256",
+        "fixed_state_candidate_sha256",
+        "bookmark_binding_sha256",
         "new_record_timestamp_be32",
         "bulk_out_endpoint",
         "owner_approval_phrase",
@@ -546,6 +574,10 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
             device_identity=tuple(value["device_identity"]),
             expected_folder_name=value["expected_folder_name"],
             timestamp_policy=value["timestamp_policy"],
+            fixed_state_policy=value["fixed_state_policy"],
+            fixed_state_before_sha256=tuple(value["fixed_state_before_sha256"]),
+            fixed_state_candidate_sha256=tuple(value["fixed_state_candidate_sha256"]),
+            bookmark_binding_sha256=value["bookmark_binding_sha256"],
             new_record_timestamp_be32=value["new_record_timestamp_be32"],
             bulk_out_endpoint=value["bulk_out_endpoint"],
             owner_approval_phrase=value["owner_approval_phrase"],

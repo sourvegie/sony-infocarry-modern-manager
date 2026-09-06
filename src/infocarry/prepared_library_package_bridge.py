@@ -498,6 +498,7 @@ def build_prepared_library_package_candidate(
             template_folder_path=tuple(template_folder_path),
             template_item_paths=paths,
             template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+            allow_verified_bookmarks=True,
         )
     except (PreparedMultiCandidateError, OSError) as exc:
         raise PreparedLibraryPackageBridgeError(
