@@ -52,7 +52,8 @@ separate host/read-only P18-012 closure task; it is not changed in PR #37.
 
 ## P18-012 read-only incident diagnosis and verifier closure
 
-P18-012 is **COMPLETE** for the host/read-only closure boundary on
+P18-012 implementation and evidence validation are complete, but final
+host/read-only closure is **PENDING_R3_CORRECTION_LOOP** on
 `task/P18-012-readback-recovery-closure`, based on canonical
 `a0ac0765d3a358898f665c8e3dca3a0027db83d7`. It narrowly corrected
 `prepared_package_multi_verify.py` so bookmark verification is enabled only by
