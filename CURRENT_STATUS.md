@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-09-06
+Date: 2026-09-07
 
 ## Canonical checkpoint
 
@@ -80,6 +80,39 @@ capability claim was manufactured. Independent strong R3 review completed its
 correction loop with final disposition `P0: none`, `P1: none`, `P2: none`.
 See the sanitized
 [P18-012 analysis record](analysis/phase-18-p18-012-readback-recovery-closure-20260907.md).
+
+## P18-013 incident-bound recovery-state closure
+
+P18-013 is **COMPLETE** for the exact P18-011 host recovery state on
+`task/P18-013-recovery-state-closure`, based on canonical
+`6bc0c046312400ed28fc4bef543522d250eb469c`. The original P18-012 diagnostic
+was copied byte-for-byte from temporary storage into durable external evidence
+at
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-012-readonly-diagnostic-20260907-01`.
+The complete diagnostic was independently revalidated against the preserved
+immediate post-write backup, sealed candidate, exact target contents,
+baseline-path preservation, display history, bookmarks, opaque bookmark
+state, and zero-count unsupported auxiliary commands. The conclusion remained
+**NO CORRECTIVE DEVICE WRITE REQUIRED**.
+
+The Project Owner's exact recovery decision was preserved in a deterministic
+record with SHA-256
+`03414e625af346d48ba98e04a2ee2353adb561880e616fb4b8539603498ce3f9`.
+Using only the existing typed recovery APIs, P18-013 cleared the
+installation-wide lock bound to incident
+`guarded-library-6aa14fe3d1c64f9497ff89a795bcf88c` and attempt
+`6aa14fe3d1c64f9497ff89a795bcf88c`, then resolved only its matching
+`lock_recorded` sender marker. The final lock is `cleared`, the active marker
+is absent, and claim `827bfde0b93d4b2da57ee646ff6aaa1d` remains the sole
+permanently `consumed` tombstone. Claim-store integrity is `ok`.
+
+P18-011 remains historically **ESCALATION_REQUIRED**. P18-013 does not create
+retroactive terminal success, authorize a retry, or establish new transfer
+capability. It performed zero USB/device writes and made no device-content or
+capability-matrix change. Future writes require a separate owner-approved
+operation. Independent strong R3 review completed its correction loop with
+final `P0=0, P1=0, P2=0 — PASS`. See the sanitized
+[P18-013 analysis record](analysis/phase-18-p18-013-recovery-state-closure-20260907.md).
 
 ## Current product checkpoint
 

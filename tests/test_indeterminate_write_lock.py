@@ -57,11 +57,41 @@ class IndeterminateWriteLockTests(unittest.TestCase):
                         model_key=V15,
                         incident_id="incident-1",
                         attempt_id="attempt-1",
-                        backup_sha256="not-a-hash",
+                        backup_sha256="a" * 64,
+                        object_count=8,
+                    ),
+                    recovery_decision="Project Lead reviewed read-only diagnosis",
+                    decision_record_sha256="also-not-a-hash",
+                    evidence_root="/external/diagnosis",
+                    model_key=V15,
+                )
+
+            with self.assertRaises(IndeterminateWriteLockError):
+                store.clear_after_diagnostic(
+                    diagnostic_backup=DiagnosticBackupEvidence(
+                        model_key=V15,
+                        incident_id="incident-1",
+                        attempt_id="attempt-1",
+                        backup_sha256="a" * 64,
                         object_count=8,
                     ),
                     recovery_decision="",
-                    decision_record_sha256="also-not-a-hash",
+                    decision_record_sha256="b" * 64,
+                    evidence_root="/external/diagnosis",
+                    model_key=V15,
+                )
+
+            with self.assertRaises(IndeterminateWriteLockError):
+                store.clear_after_diagnostic(
+                    diagnostic_backup=DiagnosticBackupEvidence(
+                        model_key=V15,
+                        incident_id="incident-1",
+                        attempt_id="different-attempt",
+                        backup_sha256="a" * 64,
+                        object_count=8,
+                    ),
+                    recovery_decision="Project Lead reviewed read-only diagnosis",
+                    decision_record_sha256="b" * 64,
                     evidence_root="/external/diagnosis",
                     model_key=V15,
                 )
