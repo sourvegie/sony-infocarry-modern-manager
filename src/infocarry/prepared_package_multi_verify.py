@@ -18,6 +18,18 @@ from .prepared_fixed_state import PreparedFixedStateError, assess_prepared_fixed
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, verify_fresh_backup
 
 
+_SUPPORTED_FIXED_STATE_POLICIES = frozenset(
+    {
+        "capture7_exact_all_zero_fixed_state",
+        "verified_display_history_0x001b_semantic_rebase_plus_zero_0x001c_to_0x001f",
+        "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e",
+    }
+)
+_BOOKMARK_PRESERVATION_POLICY = (
+    "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e"
+)
+
+
 class PreparedMultiVerificationError(RuntimeError):
     """Terminal independent-verification failure; retry is never allowed."""
 
@@ -89,6 +101,52 @@ def _compare_fixed(candidate: PreparedMultiPackageCandidate, after: VerifiedBack
             raise PreparedMultiVerificationError(f"fixed-state object {key} changed")
         hashes.append(digest)
     return tuple(hashes)
+
+
+def _allow_verified_bookmarks_from_candidate(
+    candidate: PreparedMultiPackageCandidate,
+) -> bool:
+    """Derive bookmark permission only from a validated candidate snapshot."""
+
+    try:
+        supported_snapshot = candidate.fixed_state_assessment.require_supported()
+        snapshot = candidate.fixed_state.to_dict()
+        audit_fixed_state = candidate.audit["fixed_state"]
+        audit_snapshot = audit_fixed_state["snapshot"]
+        audit_policy = candidate.audit["policy"]["fixed_state"]
+    except (KeyError, TypeError, AttributeError, PreparedFixedStateError) as exc:
+        raise PreparedMultiVerificationError(
+            "candidate fixed-state policy/snapshot binding is malformed"
+        ) from exc
+    if supported_snapshot != candidate.fixed_state:
+        raise PreparedMultiVerificationError(
+            "candidate fixed-state assessment does not match its snapshot"
+        )
+    if not isinstance(audit_snapshot, Mapping) or audit_snapshot != snapshot:
+        raise PreparedMultiVerificationError(
+            "candidate fixed-state audit snapshot differs from its sealed snapshot"
+        )
+    if audit_policy != snapshot.get("policy"):
+        raise PreparedMultiVerificationError(
+            "candidate fixed-state policy differs from its sealed snapshot"
+        )
+    policy = snapshot.get("policy")
+    if policy not in _SUPPORTED_FIXED_STATE_POLICIES:
+        raise PreparedMultiVerificationError(
+            "candidate fixed-state policy is not supported"
+        )
+    has_bookmarks = bool(candidate.fixed_state.bookmark_group_paths)
+    if policy == _BOOKMARK_PRESERVATION_POLICY:
+        if not has_bookmarks:
+            raise PreparedMultiVerificationError(
+                "bookmark-preservation policy has no validated bookmark snapshot"
+            )
+        return True
+    if has_bookmarks:
+        raise PreparedMultiVerificationError(
+            "non-bookmark fixed-state policy contains a bookmark snapshot"
+        )
+    return False
 
 
 @dataclass(frozen=True)
@@ -189,11 +247,13 @@ def verify_prepared_multi_package_readback(
             raise PreparedMultiVerificationError("new record native prefix differs from candidate")
     shared_count = _compare_shared(candidate.baseline, parsed)
     fixed_hashes = _compare_fixed(candidate, after)
+    allow_verified_bookmarks = _allow_verified_bookmarks_from_candidate(candidate)
     fixed_assessment = assess_prepared_fixed_state(
         after,
         allow_verified_display_history=bool(
             candidate.fixed_state.display_history_record_offsets
         ),
+        allow_verified_bookmarks=allow_verified_bookmarks,
     )
     try:
         post_fixed = fixed_assessment.require_supported()
@@ -204,18 +264,20 @@ def verify_prepared_multi_package_readback(
                 raise PreparedFixedStateError(
                     "candidate display-history rebase geometry is incomplete"
                 )
-            _expected_fixed, display_history_verification = candidate.fixed_state.rebase_display_history(
+        else:
+            insertion_offset = 0
+            metadata_delta = 0
+        _expected_fixed, display_history_verification, bookmark_verification = (
+            candidate.fixed_state.rebase_auxiliary_state(
                 candidate.baseline,
                 parsed,
                 insertion_offset=insertion_offset,
                 metadata_delta=metadata_delta,
             )
-        else:
-            _expected_fixed, display_history_verification = candidate.fixed_state.rebase_display_history(
-                candidate.baseline,
-                parsed,
-                insertion_offset=0,
-                metadata_delta=0,
+        )
+        if _expected_fixed.candidate_raw_blocks != candidate.fixed_state.candidate_raw_blocks:
+            raise PreparedFixedStateError(
+                "candidate auxiliary-state snapshot does not match its sealed prospective bytes"
             )
     except PreparedFixedStateError as exc:
         raise PreparedMultiVerificationError(
@@ -253,6 +315,7 @@ def verify_prepared_multi_package_readback(
             "shared_timestamps_unchanged": True,
             "fixed_state_exact": True,
             "display_history": display_history_verification,
+            "bookmarks": bookmark_verification,
             "automatic_retry": False,
         },
     )
