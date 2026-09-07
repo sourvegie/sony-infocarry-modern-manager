@@ -184,11 +184,45 @@ class PersistentExecutionClaimStoreTests(unittest.TestCase):
                 recovery_decision="clear",
                 decision_record_sha256="3" * 64,
             )
+            locked_record = IndeterminateWriteLockRecord(
+                model_key=DeviceModelLockKey("sony-vnw-v15"),
+                incident_id="incident-2",
+                attempt_id="attempt-2",
+                state="locked",
+                reason="abandoned sender marker",
+                evidence_root="/external/attempt-2",
+                recorded_at_utc="2026-09-06T00:00:00+00:00",
+            )
+            with self.assertRaises(ExecutionClaimStoreError):
+                store.resolve_sender_after_diagnostic(
+                    recorded,
+                    lock_record=locked_record,
+                )
+            wrong_binding = IndeterminateWriteLockRecord(
+                model_key=DeviceModelLockKey("sony-vnw-v15"),
+                incident_id="different-incident",
+                attempt_id="attempt-2",
+                state="cleared",
+                reason="abandoned sender marker",
+                evidence_root="/external/diagnostic",
+                recorded_at_utc="2026-09-06T00:00:00+00:00",
+                diagnostic_backup_sha256="2" * 64,
+                recovery_decision="clear",
+                decision_record_sha256="3" * 64,
+            )
+            with self.assertRaises(ExecutionClaimStoreError):
+                store.resolve_sender_after_diagnostic(
+                    recorded,
+                    lock_record=wrong_binding,
+                )
+            self.assertEqual(store.read_sender_in_flight(), recorded)
             store.resolve_sender_after_diagnostic(
                 recorded,
                 lock_record=cleared_lock,
             )
             self.assertIsNone(store.read_sender_in_flight())
+            with self.assertRaises(ExecutionClaimAlreadyConsumedError):
+                store.consume(**different)
 
     def test_marker_logical_binding_corruption_fails_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
