@@ -237,8 +237,18 @@ and transaction non-reuse, display-history/bookmark semantics, opaque-value
 preservation, zero-state auxiliary commands, recovered lock state, absent
 marker, claim-store integrity, and permanent claim consumption.
 
-The full portable suite, Python 3.12 compilation, `git diff --check`,
-macOS CI, Windows CI, and independent strong R3 review are the release gates
-recorded with the final commit and pull request. The task stops at this
-host-only readiness boundary; P18-015 is the separate owner-approved physical
-validation task.
+The full portable suite passed with **757 tests and 3 intentional skips**;
+Python 3.12 compilation and `git diff --check` passed. The focused PR is
+[PR #40](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/40)
+at commit `9f08573`. Both required Python 3.12 CI legs passed:
+
+- [macOS CI](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34129931847/job/101767343505);
+- [Windows CI](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34129931847/job/101767343079).
+
+Independent strong R3 review round 1 found `P0=0, P1=1, P2=0`: the record
+claimed final readiness before commit, PR, CI, and final review existed. The
+bounded correction changed this record and `CURRENT_STATUS.md` to provisional
+host-validation-complete wording. No implementation or safety finding was
+raised. Final independent R3 review is the remaining release gate at this
+point. The task stops at this host-only readiness boundary; P18-015 is the
+separate owner-approved physical validation task.
