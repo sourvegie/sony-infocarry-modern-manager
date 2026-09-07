@@ -5,7 +5,7 @@ Repository: `sourvegie/sony-infocarry-modern-manager`
 Canonical base: `5dc54cb04fcef9025b8e3f347e69b335af887135`
 Branch: `task/P18-014-fresh-operation-identity`
 Risk: R3 host-only safety preparation
-Disposition: **PROVISIONAL — HOST VALIDATION COMPLETE; RELEASE GATES PENDING**
+Disposition: **ESCALATION_REQUIRED — EXTERNAL CI BILLING BLOCKER**
 
 ## Boundary
 
@@ -249,6 +249,12 @@ Independent strong R3 review round 1 found `P0=0, P1=1, P2=0`: the record
 claimed final readiness before commit, PR, CI, and final review existed. The
 bounded correction changed this record and `CURRENT_STATUS.md` to provisional
 host-validation-complete wording. No implementation or safety finding was
-raised. Final independent R3 review is the remaining release gate at this
-point. The task stops at this host-only readiness boundary; P18-015 is the
-separate owner-approved physical validation task.
+raised. Final independent strong R3 review round 2 found `P0=0, P1=1, P2=0`:
+the passing CI run above covered commit `9f08573`, while the reviewed commit
+`650536fb86ed1bfdaba1d6bf737249f8e8525044` was rejected before any workflow
+step by GitHub's account billing/spending-limit condition. A rerun of
+workflow `34130375371` failed identically on both macOS and Windows. Therefore
+the final `P0=0, P1=0, P2=0 — PASS` gate cannot be issued. No implementation or
+safety finding was raised; the exact blocker is external CI availability.
+The task remains host-only and stops here; P18-015 is the separate
+owner-approved physical validation task.

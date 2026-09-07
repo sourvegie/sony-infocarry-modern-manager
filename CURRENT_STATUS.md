@@ -142,7 +142,11 @@ P18-013 lock remains `cleared`, its sender marker remains absent, and the
 P18-011 claim remains permanently `consumed`. This is host readiness only;
 P18-015 is the separate owner-approved physical validation task. Final status
 will be updated only after commit, CI, PR review, and final independent R3
-sign-off. See the
+sign-off. The initial CI run passed on the first implementation commit, but
+the reviewed documentation commit's macOS and Windows jobs were rejected
+before any steps by GitHub's account billing/spending-limit condition; the
+rerun failed identically. Final readiness therefore remains escalated pending
+successful CI on the reviewed commit. See the
 [P18-014 analysis record](analysis/phase-18-p18-014-fresh-operation-identity-20260907.md).
 
 ## Current product checkpoint
