@@ -18,9 +18,9 @@ from .experimental_transfer_contract import experimental_safety_contract
 EXPERIMENTAL_LIBRARY_REVIEW_FORMAT = "infocarry-experimental-library-transfer-review-v1"
 EXPERIMENTAL_LIBRARY_PROFILE = "one_selected_library_item_root_txt_bmp_txt"
 EXPERIMENTAL_OPERATION = "experimental_library_package_one_shot"
-EXPERIMENTAL_TARGET_FOLDER = "IC_P18_LIBRARY_20260906_01"
-EXPERIMENTAL_OWNER_APPROVAL = "APPROVE P18-010 AUX STATE PRESERVATION TEST 01"
-EXPERIMENTAL_CONFIRMATION = "ADD IC_P18_LIBRARY_20260906_01 ONCE"
+EXPERIMENTAL_TARGET_FOLDER = "IC_P18_LIBRARY_20260907_01"
+EXPERIMENTAL_OWNER_APPROVAL = "APPROVE P18-015 V15 PHYSICAL VALIDATION 01"
+EXPERIMENTAL_CONFIRMATION = "ADD IC_P18_LIBRARY_20260907_01 ONCE"
 EXPERIMENTAL_CONFIRMATION_POLICY = "explicit_operation_phrase_v1"
 EXPERIMENTAL_CHILDREN = (
     (0, "txt", "01-introduction.txt"),
@@ -122,7 +122,7 @@ def _package_is_exact(item: Mapping[str, Any]) -> tuple[bool, list[str]]:
                     break
     destination = item.get("destination", {})
     if not isinstance(destination, Mapping) or destination.get("paths") != _expected_paths():
-        reasons.append("the destination is not the fixed root-level P18-010 package")
+        reasons.append("the destination is not the fixed root-level P18-014 package")
     if item.get("conflicts"):
         reasons.append("the destination conflicts with the verified device state")
     return not reasons, reasons
@@ -146,7 +146,7 @@ def _sealed_ready_bindings(
         or bundle.get("confirmation_phrase") != EXPERIMENTAL_CONFIRMATION
         or bundle.get("confirmation_policy") != EXPERIMENTAL_CONFIRMATION_POLICY
     ):
-        raise ExperimentalLibraryTransferReviewError("operation bundle approval differs from P18-010")
+        raise ExperimentalLibraryTransferReviewError("operation bundle approval differs from P18-014")
     if bundle.get("safety") != EXPERIMENTAL_SAFETY_POLICY:
         raise ExperimentalLibraryTransferReviewError("operation bundle safety policy differs from the reviewed one-shot policy")
     children = bundle.get("package_children")
@@ -189,7 +189,7 @@ def _sealed_ready_bindings(
         or preflight.get("confirmation_phrase") != EXPERIMENTAL_CONFIRMATION
         or preflight.get("confirmation_policy") != EXPERIMENTAL_CONFIRMATION_POLICY
     ):
-        raise ExperimentalLibraryTransferReviewError("sealed preflight approval differs from P18-010")
+        raise ExperimentalLibraryTransferReviewError("sealed preflight approval differs from P18-014")
     for key, expected in (
         ("read_only_preflight", True),
         ("device_changing_operation_performed", False),

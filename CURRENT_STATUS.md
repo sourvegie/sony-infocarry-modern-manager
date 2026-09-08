@@ -114,6 +114,41 @@ operation. Independent strong R3 review completed its correction loop with
 final `P0=0, P1=0, P2=0 — PASS`. See the sanitized
 [P18-013 analysis record](analysis/phase-18-p18-013-recovery-state-closure-20260907.md).
 
+## P18-014 fresh post-recovery operation identity closure
+
+P18-014 host validation is complete, with final release gates pending, for the
+host-only operation identity boundary on `task/P18-014-fresh-operation-identity`, based on
+canonical `5dc54cb04fcef9025b8e3f347e69b335af887135`. It uses the durable
+P18-012 read-only diagnostic and proves that the new fixed destination
+`IC_P18_LIBRARY_20260907_01` is absent from the preserved baseline. The exact
+TXT → BMP → TXT package is bound to the new P18-015 owner-approval and
+confirmation phrases, while the stale P18-010 phrases and destination remain
+rejected.
+
+The rebuilt candidate is 2,123,364 bytes with SHA-256
+`2d21044987668c55d06aaa202fa678d760f9dbca99a96679eb4dff26e5e818ac`; its
+transaction SHA-256 is
+`82be7e81b213fbb07eba86894ee525970b8a48a1101da5b4324857b1003d2fc8`. The
+operation preserves all seven `0x001b` display-history paths by the exact
+`0x140` metadata delta, rebases only the independently established
+`0x001f` bookmark pointer, preserves all four opaque bookmark values and the
+unused tail exactly, and keeps `0x001c`–`0x001e` at zero active entries.
+Unrelated baseline paths, payloads, timestamps, and unknown bytes remain
+unchanged. Capacity projection leaves 1,038,400 bytes of growth margin.
+
+P18-014 performed zero USB/device writes, sent no `0x101b`, consumed no claim,
+created no sender marker, and did not expand the capability matrix. The
+P18-013 lock remains `cleared`, its sender marker remains absent, and the
+P18-011 claim remains permanently `consumed`. This is host readiness only;
+P18-015 is the separate owner-approved physical validation task. Final status
+will be updated only after commit, CI, PR review, and final independent R3
+sign-off. The initial CI run passed on the first implementation commit, but
+the reviewed documentation commit's macOS and Windows jobs were rejected
+before any steps by GitHub's account billing/spending-limit condition; the
+rerun failed identically. Final readiness therefore remains escalated pending
+successful CI on the reviewed commit. See the
+[P18-014 analysis record](analysis/phase-18-p18-014-fresh-operation-identity-20260907.md).
+
 ## Current product checkpoint
 
 P18-003 adds the host workflow Select files/folder → Arrange → Prepare →

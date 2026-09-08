@@ -7,7 +7,7 @@ not open USB merely by being imported.  Callers must inject every detection,
 capacity, backup, and write boundary; host tests inject fakes only.
 
 The supported operation is exactly the P17-004 profile: one explicitly
-imported Library package, destination ``IC_P18_LIBRARY_20260906_01``, and
+imported Library package, destination ``IC_P18_LIBRARY_20260907_01``, and
 ordered TXT/BMP/TXT children.  The adapter is a future execution boundary,
 not a product transfer API and not a claim of physical compatibility.
 """
@@ -83,18 +83,18 @@ from .write_protocol import (
 from .write_artifact import ProspectiveWriteTransaction
 
 
-P18_010_TARGET_FOLDER = "IC_P18_LIBRARY_20260906_01"
+P18_014_TARGET_FOLDER = "IC_P18_LIBRARY_20260907_01"
+P18_015_OWNER_APPROVAL = "APPROVE P18-015 V15 PHYSICAL VALIDATION 01"
+P18_015_CONFIRMATION = "ADD IC_P18_LIBRARY_20260907_01 ONCE"
 # Compatibility names retain the settled pipeline API while their values bind
-# the new one-shot P18-010 operation. No parallel task-specific pipeline exists.
-P17_005_TARGET_FOLDER = P18_010_TARGET_FOLDER
+# the new one-shot P18-014 preparation. No parallel task-specific pipeline exists.
+P17_005_TARGET_FOLDER = P18_014_TARGET_FOLDER
 P17_005_DEVICE_IDENTITY = (0x054C, 0x001E)
 P17_005_PROFILE = "one_selected_library_item_root_txt_bmp_txt"
-P18_010_OWNER_APPROVAL = "APPROVE P18-010 AUX STATE PRESERVATION TEST 01"
-P18_010_CONFIRMATION = "ADD IC_P18_LIBRARY_20260906_01 ONCE"
 # Compatibility names retain the established API but no longer retain or
 # accept expired P17 authorization tokens.
-P17_005_OWNER_APPROVAL = P18_010_OWNER_APPROVAL
-P17_005_CONFIRMATION = P18_010_CONFIRMATION
+P17_005_OWNER_APPROVAL = P18_015_OWNER_APPROVAL
+P17_005_CONFIRMATION = P18_015_CONFIRMATION
 P17_009_OWNER_APPROVAL = "APPROVE P17-009 MODERN LIBRARY PACKAGE SMOKE 01"
 P17_009_CONFIRMATION = "CONFIRM P17-009 ONE INFOCARRY MULTI-CHILD PACKAGE"
 P17_009_CONFIRMATION_POLICY = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
@@ -938,7 +938,7 @@ def _validate_callbacks(
 def _validate_expected_folder(expected_folder_name: str) -> None:
     if expected_folder_name != P17_005_TARGET_FOLDER:
         raise PreparedLibraryPackageLiveAdapterError(
-            "P18-010 destination is fixed to IC_P18_LIBRARY_20260906_01",
+            "P18-014 destination is fixed to IC_P18_LIBRARY_20260907_01",
             stage="package",
             state="failed",
         )
@@ -1261,11 +1261,11 @@ def load_prepared_library_package_live_preflight(
     if (
         report["confirmation_policy"]
         != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
-        or report["owner_approval_phrase"] != P18_010_OWNER_APPROVAL
-        or report["confirmation_phrase"] != P18_010_CONFIRMATION
+        or report["owner_approval_phrase"] != P18_015_OWNER_APPROVAL
+        or report["confirmation_phrase"] != P18_015_CONFIRMATION
     ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "sealed preflight does not contain the exact P18-010 operation phrases",
+            "sealed preflight does not contain the exact P18-015 operation phrases",
             stage="preflight_load",
             state="failed",
             audit={"operation_sequence": []},
@@ -1849,7 +1849,7 @@ def prepare_prepared_library_package_live_preflight(
     backup_destination: Path,
     template: ParsedBackupBlob,
     new_record_timestamp_be32: int,
-    expected_folder_name: str = P17_005_TARGET_FOLDER,
+    expected_folder_name: str = P18_014_TARGET_FOLDER,
     detect_device: DetectDeviceCallback,
     query_capacity: CapacityQueryCallback,
     capture: CaptureCallback,
@@ -1858,8 +1858,8 @@ def prepare_prepared_library_package_live_preflight(
     progress: Optional[ProgressCallback] = None,
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
-    owner_approval_phrase: str = P17_005_OWNER_APPROVAL,
-    confirmation_phrase: str = P17_005_CONFIRMATION,
+    owner_approval_phrase: str = P18_015_OWNER_APPROVAL,
+    confirmation_phrase: str = P18_015_CONFIRMATION,
     confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
 ) -> PreparedLibraryPackageLivePreflight:
     """Run and seal the required fresh, read-only injected preflight.
@@ -1875,11 +1875,11 @@ def prepare_prepared_library_package_live_preflight(
     _validate_operation_phrase(confirmation_phrase, "confirmation phrase")
     if (
         confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
-        or owner_approval_phrase != P18_010_OWNER_APPROVAL
-        or confirmation_phrase != P18_010_CONFIRMATION
+        or owner_approval_phrase != P18_015_OWNER_APPROVAL
+        or confirmation_phrase != P18_015_CONFIRMATION
     ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "P18-010 requires its exact explicit operation phrases",
+            "P18-014 requires its exact explicit operation phrases",
             stage="approval",
             state="failed",
         )
@@ -2776,9 +2776,9 @@ def write_prepared_library_package_evidence_manifest(
 
 __all__ = [
     "EvidenceRootAllocator",
-    "P18_010_CONFIRMATION",
-    "P18_010_OWNER_APPROVAL",
-    "P18_010_TARGET_FOLDER",
+    "P18_014_TARGET_FOLDER",
+    "P18_015_CONFIRMATION",
+    "P18_015_OWNER_APPROVAL",
     "P17_005_CONFIRMATION",
     "P17_005_DEVICE_IDENTITY",
     "P17_005_EVIDENCE_MANIFEST_FORMAT",

@@ -25,6 +25,9 @@ from infocarry.indeterminate_write_lock import (
 from infocarry.library import LibraryCatalog
 from infocarry.library_transfer_plan import build_library_transfer_plan
 from infocarry.prepared_library_package_live_adapter import (
+    P18_014_TARGET_FOLDER,
+    P18_015_CONFIRMATION,
+    P18_015_OWNER_APPROVAL,
     P17_005_CONFIRMATION,
     P17_005_OWNER_APPROVAL,
     P17_005_TARGET_FOLDER,
@@ -474,7 +477,7 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         )
         self.assertEqual(self._sender_calls(setup), 0)
 
-    def test_only_p18_010_phrases_are_sealed_into_authorization(self):
+    def test_only_p18_015_phrases_are_sealed_into_authorization(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
         preflight = setup["preflight"]
@@ -486,16 +489,20 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
         self.assertEqual(
             preflight.authorization.core.confirmation_phrase, P17_005_CONFIRMATION
         )
+        self.assertEqual(P18_014_TARGET_FOLDER, "IC_P18_LIBRARY_20260907_01")
+        self.assertEqual(P18_015_OWNER_APPROVAL, "APPROVE P18-015 V15 PHYSICAL VALIDATION 01")
+        self.assertEqual(P18_015_CONFIRMATION, "ADD IC_P18_LIBRARY_20260907_01 ONCE")
         self.assertNotEqual(P17_009_OWNER_APPROVAL, P17_005_OWNER_APPROVAL)
         self.assertNotEqual(P17_009_CONFIRMATION, P17_005_CONFIRMATION)
 
-    def test_rejects_all_non_p18_010_operation_phrases(self):
+    def test_rejects_all_stale_operation_phrases(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
         cases = (
             ("APPROVE P17-003 MODERN LIBRARY PACKAGE SMOKE 01", P17_005_CONFIRMATION),
             (P17_005_OWNER_APPROVAL, "CONFIRM P17-003 ONE INFOCARRY MULTI-CHILD PACKAGE"),
             (P17_009_OWNER_APPROVAL, P17_009_CONFIRMATION),
+            ("APPROVE P18-010 AUX STATE PRESERVATION TEST 01", "ADD IC_P18_LIBRARY_20260906_01 ONCE"),
         )
         for index, (owner_phrase, confirmation_phrase) in enumerate(cases):
             with self.subTest(index=index):
@@ -512,6 +519,15 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                     prepare_prepared_library_package_live_preflight(**common)
                 self.assertEqual(context.exception.stage, "approval")
                 self.assertIn("exact explicit operation phrases", str(context.exception))
+
+    def test_new_preflight_identity_does_not_reuse_p18_011_claim_seal(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        setup["preflight"].verify_seal()
+        self.assertNotEqual(
+            setup["preflight"].seal_sha256,
+            "32740319540d5c33f53bc602e77146dff653c980b67fe84841e75f1b3c276931",
+        )
 
     def test_adapter_is_unreachable_from_normal_cli_and_gui(self):
         cli = (Path(__file__).parents[1] / "src/infocarry/cli.py").read_text()
