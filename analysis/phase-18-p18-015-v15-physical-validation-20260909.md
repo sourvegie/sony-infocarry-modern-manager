@@ -221,3 +221,10 @@ Host closure validation passed on the sanitized documentation diff:
   evidence-dependent skips;
 - Python 3.12 compilation: passed;
 - `git diff --check`: passed.
+
+The focused closure is [PR #41](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/41).
+Python 3.12 CI passed on commit `3e8c949` in workflow run
+`34347598259`:
+
+- [macOS](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34347598259/job/102452807217);
+- [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34347598259/job/102452803521).
