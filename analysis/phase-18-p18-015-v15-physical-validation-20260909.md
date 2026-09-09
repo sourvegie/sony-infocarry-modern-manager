@@ -6,7 +6,7 @@ Canonical base: `5d23e8b219507535b2db4b57028602073aa23c61`
 Branch: `task/P18-015-v15-physical-validation`  
 Risk: **R3 device-changing**  
 Initial disposition: **AUTHORIZED — NOT YET EXECUTED**
-Current disposition: **READ-ONLY DIAGNOSIS COMPLETE — CLASSIFICATION A; EXECUTION NOT RESUMED**
+Current disposition: **PHYSICAL VALIDATION COMPLETE — TERMINAL READ-BACK VERIFIED**
 
 ## Owner authorization
 
@@ -300,3 +300,101 @@ sender invocations:  0
 0x101b transmissions: 0
 claim consumption:   0
 ```
+
+## Authorized execution continuation
+
+After PM review, the owner separately authorized resumption of the already
+approved P18-015 operation. All execution work used the host-visible Python
+environment established by the read-only diagnosis. No production detector
+change was made.
+
+Fresh live gates passed before confirmation or claim consumption:
+
+- exact device: `0x054c:0x001e`, `bcdDevice=0x0100`, bus 1/address 1;
+- fresh native `0x0019`: 3,145,728-byte capacity, 64-byte response SHA-256
+  `c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a`;
+- complete initial preflight backup manifest SHA-256
+  `0f4551093adb59e45d2820692e4a018f824a5cd936c3efa854de5046b1fa3f9b`;
+- pre-write state identity
+  `e603fecc087bd615bada4dd37f6636eba7af257a75d0f1baa0b913764e7797b4`;
+- exact destination absent, auxiliary state eligible, claim-store integrity
+  `ok`, global lock `cleared`, and no sender marker;
+- historical P18-011 claim remained permanently consumed and no P18-015
+  claim existed;
+- fresh candidate: 2,123,364 bytes, SHA-256
+  `2d21044987668c55d06aaa202fa678d760f9dbca99a96679eb4dff26e5e818ac`;
+- fresh transaction: 2,188,900 bytes, SHA-256
+  `82be7e81b213fbb07eba86894ee525970b8a48a1101da5b4324857b1003d2fc8`;
+- core preflight seal
+  `afab46439256839a813d6c947b83ba61b4c66fb2c45391482e2f686ee0f05e3f`;
+- preflight seal
+  `a7e97e9aeffc69c2fc6b288eb8d388d1aa0bf632cb1c40ca4888e2b50668a05b`;
+- operation bundle
+  `acc8d3e5264a56a6e68b402f0dc984d78b15e0d0edfaed6c334428e8b26db039`;
+- authorization
+  `65f088897613e9d0b4da831eb6ebb339b20cdfcdc47a3e3646d68005fcd5b69c`;
+- remaining capacity after candidate: 1,022,364 bytes.
+
+Only after these gates passed, the exact runtime confirmation
+`ADD IC_P18_LIBRARY_20260907_01 ONCE` was presented and accepted. The existing
+guarded coordinator consumed P18-015 claim
+`e921b09cb11d475c96730566a0e65108`, established the normal sender marker,
+and invoked the sender once. Exactly one logical transaction and one `0x101b`
+header were sent; there were no retries. The native sender returned explicit
+integer `0x0000`.
+
+The execution-time pre-write backup manifest SHA-256 is
+`1f9600fba7241bc606fb8418ce5c4a7316844ae613d3f30c569b3837f9e8fca4`.
+Its dynamic blob SHA-256 is
+`6fd27699ca6c13a46f8d75467ba72860af8b865b7cf19046b7a91f63bf471e01`
+and its state identity agrees with the fresh preflight. The complete post-write
+backup manifest SHA-256 is
+`b617b99133799f8f567a8a0d78594d26a6739779e8117c0822c324fb2f90164c`;
+its dynamic blob is byte-exact with the sealed candidate and its state identity
+is `7d422761a586a752097128dbf5c6ff720abec66116df189ee29e4f2fe9aab1fc`.
+
+The existing durable APIs recorded result manifest SHA-256
+`8be66b0addd29985806c7c8fea0328a87213378dd8a91a8fca7cd32daf6ad90d`
+with state `readback_verified`. Independent disk-only revalidation using the
+corrected terminal verifier passed: the exact destination exists with ordered
+children `01-introduction.txt`, `02-page-01.bmp`, and `03-ending.txt` and exact
+payloads; all 339 shared paths, payloads, and timestamps are retained; there
+are no removed paths; fixed and unrelated state is unchanged except reviewed
+relocations. All seven display-history paths and the established bookmark path
+are preserved, all four bookmark opaque values and the unused tail are exact,
+and `0x001c`-`0x001e` remain zero-count.
+
+After durable terminal success, the temporary operator script's final
+reporting helper raised because it still asserted that the claim database
+contained only the historical P18-011 claim. This was a post-result reporting
+error: it encountered the legitimate newly consumed P18-015 claim. It did not
+affect the coordinator result, post-write evidence, result manifest, or safety
+state, and it triggered no retry or additional USB command. Final durable
+state is claim `e921b09cb11d475c96730566a0e65108` permanently `consumed`, no
+active sender marker, global lock `cleared`, and claim-store integrity `ok`.
+Raw evidence remains outside Git.
+
+Final physical counts:
+
+```text
+logical transactions: 1
+sender invocations:    1
+0x101b transmissions:  1
+retries:               0
+```
+
+Post-attempt host validation passed:
+
+- focused guarded-transfer, P18-006 adversarial, live-adapter, verifier,
+  claim-store, lock, and transport suites: 115 tests passed;
+- P18-014 real-evidence regression: 2 tests passed;
+- full portable suite: 757 tests passed with 3 intentional
+  evidence-dependent skips;
+- Python 3.12 compilation: passed;
+- `git diff --check`: passed.
+
+The P18-014 real-evidence regression was corrected to assert its intended
+durable invariant—that the historical P18-011 claim remains consumed—without
+assuming no later valid claims can exist. All claims in the installation store
+must remain consumed. This test-only correction neither changes production
+execution behavior nor broadens capability.

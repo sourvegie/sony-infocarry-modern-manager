@@ -4,8 +4,10 @@ Date: 2026-09-09
 
 ## P18-015 VNW-V15 physical validation
 
-P18-015 stopped **BLOCKED_BY_EXTERNAL_EVIDENCE** on
-`task/P18-015-v15-physical-validation` at the initial physical-evidence gate.
+P18-015 is **PHYSICALLY COMPLETE — TERMINAL READ-BACK VERIFIED** on
+`task/P18-015-v15-physical-validation`. It initially stopped at the physical-
+evidence gate because sandboxed PyUSB returned no devices; read-only diagnosis
+proved classification A and the owner separately authorized resumption.
 The initial filtered PyUSB enumeration inside the managed command sandbox
 returned zero matching devices; it did not establish that no physical device
 was attached. Therefore no fresh native `0x0019`, complete pre-write backup,
@@ -21,17 +23,24 @@ then returned exactly one matching device. Five bounded enumeration-only
 repetitions were stable. This was an execution-context visibility difference,
 not evidence of physical absence and not a detector-semantics defect.
 
-The installation-wide lock remains `cleared`, no sender marker is active,
-claim-store integrity is `ok`, and historical P18-011 claim
-`827bfde0b93d4b2da57ee646ff6aaa1d` remains permanently `consumed`. No new
-P18-015 claim was consumed. Runtime confirmation was neither presented nor
-accepted; sender calls, `0x101b` transmissions, logical transactions, and
-retries are all zero. No device-changing operation began. No post-write or
-terminal physical result exists, and no capability boundary changed. See the
-sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-validation-20260909.md).
-The physical execution remains stopped pending PM review and separate
-authorization to resume. The read-only diagnosis performed zero device writes,
-sender calls, `0x101b` transmissions, and claim consumptions.
+Fresh live preflight identified `0x054c:0x001e` at bus 1/address 1, obtained
+native capacity 3,145,728 bytes, captured and verified a complete backup, and
+rebuilt the exact reviewed candidate and transaction. The exact runtime phrase
+was accepted. Claim `e921b09cb11d475c96730566a0e65108` was consumed and one
+sender call transmitted one `0x101b`; native completion was `0x0000`, with no
+retry. The complete post-write backup equals the sealed candidate. Corrected
+terminal verification independently passed the exact target, TXT -> BMP -> TXT
+order and payloads, 339 shared paths/payloads/timestamps, unrelated state,
+seven display-history paths, bookmark path and opaque state/tail, and zero-count
+`0x001c`-`0x001e`.
+
+The final lock is `cleared`, no sender marker is active, claim-store integrity
+is `ok`, and both the historical P18-011 claim and new P18-015 claim remain
+permanently consumed. A temporary reporting helper failed after durable
+terminal success because it expected only the historical claim; this caused no
+additional USB operation and does not make the completed result ambiguous.
+Raw evidence remains outside Git. No broader live capability is claimed. See
+the sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-validation-20260909.md).
 
 ## Canonical checkpoint
 

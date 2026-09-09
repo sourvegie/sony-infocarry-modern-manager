@@ -128,7 +128,8 @@ class P18014FreshOperationIdentityTests(unittest.TestCase):
             ).fetchall()
         finally:
             connection.close()
-        self.assertEqual(rows, [(P18_011_CLAIM_ID, "consumed")])
+        self.assertIn((P18_011_CLAIM_ID, "consumed"), rows)
+        self.assertTrue(all(state == "consumed" for _, state in rows))
 
 
 if __name__ == "__main__":
