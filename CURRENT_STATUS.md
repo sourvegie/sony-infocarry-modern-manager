@@ -180,9 +180,9 @@ P18-014 performed zero USB/device writes, sent no `0x101b`, consumed no claim,
 created no sender marker, and did not expand the capability matrix. The
 P18-013 lock remains `cleared`, its sender marker remains absent, and the
 P18-011 claim remains permanently `consumed`. This is host readiness only;
-P18-015 is the separate owner-approved physical validation task. Final status
-will be updated only after commit, CI, PR review, and final independent R3
-sign-off. The initial CI run passed on the first implementation commit, but
+P18-015 was the separate owner-approved physical validation task and is now
+recorded above as terminally read-back verified. The initial P18-014 CI run
+passed on the first implementation commit, but
 the reviewed documentation commit's macOS and Windows jobs were rejected
 before any steps by GitHub's account billing/spending-limit condition; the
 rerun failed identically. Final readiness therefore remains escalated pending
@@ -402,18 +402,21 @@ owner’s human-observed retest at approximately 980×680 and 1120×760 or
 larger. This observation covers the tested GUI sizes only; it does not infer
 hardware behavior, transfer execution, or other display environments.
 
-The exact P17-018 TXT/BMP/TXT Library transfer remains the only integrated
-Experimental physical proof. Physical opening of its folder and all three
-children remains a separate human acceptance check where still noted by the
-evidence records. The capability authority is
+The exact P17-018 and P18-015 TXT/BMP/TXT Library transfers are the integrated
+Experimental physical proofs for that exact shape. P18-015 adds terminal
+read-back verification under the established display-history and bookmark
+preservation policy; it does not generalize other shapes or normal product
+reachability. Physical opening remains a separate human acceptance check where
+still noted by the evidence records. The capability authority is
 [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
 
 ## Safety posture
 
-- P18-011 reached sender entry once after complete fresh gates. Its post-write
-  backup is preserved, but terminal closure is indeterminate; the
-  installation-wide lock is intentionally active and must not be cleared by a
-  reconnect or by assuming that the device matches the candidate.
+- P18-011 historically reached sender entry once and required indeterminate
+  closure. P18-012 verified its preserved state and P18-013 cleared that exact
+  incident through the reviewed recovery API. P18-015 later completed a
+  separate one-shot operation with terminal read-back verification. The
+  installation-wide lock is now `cleared`; neither event authorizes a retry.
 
 - P18-009 reached fresh read-only VNW-V15 evidence but stopped before sender
   entry because the exact destination existed and auxiliary state was not

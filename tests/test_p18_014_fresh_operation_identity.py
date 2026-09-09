@@ -33,6 +33,7 @@ OLD_TARGET = "IC_P18_LIBRARY_20260906_01"
 OLD_CANDIDATE_SHA = "6fd27699ca6c13a46f8d75467ba72860af8b865b7cf19046b7a91f63bf471e01"
 OLD_TRANSACTION_SHA = "9373330cd78f58faaa0cfe61590e4cd0ce489ea5c8069c3112144e69aafe10f4"
 P18_011_CLAIM_ID = "827bfde0b93d4b2da57ee646ff6aaa1d"
+P18_015_CLAIM_ID = "e921b09cb11d475c96730566a0e65108"
 TEMPLATE_POLICY_SHA = "6c654fe4ec4cd87092b90980471fc32df797c84d7817398c9b81edefcedf796b"
 
 
@@ -129,6 +130,7 @@ class P18014FreshOperationIdentityTests(unittest.TestCase):
         finally:
             connection.close()
         self.assertIn((P18_011_CLAIM_ID, "consumed"), rows)
+        self.assertIn((P18_015_CLAIM_ID, "consumed"), rows)
         self.assertTrue(all(state == "consumed" for _, state in rows))
 
 
