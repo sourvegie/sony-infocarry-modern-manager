@@ -4,12 +4,22 @@ Date: 2026-09-09
 
 ## P18-015 VNW-V15 physical validation
 
-P18-015 is **BLOCKED_BY_EXTERNAL_EVIDENCE** on
+P18-015 stopped **BLOCKED_BY_EXTERNAL_EVIDENCE** on
 `task/P18-015-v15-physical-validation` at the initial physical-evidence gate.
-Fresh PyUSB enumeration on 2026-09-09 found no attached Sony device matching
-the required VNW-V15 session identity `0x054c:0x001e`. Therefore no fresh
-native `0x0019`, complete pre-write backup, candidate, transaction, or seals
-were produced for a physical attempt.
+The initial filtered PyUSB enumeration inside the managed command sandbox
+returned zero matching devices; it did not establish that no physical device
+was attached. Therefore no fresh native `0x0019`, complete pre-write backup,
+candidate, transaction, or seals were produced for a physical attempt.
+
+The subsequent strictly read-only diagnosis is complete with classification
+**A**. macOS IORegistry reported the exact Sony `0x054c:0x001e`,
+`bcdDevice=0x0100` node at bus 1/address 1. Unfiltered PyUSB inside the command
+sandbox saw zero devices total, while the same Python 3.12.14 / PyUSB 1.3.1 /
+arm64 Homebrew libusb 1.0.30 environment outside that sandbox saw seven total
+devices and the exact bus-1/address-1 Sony node. The existing filtered detector
+then returned exactly one matching device. Five bounded enumeration-only
+repetitions were stable. This was an execution-context visibility difference,
+not evidence of physical absence and not a detector-semantics defect.
 
 The installation-wide lock remains `cleared`, no sender marker is active,
 claim-store integrity is `ok`, and historical P18-011 claim
@@ -19,6 +29,9 @@ accepted; sender calls, `0x101b` transmissions, logical transactions, and
 retries are all zero. No device-changing operation began. No post-write or
 terminal physical result exists, and no capability boundary changed. See the
 sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-validation-20260909.md).
+The physical execution remains stopped pending PM review and separate
+authorization to resume. The read-only diagnosis performed zero device writes,
+sender calls, `0x101b` transmissions, and claim consumptions.
 
 ## Canonical checkpoint
 

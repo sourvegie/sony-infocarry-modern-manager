@@ -6,7 +6,7 @@ Canonical base: `5d23e8b219507535b2db4b57028602073aa23c61`
 Branch: `task/P18-015-v15-physical-validation`  
 Risk: **R3 device-changing**  
 Initial disposition: **AUTHORIZED — NOT YET EXECUTED**
-Current disposition: **BLOCKED_BY_EXTERNAL_EVIDENCE**
+Current disposition: **READ-ONLY DIAGNOSIS COMPLETE — CLASSIFICATION A; EXECUTION NOT RESUMED**
 
 ## Owner authorization
 
@@ -188,11 +188,13 @@ before any live-device operation:
 - active sender marker: none;
 - installation-wide indeterminate-write lock: `cleared`.
 
-Fresh PyUSB enumeration found zero attached devices with the required Sony
-VID/PID `0x054c:0x001e`. Consequently, exact VNW-V15 identification, a fresh
-native `0x0019` response, and a fresh complete pre-write backup could not be
-obtained. The procedure failed closed at the first external-evidence gate with
-disposition **BLOCKED_BY_EXTERNAL_EVIDENCE**.
+The initial filtered PyUSB enumeration, run inside the managed command sandbox,
+returned zero matching devices with Sony VID/PID `0x054c:0x001e`. That result
+did not establish that no physical USB device was attached. Consequently,
+exact VNW-V15 identification, a fresh native `0x0019` response, and a fresh
+complete pre-write backup were not obtained during the initial attempt. The
+procedure failed closed at the first external-evidence gate with disposition
+**BLOCKED_BY_EXTERNAL_EVIDENCE** pending read-only diagnosis.
 
 The runtime confirmation was not presented or accepted. No candidate,
 authorization, audit, preflight seal, operation bundle, transaction, or
@@ -228,3 +230,73 @@ Python 3.12 CI passed on commit `3e8c949` in workflow run
 
 - [macOS](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34347598259/job/102452807217);
 - [Windows](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/34347598259/job/102452803521).
+
+### Read-only enumeration diagnosis continuation
+
+The Project Owner reported that the InfoCarry was physically attached during
+the initial stop and was observed at bus 1, address 1. A bounded read-only
+diagnosis was therefore performed without opening an interface, reading USB
+strings, sending a standard or vendor request, calling `set_configuration()`,
+or changing device state.
+
+The execution environment was independently recorded as:
+
+| Field | Result |
+| --- | --- |
+| `sys.executable` | `/Users/stardust/Projects/sony-infocarry-modern-manager/.venv/bin/python` |
+| Python | `3.12.14` |
+| machine architecture | `arm64` |
+| PyUSB | `1.3.1` |
+| PyUSB backend | `usb.backend.libusb1._LibUSB` |
+| loaded libusb | `/opt/homebrew/lib/libusb-1.0.dylib` |
+| libusb package | Homebrew `1.0.30`, arm64 Mach-O |
+
+Python and PyUSB match the known-good P18-011 versions. The earlier record did
+not capture enough backend/library detail to claim complete environment
+equivalence; the current backend and loaded library are now explicit.
+
+`system_profiler -json SPUSBDataType` returned an empty USB array. The more
+direct read-only macOS IORegistry plane did enumerate the device. `ioreg -p
+IOUSB -r -c IOUSBHostDevice -l -w 0` reported one unnamed node at location
+`0x01100000`, USB address 1, `idVendor=1356` (`0x054c`), `idProduct=30`
+(`0x001e`), and `bcdDevice=256` (`0x0100`). The node has `iProduct=0` and
+`iManufacturer=0`, so product and manufacturer strings were unavailable and
+were not read. Its controller location corresponds to bus 1, establishing
+that the owner's bus-1/address-1 observation was the exact Sony VID/PID node,
+not an unrelated device.
+
+The same unfiltered `usb.core.find(find_all=True)` call produced different
+results across execution contexts:
+
+- inside the managed command sandbox: zero devices total, including no object
+  at bus 1/address 1 and no `054c:001e` object;
+- outside that sandbox, using the same Python, PyUSB backend, and libusb:
+  seven devices total; bus 1/address 1 was `054c:001e`, `bcdDevice=0x0100`;
+  exactly one `054c:001e` object was present;
+- the existing filtered `find_devices()` helper then returned exactly that one
+  device at bus 1/address 1.
+
+Five bounded enumeration-only repetitions outside the command sandbox were
+stable. Every repetition returned seven total devices, one unfiltered
+`054c:001e` object at bus 1/address 1, and one matching result from the existing
+filtered detector.
+
+This is diagnostic classification **A — macOS and host-visible PyUSB both see
+`054c:001e`**. The earlier zero result was specific to the restricted process
+context, not VID/PID filtering and not demonstrated physical absence. No
+production detection change is justified. P18-015 execution was not resumed;
+PM review and separate authorization to resume remain required.
+
+The durable state was reconfirmed after diagnosis: global lock `cleared`, no
+active sender marker, SQLite integrity `ok`, and exactly one claim—the
+historical P18-011 claim `827bfde0b93d4b2da57ee646ff6aaa1d`, still
+permanently `consumed`. No P18-015 claim exists or was consumed.
+
+Read-only diagnosis totals remained:
+
+```text
+device writes:       0
+sender invocations:  0
+0x101b transmissions: 0
+claim consumption:   0
+```
