@@ -1,6 +1,24 @@
 # Current Project Status
 
-Date: 2026-09-07
+Date: 2026-09-09
+
+## P18-015 VNW-V15 physical validation
+
+P18-015 is **BLOCKED_BY_EXTERNAL_EVIDENCE** on
+`task/P18-015-v15-physical-validation` at the initial physical-evidence gate.
+Fresh PyUSB enumeration on 2026-09-09 found no attached Sony device matching
+the required VNW-V15 session identity `0x054c:0x001e`. Therefore no fresh
+native `0x0019`, complete pre-write backup, candidate, transaction, or seals
+were produced for a physical attempt.
+
+The installation-wide lock remains `cleared`, no sender marker is active,
+claim-store integrity is `ok`, and historical P18-011 claim
+`827bfde0b93d4b2da57ee646ff6aaa1d` remains permanently `consumed`. No new
+P18-015 claim was consumed. Runtime confirmation was neither presented nor
+accepted; sender calls, `0x101b` transmissions, logical transactions, and
+retries are all zero. No device-changing operation began. No post-write or
+terminal physical result exists, and no capability boundary changed. See the
+sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-validation-20260909.md).
 
 ## Canonical checkpoint
 

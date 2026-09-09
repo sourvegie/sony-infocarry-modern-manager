@@ -6,6 +6,7 @@ Canonical base: `5d23e8b219507535b2db4b57028602073aa23c61`
 Branch: `task/P18-015-v15-physical-validation`  
 Risk: **R3 device-changing**  
 Initial disposition: **AUTHORIZED — NOT YET EXECUTED**
+Current disposition: **BLOCKED_BY_EXTERNAL_EVIDENCE**
 
 ## Owner authorization
 
@@ -172,3 +173,51 @@ After the physical attempt:
 - obtain a fresh independent strong R3 review with final `P0=0, P1=0, P2=0 — PASS` before merge.
 
 Do not merge automatically.
+
+## 2026-09-09 physical-validation attempt
+
+The requested branch was fetched and checked out cleanly at
+`d6ce5d186042792983d9ad12fa5978790384ae52`, the expected P18-015 owner-
+authorization commit. The installation-owned safety state was inspected
+before any live-device operation:
+
+- claim-store SQLite integrity: `ok`;
+- historical P18-011 claim `827bfde0b93d4b2da57ee646ff6aaa1d`:
+  permanently `consumed`;
+- new P18-015 claim: absent / not consumed;
+- active sender marker: none;
+- installation-wide indeterminate-write lock: `cleared`.
+
+Fresh PyUSB enumeration found zero attached devices with the required Sony
+VID/PID `0x054c:0x001e`. Consequently, exact VNW-V15 identification, a fresh
+native `0x0019` response, and a fresh complete pre-write backup could not be
+obtained. The procedure failed closed at the first external-evidence gate with
+disposition **BLOCKED_BY_EXTERNAL_EVIDENCE**.
+
+The runtime confirmation was not presented or accepted. No candidate,
+authorization, audit, preflight seal, operation bundle, transaction, or
+capacity identity was created from stale evidence as a substitute. No claim
+was consumed, no sender marker was established, no sender was invoked, and no
+`0x101b` request was transmitted. Counts remained:
+
+```text
+logical transactions: 0
+sender invocations:    0
+0x101b transmissions:  0
+retries:               0
+```
+
+Native sender return, post-write backup, terminal verifier result, and
+physical target/content/auxiliary-state results are not applicable because no
+device-changing operation began. P18-014's offline identities remain review
+references only and are not reported as fresh physical evidence. No capability
+claim or matrix row is broadened.
+
+Host closure validation passed on the sanitized documentation diff:
+
+- focused guarded-transfer, P18-006 adversarial, live-adapter, verifier,
+  claim-store, lock, and real-evidence suites: 100 tests passed;
+- full portable suite: 757 tests passed with 3 intentional
+  evidence-dependent skips;
+- Python 3.12 compilation: passed;
+- `git diff --check`: passed.
