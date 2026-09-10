@@ -102,9 +102,11 @@ A user can additionally:
 - import supported sources into a persistent local Library by picker or
   drag-and-drop;
 - prepare and preview them using tested conversion profiles;
-- select one explicitly grouped ready package for a transfer plan;
-- review destinations, conflicts, estimated size, device capacity, additions,
-  and any explicitly requested removals before authorization; and
+- select one explicitly grouped prepared package for a transfer-readiness
+  review;
+- review destinations, conflicts, prepared sizes, device capacity evidence,
+  additions, and any explicitly requested removals before a future
+  authorization boundary; and
 - execute only operation types already proven by the earlier release gates.
 
 The accelerated delivery plan keeps selection and physical transfer distinct:
@@ -121,10 +123,12 @@ authoritative current capability boundary is
 root TXT deletion, ordered four-TXT, flat TXT/BMP/TXT, and the exact P17-018
 Library package have their own limited evidence gates. P18-001 adds an
 Experimental review and guarded integration for exactly the P17-018-proven
-Library shape: one root folder with ordered TXT, BMP, TXT children. It reuses
-the reviewed candidate, authorization, one-shot runner, fresh-backup, and
-P17-019 read-back reconciliation path. A selected item is the logical change,
-while the protocol transfers a complete candidate library image.
+Library shape: one root folder with ordered TXT, BMP, TXT children. P18-016
+exposes that profile's host-only readiness review in the normal ttk Library
+flow; it shows why a package qualifies or is blocked and keeps `Transfer once`
+disabled until a separately reviewed live boundary exists. A selected item is
+the logical change, while a future protocol operation would transfer a
+complete candidate library image.
 
 ### v1.0 — General content manager
 
@@ -184,7 +188,15 @@ recovery and broader compatibility remain unresolved.
 
 The accelerated product workflow is:
 
-`Select files/folder → Arrange → Prepare → Preview → Back up → Confirm → Transfer once → Read back → Verify`
+`Select files/folder → Arrange → Prepare → Preview → Review transfer → Back up → Confirm → Transfer once → Read back → Verify`
+
+In the current normal ttk build, `Review transfer` is the final available
+Library stage and `Transfer once` is visible but disabled. The readiness review
+requires one explicit prepared package: one root-level folder with exactly
+three direct children in TXT → BMP → TXT order, with canonical filename/path,
+CP932, payload, and conflict constraints. Missing fresh live evidence keeps a
+valid host profile eligible for review but unavailable for execution; conflicts
+or unsupported shapes are blocked.
 
 Package grouping is explicit at selection/preparation time; selecting several
 unrelated Library rows never merges them. The initial machine-enforced profile
