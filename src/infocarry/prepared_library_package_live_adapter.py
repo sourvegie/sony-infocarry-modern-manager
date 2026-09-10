@@ -6,9 +6,11 @@ multi-package read-back verifier, and :class:`AuthorizedWriteSender`.  It does
 not open USB merely by being imported.  Callers must inject every detection,
 capacity, backup, and write boundary; host tests inject fakes only.
 
-The supported operation is exactly the P17-004 profile: one explicitly
+The historical default operation is the P17-004 profile: one explicitly
 imported Library package, destination ``IC_P18_LIBRARY_20260907_01``, and
-ordered TXT/BMP/TXT children.  The adapter is a future execution boundary,
+ordered TXT/BMP/TXT children.  A typed fresh operation binding may also be
+provided by the product facade for the separately reviewed validation target.
+The adapter is a future execution boundary,
 not a product transfer API and not a claim of physical compatibility.
 """
 
@@ -43,6 +45,10 @@ from .execution_claim_store import (
     SenderInFlightRecord,
 )
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
+from .library_transfer_execution import (
+    FRESH_VALIDATION_TARGET,
+    LibraryTransferOperationBinding,
+)
 from .library import LibraryCatalog
 from .prepared_library_package_bridge import (
     P17_003_TEMPLATE_FOLDER_PATH,
@@ -936,12 +942,74 @@ def _validate_callbacks(
 
 
 def _validate_expected_folder(expected_folder_name: str) -> None:
-    if expected_folder_name != P17_005_TARGET_FOLDER:
+    if expected_folder_name not in {P17_005_TARGET_FOLDER, FRESH_VALIDATION_TARGET}:
         raise PreparedLibraryPackageLiveAdapterError(
-            "P18-014 destination is fixed to IC_P18_LIBRARY_20260907_01",
+            "the operation destination is outside the reviewed VNW-V15 targets",
             stage="package",
             state="failed",
         )
+
+
+def _resolve_operation_binding(
+    operation_binding: Optional[LibraryTransferOperationBinding],
+    *,
+    expected_folder_name: Optional[str] = None,
+    owner_approval_phrase: Optional[str] = None,
+    confirmation_phrase: Optional[str] = None,
+    confirmation_policy: Optional[str] = None,
+) -> tuple[str, str, str, str]:
+    """Resolve either the historical default or one typed fresh binding."""
+
+    if operation_binding is None:
+        values = (
+            expected_folder_name or P18_014_TARGET_FOLDER,
+            owner_approval_phrase or P18_015_OWNER_APPROVAL,
+            confirmation_phrase or P18_015_CONFIRMATION,
+            confirmation_policy or PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+        )
+        if values[0] != P18_014_TARGET_FOLDER or values[1:] != (
+            P18_015_OWNER_APPROVAL,
+            P18_015_CONFIRMATION,
+            PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+        ):
+            raise PreparedLibraryPackageLiveAdapterError(
+                "exact explicit operation phrases are required; fresh operation values require a typed LibraryTransferOperationBinding",
+                stage="approval",
+                state="failed",
+            )
+        return values
+    if not isinstance(operation_binding, LibraryTransferOperationBinding):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "operation binding is not the reviewed typed VNW-V15 binding",
+            stage="approval",
+            state="failed",
+        )
+    operation_binding.require_authorized()
+    values = (
+        operation_binding.target_folder_name,
+        operation_binding.owner_approval_phrase,
+        operation_binding.confirmation_phrase,
+        operation_binding.confirmation_policy,
+    )
+    if any(value is None for value in values):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "typed operation binding is not authorized",
+            stage="approval",
+            state="failed",
+        )
+    for supplied, bound, label in (
+        (expected_folder_name, values[0], "destination"),
+        (owner_approval_phrase, values[1], "owner approval"),
+        (confirmation_phrase, values[2], "confirmation"),
+        (confirmation_policy, values[3], "confirmation policy"),
+    ):
+        if supplied is not None and supplied != bound:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"operation {label} differs from its typed binding",
+                stage="approval",
+                state="failed",
+            )
+    return values  # type: ignore[return-value]
 
 
 def _validate_operation_phrase(value: str, label: str) -> None:
@@ -1148,6 +1216,7 @@ def load_prepared_library_package_live_preflight(
     backup: VerifiedBackup,
     template: ParsedBackupBlob,
     capacity_response: NativeCapacityResponse,
+    operation_binding: Optional[LibraryTransferOperationBinding] = None,
 ) -> PreparedLibraryPackageLivePreflight:
     """Load and independently reconstruct one sealed P17-012 preflight.
 
@@ -1160,6 +1229,12 @@ def load_prepared_library_package_live_preflight(
     unexpected field and fails before any live callback could be reached.
     """
 
+    (
+        expected_folder_name,
+        owner_approval_phrase,
+        confirmation_phrase,
+        confirmation_policy,
+    ) = _resolve_operation_binding(operation_binding)
     report = _strict_json_object(Path(report_path))
     missing = sorted(P17_012_SEALED_PREFLIGHT_KEYS - set(report))
     unexpected = sorted(set(report) - P17_012_SEALED_PREFLIGHT_KEYS)
@@ -1177,7 +1252,7 @@ def load_prepared_library_package_live_preflight(
         "state": "ready_for_hardware_test_host_only",
         "profile": P17_005_PROFILE,
         "device_identity": list(_expected_device_hex()),
-        "expected_folder_name": P17_005_TARGET_FOLDER,
+        "expected_folder_name": expected_folder_name,
         "read_only_preflight": True,
         # Detection/capacity/backup are hardware access, but remain strictly
         # read-only.  These flags match the P17-012 sealed-report producer.
@@ -1259,13 +1334,12 @@ def load_prepared_library_package_live_preflight(
     _validate_operation_phrase(report["owner_approval_phrase"], "owner approval phrase")
     _validate_operation_phrase(report["confirmation_phrase"], "confirmation phrase")
     if (
-        report["confirmation_policy"]
-        != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
-        or report["owner_approval_phrase"] != P18_015_OWNER_APPROVAL
-        or report["confirmation_phrase"] != P18_015_CONFIRMATION
+        report["confirmation_policy"] != confirmation_policy
+        or report["owner_approval_phrase"] != owner_approval_phrase
+        or report["confirmation_phrase"] != confirmation_phrase
     ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "sealed preflight does not contain the exact P18-015 operation phrases",
+            "sealed preflight does not contain the exact bound operation phrases",
             stage="preflight_load",
             state="failed",
             audit={"operation_sequence": []},
@@ -1517,6 +1591,17 @@ def _resolve_prepared_library_package_operation_bundle(
             backup=baseline,
             template=template,
             capacity_response=capacity_response,
+            operation_binding=(
+                LibraryTransferOperationBinding(
+                    target_folder_name=bundle.expected_folder_name,
+                    owner_approval_phrase=bundle.owner_approval_phrase,
+                    confirmation_phrase=bundle.confirmation_phrase,
+                    confirmation_policy=bundle.confirmation_policy,
+                    operation_id=bundle.operation_id,
+                )
+                if bundle.expected_folder_name == FRESH_VALIDATION_TARGET
+                else None
+            ),
         )
         if _backup_identity(preflight.before_backup).sha256 != bundle.baseline_state_identity_sha256:
             raise ValueError("loaded preflight raw-state identity differs from the bundle")
@@ -1849,7 +1934,7 @@ def prepare_prepared_library_package_live_preflight(
     backup_destination: Path,
     template: ParsedBackupBlob,
     new_record_timestamp_be32: int,
-    expected_folder_name: str = P18_014_TARGET_FOLDER,
+    expected_folder_name: Optional[str] = None,
     detect_device: DetectDeviceCallback,
     query_capacity: CapacityQueryCallback,
     capture: CaptureCallback,
@@ -1858,9 +1943,10 @@ def prepare_prepared_library_package_live_preflight(
     progress: Optional[ProgressCallback] = None,
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
-    owner_approval_phrase: str = P18_015_OWNER_APPROVAL,
-    confirmation_phrase: str = P18_015_CONFIRMATION,
-    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
+    owner_approval_phrase: Optional[str] = None,
+    confirmation_phrase: Optional[str] = None,
+    confirmation_policy: Optional[str] = None,
+    operation_binding: Optional[LibraryTransferOperationBinding] = None,
 ) -> PreparedLibraryPackageLivePreflight:
     """Run and seal the required fresh, read-only injected preflight.
 
@@ -1870,19 +1956,21 @@ def prepare_prepared_library_package_live_preflight(
     called here.
     """
 
+    (
+        expected_folder_name,
+        owner_approval_phrase,
+        confirmation_phrase,
+        confirmation_policy,
+    ) = _resolve_operation_binding(
+        operation_binding,
+        expected_folder_name=expected_folder_name,
+        owner_approval_phrase=owner_approval_phrase,
+        confirmation_phrase=confirmation_phrase,
+        confirmation_policy=confirmation_policy,
+    )
     _validate_expected_folder(expected_folder_name)
     _validate_operation_phrase(owner_approval_phrase, "owner approval phrase")
     _validate_operation_phrase(confirmation_phrase, "confirmation phrase")
-    if (
-        confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
-        or owner_approval_phrase != P18_015_OWNER_APPROVAL
-        or confirmation_phrase != P18_015_CONFIRMATION
-    ):
-        raise PreparedLibraryPackageLiveAdapterError(
-            "P18-014 requires its exact explicit operation phrases",
-            stage="approval",
-            state="failed",
-        )
     _validate_callbacks(
         detect_device=detect_device,
         query_capacity=query_capacity,

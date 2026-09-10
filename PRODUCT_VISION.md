@@ -125,10 +125,16 @@ Library package have their own limited evidence gates. P18-001 adds an
 Experimental review and guarded integration for exactly the P17-018-proven
 Library shape: one root folder with ordered TXT, BMP, TXT children. P18-016
 exposes that profile's host-only readiness review in the normal ttk Library
-flow; it shows why a package qualifies or is blocked and keeps `Transfer once`
-disabled until a separately reviewed live boundary exists. A selected item is
-the logical change, while a future protocol operation would transfer a
-complete candidate library image.
+flow; P18-017 adds a product facade for fresh live preflight and the existing
+guarded execution lifecycle. The default normal UI remains disabled until an
+exact, separately authorized fresh VNW-V15 operation has passed the canonical
+gates and transaction-specific confirmation. The code-reachable boundary is
+still only one explicit root package at `IC_P18_LIBRARY_20260910_01` with
+TXT → BMP → TXT children, target absence, no overwrite/delete/merge/nesting/
+batch, one transaction, and no retry. This host integration is not physical
+ttk validation and does not authorize a hardware transaction. A selected item
+is the logical change, while the protocol operation transfers a complete
+candidate library image.
 
 ### v1.0 — General content manager
 
@@ -190,13 +196,15 @@ The accelerated product workflow is:
 
 `Select files/folder → Arrange → Prepare → Preview → Review transfer → Back up → Confirm → Transfer once → Read back → Verify`
 
-In the current normal ttk build, `Review transfer` is the final available
-Library stage and `Transfer once` is visible but disabled. The readiness review
-requires one explicit prepared package: one root-level folder with exactly
-three direct children in TXT → BMP → TXT order, with canonical filename/path,
-CP932, payload, and conflict constraints. Missing fresh live evidence keeps a
-valid host profile eligible for review but unavailable for execution; conflicts
-or unsupported shapes are blocked.
+In the current normal ttk build, `Review transfer` is followed by
+`Refresh live preflight` only when a fresh separately authorized VNW-V15
+operation is injected. The UI then presents the exact operation before
+transaction-specific confirmation; `Transfer once` remains disabled until the
+immutable operation is ready. A future successful path ends only after
+explicit `0x0000`, complete post-write backup, independent read-back, durable
+result evidence, and marker closure. Missing evidence, conflicts, stale state,
+or unsupported shapes remain blocked, and an indeterminate started operation
+offers read-only diagnosis rather than retry.
 
 Package grouping is explicit at selection/preparation time; selecting several
 unrelated Library rows never merges them. The initial machine-enforced profile

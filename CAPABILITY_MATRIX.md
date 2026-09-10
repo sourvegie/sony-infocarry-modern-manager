@@ -14,7 +14,7 @@ or recovery behavior.
 | One root-level TXT creation | Clean native add capture and one-folder package evidence | Exact one-record construction and no-retry guarded workflow | One constrained modern root TXT add/read-back smoke | Experimental/narrow only; not a general Library transfer | Arbitrary names, state, and package shapes | Separate operation-specific review and approval for the proven shape |
 | Constrained root-level TXT deletion | Native deletion-effect evidence | Narrow surviving-state/delete candidate and verifier | One constrained modern root TXT deletion/read-back smoke | Not exposed as a normal destructive action | Recovery, generalized delete, and overwrite semantics | Preserve read-only diagnosis; no general delete exposure |
 | Ordered four-TXT package | P15-001 native ordered four-child capture | Exact ordered multi-child candidate and fake workflow | P15-003 exact four-TXT smoke/read-back | Not enabled by the P18 mixed-package product path | General child counts, profiles, and package combinations | Keep as historical constrained evidence |
-| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; complete post-backup and independent read-back verified exact `IC_P18_LIBRARY_20260907_01`, its three ordered children, and the bounded auxiliary-state policy | Experimental/narrow only; normal Library surfaces expose host readiness review and a disabled `Transfer once` affordance; live execution remains disabled | Physical human opening, interrupted-write recovery, and broader shapes | Preserve the exact guarded path; any later hardware use requires separate approval |
+| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; complete post-backup and independent read-back verified exact `IC_P18_LIBRARY_20260907_01`, its three ordered children, and the bounded auxiliary-state policy | Experimental/narrow only; normal Library surfaces expose host readiness, fresh-preflight review, and a guarded `Transfer once` state only when a typed fresh operation binding/runtime is supplied; ttk-driven execution is not physically validated | Separate PM/owner authorization and one bounded physical UI validation; interrupted-write recovery and broader shapes | Preserve the exact canonical guarded path; do not enable V10 or broader shapes |
 | Other flat TXT/BMP combinations, nesting outside the host/offline profile, multiple packages, or batch | No sufficiently specific native evidence | Preparation may remain reviewable only where an exact profile accepts it | Not proven for transfer | Unavailable / preview-only with a precise reason | Missing exact evidence and safety model; no automatic grouping | Obtain a separately scoped evidence and review task |
 | Restore, synchronization, recovery, or alternate modes | Not established for this product boundary | No enabled candidate or execution path | Unproven | Unavailable | Physical recovery and broader state semantics | Read-only diagnosis and evidence work only |
 
@@ -108,3 +108,16 @@ required for any future operation. A visible `Transfer once` affordance remains
 disabled and has no normal-UI callback. This is a product explanation of the
 reviewed VNW-V15 profile, not reusable authorization and not generalized live
 transfer capability; VNW-V10 remains uncharacterized.
+
+## P18-017 host execution integration
+
+The normal ttk path now delegates fresh live preflight and any future
+`Transfer once` interaction through
+`src/infocarry/library_transfer_execution.py`. The facade has no operation
+binding or runtime in the default desktop launch, so the ordinary UI remains
+disabled until a separately authorized exact fresh VNW-V15 operation is
+supplied and all canonical gates pass. When supplied, the facade delegates to
+the existing guarded coordinator and adapter; it does not implement native
+transfer semantics or a GUI-specific write path. A future physical operation
+must use target `IC_P18_LIBRARY_20260910_01` and the exact TXT → BMP → TXT
+shape, and is not authorized by this matrix.

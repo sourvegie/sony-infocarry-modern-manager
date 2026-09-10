@@ -62,14 +62,45 @@ def _copy(value: Any) -> Any:
     return value
 
 
-def _expected_paths() -> list[str]:
+def _expected_paths(
+    target_folder_name: str = EXPERIMENTAL_TARGET_FOLDER,
+) -> list[str]:
     return [
-        f"root\\{EXPERIMENTAL_TARGET_FOLDER}",
+        f"root\\{target_folder_name}",
         *[
-            f"root\\{EXPERIMENTAL_TARGET_FOLDER}\\{name}"
+            f"root\\{target_folder_name}\\{name}"
             for _order, _kind, name in EXPERIMENTAL_CHILDREN
         ],
     ]
+
+
+def _operation_binding_values(operation_binding: Any) -> dict[str, str]:
+    """Resolve an explicitly supplied operation binding without importing it."""
+
+    if operation_binding is None:
+        return {
+            "target_folder_name": EXPERIMENTAL_TARGET_FOLDER,
+            "owner_approval_phrase": EXPERIMENTAL_OWNER_APPROVAL,
+            "confirmation_phrase": EXPERIMENTAL_CONFIRMATION,
+            "confirmation_policy": EXPERIMENTAL_CONFIRMATION_POLICY,
+            "operation": EXPERIMENTAL_OPERATION,
+        }
+    values = {
+        "target_folder_name": getattr(operation_binding, "target_folder_name", None),
+        "owner_approval_phrase": getattr(
+            operation_binding, "owner_approval_phrase", None
+        ),
+        "confirmation_phrase": getattr(
+            operation_binding, "confirmation_phrase", None
+        ),
+        "confirmation_policy": getattr(
+            operation_binding, "confirmation_policy", None
+        ),
+        "operation": getattr(operation_binding, "operation_id", None),
+    }
+    if any(not isinstance(value, str) or not value for value in values.values()):
+        raise ExperimentalLibraryTransferReviewError("operation binding is incomplete")
+    return values
 
 
 def _review_item(plan: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -84,7 +115,12 @@ def _review_item(plan: Mapping[str, Any]) -> Mapping[str, Any]:
     return item
 
 
-def _package_is_exact(item: Mapping[str, Any]) -> tuple[bool, list[str]]:
+def _package_is_exact(
+    item: Mapping[str, Any],
+    *,
+    target_folder_name: str = EXPERIMENTAL_TARGET_FOLDER,
+) -> tuple[bool, list[str]]:
+    expected_paths = _expected_paths(target_folder_name)
     reasons: list[str] = []
     if item.get("operation_type") != "prepared_flat_typed_package":
         reasons.append("the selected item is not an explicitly imported prepared package")
@@ -104,7 +140,7 @@ def _package_is_exact(item: Mapping[str, Any]) -> tuple[bool, list[str]]:
                 child.get("order") != order
                 or child.get("kind") != kind
                 or child.get("name") != name
-                or child.get("path") != _expected_paths()[order + 1]
+                or child.get("path") != expected_paths[order + 1]
             ):
                 reasons.append(
                     "the package order/profile is not the proven TXT/BMP/TXT shape"
@@ -122,8 +158,8 @@ def _package_is_exact(item: Mapping[str, Any]) -> tuple[bool, list[str]]:
                     reasons.append(f"the package child {name} has an invalid {field}")
                     break
     destination = item.get("destination", {})
-    if not isinstance(destination, Mapping) or destination.get("paths") != _expected_paths():
-        reasons.append("the destination is not the fixed root-level P18-014 package")
+    if not isinstance(destination, Mapping) or destination.get("paths") != expected_paths:
+        reasons.append("the destination is not the reviewed root-level package")
     if item.get("conflicts"):
         reasons.append("the destination conflicts with the verified device state")
     return not reasons, reasons
@@ -133,19 +169,29 @@ def _sealed_ready_bindings(
     preflight: Mapping[str, Any],
     bundle: Mapping[str, Any],
     item: Mapping[str, Any],
+    *,
+    target_folder_name: str,
+    owner_approval_phrase: str,
+    confirmation_phrase: str,
+    confirmation_policy: str,
+    operation_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Validate only the public shape; the canonical runner validates bytes."""
+
+    expected_paths = _expected_paths(target_folder_name)
 
     if bundle.get("format") != "infocarry-p17-017-library-package-operation-bundle-v1":
         raise ExperimentalLibraryTransferReviewError("operation bundle format is unsupported")
     if bundle.get("device_identity") != ["0x054c", "0x001e"]:
         raise ExperimentalLibraryTransferReviewError("operation bundle device identity is not Sony 054c:001e")
-    if bundle.get("expected_folder_name") != EXPERIMENTAL_TARGET_FOLDER:
+    if bundle.get("expected_folder_name") != target_folder_name:
         raise ExperimentalLibraryTransferReviewError("operation bundle destination differs from the reviewed profile")
+    if operation_id is not None and bundle.get("operation_id") != operation_id:
+        raise ExperimentalLibraryTransferReviewError("operation bundle identity differs from the fresh operation")
     if (
-        bundle.get("owner_approval_phrase") != EXPERIMENTAL_OWNER_APPROVAL
-        or bundle.get("confirmation_phrase") != EXPERIMENTAL_CONFIRMATION
-        or bundle.get("confirmation_policy") != EXPERIMENTAL_CONFIRMATION_POLICY
+        bundle.get("owner_approval_phrase") != owner_approval_phrase
+        or bundle.get("confirmation_phrase") != confirmation_phrase
+        or bundle.get("confirmation_policy") != confirmation_policy
     ):
         raise ExperimentalLibraryTransferReviewError("operation bundle approval differs from P18-014")
     if bundle.get("safety") != EXPERIMENTAL_SAFETY_POLICY:
@@ -159,7 +205,7 @@ def _sealed_ready_bindings(
         ) != expected:
             raise ExperimentalLibraryTransferReviewError("operation bundle child profile differs")
     expected_post = bundle.get("expected_post_operation")
-    if not isinstance(expected_post, Mapping) or expected_post.get("added_paths") != _expected_paths():
+    if not isinstance(expected_post, Mapping) or expected_post.get("added_paths") != expected_paths:
         raise ExperimentalLibraryTransferReviewError("operation bundle expected post-state differs")
     _digest(bundle.get("bundle_sha256"), "bundle_sha256")
     for key in (
@@ -183,12 +229,12 @@ def _sealed_ready_bindings(
         raise ExperimentalLibraryTransferReviewError("sealed preflight profile differs from the reviewed profile")
     if preflight.get("device_identity") != ["0x054c", "0x001e"]:
         raise ExperimentalLibraryTransferReviewError("sealed preflight device identity differs")
-    if preflight.get("expected_folder_name") != EXPERIMENTAL_TARGET_FOLDER:
+    if preflight.get("expected_folder_name") != target_folder_name:
         raise ExperimentalLibraryTransferReviewError("sealed preflight destination differs")
     if (
-        preflight.get("owner_approval_phrase") != EXPERIMENTAL_OWNER_APPROVAL
-        or preflight.get("confirmation_phrase") != EXPERIMENTAL_CONFIRMATION
-        or preflight.get("confirmation_policy") != EXPERIMENTAL_CONFIRMATION_POLICY
+        preflight.get("owner_approval_phrase") != owner_approval_phrase
+        or preflight.get("confirmation_phrase") != confirmation_phrase
+        or preflight.get("confirmation_policy") != confirmation_policy
     ):
         raise ExperimentalLibraryTransferReviewError("sealed preflight approval differs from P18-014")
     for key, expected in (
@@ -238,7 +284,7 @@ def _sealed_ready_bindings(
         raise ExperimentalLibraryTransferReviewError("preflight seal differs from the operation bundle")
     if preflight.get("core_preflight_seal_sha256") != bundle.get("core_preflight_seal_sha256"):
         raise ExperimentalLibraryTransferReviewError("core preflight seal differs from the operation bundle")
-    if package.get("paths") != _expected_paths():
+    if package.get("paths") != expected_paths:
         raise ExperimentalLibraryTransferReviewError("candidate package paths differ from the reviewed profile")
     candidate_children = package.get("ordered_items")
     if not isinstance(candidate_children, list) or len(candidate_children) != len(EXPERIMENTAL_CHILDREN):
@@ -253,7 +299,7 @@ def _sealed_ready_bindings(
             child.get("order"),
             child.get("kind"),
             child.get("path"),
-        ) != (order, kind, _expected_paths()[order + 1]):
+        ) != (order, kind, expected_paths[order + 1]):
             raise ExperimentalLibraryTransferReviewError("candidate ordered child summary differs")
         candidate_payload_sha256 = child.get(
             "payload_sha256", child.get("prepared_payload_sha256")
@@ -389,6 +435,7 @@ def build_experimental_library_transfer_review(
     preflight_report: Optional[Mapping[str, Any]] = None,
     bundle_report: Optional[Mapping[str, Any]] = None,
     audit_location: Optional[str] = None,
+    operation_binding: Any = None,
 ) -> ExperimentalLibraryTransferReview:
     """Build an Experimental review from one queue item and optional sealed data.
 
@@ -398,6 +445,8 @@ def build_experimental_library_transfer_review(
     canonical P17 loader/runner.
     """
 
+    binding = _operation_binding_values(operation_binding)
+    target_folder_name = binding["target_folder_name"]
     if not isinstance(plan_report, Mapping):
         raise ExperimentalLibraryTransferReviewError("Library queue plan is malformed")
     if plan_report.get("format") != "infocarry-library-transfer-plan-v1":
@@ -436,7 +485,10 @@ def build_experimental_library_transfer_review(
             reasons.append("the selected Library item is not fully revalidated and queue-ready")
         if item.get("execution_eligible") is not False:
             reasons.append("the host queue item cannot advertise execution eligibility")
-        exact_item, profile_reasons = _package_is_exact(item)
+        exact_item, profile_reasons = _package_is_exact(
+            item,
+            target_folder_name=target_folder_name,
+        )
         reasons.extend(profile_reasons)
     except ExperimentalLibraryTransferReviewError as exc:
         item = {}
@@ -466,7 +518,18 @@ def build_experimental_library_transfer_review(
         )
     elif exact_item and preflight_report is not None and bundle_report is not None:
         try:
-            bindings = _sealed_ready_bindings(preflight_report, bundle_report, item)
+            bindings = _sealed_ready_bindings(
+                preflight_report,
+                bundle_report,
+                item,
+                target_folder_name=target_folder_name,
+                owner_approval_phrase=binding["owner_approval_phrase"],
+                confirmation_phrase=binding["confirmation_phrase"],
+                confirmation_policy=binding["confirmation_policy"],
+                operation_id=(
+                    binding["operation"] if operation_binding is not None else None
+                ),
+            )
         except ExperimentalLibraryTransferReviewError as exc:
             reasons.append(str(exc))
 
@@ -485,7 +548,7 @@ def build_experimental_library_transfer_review(
         "state": "experimental_review",
         "notice": "EXPERIMENTAL LIBRARY TRANSFER REVIEW — no device access or device change occurred",
         "profile": EXPERIMENTAL_LIBRARY_PROFILE,
-        "operation": EXPERIMENTAL_OPERATION,
+        "operation": binding["operation"],
         "product_exposure": "experimental_review_and_guarded_transfer_boundary",
         "selection": {
             "logical_item_id": selected_ids[0] if isinstance(selected_ids, list) and len(selected_ids) == 1 else None,
@@ -552,7 +615,7 @@ def build_experimental_library_transfer_review(
             "fresh_complete_post_backup_required": True,
             "independent_read_back_required": True,
             "wrapper_reconciliation": "P17-019 candidate-core disk-only verification",
-            "expected_post_paths": _expected_paths(),
+            "expected_post_paths": _expected_paths(target_folder_name),
             "audit_location": audit_location,
         },
         "eligibility": {

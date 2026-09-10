@@ -334,8 +334,9 @@ class LibraryTransferReadinessTests(unittest.TestCase):
 
         self.assertIn('text="Transfer once"', source)
         self.assertIn('state="disabled"', source)
-        self.assertNotIn("library_transfer_once_button.configure(command", source)
-        self.assertNotIn("experimental_library_transfer", source)
+        self.assertIn("library_transfer_once_action", source)
+        self.assertIn("library_execution_facade.execute_once", source)
+        self.assertNotIn("from .experimental_library_transfer import", source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
 
 
