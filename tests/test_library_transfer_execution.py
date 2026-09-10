@@ -430,11 +430,14 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             ),
             1,
         )
-        with sqlite3.connect(setup["claim_store"].path) as connection:
+        connection = sqlite3.connect(setup["claim_store"].path)
+        try:
             self.assertEqual(
                 connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0],
                 1,
             )
+        finally:
+            connection.close()
 
     def test_post_backup_and_terminal_readback_failures_are_indeterminate(self):
         for mode in ("no_backup", "stale_readback"):
