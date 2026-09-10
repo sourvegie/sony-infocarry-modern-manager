@@ -197,6 +197,14 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
         return prepared
 
+    @staticmethod
+    def _claim_count(setup):
+        connection = sqlite3.connect(setup["claim_store"].path)
+        try:
+            return connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0]
+        finally:
+            connection.close()
+
     def _patch_template_hashes(self, setup):
         template_hash = hashlib.sha256(setup["template"].data).hexdigest()
         patchers = [
@@ -252,11 +260,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             ),
             1,
         )
-        with sqlite3.connect(setup["claim_store"].path) as connection:
-            self.assertEqual(
-                connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0],
-                1,
-            )
+        self.assertEqual(self._claim_count(setup), 1)
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
         self.assertIsNone(setup["lock"].read())
 
@@ -387,11 +391,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             ),
             1,
         )
-        with sqlite3.connect(setup["claim_store"].path) as connection:
-            self.assertEqual(
-                connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0],
-                1,
-            )
+        self.assertEqual(self._claim_count(setup), 1)
         with self.assertRaises(Exception):
             setup["facade"].execute_once(
                 setup["plan"],
@@ -482,11 +482,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                 confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
             )
         self.assertEqual(setup["backend"].calls, [])
-        with sqlite3.connect(setup["claim_store"].path) as connection:
-            self.assertEqual(
-                connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0],
-                0,
-            )
+        self.assertEqual(self._claim_count(setup), 0)
 
     def test_normal_facade_without_authorized_runtime_cannot_execute(self):
         facade = LibraryTransferExecutionFacade()
