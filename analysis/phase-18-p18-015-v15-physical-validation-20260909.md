@@ -398,3 +398,12 @@ durable invariant—that the historical P18-011 claim remains consumed—without
 assuming no later valid claims can exist. All claims in the installation store
 must remain consumed. This test-only correction neither changes production
 execution behavior nor broadens capability.
+
+The first corrected closure commit `87ef418` passed both Python 3.12 CI jobs in
+workflow run `34356473433`:
+
+- macOS: job `102482317307`;
+- Windows: job `102482317753`.
+
+The final reviewed commit must independently pass the same two jobs after all
+R3-driven documentation corrections.

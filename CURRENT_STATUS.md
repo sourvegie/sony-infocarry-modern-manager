@@ -44,8 +44,8 @@ the sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-v
 
 ## Canonical checkpoint
 
-Canonical `main` is `1c16d48856328de53171a13f8e5665da0a46e47a` after merged
-P18-010. P18-004 through P18-010 are complete on the canonical history, and the
+Canonical `main` is `5d23e8b219507535b2db4b57028602073aa23c61` after merged
+P18-014. P18-004 through P18-014 are complete on the canonical history, and the
 required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
 owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
 that attempt is recorded below as `ESCALATION_REQUIRED` because the exact
