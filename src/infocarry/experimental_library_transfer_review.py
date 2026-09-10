@@ -1,10 +1,11 @@
-"""Hash-only review model for the narrowly supported Experimental transfer.
+"""Hash-only review for the historical, operation-specific live boundary.
 
-This module is intentionally free of USB, sender, and live-adapter imports so
-the normal Library window can present the product boundary without exposing a
-device-changing action.  The isolated execution entrypoint lives in
-``experimental_library_transfer`` and delegates to the already reviewed
-P17-017/P17-019 path.
+This module is intentionally free of USB, sender, and live-adapter imports.
+It validates the sealed one-shot operation bindings consumed by the isolated
+execution entrypoint in ``experimental_library_transfer``.  Reusable normal
+product/profile eligibility lives in ``library_transfer_readiness`` instead;
+keeping the two models separate prevents a historical operation identity from
+becoming a standing Library authorization.
 """
 
 from __future__ import annotations

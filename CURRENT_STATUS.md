@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-09-09
+Date: 2026-09-10
 
 ## P18-015 VNW-V15 physical validation
 
@@ -41,6 +41,19 @@ terminal success because it expected only the historical claim; this caused no
 additional USB operation and does not make the completed result ambiguous.
 Raw evidence remains outside Git. No broader live capability is claimed. See
 the sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-validation-20260909.md).
+
+## P18-016 guarded product exposure
+
+P18-016 adds the normal ttk Library `Review transfer…` stage for the reusable
+host-only VNW-V15 Experimental profile. Exactly one explicitly selected
+prepared root package with exactly three direct children in TXT → BMP → TXT
+order is reviewed for canonical preparation constraints, destination, sizes,
+verified-baseline conflicts, and available lower-bound capacity information.
+Missing fresh live evidence is shown explicitly; conflicts and unsupported
+shapes are blocked. The visible `Transfer once` affordance is permanently
+disabled in this build and has no normal-UI callback. The reusable readiness
+model does not import or expose the historical operation-specific sender,
+claim, lock, candidate, transaction, or approval identity.
 
 ## Canonical checkpoint
 
