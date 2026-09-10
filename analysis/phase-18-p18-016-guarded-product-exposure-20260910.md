@@ -220,6 +220,45 @@ P18-016 is `COMPLETE` only if:
 
 Stop after host/product readiness. Do not begin P18-017 or any new physical operation without a separate task and explicit owner decision.
 
+## Implementation checkpoint
+
+The host/product boundary is implemented on this task branch. The reusable
+`library_transfer_readiness` model consumes only the offline Library queue
+plan and enforces the exact product shape: one explicit selected prepared
+package, one root-level folder, exactly three direct children, and authoritative
+TXT → BMP → TXT order. It delegates filename/path/CP932/payload bounds to the
+canonical capability profile, keeps verified-baseline conflict results and
+lower-bound capacity facts visible, and separates `host_profile_eligible`,
+`needs_fresh_live_evidence`, and `blocked` states. Its deterministic review
+hash detects post-review mutation.
+
+The normal ttk Library pane now presents `Review transfer…` and a visible but
+disabled `Transfer once` affordance. The latter has no callback, command, menu,
+keyboard, or programmatic route. The normal UI imports the readiness model and
+does not import the historical review/coordinator, live adapter, sender,
+execution-claim store, or lock mutation path. The historical
+`experimental_library_transfer_review` and `experimental_library_transfer`
+bindings remain operation-specific and unchanged for their regression/live
+guard boundary; the product model never copies their destination, approval,
+confirmation, candidate, transaction, claim, or marker identity.
+
+Files changed:
+
+- `src/infocarry/library_transfer_readiness.py`
+- `src/infocarry/desktop_ttk.py`
+- `src/infocarry/experimental_library_transfer_review.py` (scope documentation only)
+- `tests/test_library_transfer_readiness.py`
+- `CURRENT_STATUS.md`
+- `CAPABILITY_MATRIX.md`
+- `PRODUCT_VISION.md`
+- this analysis record
+
+Focused readiness/UI and retained Library/profile/Experimental tests passed.
+The full portable Python 3.12 suite passed with 766 tests and 3 pre-existing
+intentional skips. Python 3.12 compilation of `src/` and `tests/` passed, and
+`git diff --check` passed. No hardware, USB, sender, claim, marker, lock, or
+device-changing operation was used for this implementation or validation.
+
 ## Final report
 
 Report:
