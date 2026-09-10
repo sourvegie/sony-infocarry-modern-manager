@@ -1,11 +1,51 @@
 # Current Project Status
 
-Date: 2026-09-07
+Date: 2026-09-09
+
+## P18-015 VNW-V15 physical validation
+
+P18-015 is **PHYSICALLY COMPLETE — TERMINAL READ-BACK VERIFIED** on
+`task/P18-015-v15-physical-validation`. It initially stopped at the physical-
+evidence gate because sandboxed PyUSB returned no devices; read-only diagnosis
+proved classification A and the owner separately authorized resumption.
+The initial filtered PyUSB enumeration inside the managed command sandbox
+returned zero matching devices; it did not establish that no physical device
+was attached. Therefore no fresh native `0x0019`, complete pre-write backup,
+candidate, transaction, or seals were produced for a physical attempt.
+
+The subsequent strictly read-only diagnosis is complete with classification
+**A**. macOS IORegistry reported the exact Sony `0x054c:0x001e`,
+`bcdDevice=0x0100` node at bus 1/address 1. Unfiltered PyUSB inside the command
+sandbox saw zero devices total, while the same Python 3.12.14 / PyUSB 1.3.1 /
+arm64 Homebrew libusb 1.0.30 environment outside that sandbox saw seven total
+devices and the exact bus-1/address-1 Sony node. The existing filtered detector
+then returned exactly one matching device. Five bounded enumeration-only
+repetitions were stable. This was an execution-context visibility difference,
+not evidence of physical absence and not a detector-semantics defect.
+
+Fresh live preflight identified `0x054c:0x001e` at bus 1/address 1, obtained
+native capacity 3,145,728 bytes, captured and verified a complete backup, and
+rebuilt the exact reviewed candidate and transaction. The exact runtime phrase
+was accepted. Claim `e921b09cb11d475c96730566a0e65108` was consumed and one
+sender call transmitted one `0x101b`; native completion was `0x0000`, with no
+retry. The complete post-write backup equals the sealed candidate. Corrected
+terminal verification independently passed the exact target, TXT -> BMP -> TXT
+order and payloads, 339 shared paths/payloads/timestamps, unrelated state,
+seven display-history paths, bookmark path and opaque state/tail, and zero-count
+`0x001c`-`0x001e`.
+
+The final lock is `cleared`, no sender marker is active, claim-store integrity
+is `ok`, and both the historical P18-011 claim and new P18-015 claim remain
+permanently consumed. A temporary reporting helper failed after durable
+terminal success because it expected only the historical claim; this caused no
+additional USB operation and does not make the completed result ambiguous.
+Raw evidence remains outside Git. No broader live capability is claimed. See
+the sanitized [P18-015 analysis record](analysis/phase-18-p18-015-v15-physical-validation-20260909.md).
 
 ## Canonical checkpoint
 
-Canonical `main` is `1c16d48856328de53171a13f8e5665da0a46e47a` after merged
-P18-010. P18-004 through P18-010 are complete on the canonical history, and the
+Canonical `main` is `5d23e8b219507535b2db4b57028602073aa23c61` after merged
+P18-014. P18-004 through P18-014 are complete on the canonical history, and the
 required P18-005/P18-006/P18-008 R3 reviews have passed. P18-009 has explicit
 owner approval for one bounded VNW-V15 TXT → BMP → TXT physical validation;
 that attempt is recorded below as `ESCALATION_REQUIRED` because the exact
@@ -140,9 +180,9 @@ P18-014 performed zero USB/device writes, sent no `0x101b`, consumed no claim,
 created no sender marker, and did not expand the capability matrix. The
 P18-013 lock remains `cleared`, its sender marker remains absent, and the
 P18-011 claim remains permanently `consumed`. This is host readiness only;
-P18-015 is the separate owner-approved physical validation task. Final status
-will be updated only after commit, CI, PR review, and final independent R3
-sign-off. The initial CI run passed on the first implementation commit, but
+P18-015 was the separate owner-approved physical validation task and is now
+recorded above as terminally read-back verified. The initial P18-014 CI run
+passed on the first implementation commit, but
 the reviewed documentation commit's macOS and Windows jobs were rejected
 before any steps by GitHub's account billing/spending-limit condition; the
 rerun failed identically. Final readiness therefore remains escalated pending
@@ -362,18 +402,21 @@ owner’s human-observed retest at approximately 980×680 and 1120×760 or
 larger. This observation covers the tested GUI sizes only; it does not infer
 hardware behavior, transfer execution, or other display environments.
 
-The exact P17-018 TXT/BMP/TXT Library transfer remains the only integrated
-Experimental physical proof. Physical opening of its folder and all three
-children remains a separate human acceptance check where still noted by the
-evidence records. The capability authority is
+The exact P17-018 and P18-015 TXT/BMP/TXT Library transfers are the integrated
+Experimental physical proofs for that exact shape. P18-015 adds terminal
+read-back verification under the established display-history and bookmark
+preservation policy; it does not generalize other shapes or normal product
+reachability. Physical opening remains a separate human acceptance check where
+still noted by the evidence records. The capability authority is
 [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
 
 ## Safety posture
 
-- P18-011 reached sender entry once after complete fresh gates. Its post-write
-  backup is preserved, but terminal closure is indeterminate; the
-  installation-wide lock is intentionally active and must not be cleared by a
-  reconnect or by assuming that the device matches the candidate.
+- P18-011 historically reached sender entry once and required indeterminate
+  closure. P18-012 verified its preserved state and P18-013 cleared that exact
+  incident through the reviewed recovery API. P18-015 later completed a
+  separate one-shot operation with terminal read-back verification. The
+  installation-wide lock is now `cleared`; neither event authorizes a retry.
 
 - P18-009 reached fresh read-only VNW-V15 evidence but stopped before sender
   entry because the exact destination existed and auxiliary state was not
