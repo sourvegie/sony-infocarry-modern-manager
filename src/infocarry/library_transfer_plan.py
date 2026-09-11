@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 from .backup_format import BackupFormatError, parse_backup_blob
+from .capacity_evidence import NativeCapacityResponse
 from .library import (
     PREPARATION_PREPARED,
     SOURCE_PRESENT,
@@ -406,7 +407,37 @@ def _prepare_item_report(
 def _validate_capacity_input(
     backup: Optional[VerifiedBackup],
     available_capacity_bytes: Optional[int],
+    capacity_evidence: Optional[NativeCapacityResponse],
 ) -> None:
+    if capacity_evidence is not None:
+        if not isinstance(capacity_evidence, NativeCapacityResponse):
+            raise LibraryTransferPlanError(
+                "capacity_evidence must be parsed native 0x0019 evidence"
+            )
+        if backup is None:
+            raise LibraryTransferPlanError(
+                "capacity_evidence requires a verified offline backup baseline"
+            )
+        try:
+            backup_identity = tuple(
+                int(value, 16) for value in backup.device_identity
+            )
+        except (TypeError, ValueError) as exc:
+            raise LibraryTransferPlanError(
+                "verified backup device identity is malformed"
+            ) from exc
+        if capacity_evidence.device_identity != backup_identity:
+            raise LibraryTransferPlanError(
+                "capacity evidence identity differs from the verified backup"
+            )
+        if (
+            available_capacity_bytes is not None
+            and available_capacity_bytes != capacity_evidence.capacity_limit_bytes
+        ):
+            raise LibraryTransferPlanError(
+                "available capacity differs from the parsed native capacity evidence"
+            )
+        available_capacity_bytes = capacity_evidence.capacity_limit_bytes
     if available_capacity_bytes is None:
         return
     if backup is None:
@@ -430,13 +461,16 @@ def build_library_transfer_queue_plan(
     selection_mode: str = SELECTION_SELECTED,
     backup: Optional[VerifiedBackup] = None,
     available_capacity_bytes: Optional[int] = None,
+    capacity_evidence: Optional[NativeCapacityResponse] = None,
 ) -> "LibraryTransferQueuePlan":
     """Build a no-device Library queue review plan.
 
     ``selected`` preserves the caller's explicit item order.  ``all_ready``
     includes only current, prepared, supported items and records other
     catalog entries in ``selection.excluded_items``.  No mode constructs a
-    candidate, authorization, transaction, or sender action.
+    candidate, authorization, transaction, or sender action.  When supplied,
+    ``capacity_evidence`` is the typed parsed native ``0x0019`` response and
+    binds the reported capacity to the verified backup's VNW-V15 identity.
     """
 
     if not isinstance(catalog, LibraryCatalog):
@@ -445,7 +479,9 @@ def build_library_transfer_queue_plan(
         raise LibraryTransferPlanError(
             f"selection_mode must be {SELECTION_SELECTED!r} or {SELECTION_ALL_READY!r}"
         )
-    _validate_capacity_input(backup, available_capacity_bytes)
+    _validate_capacity_input(backup, available_capacity_bytes, capacity_evidence)
+    if capacity_evidence is not None:
+        available_capacity_bytes = capacity_evidence.capacity_limit_bytes
 
     by_id = {item.item_id: item for item in catalog.items}
     excluded: list[dict[str, Any]] = []
@@ -670,6 +706,17 @@ def build_library_transfer_queue_plan(
             "automatic_retry": False,
         },
     }
+    if capacity_evidence is not None:
+        report["capacity"].update(
+            {
+                "source": "fresh_native_0x0019",
+                "evidence_version": capacity_evidence.evidence_version,
+                "native_response_sha256": capacity_evidence.raw_response_sha256,
+                "device_identity": [
+                    f"0x{value:04x}" for value in capacity_evidence.device_identity
+                ],
+            }
+        )
     report["plan_sha256"] = _sha256(_canonical_json(report))
     return LibraryTransferQueuePlan(report=report)
 

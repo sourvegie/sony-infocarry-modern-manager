@@ -12,6 +12,8 @@ import unittest
 from unittest.mock import patch
 
 from infocarry.backup_format import parse_backup_blob
+from infocarry.capacity_evidence import NativeCapacityResponse
+from infocarry.device_info import RawInfoResponse
 from infocarry.library import LibraryCatalog
 from infocarry.library_transfer_execution import (
     FRESH_AUXILIARY_STATE_POLICY,
@@ -56,6 +58,15 @@ except ModuleNotFoundError:
 
 
 NOW = datetime(2026, 9, 10, tzinfo=timezone.utc)
+
+
+def _capacity_response_with_limit(limit: int) -> NativeCapacityResponse:
+    raw = bytearray(_response().raw_response)
+    raw[0x08:0x0C] = limit.to_bytes(4, "big")
+    return NativeCapacityResponse.from_hardware_response(
+        RawInfoResponse(0x0019, "capacity-propagation-test", bytes(raw)),
+        device_identity=(0x054C, 0x001E),
+    )
 
 
 class LibraryTransferExecutionFacadeTests(unittest.TestCase):
@@ -192,13 +203,16 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
 
     def _prepare(self, setup):
         self._patch_template_hashes(setup)
+        offline_plan = setup["plan"]
         prepared = setup["facade"].refresh_live_preflight(
-            setup["plan"],
+            offline_plan,
             catalog=setup["catalog"],
             preflight_report_path=setup["root"] / "operation" / "sealed-preflight.json",
             bundle_path=setup["root"] / "operation" / "operation-bundle.json",
         )
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
+        setup["offline_plan"] = offline_plan
+        setup["plan"] = dict(prepared.plan_report)
         return prepared
 
     @staticmethod
@@ -236,6 +250,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             bundle_path=setup["root"] / "operation" / "operation-bundle.json",
         )
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
+        setup["plan"] = dict(prepared.plan_report)
         self.assertTrue(prepared.ready)
         self.assertTrue(facade.transfer_actionable)
         self.assertEqual(
@@ -267,6 +282,93 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertEqual(self._claim_count(setup), 1)
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
         self.assertIsNone(setup["lock"].read())
+
+    def test_fresh_capacity_replaces_offline_plan_in_the_normal_readiness_state(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        self._patch_template_hashes(setup)
+        offline_plan = build_library_transfer_queue_plan(
+            setup["catalog"],
+            selected_item_ids=[setup["item"].item_id],
+            selection_mode=SELECTION_SELECTED,
+            backup=setup["baseline"],
+        ).to_dict()
+        self.assertFalse(offline_plan["eligibility"]["queue_ready"])
+        self.assertEqual(offline_plan["capacity"]["available_bytes"], None)
+        self.assertIn("capacity was not supplied", " ".join(offline_plan["eligibility"]["reasons"]))
+
+        prepared = setup["facade"].refresh_live_preflight(
+            offline_plan,
+            catalog=setup["catalog"],
+            preflight_report_path=setup["root"] / "fresh" / "sealed-preflight.json",
+            bundle_path=setup["root"] / "fresh" / "operation-bundle.json",
+        )
+        fresh_plan = prepared.plan_report
+
+        self.assertTrue(fresh_plan["eligibility"]["queue_ready"])
+        self.assertEqual(fresh_plan["capacity"]["status"], "sufficient_for_lower_bound_only")
+        self.assertEqual(fresh_plan["capacity"]["source"], "fresh_native_0x0019")
+        self.assertEqual(
+            fresh_plan["capacity"]["native_response_sha256"],
+            prepared.preflight.capacity_response.raw_response_sha256,
+        )
+        self.assertEqual(
+            fresh_plan["capacity"]["available_bytes"],
+            prepared.preflight.capacity_response.capacity_limit_bytes,
+        )
+        self.assertNotIn("capacity was not supplied", " ".join(fresh_plan["eligibility"]["reasons"]))
+        self.assertTrue(prepared.readiness.host_profile_eligible)
+        self.assertTrue(prepared.ready)
+        self.assertTrue(setup["facade"].transfer_actionable)
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertIsNone(setup["lock"].read())
+        self.assertEqual(setup["backend"].calls, [])
+
+    def test_fresh_capacity_failures_remain_blocked_before_claim_or_sender(self):
+        for label, query_capacity in (
+            ("missing", lambda: None),
+            ("malformed", lambda: RawInfoResponse(0x0019, "malformed", b"bad")),
+            ("insufficient", lambda: _capacity_response_with_limit(1)),
+        ):
+            with self.subTest(label=label):
+                setup = self._setup()
+                self.addCleanup(setup["temporary"].cleanup)
+                self._patch_template_hashes(setup)
+                setup["facade"].runtime = replace(
+                    setup["facade"].runtime,
+                    query_capacity=query_capacity,
+                )
+                with self.assertRaises(LibraryTransferExecutionError):
+                    setup["facade"].refresh_live_preflight(
+                        setup["plan"],
+                        catalog=setup["catalog"],
+                        preflight_report_path=setup["root"] / label / "sealed.json",
+                        bundle_path=setup["root"] / label / "bundle.json",
+                    )
+                self.assertFalse(setup["facade"].transfer_actionable)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
+                self.assertEqual(setup["backend"].calls, [])
+
+    def test_stale_or_historical_capacity_cannot_unlock_a_changed_operation(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        prepared = self._prepare(setup)
+        stale_plan = deepcopy(prepared.plan_report)
+        stale_plan["capacity"]["available_bytes"] = 10_000_000
+        with self.assertRaisesRegex(LibraryTransferExecutionError, "plan changed"):
+            setup["facade"].execute_once(
+                stale_plan,
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertEqual(setup["backend"].calls, [])
+
+        self.assertFalse(
+            LibraryTransferExecutionFacade(
+                operation_binding=setup["binding"],
+            ).transfer_actionable
+        )
 
     def test_shape_collision_capacity_and_v10_substitution_are_blocked(self):
         for label, mutation in (

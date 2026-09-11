@@ -1,10 +1,13 @@
 import hashlib
+import json
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
 from infocarry.library import LibraryCatalog
+from infocarry.capacity_evidence import NativeCapacityResponse
+from infocarry.device_info import RawInfoResponse
 from infocarry.library_transfer_plan import (
     LIBRARY_TRANSFER_PLAN_FORMAT,
     LibraryTransferPlanError,
@@ -37,6 +40,18 @@ def _verified_backup(root: Path, blob: bytes) -> VerifiedBackup:
         object_sha256_by_key=(("0x8004:backup-blob", digest),),
         object_filename_by_key=(("0x8004:backup-blob", filename),),
         device_identity=("0x054c", "0x001e"),
+    )
+
+
+def _native_capacity_response(limit: int = 3_145_728) -> NativeCapacityResponse:
+    fixture = json.loads(
+        (Path(__file__).parent / "fixtures" / "infocarry_info_responses.json").read_text()
+    )
+    raw = bytearray(bytes.fromhex(fixture["hardware"]["response_hex"]))
+    raw[0x08:0x0C] = limit.to_bytes(4, "big")
+    return NativeCapacityResponse.from_hardware_response(
+        RawInfoResponse(0x0019, "test", bytes(raw)),
+        device_identity=(0x054C, 0x001E),
     )
 
 
@@ -152,6 +167,53 @@ class LibraryTransferPlanTests(unittest.TestCase):
         self.assertFalse(plan.queue_ready)
         self.assertEqual(report["capacity"]["status"], "unknown")
         self.assertIn("capacity was not supplied", " ".join(report["eligibility"]["reasons"]))
+
+    def test_typed_native_capacity_evidence_is_provenance_bound_in_plan(self):
+        self._prepare(self.item_one.item_id, "Book One", "chapter.txt")
+        evidence = _native_capacity_response()
+
+        plan = build_library_transfer_queue_plan(
+            self.catalog,
+            selected_item_ids=[self.item_one.item_id],
+            selection_mode=SELECTION_SELECTED,
+            backup=self.backup,
+            capacity_evidence=evidence,
+        )
+        report = plan.to_dict()
+
+        self.assertTrue(plan.queue_ready)
+        self.assertEqual(report["capacity"]["status"], "sufficient_for_lower_bound_only")
+        self.assertEqual(report["capacity"]["source"], "fresh_native_0x0019")
+        self.assertEqual(
+            report["capacity"]["native_response_sha256"],
+            evidence.raw_response_sha256,
+        )
+        self.assertEqual(report["capacity"]["available_bytes"], 3_145_728)
+
+    def test_typed_native_capacity_evidence_must_match_verified_backup(self):
+        self._prepare(self.item_one.item_id, "Book One", "chapter.txt")
+        evidence = _native_capacity_response()
+        mismatched_backup = VerifiedBackup(
+            directory=self.backup.directory,
+            manifest_sha256=self.backup.manifest_sha256,
+            blob_sha256=self.backup.blob_sha256,
+            created_at_utc=self.backup.created_at_utc,
+            updated_at_utc=self.backup.updated_at_utc,
+            object_count=self.backup.object_count,
+            verified_at_utc=self.backup.verified_at_utc,
+            object_sha256_by_key=self.backup.object_sha256_by_key,
+            object_filename_by_key=self.backup.object_filename_by_key,
+            device_identity=("0x054c", "0x001f"),
+        )
+
+        with self.assertRaisesRegex(LibraryTransferPlanError, "identity differs"):
+            build_library_transfer_queue_plan(
+                self.catalog,
+                selected_item_ids=[self.item_one.item_id],
+                selection_mode=SELECTION_SELECTED,
+                backup=mismatched_backup,
+                capacity_evidence=evidence,
+            )
 
     def test_existing_backup_folder_and_extensionful_child_are_conflicts(self):
         prepared = self._prepare(self.item_one.item_id, "Folder", "Source.txt")

@@ -336,6 +336,8 @@ class LibraryTransferReadinessTests(unittest.TestCase):
         self.assertIn('state="disabled"', source)
         self.assertIn("library_transfer_once_action", source)
         self.assertIn("library_execution_facade.execute_once", source)
+        self.assertIn("library_current_plan_report = dict(prepared.plan_report)", source)
+        self.assertIn("library_current_readiness = prepared.readiness", source)
         self.assertNotIn("from .experimental_library_transfer import", source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
 

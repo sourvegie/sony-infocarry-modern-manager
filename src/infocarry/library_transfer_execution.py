@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
 from .capability_profile import INITIAL_EXPERIMENTAL_PROFILE_ID
+from .capacity_evidence import NativeCapacityResponse
 from .device_model_profile import VNW_V15_PROFILE_ID
 from .experimental_library_transfer_review import (
     ExperimentalLibraryTransferReview,
@@ -27,6 +28,11 @@ from .library_transfer_readiness import (
     LibraryTransferReadinessError,
     build_library_transfer_readiness,
     validate_library_transfer_readiness,
+)
+from .library_transfer_plan import (
+    LibraryTransferPlanError,
+    SELECTION_SELECTED,
+    build_library_transfer_queue_plan,
 )
 from .prepared_library_package_operation_bundle import (
     PreparedLibraryPackageOperationBundle,
@@ -212,6 +218,7 @@ class PreparedLibraryTransferOperation:
     review: ExperimentalLibraryTransferReview
     preflight: Any
     operation_bundle: PreparedLibraryPackageOperationBundle
+    plan_report: Mapping[str, Any]
     preflight_report_path: Path
     bundle_path: Path
     plan_sha256: str
@@ -358,6 +365,13 @@ class LibraryTransferExecutionFacade:
                 progress=progress,
                 max_age_seconds=runtime.max_age_seconds,
             )
+            fresh_plan_report = self._build_fresh_plan(
+                plan_report,
+                catalog=catalog,
+                preflight=preflight,
+            )
+            fresh_readiness = self.review_readiness(fresh_plan_report)
+            self._require_target(fresh_readiness)
             candidate_policy = preflight.candidate.core.audit_dict().get("policy", {})
             if (
                 not isinstance(candidate_policy, Mapping)
@@ -380,7 +394,7 @@ class LibraryTransferExecutionFacade:
             )
             bundle_written = operation_bundle.write(Path(bundle_path))
             review = build_experimental_library_transfer_review(
-                plan_report,
+                fresh_plan_report,
                 preflight_report=preflight.to_dict(),
                 bundle_report=operation_bundle.to_dict(),
                 audit_location=audit_location or str(runtime.evidence_namespace),
@@ -397,13 +411,14 @@ class LibraryTransferExecutionFacade:
                 f"fresh live preflight could not be sealed: {exc}"
             ) from exc
         prepared = PreparedLibraryTransferOperation(
-            readiness=readiness,
+            readiness=fresh_readiness,
             review=review,
             preflight=preflight,
             operation_bundle=operation_bundle,
+            plan_report=fresh_plan_report,
             preflight_report_path=Path(preflight_report_path).expanduser().resolve(),
             bundle_path=Path(bundle_written).expanduser().resolve(),
-            plan_sha256=_sha256_json(plan_report),
+            plan_sha256=_sha256_json(fresh_plan_report),
         )
         self._prepared_operation = prepared
         return prepared
@@ -426,6 +441,34 @@ class LibraryTransferExecutionFacade:
             )
         capacity_path.write_bytes(raw)
         return capacity_path
+
+    def _build_fresh_plan(
+        self,
+        plan_report: Mapping[str, Any],
+        *,
+        catalog: Any,
+        preflight: Any,
+    ) -> dict[str, Any]:
+        """Rebuild the canonical queue plan from this fresh preflight."""
+
+        capacity_response = preflight.capacity_response
+        if not isinstance(capacity_response, NativeCapacityResponse):
+            raise LibraryTransferExecutionError(
+                "fresh preflight capacity evidence is malformed"
+            )
+        try:
+            fresh_plan = build_library_transfer_queue_plan(
+                catalog,
+                selected_item_ids=[self._selected_item_id(plan_report)],
+                selection_mode=SELECTION_SELECTED,
+                backup=preflight.before_backup,
+                capacity_evidence=capacity_response,
+            )
+        except LibraryTransferPlanError as exc:
+            raise LibraryTransferExecutionError(
+                f"fresh capacity could not be propagated into the Library review: {exc}"
+            ) from exc
+        return fresh_plan.to_dict()
 
     def execute_once(
         self,

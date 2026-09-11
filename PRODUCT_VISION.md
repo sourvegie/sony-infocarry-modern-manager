@@ -134,7 +134,11 @@ TXT → BMP → TXT children, target absence, no overwrite/delete/merge/nesting/
 batch, one transaction, and no retry. This host integration is not physical
 ttk validation and does not authorize a hardware transaction. A selected item
 is the logical change, while the protocol operation transfers a complete
-candidate library image.
+candidate library image. P18-019 closes the fresh-capacity propagation gap:
+the typed native `0x0019` response from a reviewed read-only preflight is fed
+back into the same queue-plan/readiness state, which recomputes capacity
+readiness and preserves the evidence binding. Offline or stale capacity values
+do not substitute for that fresh evidence.
 
 ### v1.0 — General content manager
 
