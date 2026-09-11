@@ -1,10 +1,10 @@
 # P18-017 — Guarded UI-Driven Transfer Integration
 
-Date: 2026-09-11  
-Repository: `sourvegie/sony-infocarry-modern-manager`  
-Canonical base: `2841842b0e7d38136d4cd6368b9a4006dd405e66`  
-Branch: `task/P18-017-ui-guarded-execution`  
-Risk: **R3 host-side integration**  
+Date: 2026-09-11
+Repository: `sourvegie/sony-infocarry-modern-manager`
+Canonical base: `2841842b0e7d38136d4cd6368b9a4006dd405e66`
+Branch: `task/P18-017-ui-guarded-execution`
+Risk: **R3 host-side integration**
 Required disposition: **READY_FOR_HARDWARE_TEST**
 
 ## Scope and safety boundary
