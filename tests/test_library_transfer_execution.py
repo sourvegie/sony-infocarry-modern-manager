@@ -36,6 +36,10 @@ from infocarry.prepared_library_package_operation_bundle import load_operation_b
 from infocarry.execution_claim_store import PersistentExecutionClaimStore
 from infocarry.indeterminate_write_lock import PersistentIndeterminateWriteLock
 from infocarry.write_protocol import REQUEST_BEGIN_TRANSMIT
+import infocarry.experimental_library_transfer as experimental_transfer_module
+from infocarry.prepared_library_package_live_adapter import (
+    PreparedLibraryPackageLiveResultReconciliationError,
+)
 import infocarry.prepared_library_package_bridge as bridge_module
 import infocarry.prepared_package_multi_candidate as candidate_module
 
@@ -466,6 +470,43 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                     ),
                     1,
                 )
+
+    def test_reconciliation_failure_preserves_indeterminate_state_at_facade(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        self._prepare(setup)
+        reconciliation_error = PreparedLibraryPackageLiveResultReconciliationError(
+            "independent terminal read-back could not be completed",
+            stage="independent_readback",
+        )
+        with patch.object(
+            experimental_transfer_module,
+            "reconcile_prepared_library_package_live_result",
+            side_effect=reconciliation_error,
+        ):
+            with self.assertRaises(LibraryTransferExecutionError) as raised:
+                setup["facade"].execute_once(
+                    setup["plan"],
+                    confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+                )
+        self.assertEqual(
+            raised.exception.state,
+            "indeterminate_after_transaction_start",
+        )
+        self.assertIn("indeterminate_write_lock", raised.exception.audit)
+        self.assertIsNotNone(setup["lock"].read())
+        self.assertEqual(self._claim_count(setup), 1)
+        self.assertEqual(
+            len(
+                [
+                    call
+                    for call in setup["backend"].calls
+                    if call[0] == "control_out"
+                    and call[1] == REQUEST_BEGIN_TRANSMIT
+                ]
+            ),
+            1,
+        )
 
     def test_operation_bundle_tampering_is_rejected_before_claim(self):
         setup = self._setup()

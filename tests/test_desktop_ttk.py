@@ -22,6 +22,7 @@ from infocarry.desktop_ttk import (
     launch_ttk_desktop,
 )
 from infocarry.guarded_workflow import GuardedWorkflowError
+from infocarry.library_transfer_execution import LibraryTransferExecutionError
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 
 
@@ -334,6 +335,19 @@ class DesktopTtkMessageTests(unittest.TestCase):
         )
         self.assertIn("Do not retry automatically", message)
         self.assertIn("post_write_readback", message)
+
+    def test_library_indeterminate_error_explains_no_retry_diagnosis(self):
+        message = friendly_error_message(
+            LibraryTransferExecutionError(
+                "independent terminal read-back could not be completed",
+                stage="independent_readback",
+                state="indeterminate_after_transaction_start",
+            )
+        )
+        self.assertIn("ESCALATION_REQUIRED", message)
+        self.assertIn("do not retry", message)
+        self.assertIn("read-only diagnosis", message)
+        self.assertIn("independent_readback", message)
 
     def test_conversion_and_renderer_summaries_are_explicitly_offline(self):
         import tempfile

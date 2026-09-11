@@ -1660,8 +1660,15 @@ class PreparedLibraryPackageLiveResultReconciliationError(RuntimeError):
     ) -> None:
         super().__init__(message)
         self.stage = stage
+        # Reconciliation is invoked only after the canonical runner has
+        # returned from the device-changing boundary.  A failure here cannot
+        # establish the physical outcome, so product-facing callers must keep
+        # the indeterminate/recovery state instead of treating it as an
+        # ordinary pre-start failure.
+        self.state = "indeterminate_after_transaction_start"
         self.automatic_retry_allowed = False
         self.audit = dict(audit or {})
+        self.audit.setdefault("state", self.state)
         self.audit.setdefault("automatic_retry_allowed", False)
 
 

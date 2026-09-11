@@ -108,6 +108,20 @@ directed to read-only diagnosis. A determinate pre-start failure consumes no
 claim; a determinate nonzero native completion consumes the one claim, closes
 the marker, fails, and is never retried.
 
+## Correction-round disposition
+
+The normal two-round material-correction limit was reached during review. The
+remaining finding was that an indeterminate reconciliation failure was being
+classified as an ordinary failed state at the UI/product boundary even though
+the canonical coordinator had persisted the installation-wide lock. The
+owner/PM explicitly authorized one exceptional third and final material
+correction round for that finding only. The correction preserves the
+indeterminate state through the adapter, coordinator, facade, and ttk error
+surface, and adds the corresponding fake-lifecycle and UI regression tests.
+This is a task-specific exception and does not change `WORKFLOW.md` or the
+repository-wide correction limit. The exception authorized no hardware
+operation and does not authorize a physical P18-017 transaction.
+
 ## Host-only validation
 
 The product facade is exercised with deterministic existing fake transport

@@ -144,6 +144,14 @@ def friendly_error_message(error: BaseException) -> str:
                 f"Stage: {error.stage}\nDetails: {error}"
             )
         return f"The guarded replacement stopped before any device write.\n\nStage: {error.stage}\nDetails: {error}"
+    if getattr(error, "state", None) == "indeterminate_after_transaction_start":
+        return (
+            "The guarded Library transfer may have started, but its final outcome "
+            "could not be independently established. ESCALATION_REQUIRED: do not "
+            "retry or click Transfer once again. Preserve the evidence and perform "
+            "read-only diagnosis.\n\n"
+            f"Stage: {getattr(error, 'stage', 'execution')}\nDetails: {error}"
+        )
     if isinstance(error, OSError) and error.errno == errno.ENOSPC:
         return "There is not enough free disk space. Choose another destination and retry."
     if isinstance(error, CaptureError):
