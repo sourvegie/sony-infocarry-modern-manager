@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-09-10
+Date: 2026-09-11
 
 ## P18-015 VNW-V15 physical validation
 
@@ -54,6 +54,32 @@ shapes are blocked. The visible `Transfer once` affordance is permanently
 disabled in this build and has no normal-UI callback. The reusable readiness
 model does not import or expose the historical operation-specific sender,
 claim, lock, candidate, transaction, or approval identity.
+
+## P18-017 guarded UI-driven transfer integration
+
+P18-017 connects the normal ttk Library progression
+`Select → Arrange → Prepare → Preview → Review transfer` to a
+product-facing execution facade. The facade can obtain fresh read-only
+preflight evidence and present the exact proposed operation, then delegates a
+future confirmed attempt to the existing canonical guarded coordinator,
+Library live adapter, sender, post-write backup, and independent verifier. It
+does not create a second sender, candidate, transaction, claim, or lock path.
+
+The code-reachable live boundary remains exact VNW-V15 only: one explicitly
+selected prepared root package at fresh target
+`IC_P18_LIBRARY_20260910_01`, exactly `01-introduction.txt`,
+`02-page-01.bmp`, `03-ending.txt` in TXT → BMP → TXT order, target absent,
+no overwrite/delete/merge/nesting/batch/grouping, one transaction, and no
+automatic retry. The typed fresh operation ID is hash-bound in the immutable
+operation bundle. The consumed P18-015 target and approval/confirmation cannot
+be replayed as product authorization.
+
+P18-017 performed no physical transaction and has not physically validated the
+ttk-driven path. VNW-V10 remains **UNCHARACTERIZED / READ-ONLY DISCOVERY
+REQUIRED**; broader package shapes remain unavailable. The intended exit state
+is **READY_FOR_HARDWARE_TEST**, pending final-head macOS/Windows CI and fresh
+independent R3 review. A separate PM/owner decision is required before any
+bounded physical UI-driven VNW-V15 validation.
 
 ## Canonical checkpoint
 

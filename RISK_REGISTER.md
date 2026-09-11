@@ -1,6 +1,6 @@
 # Risk Register
 
-Date: 2026-09-06
+Date: 2026-09-11
 
 This file lists open material risks only. Closed findings and chronological
 evidence remain in `analysis/`, including the archived register through
@@ -16,6 +16,7 @@ P18-001A.
 | R2-18-06 | VNW-V10 may differ from VNW-V15 in USB identity, protocol, storage/format, capacity, display, or write behavior. | R2 | VNW-V10 is `UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`; no V15 constants, candidate, authorization, or write capability are inherited. | Conduct separately reviewed read-only V10 characterization before defining any capability. |
 | R2-18-07 | No stable physical-unit identifier is proven, so a per-unit recovery lock would create false precision. | R2 | Use one installation-wide persistent lock across models/sessions; deliberately over-block all writes after ambiguity; clear only with original incident/attempt, complete diagnostic backup, and documented recovery decision. | Keep lock global until a future reviewed identity fact changes the contract. |
 | R2-18-08 | Users may mistake a host device-tree preview or stale capacity figure for transfer eligibility. | R2 | Label the nested profile `host_offline_draft_not_live_enabled`; show all four capacity quantities as Not evaluated without fresh verified evidence; expose no nested send action. | Retain explicit preview-only language in GUI/docs and cover capability mismatch in focused tests/review. |
+| R3-18-09 | The normal ttk Library path could bypass the reviewed operation identity or canonical one-shot lifecycle when live integration becomes reachable. | R3 | P18-017 uses one neutral product facade, typed fresh VNW-V15 binding, hash-bound operation ID/target/package bundle, final coordinator revalidation, durable claim-before-marker ordering, no retry, and the existing post-backup/independent-verifier closure. The default desktop launch has no runtime or authorization and remains disabled. | Obtain final-head independent R3 review and a separate owner-authorized physical validation of only `IC_P18_LIBRARY_20260910_01`; keep VNW-V10 and broader shapes blocked. |
 
 P18-001A responsive usability is closed for the owner-observed bounded sizes;
 that human observation does not establish hardware or other display-environment

@@ -31,6 +31,7 @@ from .indeterminate_write_lock import (
     IndeterminateWriteLockError,
     PersistentIndeterminateWriteLock,
 )
+from .library_transfer_execution import LibraryTransferOperationBinding
 from .prepared_library_package_live_adapter import (
     P17_005_OWNER_APPROVAL,
     PreparedLibraryPackageLiveResult,
@@ -128,6 +129,7 @@ class GuardedLibraryExecutionCoordinator:
         execution_claim_store: PersistentExecutionClaimStore,
         device_model_profile: DeviceModelProfile = VNW_V15_PROFILE,
         capability_profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
+        operation_binding: Optional[LibraryTransferOperationBinding] = None,
     ) -> None:
         if not isinstance(indeterminate_write_lock, PersistentIndeterminateWriteLock):
             raise GuardedLibraryExecutionError(
@@ -157,6 +159,58 @@ class GuardedLibraryExecutionCoordinator:
         self.execution_claim_store = execution_claim_store
         self.device_model_profile = device_model_profile
         self.capability_profile_id = capability_profile_id
+        if operation_binding is not None and not isinstance(
+            operation_binding, LibraryTransferOperationBinding
+        ):
+            raise GuardedLibraryExecutionError(
+                "the guarded lifecycle operation binding is malformed",
+                stage="operation_identity",
+            )
+        self.operation_binding = operation_binding
+
+    def _validate_operation_binding(
+        self,
+        operation_bundle: PreparedLibraryPackageOperationBundle,
+    ) -> None:
+        binding = self.operation_binding
+        if binding is None:
+            return
+        try:
+            binding.require_authorized()
+            expected_children = (
+                (0, "txt", "01-introduction.txt"),
+                (1, "bmp", "02-page-01.bmp"),
+                (2, "txt", "03-ending.txt"),
+            )
+            actual_children = tuple(
+                (child.get("order"), child.get("kind"), child.get("name"))
+                for child in operation_bundle.package_children
+            )
+            expected_paths = [
+                f"root\\{binding.target_folder_name}",
+                f"root\\{binding.target_folder_name}\\01-introduction.txt",
+                f"root\\{binding.target_folder_name}\\02-page-01.bmp",
+                f"root\\{binding.target_folder_name}\\03-ending.txt",
+            ]
+            if (
+                operation_bundle.device_identity != binding.device_identity
+                or operation_bundle.expected_folder_name != binding.target_folder_name
+                or operation_bundle.owner_approval_phrase
+                != binding.owner_approval_phrase
+                or operation_bundle.confirmation_phrase != binding.confirmation_phrase
+                or operation_bundle.confirmation_policy != binding.confirmation_policy
+                or operation_bundle.fixed_state_policy != binding.fixed_state_policy
+                or operation_bundle.operation_id != binding.operation_id
+                or actual_children != expected_children
+                or operation_bundle.expected_post_operation.get("added_paths")
+                != tuple(expected_paths)
+            ):
+                raise ValueError("immutable operation bundle differs from the fresh binding")
+        except Exception as exc:
+            raise GuardedLibraryExecutionError(
+                f"fresh operation identity could not be validated: {exc}",
+                stage="operation_identity",
+            ) from exc
 
     def _assert_execution_boundary_available(self) -> None:
         """Fail closed when a prior process died around sender entry."""
@@ -208,6 +262,7 @@ class GuardedLibraryExecutionCoordinator:
         *,
         bindings: Mapping[str, Mapping[str, Any]],
         audit_location: str,
+        operation_binding: Optional[LibraryTransferOperationBinding] = None,
     ) -> ExperimentalLibraryTransferReview:
         try:
             review = build_experimental_library_transfer_review(
@@ -215,6 +270,7 @@ class GuardedLibraryExecutionCoordinator:
                 preflight_report=bindings["preflight"],
                 bundle_report=bindings["bundle"],
                 audit_location=audit_location,
+                operation_binding=self.operation_binding,
             )
         except (ExperimentalLibraryTransferReviewError, TypeError, ValueError) as exc:
             raise GuardedLibraryExecutionError(
@@ -304,6 +360,7 @@ class GuardedLibraryExecutionCoordinator:
                 "the guarded lifecycle requires one immutable prepared Library operation bundle",
                 stage="operation_bundle",
             )
+        self._validate_operation_binding(operation_bundle)
         if runner_kwargs.get("preflight_only", False):
             raise GuardedLibraryExecutionError(
                 "the guarded integration does not expose a sender-adjacent preflight mode",
@@ -345,6 +402,7 @@ class GuardedLibraryExecutionCoordinator:
             plan_report,
             bindings=bindings,
             audit_location=audit_location,
+            operation_binding=self.operation_binding,
         )
         plan_digest = _sha256_json(plan_report)
         review_digest = _sha256_json(review.to_dict())
@@ -359,6 +417,15 @@ class GuardedLibraryExecutionCoordinator:
         if type(confirmation) is not str or not confirmation.strip():
             raise GuardedLibraryExecutionError(
                 "confirmation interaction did not return a transaction confirmation phrase",
+                stage="confirmation",
+                audit={"review_sha256": review_digest},
+            )
+        if (
+            self.operation_binding is not None
+            and confirmation != self.operation_binding.confirmation_phrase
+        ):
+            raise GuardedLibraryExecutionError(
+                "the confirmation does not bind the fresh operation target",
                 stage="confirmation",
                 audit={"review_sha256": review_digest},
             )
@@ -381,6 +448,7 @@ class GuardedLibraryExecutionCoordinator:
                 plan_report,
                 bindings=current_bindings,
                 audit_location=audit_location,
+                operation_binding=self.operation_binding,
             )
             if _sha256_json(current_review.to_dict()) != review_digest:
                 raise GuardedLibraryExecutionError(
@@ -388,7 +456,11 @@ class GuardedLibraryExecutionCoordinator:
                     stage="pre_send_revalidation",
                 )
 
-        runner_kwargs["owner_approval"] = P17_005_OWNER_APPROVAL
+        runner_kwargs["owner_approval"] = (
+            self.operation_binding.owner_approval_phrase
+            if self.operation_binding is not None
+            else P17_005_OWNER_APPROVAL
+        )
         runner_kwargs["confirmation"] = confirmation
         runner_kwargs["pre_send_revalidator"] = pre_send_revalidate
         runner_kwargs["execution_claim_store"] = self.execution_claim_store
@@ -431,6 +503,7 @@ def run_experimental_library_transfer(
     plan_report: Optional[Mapping[str, Any]],
     confirmation_interaction: Optional[ConfirmationInteraction],
     low_level_bulk_write_calls: int | None = None,
+    operation_binding: Optional[LibraryTransferOperationBinding] = None,
     **runner_kwargs: Any,
 ) -> PreparedLibraryPackageLiveResult | PreparedLibraryPackageLiveWrapperResult:
     """Run one exact, confirmed operation from one immutable bundle."""
@@ -438,6 +511,7 @@ def run_experimental_library_transfer(
     return GuardedLibraryExecutionCoordinator(
         indeterminate_write_lock=indeterminate_write_lock,
         execution_claim_store=execution_claim_store,
+        operation_binding=operation_binding,
     ).execute(
         operation_bundle,
         plan_report=plan_report,

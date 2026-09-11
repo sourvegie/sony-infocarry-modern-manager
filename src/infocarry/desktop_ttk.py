@@ -44,6 +44,11 @@ from .library_transfer_readiness import (
     LibraryTransferReadinessError,
     build_library_transfer_readiness,
 )
+from .library_transfer_execution import (
+    LibraryTransferExecutionError,
+    LibraryTransferExecutionFacade,
+    PreparedLibraryTransferOperation,
+)
 from .runtime import DesktopRuntimeError, check_desktop_runtime
 from .write_gate import verify_fresh_backup
 
@@ -139,6 +144,14 @@ def friendly_error_message(error: BaseException) -> str:
                 f"Stage: {error.stage}\nDetails: {error}"
             )
         return f"The guarded replacement stopped before any device write.\n\nStage: {error.stage}\nDetails: {error}"
+    if getattr(error, "state", None) == "indeterminate_after_transaction_start":
+        return (
+            "The guarded Library transfer may have started, but its final outcome "
+            "could not be independently established. ESCALATION_REQUIRED: do not "
+            "retry or click Transfer once again. Preserve the evidence and perform "
+            "read-only diagnosis.\n\n"
+            f"Stage: {getattr(error, 'stage', 'execution')}\nDetails: {error}"
+        )
     if isinstance(error, OSError) and error.errno == errno.ENOSPC:
         return "There is not enough free disk space. Choose another destination and retry."
     if isinstance(error, CaptureError):
@@ -516,6 +529,29 @@ def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def format_library_transfer_execution_result(report: Dict[str, Any]) -> str:
+    """Render the terminal result without treating submission as success."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Library transfer execution result must be a mapping")
+    verification = report.get("verification", {})
+    accounting = report.get("accounting", {})
+    lines = [
+        "GUARDED LIBRARY TRANSFER RESULT",
+        "",
+        f"  State: {report.get('state', 'unknown')}",
+        f"  Completion: {report.get('completion', 'unknown')}",
+        f"  Post-write backup verified: {'yes' if report.get('post_backup_verified') else 'no'}",
+        f"  Independent read-back verified: {'yes' if report.get('independent_readback_verified') else 'no'}",
+        f"  Sender calls: {accounting.get('logical_sender_calls', 'unknown')}",
+        f"  Automatic retry: {'yes' if report.get('automatic_retry_allowed') else 'no'}",
+        f"  Verification details: {verification.get('shared_path_count', 'unknown')} shared paths checked",
+        "",
+        "Terminal product status: Transfer verified only after the complete post-backup and independent read-back checks.",
+    ]
+    return "\n".join(lines)
+
+
 def format_library_transfer_readiness(report: Dict[str, Any]) -> str:
     """Render the normal-product Experimental readiness review.
 
@@ -693,8 +729,10 @@ def format_prepared_package_readiness_preview(report: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def launch_ttk_desktop() -> None:
-    """Launch the supported no-write ttk desktop workflow."""
+def launch_ttk_desktop(
+    execution_facade: Optional[LibraryTransferExecutionFacade] = None,
+) -> None:
+    """Launch the ttk manager with the guarded Library facade."""
 
     runtime = check_desktop_runtime()
     try:
@@ -710,6 +748,7 @@ def launch_ttk_desktop() -> None:
     root.geometry(f"{LIBRARY_DEFAULT_GEOMETRY[0]}x{LIBRARY_DEFAULT_GEOMETRY[1]}")
     root.minsize(*LIBRARY_MINIMUM_GEOMETRY)
     model = DesktopWorkflowModel()
+    library_execution_facade = execution_facade or LibraryTransferExecutionFacade()
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
     worker: Optional[threading.Thread] = None
@@ -761,6 +800,9 @@ def launch_ttk_desktop() -> None:
     )
     library_detail_var = tk.StringVar(value="Select a Library item")
     library_tree_items: Dict[str, str] = {}
+    library_current_plan_report: Optional[Dict[str, Any]] = None
+    library_current_readiness: Any = None
+    library_prepared_operation: Optional[PreparedLibraryTransferOperation] = None
     ttk.Label(
         library_tab,
         text="Local Library",
@@ -779,7 +821,7 @@ def launch_ttk_desktop() -> None:
     library_experimental_group.grid(
         row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
     )
-    library_experimental_group.columnconfigure(3, weight=1)
+    library_experimental_group.columnconfigure(4, weight=1)
     library_import_button = ttk.Button(library_import_group, text="Import files…")
     library_folder_import_button = ttk.Button(
         library_import_group, text="Import folder…"
@@ -813,6 +855,12 @@ def launch_ttk_desktop() -> None:
         text="Review transfer…",
         state="disabled",
     )
+    library_live_preflight_button = ttk.Button(
+        library_experimental_group,
+        text="Refresh live preflight…",
+        state="disabled",
+        takefocus=False,
+    )
     library_transfer_once_button = ttk.Button(
         library_experimental_group,
         text="Transfer once",
@@ -836,20 +884,22 @@ def launch_ttk_desktop() -> None:
         button.pack(side="left", padx=3, pady=3)
     library_package_import_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
     library_experimental_button.grid(row=0, column=1, sticky="w", padx=3, pady=3)
-    library_transfer_once_button.grid(row=0, column=2, sticky="w", padx=3, pady=3)
+    library_live_preflight_button.grid(row=0, column=2, sticky="w", padx=3, pady=3)
+    library_transfer_once_button.grid(row=0, column=3, sticky="w", padx=3, pady=3)
     ttk.Label(
         library_experimental_group,
-        text="Review explains readiness; live transfer is unavailable in this build.",
+        text="Live preflight and Transfer once require a fresh separately authorized VNW-V15 operation.",
         foreground="#6b4f00",
         anchor="w",
-    ).grid(row=0, column=3, sticky="ew", padx=(8, 8), pady=3)
+    ).grid(row=0, column=4, sticky="ew", padx=(8, 8), pady=3)
     library_safety_notice = ttk.Label(
         library_toolbar,
         text=(
             "External file/folder drag-and-drop: unavailable without TkDND; use the "
             "chooser buttons. All preparation and nested previews are host/offline "
             "only. Review transfer explains the Experimental VNW-V15 profile; the "
-            "Transfer once control remains disabled."
+            "live path requires a fresh separately authorized operation; VNW-V10 "
+            "remains unsupported."
         ),
         foreground="#6b4f00",
         anchor="w",
@@ -1125,7 +1175,7 @@ def launch_ttk_desktop() -> None:
         f"Runtime: {runtime.description}\n"
         "Supported device: Sony InfoCarry VNW-V15 (VID 054c, PID 001e)\n"
         "Device Manager writes are limited to the guarded existing-TXT workflow.\n"
-        "The exact proven Library TXT/BMP/TXT package is Experimental: this build shows a guarded review only; no send action is exposed.\n"
+        "The exact proven Library TXT/BMP/TXT package is Experimental: the normal UI can reach a guarded one-shot review only after a fresh separately authorized VNW-V15 preflight; this build has no physical ttk validation.\n"
         "Unsupported package shapes remain unavailable; recovery is unresolved and automatic write retry is never used.\n"
         "Text Converter and Ebook Renderer are offline-only in this milestone.\n\n"
         "Recovery: preserve any before/after backup, do not retry a started write, "
@@ -1150,6 +1200,7 @@ def launch_ttk_desktop() -> None:
         return result
 
     def refresh_library_view(*, selected_item_id: Optional[str] = None) -> None:
+        nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         had_tree_items = bool(library_tree_items)
         selected_ids = {
             library_tree_items[tree_item]
@@ -1177,12 +1228,14 @@ def launch_ttk_desktop() -> None:
             library_selected_queue_button.configure(state="disabled")
             library_all_queue_button.configure(state="disabled")
             library_experimental_button.configure(state="disabled")
+            library_live_preflight_button.configure(state="disabled")
             library_transfer_once_button.configure(state="disabled")
             return
         library_import_button.configure(state="normal")
         library_folder_import_button.configure(state="normal")
         library_package_import_button.configure(state="normal")
         library_experimental_button.configure(state="disabled")
+        library_live_preflight_button.configure(state="disabled")
         library_transfer_once_button.configure(state="disabled")
 
         node_tree_items: dict[str, str] = {}
@@ -1249,6 +1302,7 @@ def launch_ttk_desktop() -> None:
         return items
 
     def show_library_selection(_event: Any = None) -> None:
+        nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
         has_selection = bool(library_tree.selection()) and library_catalog is not None
@@ -1287,10 +1341,35 @@ def launch_ttk_desktop() -> None:
         library_experimental_button.configure(
             state="normal" if enabled and item.package is not None else "disabled"
         )
-        # P18-016 has no live callback or command route.  Keep this affordance
-        # visibly present for the workflow, but force it disabled on every
-        # selection refresh.
-        library_transfer_once_button.configure(state="disabled")
+        current_item_id = item.item_id if item is not None else None
+        prepared_item_id = (
+            library_prepared_operation.readiness.report.get("selection", {}).get(
+                "logical_item_id"
+            )
+            if library_prepared_operation is not None
+            else None
+        )
+        if prepared_item_id != current_item_id:
+            library_current_plan_report = None
+            library_current_readiness = None
+            library_prepared_operation = None
+        live_review_ready = bool(
+            library_current_readiness is not None
+            and getattr(library_current_readiness, "host_profile_eligible", False)
+            and library_execution_facade.can_prepare_live
+        )
+        library_live_preflight_button.configure(
+            state="normal" if enabled and live_review_ready else "disabled"
+        )
+        library_transfer_once_button.configure(
+            state=(
+                "normal"
+                if enabled
+                and library_prepared_operation is not None
+                and library_execution_facade.transfer_actionable
+                else "disabled"
+            )
+        )
         if item is None:
             library_detail_var.set("Select a Library item")
             _set_readonly_text(library_report, "")
@@ -1541,6 +1620,8 @@ def launch_ttk_desktop() -> None:
     def library_experimental_review_action() -> None:
         """Show reusable Experimental readiness without a live action."""
 
+        nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
+
         if library_catalog is None:
             return
         selected_items = selected_library_items()
@@ -1569,7 +1650,10 @@ def launch_ttk_desktop() -> None:
                 selection_mode=SELECTION_SELECTED,
                 backup=backup,
             )
-            review = build_library_transfer_readiness(plan.to_dict())
+            library_current_plan_report = plan.to_dict()
+            review = library_execution_facade.review_readiness(library_current_plan_report)
+            library_current_readiness = review
+            library_prepared_operation = None
         except (LibraryTransferPlanError, LibraryTransferReadinessError) as exc:
             _set_readonly_text(
                 library_report,
@@ -1584,6 +1668,116 @@ def launch_ttk_desktop() -> None:
         )
         library_status_var.set(
             "Transfer readiness displayed; fresh evidence and any live execution remain separately guarded"
+        )
+
+        library_live_preflight_button.configure(
+            state=(
+                "normal"
+                if review.host_profile_eligible
+                and library_execution_facade.can_prepare_live
+                else "disabled"
+            )
+        )
+
+    def library_live_preflight_action() -> None:
+        """Refresh read-only evidence through the product facade only."""
+
+        nonlocal library_prepared_operation
+        if (
+            library_catalog is None
+            or library_current_plan_report is None
+            or not library_execution_facade.can_prepare_live
+        ):
+            library_status_var.set(
+                "Live preflight is blocked until a fresh authorized VNW-V15 operation is configured"
+            )
+            return
+        runtime = library_execution_facade.runtime
+        if runtime is None:
+            return
+        operation_root = (
+            Path(runtime.evidence_namespace).expanduser().resolve()
+            / f"ui-preflight-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
+        )
+        try:
+            prepared = library_execution_facade.refresh_live_preflight(
+                library_current_plan_report,
+                catalog=library_catalog,
+                preflight_report_path=operation_root / "sealed-preflight.json",
+                bundle_path=operation_root / "operation-bundle.json",
+                audit_location=str(runtime.evidence_namespace),
+                cancelled=cancel_event.is_set,
+            )
+        except (LibraryTransferExecutionError, LibraryTransferReadinessError, OSError, ValueError) as exc:
+            library_prepared_operation = None
+            library_transfer_once_button.configure(state="disabled")
+            library_status_var.set(f"Live preflight blocked; no device change: {exc}")
+            _set_readonly_text(
+                library_report,
+                "GUARDED TRANSFER REVIEW — blocked; no device change occurred\n\n" + str(exc),
+            )
+            return
+        library_prepared_operation = prepared
+        _set_readonly_text(
+            library_report,
+            format_experimental_library_transfer_review(prepared.review.to_dict()),
+        )
+        library_transfer_once_button.configure(
+            state="normal" if library_execution_facade.transfer_actionable else "disabled"
+        )
+        library_status_var.set(
+            "Fresh read-only preflight reviewed; Transfer once is enabled only for this exact one-shot operation"
+        )
+
+    def library_transfer_once_action() -> None:
+        """Confirm and run one prepared operation through the facade."""
+
+        nonlocal library_prepared_operation
+
+        if (
+            library_prepared_operation is None
+            or not library_execution_facade.transfer_actionable
+            or library_execution_facade.operation_binding is None
+        ):
+            library_status_var.set(
+                "Transfer once is blocked until the exact reviewed operation is ready"
+            )
+            library_transfer_once_button.configure(state="disabled")
+            return
+        confirmation_phrase = (
+            library_execution_facade.operation_binding.confirmation_phrase
+        )
+        answer = simpledialog.askstring(
+            "Confirm one transfer",
+            (
+                "This is one guarded VNW-V15 transaction.\n\n"
+                "A fresh preflight, complete post-write backup, and independent read-back are required. "
+                "An indeterminate result will be locked for read-only diagnosis; it will not be retried.\n\n"
+                f"Type exactly: {confirmation_phrase}"
+            ),
+            parent=root,
+        )
+        if answer is None:
+            library_status_var.set("Transfer cancelled; no device transaction attempted")
+            return
+        try:
+            result = library_execution_facade.execute_once(
+                library_current_plan_report or {},
+                confirmation_interaction=lambda _review: answer,
+            )
+        except BaseException as exc:
+            library_prepared_operation = None
+            library_transfer_once_button.configure(state="disabled")
+            library_status_var.set(friendly_error_message(exc))
+            messagebox.showerror("Transfer once", friendly_error_message(exc), parent=root)
+            return
+        _set_readonly_text(
+            library_report,
+            format_library_transfer_execution_result(result.to_dict()),
+        )
+        library_transfer_once_button.configure(state="disabled")
+        library_status_var.set(
+            "Transfer verified; the canonical post-backup and independent read-back checks passed"
         )
 
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
@@ -1602,6 +1796,8 @@ def launch_ttk_desktop() -> None:
         command=lambda: library_transfer_review_action(SELECTION_ALL_READY)
     )
     library_experimental_button.configure(command=library_experimental_review_action)
+    library_live_preflight_button.configure(command=library_live_preflight_action)
+    library_transfer_once_button.configure(command=library_transfer_once_action)
     refresh_library_view()
 
     def load_conversion_preview() -> None:
@@ -1701,6 +1897,8 @@ def launch_ttk_desktop() -> None:
                 library_selected_queue_button,
                 library_all_queue_button,
                 library_experimental_button,
+                library_live_preflight_button,
+                library_transfer_once_button,
             ):
                 button.configure(state="disabled")
         else:
@@ -2145,6 +2343,7 @@ __all__ = [
     "format_library_device_tree_preview",
     "format_library_preparation_audit",
     "format_library_transfer_readiness",
+    "format_library_transfer_execution_result",
     "format_prepared_package_readiness_preview",
     "format_text_replacement_preview",
     "format_post_write_verification",

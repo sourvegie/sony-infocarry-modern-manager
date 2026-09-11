@@ -230,10 +230,13 @@ class PreparedLibraryPackageOperationBundle:
     package_children: tuple[Mapping[str, Any], ...]
     expected_post_operation: Mapping[str, Any]
     format: str = OPERATION_BUNDLE_FORMAT
+    operation_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.format != OPERATION_BUNDLE_FORMAT:
             raise OperationBundleError("unsupported operation bundle format")
+        if self.operation_id is not None:
+            _require_phrase(self.operation_id, "operation_id")
         for label, artifact in (
             ("sealed_report", self.sealed_report),
             ("baseline_backup", self.baseline_backup),
@@ -324,6 +327,7 @@ class PreparedLibraryPackageOperationBundle:
         *,
         template_path: Path,
         capacity_response_path: Path,
+        operation_id: Optional[str] = None,
     ) -> "PreparedLibraryPackageOperationBundle":
         """Create a bundle from one sealed report and its exact artifacts.
 
@@ -402,6 +406,7 @@ class PreparedLibraryPackageOperationBundle:
             library_binding_sha256=str(authorization["bridge"]["library_binding_sha256"]),
             package_children=tuple(dict(child) for child in children),
             expected_post_operation=dict(expected_post),
+            operation_id=operation_id,
         )
 
     def to_dict(self, *, include_bundle_hash: bool = True) -> dict[str, Any]:
@@ -448,6 +453,8 @@ class PreparedLibraryPackageOperationBundle:
                 "accepted_completion": "0x0000",
             },
         }
+        if self.operation_id is not None:
+            value["operation_id"] = self.operation_id
         if include_bundle_hash:
             value["bundle_sha256"] = self.bundle_sha256
         return value
@@ -531,10 +538,13 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
         "safety",
         "bundle_sha256",
     }
-    if set(value) != required:
+    optional = {"operation_id"}
+    required_fields = set(value) - optional
+    unexpected = required_fields - required
+    if required_fields != required or unexpected:
         raise OperationBundleError(
             f"operation bundle schema fields differ: missing={sorted(required - set(value))}, "
-            f"unexpected={sorted(set(value) - required)}"
+            f"unexpected={sorted(unexpected)}"
         )
     expected_hash = _digest(value["bundle_sha256"], "bundle_sha256")
     unsigned = dict(value)
@@ -596,6 +606,7 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
             package_children=tuple(value["package_children"]),
             expected_post_operation=value["expected_post_operation"],
             format=value["format"],
+            operation_id=value.get("operation_id"),
         )
     except (TypeError, ValueError) as exc:
         if isinstance(exc, OperationBundleError):
