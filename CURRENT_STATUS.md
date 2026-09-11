@@ -81,6 +81,36 @@ is **READY_FOR_HARDWARE_TEST**, pending final-head macOS/Windows CI and fresh
 independent R3 review. A separate PM/owner decision is required before any
 bounded physical UI-driven VNW-V15 validation.
 
+## P18-018 VNW-V15 UI-driven physical validation
+
+P18-018 was attempted in the proven host-visible USB environment, but stopped
+safely before the device-changing boundary. The canonical filtered detector
+returned exactly one Sony VNW-V15 at `0x054c:0x001e` (observed bus 1/address 1).
+The host was Python 3.12.14 on arm64 with PyUSB 1.3.1, the libusb1 backend,
+and `/opt/homebrew/lib/libusb-1.0.dylib`.
+
+Two normal ttk review/preflight cycles obtained fresh read-only evidence. The
+latest cycle captured a complete eight-object backup, fresh native `0x0019`
+capacity of 3,145,728 bytes, target absence, and the exact candidate for
+`IC_P18_LIBRARY_20260910_01` with TXT → BMP → TXT children. The UI then refused
+to expose the exact runtime confirmation because the offline plan had
+`queue_ready=false`: the ttk plan builder does not supply a capacity value, so
+the plan remains capacity-uncleared even after the fresh preflight has supplied
+and sealed capacity. The facade correctly stopped with no claim, marker, or
+write. This is an unresolved product integration blocker, not evidence of
+device absence.
+
+No runtime confirmation was presented or accepted. No P18-018 claim exists or
+was consumed; the historical P18-011 and P18-015 claims remain permanently
+consumed. No sender call, `0x101b`, post-write backup, result manifest, or
+device-changing operation occurred. The final disposition is
+**ESCALATION_REQUIRED** because the reviewed ttk path cannot yet reach its
+confirmation gate with the fresh evidence available. VNW-V10 remains
+**UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED**, broader package shapes
+remain unavailable, and no new physical capability is claimed. A separately
+scoped product correction and fresh validation decision are required; this
+task did not authorize a bypass or a physical retry.
+
 ## Canonical checkpoint
 
 Canonical `main` is `5d23e8b219507535b2db4b57028602073aa23c61` after merged
