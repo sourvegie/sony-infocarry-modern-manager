@@ -1682,7 +1682,7 @@ def launch_ttk_desktop(
     def library_live_preflight_action() -> None:
         """Refresh read-only evidence through the product facade only."""
 
-        nonlocal library_prepared_operation
+        nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         if (
             library_catalog is None
             or library_current_plan_report is None
@@ -1718,6 +1718,8 @@ def launch_ttk_desktop(
             )
             return
         library_prepared_operation = prepared
+        library_current_plan_report = dict(prepared.plan_report)
+        library_current_readiness = prepared.readiness
         _set_readonly_text(
             library_report,
             format_experimental_library_transfer_review(prepared.review.to_dict()),

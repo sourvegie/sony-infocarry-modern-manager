@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-09-11
+Date: 2026-09-12
 
 ## P18-015 VNW-V15 physical validation
 
@@ -110,6 +110,23 @@ confirmation gate with the fresh evidence available. VNW-V10 remains
 remain unavailable, and no new physical capability is claimed. A separately
 scoped product correction and fresh validation decision are required; this
 task did not authorize a bypass or a physical retry.
+
+## P18-019 fresh capacity propagation closure
+
+P18-019 closes the P18-018 host-side gating defect. The existing typed native
+`0x0019` capacity response from a fresh read-only preflight is now propagated
+into a rebuilt canonical Library queue plan, together with the fresh verified
+backup. Queue readiness and Experimental readiness are recomputed from that
+plan; the UI adopts its plan/readiness identity, and records the native source
+and response hash so fresh capacity remains distinct from offline assumptions.
+
+The exact supported VNW-V15 package boundary is unchanged. Missing,
+insufficient, malformed, stale, or mismatched capacity evidence remains
+blocked before any claim, marker, sender, or device-changing path. P18-019
+performed no physical operation and did not reuse P18-015/P18-018 identity or
+approval. VNW-V10 remains **UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED**;
+broader package shapes remain unavailable. A later physical validation still
+requires a separate operation-specific PM/owner decision.
 
 ## Canonical checkpoint
 
