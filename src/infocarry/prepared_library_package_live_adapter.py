@@ -87,6 +87,7 @@ from .write_protocol import (
     assess_write_failure,
 )
 from .write_artifact import ProspectiveWriteTransaction
+from .write_safety_boundary import PersistentWriteSafetyOwner
 
 
 P18_014_TARGET_FOLDER = "IC_P18_LIBRARY_20260907_01"
@@ -1104,13 +1105,13 @@ class PreparedLibraryPackageLivePreflight:
 
     def _consume_execution_claim(
         self,
-        execution_claim_store: PersistentExecutionClaimStore,
+        write_safety_owner: PersistentWriteSafetyOwner,
     ) -> ExecutionClaimRecord:
         """Atomically consume the only sender-attempt claim for this preflight."""
 
         bindings = _execution_claim_bindings(self)
         try:
-            return execution_claim_store.consume(**bindings)
+            return write_safety_owner.consume_execution_claim(bindings)
         except ExecutionClaimAlreadyConsumedError as exc:
             raise PreparedLibraryPackageLiveAdapterError(
                 "P17-005 sealed preflight already attempted its one transaction; "
@@ -2184,6 +2185,20 @@ def execute_prepared_library_package_live(
             )
         if attempt_id is None:
             attempt_id = uuid4().hex
+        try:
+            write_safety_owner = PersistentWriteSafetyOwner(
+                execution_claim_store=execution_claim_store,
+                indeterminate_write_lock=indeterminate_write_lock,
+            )
+        except Exception as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"P17-005 application-wide write safety could not be configured: {exc}",
+                stage="write_guard",
+                state="failed",
+                audit={"execution_claim": _execution_claim_audit(None)},
+            ) from exc
+    else:
+        write_safety_owner = None
     if pre_send_revalidator is not None and not callable(pre_send_revalidator):
         raise PreparedLibraryPackageLiveAdapterError(
             "P17-005 pre_send_revalidator must be callable",
@@ -2233,16 +2248,20 @@ def execute_prepared_library_package_live(
     # expiring the approval after it has been accepted.
     if not preflight_only:
         try:
-            indeterminate_write_lock.assert_unlocked()
-            execution_claim_store.assert_no_sender_in_flight()
-            claim_record = preflight._consume_execution_claim(execution_claim_store)
+            if write_safety_owner is None:
+                raise ExecutionClaimStoreError(
+                    "application-wide write safety owner is unavailable"
+                )
+            write_safety_owner.assert_execution_boundary_available()
+            claim_record = preflight._consume_execution_claim(write_safety_owner)
             claim_audit = _execution_claim_audit(claim_record)
             approval_consumed = True
         except PreparedLibraryPackageLiveAdapterError:
             raise
         except Exception as exc:
             raise PreparedLibraryPackageLiveAdapterError(
-                f"P17-005 live execution safety state could not be validated: {exc}",
+                "P17-005 durable execution claim was not committed; "
+                f"live execution safety state could not be validated: {exc}",
                 stage="write_guard",
                 state="failed",
                 audit={
@@ -2444,11 +2463,15 @@ def execute_prepared_library_package_live(
             )
 
         try:
-            sender_marker = execution_claim_store.mark_sender_in_flight(
+            if write_safety_owner is None:
+                raise ExecutionClaimStoreError(
+                    "application-wide write safety owner is unavailable"
+                )
+            sender_marker = write_safety_owner.mark_sender_start(
                 claim_record,
                 attempt_id=attempt_id,
-                incident_id=f"guarded-library-{attempt_id}",
                 evidence_root=str(evidence_outputs.root),
+                operation_label="guarded-library",
             )
             claim_audit = _execution_claim_audit(
                 claim_record,
@@ -2500,7 +2523,7 @@ def execute_prepared_library_package_live(
             and assessment.device_outcome != "indeterminate"
         ):
             try:
-                execution_claim_store.resolve_sender_terminal(
+                write_safety_owner.resolve_sender_terminal(
                     sender_marker,
                     resolution=(
                         "determinate_no_start"
@@ -2543,7 +2566,7 @@ def execute_prepared_library_package_live(
         value = repr(completion) if not isinstance(completion, int) else f"0x{completion:04x}"
         if sender_marker is not None and isinstance(completion, int) and not isinstance(completion, bool):
             try:
-                execution_claim_store.resolve_sender_terminal(
+                write_safety_owner.resolve_sender_terminal(
                     sender_marker,
                     resolution="determinate_completion_failure",
                 )
@@ -2644,7 +2667,11 @@ def execute_prepared_library_package_live(
             now=None,
             max_age_seconds=max_age_seconds,
         )
-        execution_claim_store.resolve_sender_terminal(
+        if write_safety_owner is None:
+            raise ExecutionClaimStoreError(
+                "application-wide write safety owner is unavailable"
+            )
+        write_safety_owner.resolve_sender_terminal(
             sender_marker,
             resolution="verified_terminal_success",
         )

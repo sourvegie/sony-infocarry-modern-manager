@@ -41,6 +41,7 @@ from .prepared_library_package_live_adapter import (
     reconcile_prepared_library_package_live_result,
 )
 from .prepared_library_package_operation_bundle import PreparedLibraryPackageOperationBundle
+from .write_safety_boundary import PersistentWriteSafetyOwner
 
 
 class GuardedLibraryExecutionError(RuntimeError):
@@ -157,6 +158,11 @@ class GuardedLibraryExecutionCoordinator:
                 stage="claim_configuration",
             )
         self.execution_claim_store = execution_claim_store
+        self.write_safety_owner = PersistentWriteSafetyOwner(
+            execution_claim_store=execution_claim_store,
+            indeterminate_write_lock=indeterminate_write_lock,
+            device_model_profile=device_model_profile,
+        )
         self.device_model_profile = device_model_profile
         self.capability_profile_id = capability_profile_id
         if operation_binding is not None and not isinstance(
@@ -214,47 +220,16 @@ class GuardedLibraryExecutionCoordinator:
 
     def _assert_execution_boundary_available(self) -> None:
         """Fail closed when a prior process died around sender entry."""
-
-        self.indeterminate_write_lock.assert_unlocked(self.device_model_profile.lock_key)
         try:
-            marker = self.execution_claim_store.read_sender_in_flight()
-            if marker is None:
-                return
-            lock_record = self.indeterminate_write_lock.read(
-                self.device_model_profile.lock_key
-            )
-            if (
-                lock_record is not None
-                and not lock_record.locked
-                and lock_record.attempt_id == marker.attempt_id
-                and lock_record.incident_id == marker.incident_id
-            ):
-                self.execution_claim_store.resolve_sender_after_diagnostic(
-                    marker,
-                    lock_record=lock_record,
-                )
-                return
-            self.indeterminate_write_lock.record_indeterminate(
-                reason=(
-                    "abandoned sender-start marker found after process restart; "
-                    "physical outcome is indeterminate"
-                ),
-                evidence_root=marker.evidence_root,
-                model_key=self.device_model_profile.lock_key,
-                incident_id=marker.incident_id,
-                attempt_id=marker.attempt_id,
-            )
-            self.execution_claim_store.mark_sender_lock_recorded(marker)
-        except (ExecutionClaimStoreError, IndeterminateWriteLockError, OSError, ValueError) as exc:
+            self.write_safety_owner.assert_execution_boundary_available()
+        except IndeterminateWriteLockError:
+            raise
+        except (ExecutionClaimStoreError, OSError, ValueError) as exc:
             raise GuardedLibraryExecutionError(
                 f"abandoned sender-start state could not be safely resolved: {exc}",
                 stage="indeterminate_lock",
                 state="indeterminate_after_transaction_start",
             ) from exc
-        raise IndeterminateWriteLockError(
-            "InfoCarry writes are globally locked after an abandoned sender-start boundary; "
-            "read-only diagnosis is required"
-        )
 
     def _review(
         self,
@@ -292,55 +267,27 @@ class GuardedLibraryExecutionCoordinator:
         attempt_id: str,
         evidence_root: Path,
     ) -> None:
-        audit = getattr(exc, "audit", {})
-        if not isinstance(audit, Mapping):
-            audit = {}
-        claim_audit = audit.get("execution_claim")
-        marker_audit = (
-            claim_audit.get("sender_marker")
-            if isinstance(claim_audit, Mapping)
-            else None
-        )
-        lock_incident_id = (
-            marker_audit.get("incident_id")
-            if isinstance(marker_audit, Mapping)
-            else None
-        )
-        lock_attempt_id = (
-            marker_audit.get("attempt_id")
-            if isinstance(marker_audit, Mapping)
-            else None
-        )
         try:
-            record = self.indeterminate_write_lock.record_indeterminate(
-                reason=str(exc),
-                evidence_root=_evidence_root(audit, evidence_root),
-                model_key=self.device_model_profile.lock_key,
-                incident_id=lock_incident_id or f"guarded-library-{uuid4().hex}",
-                attempt_id=lock_attempt_id or attempt_id,
+            record = self.write_safety_owner.record_indeterminate(
+                exc,
+                attempt_id=attempt_id,
+                evidence_root=Path(_evidence_root(
+                    getattr(exc, "audit", {})
+                    if isinstance(getattr(exc, "audit", {}), Mapping)
+                    else {},
+                    evidence_root,
+                )),
+                operation_label="guarded-library",
             )
-        except (IndeterminateWriteLockError, OSError, ValueError) as lock_exc:
+        except (IndeterminateWriteLockError, OSError, ValueError, ExecutionClaimStoreError) as lock_exc:
             raise GuardedLibraryExecutionError(
                 f"indeterminate outcome could not be persisted in the global write lock: {lock_exc}",
                 stage="indeterminate_lock",
                 state="indeterminate_after_transaction_start",
-                audit={
-                    "original_error": str(exc),
-                    "original_audit": dict(audit),
-                    "lock_error": str(lock_exc),
-                },
+                audit={"original_error": str(exc), "lock_error": str(lock_exc)},
             ) from exc
-        if hasattr(exc, "audit") and isinstance(getattr(exc, "audit"), dict):
-            getattr(exc, "audit")["indeterminate_write_lock"] = record.to_dict()
-        try:
-            marker = self.execution_claim_store.read_sender_in_flight()
-            if marker is not None:
-                self.execution_claim_store.mark_sender_lock_recorded(marker)
-        except ExecutionClaimStoreError:
-            # The global JSON lock is already committed. Retaining the
-            # SQLite marker is fail-closed and allows recovery to bind it
-            # to the same incident after an interrupted cleanup.
-            pass
+        # The shared owner annotates the original error and retains the
+        # sender marker for incident-bound diagnostic recovery.
         setattr(exc, "indeterminate_write_lock_record", record)
 
     def execute(

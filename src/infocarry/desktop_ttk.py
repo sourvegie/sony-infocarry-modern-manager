@@ -49,8 +49,15 @@ from .library_transfer_execution import (
     LibraryTransferExecutionFacade,
     PreparedLibraryTransferOperation,
 )
+from .execution_claim_store import PersistentExecutionClaimStore
+from .indeterminate_write_lock import PersistentIndeterminateWriteLock
 from .runtime import DesktopRuntimeError, check_desktop_runtime
 from .write_gate import verify_fresh_backup
+from .write_safety_boundary import (
+    PersistentWriteSafetyOwner,
+    WriteSafetyBoundaryError,
+    create_default_application_write_safety_owner,
+)
 
 
 # The Library review is designed for an ordinary non-maximized macOS window.
@@ -136,6 +143,14 @@ def friendly_error_message(error: BaseException) -> str:
     if isinstance(error, DesktopRuntimeError):
         return str(error)
     if isinstance(error, GuardedWorkflowError):
+        if error.state == "indeterminate_after_transaction_start":
+            return (
+                "The existing-text replacement may have started, but its final outcome "
+                "could not be independently established. ESCALATION_REQUIRED: do not "
+                "retry or start another replacement. Preserve the backups, keep the "
+                "application-wide write lock active, and perform read-only diagnosis.\n\n"
+                f"Stage: {error.stage}\nDetails: {error}"
+            )
         if error.write_started:
             return (
                 "The guarded replacement stopped after the device operation began. "
@@ -749,6 +764,36 @@ def launch_ttk_desktop(
     root.minsize(*LIBRARY_MINIMUM_GEOMETRY)
     model = DesktopWorkflowModel()
     library_execution_facade = execution_facade or LibraryTransferExecutionFacade()
+    replacement_safety_owner: Optional[PersistentWriteSafetyOwner]
+    configured_runtime = library_execution_facade.runtime
+    if configured_runtime is None:
+        try:
+            replacement_safety_owner = create_default_application_write_safety_owner()
+        except (WriteSafetyBoundaryError, OSError, ValueError) as exc:
+            replacement_safety_owner = None
+            replacement_safety_configuration_error = str(exc)
+        else:
+            replacement_safety_configuration_error = None
+    elif (
+        isinstance(configured_runtime.execution_claim_store, PersistentExecutionClaimStore)
+        and isinstance(
+            configured_runtime.indeterminate_write_lock,
+            PersistentIndeterminateWriteLock,
+        )
+    ):
+        replacement_safety_owner = PersistentWriteSafetyOwner(
+            execution_claim_store=configured_runtime.execution_claim_store,
+            indeterminate_write_lock=configured_runtime.indeterminate_write_lock,
+        )
+        replacement_safety_configuration_error = None
+    else:
+        # Never silently create a second installation-wide store when a
+        # configured Library runtime has incomplete safety state.
+        replacement_safety_owner = None
+        replacement_safety_configuration_error = (
+            "the configured Library runtime does not provide the shared persistent "
+            "claim store and indeterminate-write lock"
+        )
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
     worker: Optional[threading.Thread] = None
@@ -774,6 +819,17 @@ def launch_ttk_desktop(
     backup_var = tk.StringVar(value="No backup loaded")
     details_var = tk.StringVar(value="Select a file or folder")
     tree_items: Dict[str, int] = {}
+
+    def replacement_write_safety_available() -> bool:
+        """Keep the replacement affordance closed when shared state is unsafe."""
+
+        if replacement_safety_owner is None:
+            return False
+        try:
+            replacement_safety_owner.assert_execution_boundary_available()
+        except Exception:
+            return False
+        return True
 
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True, padx=8, pady=(8, 0))
@@ -2099,7 +2155,13 @@ def launch_ttk_desktop(
             image_preview.pack_forget()
             preview.pack(fill="both", expand=True)
             _set_readonly_text(preview, format_text_replacement_preview(report))
-            write_button.configure(state="normal" if worker is None else "disabled")
+            write_button.configure(
+                state=(
+                    "normal"
+                    if worker is None and replacement_write_safety_available()
+                    else "disabled"
+                )
+            )
             status_var.set(model.state.status)
         except DesktopWorkflowError as exc:
             messagebox.showerror(
@@ -2108,6 +2170,29 @@ def launch_ttk_desktop(
 
     def replacement_write_action() -> None:
         nonlocal worker
+        if replacement_safety_owner is None:
+            write_button.configure(state="disabled")
+            status_var.set(
+                "Existing-text replacement is disabled fail-closed: the shared "
+                "persistent write-safety boundary is unavailable"
+            )
+            messagebox.showerror(
+                "Replace selected text",
+                (
+                    "Existing-text replacement is disabled fail-closed because its "
+                    "application-wide persistent claim/marker/lock boundary is unavailable.\n\n"
+                    f"Details: {replacement_safety_configuration_error or 'unknown safety configuration error'}"
+                ),
+                parent=root,
+            )
+            return
+        if not replacement_write_safety_available():
+            write_button.configure(state="disabled")
+            status_var.set(
+                "Existing-text replacement is blocked: application-wide write safety "
+                "requires read-only diagnosis"
+            )
+            return
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         if len(selected) != 1 or model.state.preview_report is None:
             messagebox.showinfo(
@@ -2196,7 +2281,11 @@ def launch_ttk_desktop(
                             progress=progress,
                         )
 
-                    result = ExistingTextReplacementWorkflow(capture, send).run(
+                    result = ExistingTextReplacementWorkflow(
+                        capture,
+                        send,
+                        safety_owner=replacement_safety_owner,
+                    ).run(
                         backup_destination=before_destination,
                         post_write_destination=after_destination,
                         preview_report=report,

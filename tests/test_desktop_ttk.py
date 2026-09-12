@@ -85,6 +85,12 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("from tkinter import filedialog, messagebox, simpledialog, ttk", source)
         self.assertIn("simpledialog.askstring", inspect.getsource(launch_ttk_desktop))
 
+    def test_existing_replacement_write_uses_application_wide_safety_owner(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("replacement_write_safety_available", source)
+        self.assertIn("safety_owner=replacement_safety_owner", source)
+        self.assertIn("Existing-text replacement is disabled fail-closed", source)
+
     def test_hierarchical_device_tree_preview_is_exact_and_capacity_is_explicit(self):
         summary = format_library_device_tree_preview(
             {
