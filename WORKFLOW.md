@@ -39,7 +39,7 @@ There are no permanent Junior Engineer or Secretary roles. The Task Executor own
 
 ### Reviewer
 
-Independent review is selective. For required R2/R3 review, give the reviewer a bounded review packet, but require independent inspection of the exact commit or diff, relevant source, relevant tests and results, cited evidence where applicable, and applicable safety and acceptance requirements. The executor's summary is navigational context, not evidence of correctness. Use a finite repair loop: implementation -> review -> correction -> re-review, with at most two material correction rounds before disagreement becomes `ESCALATION_REQUIRED`.
+Independent review is selective. For required R2/R3 review, give the reviewer a bounded review packet, but require independent inspection of the exact commit or diff, relevant source, relevant tests and results, cited evidence where applicable, and applicable safety and acceptance requirements. The executor's summary is navigational context, not evidence of correctness. Use a finite repair loop: implementation -> review -> correction -> re-review. Two material correction rounds trigger mandatory PM reassessment; that is an escalation checkpoint, not an unconditional stop. PM may authorize one further tightly bounded correction when the finding is understood, scope has not expanded, and the risk remains acceptable; otherwise the task stops as `ESCALATION_REQUIRED`.
 
 ### Human tester/operator
 
@@ -98,8 +98,10 @@ write/authorization/recovery changes, exact restore, interruption testing,
 firmware/service/alternate modes, and destructive operations outside an
 enabled profile. An enabled Experimental operation uses an in-app,
 transaction-specific confirmation. Keep at most two active streams—Product
-Delivery and Legacy Oracle—and at most two material correction rounds. Do not
-add phase/milestone/smoke-named production modules or parallel live pipelines.
+Delivery and Legacy Oracle—and use two material correction rounds as the normal
+review budget. Reaching that budget triggers mandatory PM reassessment rather
+than automatic termination. Do not add phase/milestone/smoke-named production
+modules or parallel live pipelines.
 
 Model support is explicit, not inferred from the product name. VNW-V15 is the
 only verified model profile; VNW-V10 remains

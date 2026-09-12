@@ -29,6 +29,12 @@ side are redesigned around backup, preview, confirmation, and verification.
    is the only intended content change, but the device protocol rewrites a
    complete candidate library image. Explain that timing is not proportional
    to the selected file size.
+9. Represent prepared content once across source types and product surfaces.
+   Simplify the user's concepts and workflow without simplifying the safety
+   boundary that protects the device.
+10. Keep technical evidence discoverable but out of the normal owner-facing
+    path. Claims, hashes, seals, and manifests belong in Technical details;
+    normal status should use clear, stable product states.
 
 ## Release Scope
 
@@ -140,6 +146,18 @@ back into the same queue-plan/readiness state, which recomputes capacity
 readiness and preserves the evidence binding. Offline or stale capacity values
 do not substitute for that fresh evidence.
 
+All supported source types should converge on one prepared-content contract.
+Conversion is Library preparation, not a second transfer application or a
+USB-aware subsystem:
+
+`source → normalize/render → preview → prepared artifact → Library → transfer`
+
+The prepared artifact records its source, conversion profile, deterministic
+outputs, warnings, and provenance once. Transfer eligibility is a capability
+of that artifact and its exact target/profile, not a separate kind of content.
+This unification is a product direction for the next host-only work; it does
+not expand the capability matrix or make a new shape live.
+
 ### v1.0 — General content manager
 
 Subject to format evidence and safety tests, a user can:
@@ -221,6 +239,20 @@ Mode. Host Library capacity and device capacity must always be labeled
 separately. Routine success uses status and console feedback; modal dialogs
 are reserved for ambiguity, destructive risk, or unrecoverable failure.
 
+The owner-facing experience should read as one simple progression:
+
+`Add to Library → Prepare → Preview → Ready to transfer → Transfer in progress → Transferred and verified`
+
+The application should keep claims, hashes, seals, operation identities, and
+evidence manifests behind an optional Technical details view. Readiness and
+outcomes are typed domain values with stable reason codes; user-facing prose is
+rendered from those values rather than parsed back into product decisions.
+Long-running preparation, backup, preflight, and transfer work belongs in one
+background operation controller so the Library and Device Bay remain
+responsive. A future prepared-content path should use generic validated
+operation data; historical P18-specific identities remain evidence and
+compatibility context rather than becoming new production concepts.
+
 ## Device-model boundary
 
 The first capability is explicitly bound to the reviewed Sony InfoCarry
@@ -246,6 +278,11 @@ documented recovery decision.
 - deliberate interrupted-write testing on the owner's only valuable unit;
   such tests require a second or sacrificial VNW-V15 and a separate protocol;
 - literal reproduction of destructive legacy bulk-replacement commands.
+- consolidating SQLite safety state and JSON artifacts until migration and
+  crash-consistency risks are understood; one safety-state owner remains
+  required even while storage formats stay separate;
+- plugin frameworks, a broad GUI rewrite, automatic synchronization, and
+  general sync behavior before the bounded product workflow is proven.
 
 ## Distribution Policy
 
@@ -257,6 +294,11 @@ or a public download is offered. An unsigned or ad-hoc-signed macOS app may be
 added as a convenience without changing the device-safety gates. Any write
 release remains labeled experimental until the recovery gate above is closed;
 distribution convenience must not imply risk-free device mutation.
+
+Windows packaging remains an investigation rather than a compatibility claim.
+Clean-install testing must cover the selected Tk runtime, libusb deployment,
+declared Windows x64/ARM environments, and the actual packaged application
+before any requirement is relaxed or a Windows capability is advertised.
 
 ## Success Measure
 
