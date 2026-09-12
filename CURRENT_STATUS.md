@@ -2,6 +2,23 @@
 
 Date: 2026-09-12
 
+## Current direction after P18-020
+
+The Astra architecture/product review has been dispositioned as advisory
+project guidance. P18-020 is complete on canonical `main` at
+`a158eaf30b234b37b86442c9b3a21860c9532e62` after PR #46 and resolves the
+known application-wide existing-text write-safety bypass. All reachable
+product write routes now use the shared persistent claim, sender-marker, and
+installation-wide indeterminate-lock boundary.
+
+The next physical operation, if approved, must be a new P18-021 operation
+with fresh owner authorization. The current host-only direction is to unify
+prepared content, integrate conversion into Library preparation, simplify the
+owner-facing states, use typed readiness/outcome reasons, and move long work
+behind one background controller. None of these decisions expands
+`CAPABILITY_MATRIX.md`; VNW-V10, broader shapes, restore, synchronization, and
+recovery remain unavailable.
+
 ## P18-015 VNW-V15 physical validation
 
 P18-015 is **PHYSICALLY COMPLETE — TERMINAL READ-BACK VERIFIED** on
@@ -130,10 +147,12 @@ requires a separate operation-specific PM/owner decision.
 
 ## P18-020 application-wide write safety closure
 
-P18-020 closes the reachable existing-text replacement write-path gap on the
-host. The replacement route now uses the same persistent application-wide
-claim-store, sender-start marker, and indeterminate-write lock boundary as the
-Library coordinator through one neutral `PersistentWriteSafetyOwner`. Its
+P18-020 is **COMPLETE** on canonical `main` at
+`a158eaf30b234b37b86442c9b3a21860c9532e62` after PR #46. It closes the
+reachable existing-text replacement write-path gap on the host. The
+replacement route now uses the same persistent application-wide claim-store,
+sender-start marker, and indeterminate-write lock boundary as the Library
+coordinator through one neutral `PersistentWriteSafetyOwner`. Its
 operation-specific candidate builder, authorization gate, one-call sender, and
 terminal semantic read-back verifier remain unchanged in scope. The route
 consumes one durable claim, commits one marker before sender entry, never
@@ -143,13 +162,27 @@ active lock/marker state, and corrupt claim state fail closed before sender
 entry. Offline replacement preview remains available; the write affordance
 also remains disabled if the shared safety owner cannot be configured.
 
-Validation is host-only and deterministic: no device-changing operation, real
-sender call, native `0x101b`, real claim consumption, marker mutation, or lock
-mutation was performed. Temporary fake execution covers replacement safety and
-the P18-008/P18-017/P18-019 Library regressions. Final-head macOS/Windows CI
-and an independent strong R3 review are required before this record is closed.
+The reviewed closure had successful final-head macOS and Windows CI in run
+`34676222163` (jobs `103506450905` and `103506450975`) and independent R3
+review `P0=0, P1=0, P2=0 — PASS`. This documentation task remains host-only:
+no device-changing operation, real sender call, native `0x101b`, real claim
+consumption, marker mutation, or lock mutation is performed.
 
-## Canonical checkpoint
+## Astra architecture/product review disposition
+
+The durable disposition is recorded in
+[`analysis/phase-18-astra-architecture-product-review-disposition-20260912.md`](analysis/phase-18-astra-architecture-product-review-disposition-20260912.md).
+Adopted direction is limited to product architecture and governance: one
+prepared-content concept, Library-integrated conversion, simpler normal UX,
+typed readiness/outcome reasons, one background operation controller, and
+gradual removal of milestone-specific production identities. The permanent
+safety invariants remain unchanged: no automatic retry after ambiguity,
+model-specific capability boundaries, persistent indeterminate-write
+protection, and independent verification. SQLite/JSON storage consolidation
+is deferred, and plugins, a broad GUI rewrite, and automatic synchronization
+are rejected for now.
+
+## Historical canonical checkpoint before P18-015
 
 Canonical `main` is `5d23e8b219507535b2db4b57028602073aa23c61` after merged
 P18-014. P18-004 through P18-014 are complete on the canonical history, and the

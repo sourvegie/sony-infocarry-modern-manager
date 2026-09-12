@@ -3,34 +3,47 @@
 This is the forward-looking delivery plan. Detailed milestone history remains
 in `analysis/` and in the archived roadmap through P18-001A.
 
+The Astra architecture/product review is an advisory input whose project
+decisions are recorded in
+[`analysis/phase-18-astra-architecture-product-review-disposition-20260912.md`](analysis/phase-18-astra-architecture-product-review-disposition-20260912.md).
+P18-020 is complete on canonical `main` and resolves the known
+application-wide existing-text write-safety bypass. The next physical attempt
+is still a new, separately authorized operation; this disposition does not
+authorize hardware use or expand a capability row.
+
 ## Current sequence
 
-1. **P18-001A — Responsive Library review usability:** complete for the
-   bounded owner-observed checks at approximately 980×680 and 1120×760 or
-   larger. This is human GUI evidence only.
-2. **Foundation quality:** resolve font/project licensing, hermetic test
-   behavior, and Windows CI requirements.
-3. **P18-002 — Capability and façade foundation:** complete on the host/offline
-   task branch: define the machine-readable conservative envelope and the
-   host-only staged transfer contract. Live execution remains disabled until
-   later gates.
-4. **Selection, arrangement, preparation, and preview:** integrate explicit
-   file/folder grouping, ordered children, deterministic preparation, and
-   capability/conflict/capacity review without automatic grouping.
-5. **Guarded execution and verification:** separately review the existing
-   one-shot runner, persistent indeterminate lock, fresh backup, exact
-   confirmation, post-backup, and independent semantic read-back boundary.
-6. **Offline matrix and tamper coverage:** exercise unsupported shapes,
-   substitutions, drift, capacity/state failures, indeterminate outcomes, and
-   GUI/CLI isolation.
-7. **Legacy Oracle:** map Manager/VICCTR/VicOne/VicTwo/driver send/delete
-   behavior, intercept final buffers before USB, and compare an offline
-   differential corpus.
-8. **R3 review and one combined GUI hardware smoke:** only the exact reviewed
-   enabled profile may reach a physical test; require fresh operation-specific
-   owner approval and stop on ambiguity.
-9. **Standing Experimental decision:** enable only the exact capability rows
-   whose evidence, product controls, and recovery posture support it.
+1. **P18-021 — Fresh UI-driven physical validation:** if separately approved,
+   repeat only the exact host-ready VNW-V15 TXT → BMP → TXT operation with a
+   fresh target, fresh evidence, and fresh owner authorization. No P18-018 or
+   earlier approval carries forward.
+2. **P18-022 — Prepared-content/product workflow consolidation:** make
+   manager-prepared and imported content use one prepared-content contract;
+   integrate conversion into Library preparation and simplify the
+   Select → Prepare → Preview → Transfer experience without changing the
+   capability matrix.
+3. **P18-023 — Responsive operation controller and typed outcomes:** move
+   long-running preparation, backup, preflight, and transfer work behind one
+   background controller; use typed readiness/outcome reasons and keep
+   engineering evidence in Technical details.
+4. **P18-024 — Useful bounded flat-package expansion:** consider variable
+   TXT/BMP package shapes only after fresh physical UI validation and a new
+   evidence/review gate. No automatic grouping, hierarchy, batch, or recovery
+   claim follows from this sequence.
+5. **Library-integrated ebook preparation and Windows packaging
+   investigation:** extend the offline conversion pipeline and test clean
+   packaged Windows environments, including Tk, libusb, x64, and ARM
+   assumptions. Do not relax runtime requirements or advertise compatibility
+   before those tests pass.
+6. **Later separately gated capability work:** prioritize only evidence-backed
+   selective deletion and other exact shapes; keep restore, synchronization,
+   interruption recovery, and broad format expansion outside the live product.
+
+The repository should gradually remove milestone-specific production
+identities as generic validated operation data becomes available. Historical
+P18 identifiers remain useful in evidence and regression fixtures. SQLite/JSON
+storage consolidation is explicitly deferred; first keep one safety-state
+owner over the existing persistence boundary.
 
 ## Model boundary
 
