@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
+from uuid import uuid4
 
 from .backup_format import (
     BackupExporter,
@@ -213,6 +214,7 @@ class DesktopWorkflowModel:
             # lower-level authoring report keeps its historical extensionless
             # directory/name path for compatibility.
             "target_path": row.display_name,
+            "operation_id": uuid4().hex,
             "device_accessed": False,
             "candidate_bytes_included": False,
         }

@@ -128,6 +128,27 @@ approval. VNW-V10 remains **UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED**;
 broader package shapes remain unavailable. A later physical validation still
 requires a separate operation-specific PM/owner decision.
 
+## P18-020 application-wide write safety closure
+
+P18-020 closes the reachable existing-text replacement write-path gap on the
+host. The replacement route now uses the same persistent application-wide
+claim-store, sender-start marker, and indeterminate-write lock boundary as the
+Library coordinator through one neutral `PersistentWriteSafetyOwner`. Its
+operation-specific candidate builder, authorization gate, one-call sender, and
+terminal semantic read-back verifier remain unchanged in scope. The route
+consumes one durable claim, commits one marker before sender entry, never
+automatically retries, and preserves the global lock and marker when a started
+operation or terminal read-back cannot be proven. Replayed or stale operations,
+active lock/marker state, and corrupt claim state fail closed before sender
+entry. Offline replacement preview remains available; the write affordance
+also remains disabled if the shared safety owner cannot be configured.
+
+Validation is host-only and deterministic: no device-changing operation, real
+sender call, native `0x101b`, real claim consumption, marker mutation, or lock
+mutation was performed. Temporary fake execution covers replacement safety and
+the P18-008/P18-017/P18-019 Library regressions. Final-head macOS/Windows CI
+and an independent strong R3 review are required before this record is closed.
+
 ## Canonical checkpoint
 
 Canonical `main` is `5d23e8b219507535b2db4b57028602073aa23c61` after merged

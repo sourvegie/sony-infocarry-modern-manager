@@ -413,6 +413,15 @@ class PersistentExecutionClaimStore:
         )
         connection.execute(f"PRAGMA user_version={EXECUTION_CLAIM_SCHEMA_VERSION}")
 
+    def validate_integrity(self) -> None:
+        """Revalidate the persistent schema before a write boundary decision."""
+
+        connection = self._open_connection()
+        try:
+            self._ensure_schema(connection)
+        finally:
+            connection.close()
+
     @staticmethod
     def _table_columns(
         connection: sqlite3.Connection,
