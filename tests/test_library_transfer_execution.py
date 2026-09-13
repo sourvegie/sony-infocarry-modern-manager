@@ -291,13 +291,22 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         prepared = self._prepare(setup)
 
         self.assertTrue(prepared.ready)
+        review = prepared.review.to_dict()
         self.assertEqual(
-            prepared.review.to_dict()["package"]["folder_path"],
+            review["package"]["folder_path"],
             "root\\Fresh Library Target",
         )
         self.assertEqual(
-            prepared.review.to_dict()["operation_identity"]["operation_id"],
+            review["operation_identity"]["operation_id"],
             setup["binding"].operation_id,
+        )
+        self.assertEqual(
+            review["operation_identity"]["candidate_blob_length"],
+            prepared.preflight.candidate.audit_dict()["candidate"]["blob_length"],
+        )
+        self.assertEqual(
+            review["operation_identity"]["transaction_payload_length"],
+            prepared.preflight.candidate.audit_dict()["transaction"]["payload_length"],
         )
         self.assertNotIn("20260910", setup["binding"].operation_id)
         self.assertEqual(setup["backend"].calls, [])

@@ -46,6 +46,15 @@ target can reach `READY_FOR_HARDWARE_TEST` through the normal facade while
 preflight consumes no claim, creates no marker, mutates no lock, calls no
 sender, and transmits no `0x101b`. Physical validation is not authorized.
 
+The local final source state passes the focused identity/readiness/UI and
+claim-marker-lock suites, the full Python 3.12 portable suite (797 tests, 3
+intentional skips), compilation, whitespace checks, and the normal-path
+historical-identity scan. Final-head macOS/Windows CI and an independent
+strong R3 exact-head review remain pending because this branch has not been
+published; no push or physical operation was performed. P18-022 therefore
+remains `ESCALATION_REQUIRED / PENDING_REMOTE_CI_AND_INDEPENDENT_R3`, not
+`COMPLETE` or physical authorization.
+
 ## P18-015 VNW-V15 physical validation
 
 P18-015 is **PHYSICALLY COMPLETE — TERMINAL READ-BACK VERIFIED** on

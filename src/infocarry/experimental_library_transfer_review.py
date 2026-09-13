@@ -272,11 +272,35 @@ def _sealed_ready_bindings(
     if not isinstance(candidate, Mapping):
         raise ExperimentalLibraryTransferReviewError("sealed preflight candidate is malformed")
     candidate_summary = candidate.get("candidate")
+    transaction_summary = candidate.get("transaction")
     package = candidate.get("package")
     if not isinstance(candidate_summary, Mapping) or not isinstance(package, Mapping):
         raise ExperimentalLibraryTransferReviewError("sealed preflight candidate summary is malformed")
+    if operation_id is not None and not isinstance(transaction_summary, Mapping):
+        raise ExperimentalLibraryTransferReviewError("sealed preflight transaction summary is missing")
     if candidate_summary.get("blob_sha256") != bundle.get("candidate_blob_sha256"):
         raise ExperimentalLibraryTransferReviewError("candidate hash differs from the operation bundle")
+    candidate_blob_length = candidate_summary.get("blob_length")
+    transaction_payload_length = (
+        transaction_summary.get("payload_length")
+        if isinstance(transaction_summary, Mapping)
+        else None
+    )
+    if operation_id is not None:
+        if (
+            isinstance(candidate_blob_length, bool)
+            or not isinstance(candidate_blob_length, int)
+            or candidate_blob_length < 0
+        ):
+            raise ExperimentalLibraryTransferReviewError("candidate size is missing from the sealed preflight")
+        if (
+            isinstance(transaction_payload_length, bool)
+            or not isinstance(transaction_payload_length, int)
+            or transaction_payload_length < 0
+        ):
+            raise ExperimentalLibraryTransferReviewError("transaction size is missing from the sealed preflight")
+        if transaction_summary.get("sha256") != bundle.get("transaction_sha256"):
+            raise ExperimentalLibraryTransferReviewError("transaction hash differs from the sealed candidate")
     authorization = preflight.get("authorization")
     if not isinstance(authorization, Mapping):
         raise ExperimentalLibraryTransferReviewError("sealed preflight authorization is malformed")
@@ -419,7 +443,8 @@ def _sealed_ready_bindings(
         "capacity_response_sha256": bundle["capacity_response_sha256"],
         "authorization_sha256": bundle["authorization_sha256"],
         "fixed_state_policy": bundle["fixed_state_policy"],
-        "candidate_blob_length": candidate_summary.get("blob_length"),
+        "candidate_blob_length": candidate_blob_length,
+        "transaction_payload_length": transaction_payload_length,
         "candidate_growth_bytes": capacity_values["candidate_growth_bytes"],
         "capacity_limit_bytes": capacity_values["capacity_limit_bytes"],
         "remaining_growth_bytes": allocation.get("remaining_growth_bytes"),
@@ -616,6 +641,7 @@ def build_experimental_library_transfer_review(
             "available": bool(bindings),
             "candidate_blob_sha256": bindings.get("candidate_blob_sha256"),
             "candidate_blob_length": bindings.get("candidate_blob_length"),
+            "transaction_payload_length": bindings.get("transaction_payload_length"),
             "candidate_growth_bytes": bindings.get("candidate_growth_bytes"),
         },
         "operation_identity": {},
@@ -665,6 +691,8 @@ def build_experimental_library_transfer_review(
         "candidate_blob_sha256": bindings.get("candidate_blob_sha256"),
         "transaction_sha256": bindings.get("transaction_sha256"),
         "authorization_sha256": bindings.get("authorization_sha256"),
+        "candidate_blob_length": bindings.get("candidate_blob_length"),
+        "transaction_payload_length": bindings.get("transaction_payload_length"),
         "confirmation_phrase": binding["confirmation_phrase"],
         "confirmation_policy": binding["confirmation_policy"],
         "fixed_state_policy": bindings.get("fixed_state_policy"),

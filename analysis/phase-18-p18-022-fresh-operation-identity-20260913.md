@@ -1,9 +1,9 @@
 # P18-022 — Fresh Operation Identity Generalization
 
-Date: 2026-09-13  
-Repository: `sourvegie/sony-infocarry-modern-manager`  
-Canonical base: `e98d310878ea92d541217b29155bee2b69007af8`  
-Branch: `task/P18-022-fresh-operation-identity`  
+Date: 2026-09-13
+Repository: `sourvegie/sony-infocarry-modern-manager`
+Canonical base: `e98d310878ea92d541217b29155bee2b69007af8`
+Branch: `task/P18-022-fresh-operation-identity`
 Risk: **R3 host-side product/safety integration correction**
 
 ## Disposition
@@ -138,16 +138,23 @@ Targeted host suites completed during implementation:
 - `test_library_transfer_readiness.py`: 9 passing;
 - `test_desktop_ttk.py`: 17 passing.
 
-The full portable Python 3.12 suite, compilation, `git diff --check`, final
-head macOS CI, final head Windows CI, and independent exact-head strong R3
-review are required before this record can be marked
-`READY_FOR_HARDWARE_TEST`. No physical validation is part of P18-022.
+At the final local source state, the complete portable Python 3.12 suite
+passed with 797 tests and 3 intentional skips. Compilation with a temporary
+bytecode cache and `git diff --check` also passed. The normal facade/adapter/UI
+historical-identity scan was clean, and the exact-head static/manual safety
+review found no P0/P1/P2 issue in the local change set.
+
+Final-head macOS CI, final-head Windows CI, and an independent exact-head
+strong R3 review remain required. The branch has not been pushed, so those
+external checks have not been run and this record remains
+`ESCALATION_REQUIRED / PENDING_REMOTE_CI_AND_INDEPENDENT_R3`. No physical
+validation is part of P18-022.
 
 ## Exit
 
-P18-022 may be reported as `READY_FOR_HARDWARE_TEST` only after the remaining
-host validation and independent R3 review are clean. That state means host
-preparation is complete and no physical action has occurred; it is not owner
-authorization and it is not hardware success. After that disposition, stop
-for PM/owner direction. The later physical validation must receive a new task
-number and a new owner approval phrase.
+P18-022 may be reported as `READY_FOR_HARDWARE_TEST` only after final-head
+macOS/Windows CI and the independent strong R3 review are clean. That state
+means host preparation is complete and no physical action has occurred; it is
+not owner authorization and it is not hardware success. After that
+disposition, stop for PM/owner direction. The later physical validation must
+receive a new task number and a new owner approval phrase.
