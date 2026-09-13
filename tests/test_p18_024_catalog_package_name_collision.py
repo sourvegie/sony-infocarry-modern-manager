@@ -132,6 +132,35 @@ class P18024CatalogPackageNameCollisionTests(unittest.TestCase):
             "root\\P18-023 target A",
         )
 
+    def test_p18_025_exact_target_passes_00_package_projection(self):
+        package = self._package("p18-025", "IC_P18_LIBRARY_20260913_03")
+        catalog = LibraryCatalog(self.root / "p18-025" / "library.json")
+
+        item = catalog.import_prepared_package(package)
+        self.assertEqual(item.source_filename, "IC_P18_LIBRARY_20260913_03")
+        self.assertEqual(item.package.folder_name, "IC_P18_LIBRARY_20260913_03")
+        self.assertEqual(item.package.root_path, str(package))
+        self.assertEqual(package.name, "00-package")
+
+        plan = build_library_transfer_queue_plan(
+            catalog,
+            selected_item_ids=[item.item_id],
+            selection_mode=SELECTION_SELECTED,
+            backup=_verified_backup(self.root / "p18-025-backup", make_nested_blob()),
+            available_capacity_bytes=100_000,
+        )
+        self.assertTrue(plan.review_ready)
+        self.assertTrue(plan.queue_ready)
+        report = plan.to_dict()
+        self.assertEqual(
+            report["items"][0]["destination"]["folder_path"],
+            "root\\IC_P18_LIBRARY_20260913_03",
+        )
+        self.assertEqual(
+            [child["kind"] for child in report["items"][0]["prepared_artifact"]["ordered_children"]],
+            ["txt", "bmp", "txt"],
+        )
+
     def test_true_duplicate_owner_visible_package_roots_still_fail_closed(self):
         first = self._package("first", "same owner root")
         second = self._package("second", "same owner root")

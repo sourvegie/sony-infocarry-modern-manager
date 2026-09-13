@@ -54,10 +54,11 @@ except ModuleNotFoundError:
 
 
 NOW = datetime(2026, 9, 10, tzinfo=timezone.utc)
-FRESH_TEST_TARGET = "IC_P18_LIBRARY_20260913_02"
+FRESH_TEST_TARGET = "IC_P18_LIBRARY_20260913_03"
 HISTORICAL_P18_021_TARGET = "IC_P18_LIBRARY_20260913_01"
+HISTORICAL_P18_023_TARGET = "IC_P18_LIBRARY_20260913_02"
 FRESH_CONFIRMATION = f"ADD {FRESH_TEST_TARGET} ONCE"
-FRESH_OWNER_APPROVAL = "APPROVE P18-023 V15 UI PHYSICAL VALIDATION 01"
+FRESH_OWNER_APPROVAL = "APPROVE P18-025 V15 UI PHYSICAL VALIDATION 01"
 
 
 def _capacity_response_with_limit(limit: int) -> NativeCapacityResponse:
@@ -122,7 +123,10 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             ),
             target,
         )
-        package_root = export_prepared_media_package(package, root / "package")
+        # Exercise the corrected P18-024 representation seam: the physical
+        # archive envelope is intentionally named 00-package, while the
+        # manifest target remains the owner-visible Library identity.
+        package_root = export_prepared_media_package(package, root / "00-package")
         catalog = LibraryCatalog(root / "catalog" / "library.json")
         item = catalog.import_prepared_package(package_root)
         plan = build_library_transfer_queue_plan(
@@ -285,7 +289,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
         self.assertIsNone(setup["lock"].read())
 
-    def test_p18_023_fresh_target_reaches_host_ready_through_normal_facade(self):
+    def test_p18_025_fresh_target_reaches_host_ready_through_normal_facade(self):
         setup = self._setup(target=FRESH_TEST_TARGET)
         self.addCleanup(setup["temporary"].cleanup)
         self._patch_template_hashes(setup)
@@ -314,7 +318,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertEqual(setup["backend"].calls, [])
         self.assertEqual(self._claim_count(setup), 0)
 
-    def test_p18_023_host_readiness_never_enters_write_boundary(self):
+    def test_p18_025_host_readiness_never_enters_write_boundary(self):
         setup = self._setup(target=FRESH_TEST_TARGET)
         self.addCleanup(setup["temporary"].cleanup)
 
@@ -329,7 +333,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertFalse(review["eligibility"]["execution_action_exposed"])
         self.assertEqual(review["safety"]["device_change"], "none")
 
-    def test_p18_023_prior_target_is_not_privileged(self):
+    def test_p18_025_prior_target_is_not_privileged(self):
         current = LibraryTransferOperationBinding(
             target_folder_name=FRESH_TEST_TARGET,
             owner_approval_phrase=FRESH_OWNER_APPROVAL,
@@ -342,6 +346,8 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertNotEqual(current.operation_id, prior.operation_id)
         self.assertNotEqual(current.target_folder_name, HISTORICAL_P18_021_TARGET)
         self.assertNotIn(HISTORICAL_P18_021_TARGET, current.to_dict()["target_folder_name"])
+        self.assertNotEqual(current.target_folder_name, HISTORICAL_P18_023_TARGET)
+        self.assertNotIn(HISTORICAL_P18_023_TARGET, current.to_dict()["target_folder_name"])
         with self.assertRaises(ValueError):
             LibraryTransferOperationBinding(
                 target_folder_name=FRESH_TEST_TARGET,
@@ -378,20 +384,22 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             self.assertNotIn("vnw-v15-library-ui-validation-20260910-01", source)
 
     def test_p18_021_strings_and_scalar_capacity_cannot_unlock_execution(self):
+        for marker in ("P18-015", "P18-018", "P18-021", "P18-022", "P18-023"):
+            with self.subTest(marker=marker):
+                with self.assertRaises(ValueError):
+                    LibraryTransferOperationBinding(
+                        target_folder_name=FRESH_TEST_TARGET,
+                        owner_approval_phrase=f"APPROVE {marker} V15 UI PHYSICAL VALIDATION 01",
+                    )
+                with self.assertRaises(ValueError):
+                    LibraryTransferOperationBinding(
+                        target_folder_name=FRESH_TEST_TARGET,
+                        confirmation_phrase=f"historical {marker} confirmation",
+                    )
         with self.assertRaises(ValueError):
             LibraryTransferOperationBinding(
                 target_folder_name=FRESH_TEST_TARGET,
-                owner_approval_phrase="historical P18-021 approval",
-            )
-        with self.assertRaises(ValueError):
-            LibraryTransferOperationBinding(
-                target_folder_name=FRESH_TEST_TARGET,
-                confirmation_phrase="historical P18-021 confirmation",
-            )
-        with self.assertRaises(ValueError):
-            LibraryTransferOperationBinding(
-                target_folder_name=FRESH_TEST_TARGET,
-                owner_approval_phrase="APPROVE P18-022 FRESH OPERATION IDENTITY",
+                confirmation_phrase=f"ADD {HISTORICAL_P18_023_TARGET} ONCE",
             )
 
         setup = self._setup()
@@ -786,6 +794,11 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             LibraryTransferOperationBinding(
                 target_folder_name=FRESH_TEST_TARGET,
                 confirmation_phrase="ADD IC_P18_LIBRARY_20260913_01 ONCE",
+            )
+        with self.assertRaises(ValueError):
+            LibraryTransferOperationBinding(
+                target_folder_name=FRESH_TEST_TARGET,
+                confirmation_phrase=f"ADD {HISTORICAL_P18_023_TARGET} ONCE",
             )
 
     def test_wrong_model_is_rejected_before_read_only_preflight(self):
