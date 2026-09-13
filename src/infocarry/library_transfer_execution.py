@@ -47,7 +47,7 @@ FRESH_AUXILIARY_STATE_POLICY = (
     "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e"
 )
 FRESH_CHILD_KINDS = ("txt", "bmp", "txt")
-HISTORICAL_OPERATION_MARKERS = ("P18-015", "P18-018", "P18-021")
+HISTORICAL_OPERATION_MARKERS = ("P18-015", "P18-018", "P18-021", "P18-022")
 
 
 class LibraryTransferExecutionError(RuntimeError):

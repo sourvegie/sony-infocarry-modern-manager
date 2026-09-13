@@ -2,6 +2,29 @@
 
 Date: 2026-09-13
 
+## Current direction after P18-023 preparation
+
+P18-023 is the current host-only preparation branch from canonical `main` at
+`011dd531f7257b919e262ed4349abc153642e668`. It prepares the fresh dynamic
+target `IC_P18_LIBRARY_20260913_02` through the normal Library
+Select → Arrange → Prepare → Preview → Review transfer → fresh preflight →
+sealed coordinator lifecycle. The deterministic preparation boundary performs
+no USB access, sender call, real claim consumption, sender-marker mutation,
+installation-wide lock mutation, or real `0x101b` transmission. The later
+physical stage would require the new owner phrase
+`APPROVE P18-023 V15 UI PHYSICAL VALIDATION 01`; its derived runtime
+confirmation is `ADD IC_P18_LIBRARY_20260913_02 ONCE`. Neither string in this
+status file or any source/test artifact authorizes execution.
+
+P18-023 must not reuse `IC_P18_LIBRARY_20260913_01` from concluded P18-021 or
+the historical `IC_P18_LIBRARY_20260910_01`. The exact capability boundary is
+unchanged: VNW-V15 `0x054c:0x001e`, one absent root, exactly TXT → BMP → TXT,
+one transaction, no overwrite/delete/nesting/merge/VNW-V10/retry/restore/sync.
+The host exit is `READY_FOR_HARDWARE_TEST` only after focused and full local
+validation, final-head macOS and Windows CI, and an independent strong R3
+exact-head review with `P0=0, P1=0, P2=0 — PASS`. No physical transaction is
+part of P18-023 preparation.
+
 ## Current direction after P18-020
 
 The Astra architecture/product review has been dispositioned as advisory
@@ -14,11 +37,21 @@ installation-wide indeterminate-lock boundary.
 P18-021 is now preserved as a historical host-only
 `ESCALATION_REQUIRED` stop: its normal UI/adapter still used a milestone-bound
 operation identity and it never reached hardware readiness. P18-022 is the
-new host-only correction on branch
-`task/P18-022-fresh-operation-identity`; it generalizes the typed operation
-binding without adding a transfer pipeline or expanding the capability
-envelope. None of these decisions expands `CAPABILITY_MATRIX.md`; VNW-V10,
-broader shapes, restore, synchronization, and recovery remain unavailable.
+completed correction on canonical `main` at
+`011dd531f7257b919e262ed4349abc153642e668`; it generalizes the typed
+operation binding without adding a transfer pipeline or expanding the
+capability envelope. None of these decisions expands `CAPABILITY_MATRIX.md`;
+VNW-V10, broader shapes, restore, synchronization, and recovery remain
+unavailable.
+
+P18-023 documentation and deterministic host preparation are carried on the
+separate branch named above. The required final-head remote CI and independent
+R3 review determine whether the branch may be reported `READY_FOR_HARDWARE_TEST`.
+The local working tree passes 112 focused tests, the full portable Python 3.12
+suite (799 tests, 3 intentional skips), compilation, `git diff --check`, and
+the production stale-target scan; `CAPABILITY_MATRIX.md` is unchanged. The
+branch is not yet published, so final-head macOS/Windows CI and independent R3
+remain pending.
 
 ## P18-021 historical blocker and P18-022 fresh operation identity
 
@@ -46,14 +79,12 @@ target can reach `READY_FOR_HARDWARE_TEST` through the normal facade while
 preflight consumes no claim, creates no marker, mutates no lock, calls no
 sender, and transmits no `0x101b`. Physical validation is not authorized.
 
-The local final source state passes the focused identity/readiness/UI and
+The P18-022 final source state passed the focused identity/readiness/UI and
 claim-marker-lock suites, the full Python 3.12 portable suite (797 tests, 3
-intentional skips), compilation, whitespace checks, and the normal-path
-historical-identity scan. Final-head macOS/Windows CI and an independent
-strong R3 exact-head review remain pending because this branch has not been
-published; no push or physical operation was performed. P18-022 therefore
-remains `ESCALATION_REQUIRED / PENDING_REMOTE_CI_AND_INDEPENDENT_R3`, not
-`COMPLETE` or physical authorization.
+intentional skips), compilation, whitespace checks, final-head macOS and
+Windows CI, and an independent strong R3 exact-head review with
+`P0=0, P1=0, P2=0 — PASS`. P18-022 is therefore `COMPLETE` on canonical
+`main`; this does not authorize physical validation.
 
 ## P18-015 VNW-V15 physical validation
 
