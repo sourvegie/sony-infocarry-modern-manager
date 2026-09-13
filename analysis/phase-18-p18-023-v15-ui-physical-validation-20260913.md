@@ -7,7 +7,29 @@ Branch: `task/P18-023-v15-ui-physical-validation`
 Risk: **R3 physical-validation preparation**
 Preparation boundary: **HOST-ONLY**
 
-## Disposition
+## Final disposition
+
+P18-023 is concluded as **BLOCKED before sender entry**. The normal
+facade/catalog path failed closed with:
+
+```text
+duplicate sibling name in Library: 00-package
+```
+
+This is not success and not an ambiguous post-send escalation. Sender calls,
+real `0x101b`, retries, claim creation/consumption, sender-marker mutation,
+installation-wide lock mutation, and device mutation were all zero. Fresh live
+V15/session evidence was not reached; capacity, live target absence, backup,
+candidate, transaction, verifier, and post-backup were not reached. The
+sender marker remained `none`, the installation-wide lock remained `cleared`,
+and P18-023 authorization and confirmation are concluded and must not be
+reused.
+
+The preparation intent below is preserved as historical context only and is
+superseded by this blocked disposition. P18-024 records and corrects the
+catalog representation seam without performing physical validation.
+
+## Original preparation intent (superseded)
 
 P18-021 remains a historical `ESCALATION_REQUIRED` stop. P18-022 is
 `COMPLETE` on canonical `main` after PR #48. P18-023 is a new host-only

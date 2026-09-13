@@ -2,9 +2,48 @@
 
 Date: 2026-09-13
 
-## Current direction after P18-023 preparation
+## Current direction after P18-024 host-only correction
 
-P18-023 is the current host-only preparation branch from canonical `main` at
+P18-024 is the host-only correction on branch
+`task/P18-024-catalog-package-name-collision`, based on canonical
+`818a9da5e9dd3fb6273d778a009dc8168c114c8c`. It corrects the Library catalog
+projection seam that treated an offline package envelope basename as an
+owner-visible sibling name. The P18 fixture envelope `00-package` now remains
+physical archive detail; the manifest's validated logical target folder is
+the deterministic Library node name. The normal catalog/package queue gate
+accepts the exact TXT → BMP → TXT package while genuine owner-visible
+duplicates still fail closed. `CAPABILITY_MATRIX.md` is unchanged.
+
+### P18-023 — BLOCKED before sender entry
+
+P18-023 is concluded as **BLOCKED before sender entry**, not success and not
+an ambiguous post-send escalation. The normal facade/catalog path stopped on
+`duplicate sibling name in Library: 00-package`. Preserved facts are:
+
+- sender calls = 0; real `0x101b` = 0; retries = 0;
+- claim created/consumed = 0; sender marker remained `none`;
+- installation-wide lock remained `cleared`; device mutation = 0;
+- fresh live V15/session evidence was not reached;
+- capacity, live target-absence, backup, candidate, transaction, verifier,
+  and post-backup were not reached;
+- P18-023 authorization and confirmation are concluded and must not be reused.
+
+P18-024 does not perform physical validation and does not activate a new
+physical authorization. Its supported boundary remains VNW-V15 only, one
+absent destination root, exactly three direct children in TXT → BMP → TXT,
+with no overwrite, deletion, nesting, merge, second package, VNW-V10,
+broader shape, grouping, retry, restore, synchronization, or recovery
+expansion. A possible future physical task may reserve a new target such as
+`IC_P18_LIBRARY_20260913_03`; that value is not special in production code.
+
+Local focused validation is green. Final-head macOS CI, Windows CI, and a
+fresh independent strong R3 review remain required before P18-024 can be
+reported **COMPLETE**; the required R3 disposition is
+`P0=0, P1=0, P2=0 — PASS`.
+
+## Historical P18-023 preparation record
+
+P18-023 was the host-only preparation branch from canonical `main` at
 `011dd531f7257b919e262ed4349abc153642e668`. It prepares the fresh dynamic
 target `IC_P18_LIBRARY_20260913_02` through the normal Library
 Select → Arrange → Prepare → Preview → Review transfer → fresh preflight →
@@ -44,14 +83,10 @@ capability envelope. None of these decisions expands `CAPABILITY_MATRIX.md`;
 VNW-V10, broader shapes, restore, synchronization, and recovery remain
 unavailable.
 
-P18-023 documentation and deterministic host preparation are carried on the
-separate branch named above. The required final-head remote CI and independent
-R3 review determine whether the branch may be reported `READY_FOR_HARDWARE_TEST`.
-The local working tree passes 112 focused tests, the full portable Python 3.12
-suite (799 tests, 3 intentional skips), compilation, `git diff --check`, and
-the production stale-target scan; `CAPABILITY_MATRIX.md` is unchanged. The
-branch is not yet published, so final-head macOS/Windows CI and independent R3
-remain pending.
+P18-023's documentation and deterministic host preparation remain historical
+reference only. P18-024 is the active host-only correction branch; its final-
+head remote CI and independent R3 review determine whether it may be reported
+`COMPLETE`. `CAPABILITY_MATRIX.md` remains unchanged.
 
 ## P18-021 historical blocker and P18-022 fresh operation identity
 

@@ -276,7 +276,7 @@ def _validate_selected_package(
     manifest_size = imported.manifest_path.stat().st_size
     if (
         item.source_path != str(imported.root)
-        or item.source_filename != imported.root.name
+        or item.source_filename != imported.package.folder_name
         or item.source_sha256 != imported.manifest_sha256
         or item.source_size_bytes != manifest_size
         or item.observed_source_sha256 != imported.manifest_sha256
