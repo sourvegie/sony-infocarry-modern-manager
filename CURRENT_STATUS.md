@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-09-12
+Date: 2026-09-13
 
 ## Current direction after P18-020
 
@@ -11,13 +11,40 @@ known application-wide existing-text write-safety bypass. All reachable
 product write routes now use the shared persistent claim, sender-marker, and
 installation-wide indeterminate-lock boundary.
 
-The next physical operation, if approved, must be a new P18-021 operation
-with fresh owner authorization. The current host-only direction is to unify
-prepared content, integrate conversion into Library preparation, simplify the
-owner-facing states, use typed readiness/outcome reasons, and move long work
-behind one background controller. None of these decisions expands
-`CAPABILITY_MATRIX.md`; VNW-V10, broader shapes, restore, synchronization, and
-recovery remain unavailable.
+P18-021 is now preserved as a historical host-only
+`ESCALATION_REQUIRED` stop: its normal UI/adapter still used a milestone-bound
+operation identity and it never reached hardware readiness. P18-022 is the
+new host-only correction on branch
+`task/P18-022-fresh-operation-identity`; it generalizes the typed operation
+binding without adding a transfer pipeline or expanding the capability
+envelope. None of these decisions expands `CAPABILITY_MATRIX.md`; VNW-V10,
+broader shapes, restore, synchronization, and recovery remain unavailable.
+
+## P18-021 historical blocker and P18-022 fresh operation identity
+
+P18-021 remains a concluded safe pre-write stop. Its documentation-only
+history is carried forward on the P18-022 branch, and its historical approval
+and confirmation material is inert. No USB, sender, claim, marker, or
+installation-wide lock operation occurred for that task.
+
+P18-022 removes the normal facade/adapter dependency on the former dated
+target and operation identity. A caller must supply an ordinary valid target
+component; the typed binding derives the transaction confirmation and a
+deterministic binding identifier from the current reviewed VNW-V15 policy.
+The sealed review identity then combines that binding with the selected
+prepared package and child order, fresh verified baseline/state identity,
+fresh typed native `0x0019` capacity provenance, candidate and transaction
+hashes, authorization, preflight/core seals, and the reviewed auxiliary-state
+policy. Changing any reviewed selection or evidence invalidates actionability
+and requires a new preflight/review.
+
+The exact supported boundary is unchanged: one prepared root with three direct
+children in TXT → BMP → TXT order, one absent destination root, no overwrite,
+delete, nesting, merge, second package, VNW-V10, retry, restore, or sync
+expansion. Host deterministic-fake coverage proves an arbitrary valid fresh
+target can reach `READY_FOR_HARDWARE_TEST` through the normal facade while
+preflight consumes no claim, creates no marker, mutates no lock, calls no
+sender, and transmits no `0x101b`. Physical validation is not authorized.
 
 ## P18-015 VNW-V15 physical validation
 

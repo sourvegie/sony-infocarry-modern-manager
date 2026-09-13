@@ -17,10 +17,6 @@ from infocarry.device_info import RawInfoResponse
 from infocarry.library import LibraryCatalog
 from infocarry.library_transfer_execution import (
     FRESH_AUXILIARY_STATE_POLICY,
-    FRESH_CONFIRMATION,
-    FRESH_VALIDATION_TARGET,
-    HISTORICAL_P18_015_OWNER_APPROVAL,
-    HISTORICAL_P18_015_TARGET,
     LibraryTransferExecutionError,
     LibraryTransferExecutionFacade,
     LibraryTransferExecutionRuntime,
@@ -58,6 +54,8 @@ except ModuleNotFoundError:
 
 
 NOW = datetime(2026, 9, 10, tzinfo=timezone.utc)
+FRESH_TEST_TARGET = "IC_P18_LIBRARY_20260913_01"
+FRESH_CONFIRMATION = f"ADD {FRESH_TEST_TARGET} ONCE"
 
 
 def _capacity_response_with_limit(limit: int) -> NativeCapacityResponse:
@@ -77,6 +75,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         detected=(0x054C, 0x001E),
         auxiliary_state=True,
         after_mode=None,
+        target=FRESH_TEST_TARGET,
     ):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
@@ -119,7 +118,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                 (image, "02-page-01.bmp"),
                 (ending, "03-ending.txt"),
             ),
-            FRESH_VALIDATION_TARGET,
+            target,
         )
         package_root = export_prepared_media_package(package, root / "package")
         catalog = LibraryCatalog(root / "catalog" / "library.json")
@@ -159,6 +158,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             _write_archive(destination, blob, NOW, fixed_state=after_state)
 
         binding = LibraryTransferOperationBinding(
+            target_folder_name=target,
             owner_approval_phrase="APPROVE FRESH VNW-V15 UI VALIDATION 01",
         )
         claim_store = PersistentExecutionClaimStore(
@@ -283,6 +283,85 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
         self.assertIsNone(setup["lock"].read())
 
+    def test_arbitrary_fresh_target_reaches_host_ready_through_normal_facade(self):
+        setup = self._setup(target="Fresh Library Target")
+        self.addCleanup(setup["temporary"].cleanup)
+        self._patch_template_hashes(setup)
+
+        prepared = self._prepare(setup)
+
+        self.assertTrue(prepared.ready)
+        self.assertEqual(
+            prepared.review.to_dict()["package"]["folder_path"],
+            "root\\Fresh Library Target",
+        )
+        self.assertEqual(
+            prepared.review.to_dict()["operation_identity"]["operation_id"],
+            setup["binding"].operation_id,
+        )
+        self.assertNotIn("20260910", setup["binding"].operation_id)
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+
+    def test_replacing_binding_after_preflight_invalidates_actionability(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        prepared = self._prepare(setup)
+        setup["facade"].operation_binding = LibraryTransferOperationBinding(
+            target_folder_name="Another Fresh Target",
+            owner_approval_phrase="APPROVE ANOTHER FRESH VNW-V15 VALIDATION 01",
+        )
+
+        self.assertFalse(setup["facade"].transfer_actionable)
+        with self.assertRaises(LibraryTransferExecutionError):
+            setup["facade"].execute_once(
+                prepared.plan_report,
+                confirmation_interaction=lambda _review: "ADD Another Fresh Target ONCE",
+            )
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+
+    def test_normal_facade_and_adapter_have_no_historical_20260910_dependency(self):
+        root = Path(__file__).parents[1]
+        for relative in (
+            "src/infocarry/library_transfer_execution.py",
+            "src/infocarry/prepared_library_package_live_adapter.py",
+            "src/infocarry/desktop_ttk.py",
+        ):
+            source = (root / relative).read_text(encoding="utf-8")
+            self.assertNotIn("IC_P18_LIBRARY_20260910_01", source)
+            self.assertNotIn("vnw-v15-library-ui-validation-20260910-01", source)
+
+    def test_p18_021_strings_and_scalar_capacity_cannot_unlock_execution(self):
+        with self.assertRaises(ValueError):
+            LibraryTransferOperationBinding(
+                target_folder_name=FRESH_TEST_TARGET,
+                owner_approval_phrase="historical P18-021 approval",
+            )
+        with self.assertRaises(ValueError):
+            LibraryTransferOperationBinding(
+                target_folder_name=FRESH_TEST_TARGET,
+                confirmation_phrase="historical P18-021 confirmation",
+            )
+
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        self._patch_template_hashes(setup)
+        offline = dict(setup["plan"])
+        offline["capacity"] = {
+            "status": "sufficient",
+            "available_bytes": 10_000_000,
+            "lower_bound_bytes": 1,
+        }
+        self.assertFalse(setup["facade"].transfer_actionable)
+        with self.assertRaises(LibraryTransferExecutionError):
+            setup["facade"].execute_once(
+                offline,
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+
     def test_fresh_capacity_replaces_offline_plan_in_the_normal_readiness_state(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)
@@ -393,7 +472,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             (
                 "nesting",
                 lambda value: value["items"][0]["prepared_artifact"]["ordered_children"][0].update(
-                    path="root\\IC_P18_LIBRARY_20260910_01\\nested\\01-introduction.txt"
+                    path=f"root\\{setup['binding'].target_folder_name}\\nested\\01-introduction.txt"
                 ),
             ),
             (
@@ -639,14 +718,19 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
 
     def test_historical_identity_cannot_become_fresh_binding(self):
         with self.assertRaises(ValueError):
-            LibraryTransferOperationBinding(target_folder_name=HISTORICAL_P18_015_TARGET)
-        with self.assertRaises(ValueError):
             LibraryTransferOperationBinding(
-                owner_approval_phrase=HISTORICAL_P18_015_OWNER_APPROVAL
+                target_folder_name=FRESH_TEST_TARGET,
+                operation_id="vnw-v15-library-ui-validation-20260910-01",
             )
         with self.assertRaises(ValueError):
             LibraryTransferOperationBinding(
-                confirmation_phrase=f"ADD {HISTORICAL_P18_015_TARGET} ONCE"
+                target_folder_name=FRESH_TEST_TARGET,
+                owner_approval_phrase="historical P18-015 approval",
+            )
+        with self.assertRaises(ValueError):
+            LibraryTransferOperationBinding(
+                target_folder_name=FRESH_TEST_TARGET,
+                confirmation_phrase="ADD IC_P18_LIBRARY_20260910_01 ONCE",
             )
 
     def test_wrong_model_is_rejected_before_read_only_preflight(self):

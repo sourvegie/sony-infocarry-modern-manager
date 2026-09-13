@@ -11,6 +11,8 @@ becoming a standing Library authorization.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 from typing import Any, Mapping, Optional
 
 from .experimental_transfer_contract import experimental_safety_contract
@@ -52,6 +54,17 @@ def _digest(value: Any, label: str) -> str:
             f"{label} must be a lowercase SHA-256 digest"
         )
     return value
+
+
+def _sha256_json(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value,
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def _copy(value: Any) -> Any:
@@ -193,7 +206,7 @@ def _sealed_ready_bindings(
         or bundle.get("confirmation_phrase") != confirmation_phrase
         or bundle.get("confirmation_policy") != confirmation_policy
     ):
-        raise ExperimentalLibraryTransferReviewError("operation bundle approval differs from P18-014")
+        raise ExperimentalLibraryTransferReviewError("operation bundle approval differs from the typed operation binding")
     if bundle.get("safety") != EXPERIMENTAL_SAFETY_POLICY:
         raise ExperimentalLibraryTransferReviewError("operation bundle safety policy differs from the reviewed one-shot policy")
     children = bundle.get("package_children")
@@ -236,7 +249,7 @@ def _sealed_ready_bindings(
         or preflight.get("confirmation_phrase") != confirmation_phrase
         or preflight.get("confirmation_policy") != confirmation_policy
     ):
-        raise ExperimentalLibraryTransferReviewError("sealed preflight approval differs from P18-014")
+        raise ExperimentalLibraryTransferReviewError("sealed preflight approval differs from the typed operation binding")
     for key, expected in (
         ("read_only_preflight", True),
         ("device_changing_operation_performed", False),
@@ -404,6 +417,8 @@ def _sealed_ready_bindings(
         "core_preflight_seal_sha256": bundle["core_preflight_seal_sha256"],
         "baseline_state_identity_sha256": bundle["baseline_state_identity_sha256"],
         "capacity_response_sha256": bundle["capacity_response_sha256"],
+        "authorization_sha256": bundle["authorization_sha256"],
+        "fixed_state_policy": bundle["fixed_state_policy"],
         "candidate_blob_length": candidate_summary.get("blob_length"),
         "candidate_growth_bytes": capacity_values["candidate_growth_bytes"],
         "capacity_limit_bytes": capacity_values["capacity_limit_bytes"],
@@ -447,6 +462,13 @@ def build_experimental_library_transfer_review(
 
     binding = _operation_binding_values(operation_binding)
     target_folder_name = binding["target_folder_name"]
+    binding_sha256 = (
+        getattr(operation_binding, "binding_sha256", None)
+        if operation_binding is not None
+        else None
+    )
+    if binding_sha256 is not None and not isinstance(binding_sha256, str):
+        raise ExperimentalLibraryTransferReviewError("operation binding hash is malformed")
     if not isinstance(plan_report, Mapping):
         raise ExperimentalLibraryTransferReviewError("Library queue plan is malformed")
     if plan_report.get("format") != "infocarry-library-transfer-plan-v1":
@@ -596,13 +618,7 @@ def build_experimental_library_transfer_review(
             "candidate_blob_length": bindings.get("candidate_blob_length"),
             "candidate_growth_bytes": bindings.get("candidate_growth_bytes"),
         },
-        "operation_identity": {
-            "bundle_sha256": bindings.get("bundle_sha256"),
-            "transaction_sha256": bindings.get("transaction_sha256"),
-            "preflight_seal_sha256": bindings.get("preflight_seal_sha256"),
-            "core_preflight_seal_sha256": bindings.get("core_preflight_seal_sha256"),
-            "capacity_response_sha256": bindings.get("capacity_response_sha256"),
-        },
+        "operation_identity": {},
         "transfer_semantics": {
             "logical_selection": "one grouped Library package",
             "physical_protocol_scope": "complete candidate library image",
@@ -634,6 +650,28 @@ def build_experimental_library_transfer_review(
             "device_change": "none",
             "contract": experimental_safety_contract(),
         },
+    }
+    identity_payload = {
+        "format": "infocarry-library-operation-identity-v2",
+        "operation_id": binding["operation"],
+        "binding_sha256": binding_sha256,
+        "target_folder_name": target_folder_name,
+        "package_manifest_sha256": report["package"]["prepared_manifest_sha256"],
+        "bundle_sha256": bindings.get("bundle_sha256"),
+        "preflight_seal_sha256": bindings.get("preflight_seal_sha256"),
+        "core_preflight_seal_sha256": bindings.get("core_preflight_seal_sha256"),
+        "baseline_state_identity_sha256": bindings.get("baseline_state_identity_sha256"),
+        "capacity_response_sha256": bindings.get("capacity_response_sha256"),
+        "candidate_blob_sha256": bindings.get("candidate_blob_sha256"),
+        "transaction_sha256": bindings.get("transaction_sha256"),
+        "authorization_sha256": bindings.get("authorization_sha256"),
+        "confirmation_phrase": binding["confirmation_phrase"],
+        "confirmation_policy": binding["confirmation_policy"],
+        "fixed_state_policy": bindings.get("fixed_state_policy"),
+    }
+    report["operation_identity"] = {
+        **identity_payload,
+        "operation_identity_sha256": _sha256_json(identity_payload),
     }
     return ExperimentalLibraryTransferReview(report)
 

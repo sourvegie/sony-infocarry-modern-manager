@@ -43,20 +43,11 @@ from .prepared_multi_package_gate import (
 from .write_gate import DEFAULT_MAX_AGE_SECONDS
 
 
-FRESH_VALIDATION_TARGET = "IC_P18_LIBRARY_20260910_01"
-HISTORICAL_P18_015_TARGET = "IC_P18_LIBRARY_20260907_01"
-FRESH_CONFIRMATION = f"ADD {FRESH_VALIDATION_TARGET} ONCE"
-FRESH_OPERATION_ID = "vnw-v15-library-ui-validation-20260910-01"
 FRESH_AUXILIARY_STATE_POLICY = (
     "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e"
 )
 FRESH_CHILD_KINDS = ("txt", "bmp", "txt")
-HISTORICAL_P18_015_OWNER_APPROVAL = (
-    "APPROVE P18-015 V15 PHYSICAL VALIDATION 01"
-)
-HISTORICAL_P18_015_CONFIRMATION = (
-    f"ADD {HISTORICAL_P18_015_TARGET} ONCE"
-)
+HISTORICAL_OPERATION_MARKERS = ("P18-015", "P18-018", "P18-021")
 
 
 class LibraryTransferExecutionError(RuntimeError):
@@ -97,6 +88,77 @@ def _sha256_json(value: Any) -> str:
     ).hexdigest()
 
 
+def _validate_target_folder_name(value: Any) -> str:
+    """Validate one ordinary fresh root-folder component.
+
+    The target is deliberately not selected from a milestone allowlist.  It
+    remains subject to the same native path-component limits as the reviewed
+    flat package profile, while the fresh backup and candidate gates decide
+    whether the exact target is absent and representable.
+    """
+
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ValueError("target folder name must be one trimmed path component")
+    if value in {".", ".."} or any(
+        character in value for character in ("/", "\\", "\x00")
+    ) or any(ord(character) < 0x20 for character in value):
+        raise ValueError("target folder name contains an unsafe path character")
+    try:
+        encoded = value.encode("cp932", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("target folder name is not representable in CP932") from exc
+    if len(encoded) >= 40:
+        raise ValueError("target folder name must leave room for the native NUL terminator")
+    return value
+
+
+def _reject_historical_phrase(value: str, label: str) -> None:
+    upper = value.upper()
+    if any(marker in upper for marker in HISTORICAL_OPERATION_MARKERS):
+        raise ValueError(f"{label} belongs to a historical operation and cannot authorize a fresh one")
+
+
+def _derived_confirmation_phrase(target_folder_name: str) -> str:
+    return f"ADD {target_folder_name} ONCE"
+
+
+def _derived_operation_id(
+    *,
+    target_folder_name: str,
+    profile_id: str,
+    device_model_profile_id: str,
+    device_identity: tuple[str, str],
+    child_kinds: tuple[str, str, str],
+    confirmation_policy: str,
+    fixed_state_policy: str,
+    maximum_logical_transactions: int,
+    maximum_sender_calls: int,
+    automatic_retry_allowed: bool,
+) -> str:
+    """Derive a stable logical identity from the current reviewed binding.
+
+    This identifier is only the preflight-independent portion of the
+    operation identity.  The sealed preflight/bundle then adds the current
+    package, target paths, fresh backup/state, native capacity, candidate,
+    transaction, and authorization hashes before hardware readiness.
+    """
+
+    payload = {
+        "format": "infocarry-library-operation-binding-v2",
+        "target_folder_name": target_folder_name,
+        "profile_id": profile_id,
+        "device_model_profile_id": device_model_profile_id,
+        "device_identity": list(device_identity),
+        "child_kinds": list(child_kinds),
+        "confirmation_policy": confirmation_policy,
+        "fixed_state_policy": fixed_state_policy,
+        "maximum_logical_transactions": maximum_logical_transactions,
+        "maximum_sender_calls": maximum_sender_calls,
+        "automatic_retry_allowed": automatic_retry_allowed,
+    }
+    return f"vnw-v15-library-operation-{_sha256_json(payload)}"
+
+
 @dataclass(frozen=True)
 class LibraryTransferOperationBinding:
     """Immutable fresh operation identity accepted by the live coordinator.
@@ -107,10 +169,10 @@ class LibraryTransferOperationBinding:
     after a separately authorized operation supplies that approval.
     """
 
-    target_folder_name: str = FRESH_VALIDATION_TARGET
+    target_folder_name: str
     owner_approval_phrase: Optional[str] = None
-    confirmation_phrase: str = FRESH_CONFIRMATION
-    operation_id: str = FRESH_OPERATION_ID
+    confirmation_phrase: Optional[str] = None
+    operation_id: Optional[str] = None
     profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID
     device_model_profile_id: str = VNW_V15_PROFILE_ID
     device_identity: tuple[str, str] = ("0x054c", "0x001e")
@@ -122,40 +184,56 @@ class LibraryTransferOperationBinding:
     automatic_retry_allowed: bool = False
 
     def __post_init__(self) -> None:
-        if self.target_folder_name != FRESH_VALIDATION_TARGET:
-            raise ValueError(
-                "the guarded UI validation is fixed to IC_P18_LIBRARY_20260910_01"
-            )
-        if self.target_folder_name == HISTORICAL_P18_015_TARGET:
-            raise ValueError("the consumed P18-015 target cannot be reused")
+        _validate_target_folder_name(self.target_folder_name)
         if self.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
             raise ValueError("only the reviewed Experimental Library profile is supported")
         if self.device_model_profile_id != VNW_V15_PROFILE_ID:
             raise ValueError("only the reviewed VNW-V15 model profile is supported")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
-        if self.operation_id != FRESH_OPERATION_ID:
-            raise ValueError("the guarded UI validation requires its fresh operation identity")
         if tuple(self.child_kinds) != FRESH_CHILD_KINDS:
-            raise ValueError("the guarded UI validation requires TXT/BMP/TXT")
+            raise ValueError("the reviewed Library operation requires TXT/BMP/TXT")
         if self.confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
-            raise ValueError("the guarded UI validation requires explicit confirmation")
-        if self.confirmation_phrase != FRESH_CONFIRMATION:
-            raise ValueError("confirmation must bind the fresh validation target")
+            raise ValueError("the reviewed Library operation requires explicit confirmation")
         if self.fixed_state_policy != FRESH_AUXILIARY_STATE_POLICY:
             raise ValueError("the reviewed auxiliary-state policy is required")
         if self.maximum_logical_transactions != 1 or self.maximum_sender_calls != 1:
-            raise ValueError("the guarded UI validation is one-shot")
+            raise ValueError("the reviewed Library operation is one-shot")
         if self.automatic_retry_allowed is not False:
             raise ValueError("automatic retry is forbidden")
-        _require_phrase(self.confirmation_phrase, "confirmation phrase")
-        _require_phrase(self.operation_id, "operation id")
+
+        confirmation_phrase = self.confirmation_phrase
+        if confirmation_phrase is None:
+            confirmation_phrase = _derived_confirmation_phrase(self.target_folder_name)
+        _require_phrase(confirmation_phrase, "confirmation phrase")
+        if confirmation_phrase != _derived_confirmation_phrase(self.target_folder_name):
+            raise ValueError("confirmation must be generated from the current operation target")
+        _reject_historical_phrase(confirmation_phrase, "confirmation phrase")
+        object.__setattr__(self, "confirmation_phrase", confirmation_phrase)
+
+        operation_id = self.operation_id
+        derived_operation_id = _derived_operation_id(
+            target_folder_name=self.target_folder_name,
+            profile_id=self.profile_id,
+            device_model_profile_id=self.device_model_profile_id,
+            device_identity=self.device_identity,
+            child_kinds=tuple(self.child_kinds),
+            confirmation_policy=self.confirmation_policy,
+            fixed_state_policy=self.fixed_state_policy,
+            maximum_logical_transactions=self.maximum_logical_transactions,
+            maximum_sender_calls=self.maximum_sender_calls,
+            automatic_retry_allowed=self.automatic_retry_allowed,
+        )
+        if operation_id is None:
+            operation_id = derived_operation_id
+        _require_phrase(operation_id, "operation id")
+        if operation_id != derived_operation_id:
+            raise ValueError("operation id must be derived from the current operation binding")
+        object.__setattr__(self, "operation_id", operation_id)
+
         if self.owner_approval_phrase is not None:
             _require_phrase(self.owner_approval_phrase, "owner approval phrase")
-            if self.owner_approval_phrase == HISTORICAL_P18_015_OWNER_APPROVAL:
-                raise ValueError("the consumed P18-015 owner approval cannot be reused")
-        if self.confirmation_phrase == HISTORICAL_P18_015_CONFIRMATION:
-            raise ValueError("the consumed P18-015 confirmation cannot be reused")
+            _reject_historical_phrase(self.owner_approval_phrase, "owner approval phrase")
 
     @property
     def authorized(self) -> bool:
@@ -186,6 +264,12 @@ class LibraryTransferOperationBinding:
             value["owner_approval_phrase"] = self.owner_approval_phrase
             value["confirmation_phrase"] = self.confirmation_phrase
         return value
+
+    @property
+    def binding_sha256(self) -> str:
+        """Hash of the preflight-independent portion of the operation identity."""
+
+        return _sha256_json(self.to_dict(include_authorization=False))
 
 
 @dataclass(frozen=True)
@@ -272,11 +356,29 @@ class LibraryTransferExecutionFacade:
             and self.operation_binding is not None
             and self.operation_binding.authorized
             and self.runtime is not None
+            and self._binding_matches_prepared_operation(self._prepared_operation)
         )
 
     @property
     def prepared_operation(self) -> Optional[PreparedLibraryTransferOperation]:
         return self._prepared_operation
+
+    def _binding_matches_prepared_operation(
+        self, prepared: PreparedLibraryTransferOperation
+    ) -> bool:
+        binding = self.operation_binding
+        bundle = prepared.operation_bundle
+        if binding is None:
+            return False
+        return (
+            bundle.device_identity == binding.device_identity
+            and bundle.expected_folder_name == binding.target_folder_name
+            and bundle.owner_approval_phrase == binding.owner_approval_phrase
+            and bundle.confirmation_phrase == binding.confirmation_phrase
+            and bundle.confirmation_policy == binding.confirmation_policy
+            and bundle.fixed_state_policy == binding.fixed_state_policy
+            and bundle.operation_id == binding.operation_id
+        )
 
     def review_readiness(
         self, plan_report: Mapping[str, Any]
@@ -297,12 +399,12 @@ class LibraryTransferExecutionFacade:
         expected_path = f"root\\{binding.target_folder_name}"
         if folder_path != expected_path:
             raise LibraryTransferExecutionError(
-                "the selected package is not bound to the fresh validation target"
+                "the selected package is not bound to the current operation target"
             )
         destination = readiness.report.get("destination", {})
         if isinstance(destination, Mapping) and destination.get("conflicts"):
             raise LibraryTransferExecutionError(
-                "the fresh validation target already exists; no replacement target is selected"
+                "the current operation target already exists; no replacement target is selected"
             )
         if not readiness.host_profile_eligible:
             raise LibraryTransferExecutionError(
@@ -564,9 +666,6 @@ class LibraryTransferExecutionFacade:
 
 __all__ = [
     "FRESH_AUXILIARY_STATE_POLICY",
-    "FRESH_CONFIRMATION",
-    "FRESH_OPERATION_ID",
-    "FRESH_VALIDATION_TARGET",
     "LibraryTransferExecutionError",
     "LibraryTransferExecutionFacade",
     "LibraryTransferExecutionRuntime",
