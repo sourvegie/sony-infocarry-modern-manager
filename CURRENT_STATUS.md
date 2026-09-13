@@ -1,18 +1,32 @@
 # Current Project Status
 
-Date: 2026-09-13
+Date: 2026-09-14
 
-## Current direction after P18-024 host-only correction
+## Current direction after P18-025 host-only preparation
 
-P18-024 is the host-only correction on branch
-`task/P18-024-catalog-package-name-collision`, based on canonical
-`818a9da5e9dd3fb6273d778a009dc8168c114c8c`. It corrects the Library catalog
+P18-024 is the inherited complete host-only correction at canonical base
+`dcef4e6594b9ba3b95a885efe9dab3deb4d3a760`. It corrected the Library catalog
 projection seam that treated an offline package envelope basename as an
-owner-visible sibling name. The P18 fixture envelope `00-package` now remains
+owner-visible sibling name. The P18 fixture envelope `00-package` remains
 physical archive detail; the manifest's validated logical target folder is
 the deterministic Library node name. The normal catalog/package queue gate
 accepts the exact TXT → BMP → TXT package while genuine owner-visible
 duplicates still fail closed. `CAPABILITY_MATRIX.md` is unchanged.
+
+P18-025 is a new host-only VNW-V15 UI physical-validation preparation on
+branch `task/P18-025-v15-ui-physical-validation`. It uses the fresh target
+`IC_P18_LIBRARY_20260913_03` and the exact direct-child order TXT → BMP → TXT.
+The deterministic path exercises Select → Arrange → Prepare → Preview →
+Review transfer → catalog/package projection → fresh preflight abstraction →
+operation identity/bundle/seals → confirmation → guarded readiness. It must
+stop at `READY_FOR_HARDWARE_TEST`; no physical transaction is part of this
+task. P18-023 remains historical `BLOCKED` before sender entry and none of its
+authorization, confirmation, target, claim, seal, candidate, transaction, or
+operation identity is reused.
+
+The P18-025 owner approval phrase and runtime confirmation are future physical
+gates only. Their presence in documentation, source, tests, or logs does not
+authorize execution. `CAPABILITY_MATRIX.md` remains unchanged.
 
 ### P18-023 — BLOCKED before sender entry
 
@@ -84,9 +98,9 @@ VNW-V10, broader shapes, restore, synchronization, and recovery remain
 unavailable.
 
 P18-023's documentation and deterministic host preparation remain historical
-reference only. P18-024 is the active host-only correction branch; its final-
-head remote CI and independent R3 review determine whether it may be reported
-`COMPLETE`. `CAPABILITY_MATRIX.md` remains unchanged.
+reference only. P18-024 is complete in the canonical base used by P18-025;
+P18-025 is the active host-only preparation branch. `CAPABILITY_MATRIX.md`
+remains unchanged.
 
 ## P18-021 historical blocker and P18-022 fresh operation identity
 
