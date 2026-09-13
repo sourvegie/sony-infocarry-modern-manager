@@ -5,7 +5,7 @@ Repository: `sourvegie/sony-infocarry-modern-manager`
 Canonical base: `e98d310878ea92d541217b29155bee2b69007af8`
 Branch: `task/P18-021-v15-ui-physical-validation`
 Risk: **R3 physical validation**
-Status: **HOST-ONLY PREPARATION — READY_FOR_HARDWARE_TEST after validation**
+Status: **HOST-ONLY PREPARATION — BLOCKED BEFORE READY_FOR_HARDWARE_TEST**
 
 ## Purpose and host-only boundary
 
@@ -20,6 +20,15 @@ host validation and independent review below, report
 `READY_FOR_HARDWARE_TEST`, and stop. No approval in this document, a prior
 conversation, or a prior phase substitutes for the new operation-specific
 owner approval in chat.
+
+At the reviewed base implementation, the normal UI/facade and live adapter
+still bind the existing fresh validation path to the prior
+`IC_P18_LIBRARY_20260910_01` / `20260910` operation identity. This setup brief
+deliberately does not change that R3 implementation. Therefore this branch
+cannot yet report `READY_FOR_HARDWARE_TEST` for the new `20260913` target. A
+separate host-only implementation and review must add the P18-021 operation
+binding, update its focused regression coverage, and re-run the exact-head R3
+review before any owner approval or physical action.
 
 ## Owner authorization and runtime confirmation
 
@@ -228,6 +237,12 @@ of device presence, physical success, native capacity, or UI behavior on real
 hardware. After all host gates and the exact-head R3 review pass, the task
 reports `READY_FOR_HARDWARE_TEST` and stops for the Project Owner's explicit
 P18-021 approval in chat.
+
+For the current setup-only commit, the exact-head review found the stale
+`20260910` binding described above, so the actual disposition is
+`ESCALATION_REQUIRED` pending that separate implementation task. The branch
+must not be treated as hardware-ready until the new binding is present and
+independently reviewed.
 
 ## Exit states
 
