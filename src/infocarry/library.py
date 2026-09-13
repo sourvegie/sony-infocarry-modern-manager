@@ -88,6 +88,27 @@ class LibraryImportError(LibraryError):
     """Raised when a source cannot be inspected for import."""
 
 
+def _prepared_package_library_name(folder_name: str) -> str:
+    """Return the package's logical Library sibling name.
+
+    ``package_root.name`` is the name of the offline archive envelope (the
+    P18 fixture uses ``00-package``), not the owner-visible device root.  It
+    must not participate in Library sibling identity: two independently
+    located package archives can legitimately share that envelope name.  The
+    manifest target folder is already validated by the prepared-package
+    loader and is the canonical owner-visible name that the Library gate
+    compares with other roots.
+    """
+
+    if not isinstance(folder_name, str) or not folder_name:
+        raise LibraryCatalogError("prepared package logical folder name is required")
+    try:
+        _validate_component(folder_name, label="prepared package logical folder name")
+    except PreparedPackageError as exc:
+        raise LibraryCatalogError(str(exc)) from exc
+    return folder_name
+
+
 @dataclass(frozen=True)
 class LibraryPackageReference:
     """Persistent, hash-bound reference to one imported flat package.
@@ -445,10 +466,15 @@ class LibraryItem:
             sibling_order = value.get("sibling_order", 0)
             if isinstance(sibling_order, bool) or not isinstance(sibling_order, int):
                 raise LibraryCatalogError("Library sibling_order must be an integer")
+            source_filename = str(value["source_filename"])
+            if package is not None:
+                # Migrate v2 records written before P18-024.  The physical
+                # package envelope is not the owner-visible Library name.
+                source_filename = _prepared_package_library_name(package.folder_name)
             return cls(
                 item_id=str(value["item_id"]),
                 source_path=str(value["source_path"]),
-                source_filename=str(value["source_filename"]),
+                source_filename=source_filename,
                 source_sha256=str(value["source_sha256"]),
                 import_timestamp_utc=str(value["import_timestamp_utc"]),
                 source_size_bytes=int(value["source_size_bytes"]),
@@ -859,6 +885,7 @@ class LibraryCatalog:
             folder_name=imported.package.folder_name,
             children=tuple(dict(child) for child in imported.children),
         )
+        logical_name = _prepared_package_library_name(imported.package.folder_name)
         manifest_size = imported.manifest_path.stat().st_size
         if existing is None:
             observation = {
@@ -870,7 +897,11 @@ class LibraryCatalog:
             item = LibraryItem(
                 item_id=item_id,
                 source_path=str(path),
-                source_filename=path.name,
+                # The package directory is an offline archive envelope.  Its
+                # basename (for example ``00-package``) is internal storage
+                # detail; the manifest target is the owner-visible Library
+                # node and the name used for sibling collision validation.
+                source_filename=logical_name,
                 source_sha256=imported.manifest_sha256,
                 import_timestamp_utc=timestamp,
                 source_size_bytes=manifest_size,
@@ -895,6 +926,9 @@ class LibraryCatalog:
             )
             self._commit_items({**self._items, item.item_id: item})
             return item
+        if existing.source_filename != logical_name:
+            existing = replace(existing, source_filename=logical_name)
+            self._commit_items({**self._items, item_id: existing})
         if (
             existing.source_status == SOURCE_PRESENT
             and existing.observed_source_sha256 == imported.manifest_sha256
