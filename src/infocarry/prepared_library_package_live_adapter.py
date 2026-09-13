@@ -46,7 +46,6 @@ from .execution_claim_store import (
 )
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
 from .library_transfer_execution import (
-    FRESH_VALIDATION_TARGET,
     LibraryTransferOperationBinding,
 )
 from .library import LibraryCatalog
@@ -943,9 +942,25 @@ def _validate_callbacks(
 
 
 def _validate_expected_folder(expected_folder_name: str) -> None:
-    if expected_folder_name not in {P17_005_TARGET_FOLDER, FRESH_VALIDATION_TARGET}:
+    if (
+        not isinstance(expected_folder_name, str)
+        or not expected_folder_name
+        or expected_folder_name != expected_folder_name.strip()
+        or expected_folder_name in {".", ".."}
+        or any(
+            character in expected_folder_name for character in ("/", "\\", "\x00")
+        )
+        or any(ord(character) < 0x20 for character in expected_folder_name)
+    ):
+        invalid = True
+    else:
+        try:
+            invalid = len(expected_folder_name.encode("cp932", errors="strict")) >= 40
+        except UnicodeEncodeError:
+            invalid = True
+    if invalid:
         raise PreparedLibraryPackageLiveAdapterError(
-            "the operation destination is outside the reviewed VNW-V15 targets",
+            "the operation destination is not one safe CP932 root-folder component",
             stage="package",
             state="failed",
         )
@@ -959,7 +974,12 @@ def _resolve_operation_binding(
     confirmation_phrase: Optional[str] = None,
     confirmation_policy: Optional[str] = None,
 ) -> tuple[str, str, str, str]:
-    """Resolve either the historical default or one typed fresh binding."""
+    """Resolve the legacy adapter default or one typed current binding.
+
+    The no-binding branch exists only for the historical low-level adapter
+    compatibility tests.  The normal product facade always supplies the
+    typed binding, so it never selects a milestone target or phrase here.
+    """
 
     if operation_binding is None:
         values = (
@@ -1600,7 +1620,7 @@ def _resolve_prepared_library_package_operation_bundle(
                     confirmation_policy=bundle.confirmation_policy,
                     operation_id=bundle.operation_id,
                 )
-                if bundle.expected_folder_name == FRESH_VALIDATION_TARGET
+                if bundle.operation_id is not None
                 else None
             ),
         )
