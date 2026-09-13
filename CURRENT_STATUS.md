@@ -28,6 +28,12 @@ The P18-025 owner approval phrase and runtime confirmation are future physical
 gates only. Their presence in documentation, source, tests, or logs does not
 authorize execution. `CAPABILITY_MATRIX.md` remains unchanged.
 
+The committed host-only checkpoint passes the focused P18-025/P18-024 suites,
+the full Python 3.12 portable suite (**806 tests, 3 intentional skips**),
+compilation, whitespace, and stale-identity checks. Final-head macOS CI,
+Windows CI, publication, and independent R3 review remain release gates before
+the disposition can become `READY_FOR_HARDWARE_TEST`.
+
 ### P18-023 — BLOCKED before sender entry
 
 P18-023 is concluded as **BLOCKED before sender entry**, not success and not

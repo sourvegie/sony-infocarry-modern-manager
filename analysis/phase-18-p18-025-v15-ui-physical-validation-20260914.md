@@ -119,6 +119,13 @@ P18-024 catalog tests specifically retain the old `00-package` reproduction,
 corrected projection, true duplicate sibling, and internal/generated-node
 collision cases.
 
+At committed host-only head `e9e7833a2e1d4dc6fad26f81c9801d39e5509552`,
+focused execution/projection/readiness/adapter validation passed, the full
+Python 3.12 portable suite passed with **806 tests and 3 intentional skips**,
+and the focused host path recorded zero sender calls, zero real `0x101b`, zero
+real claims, zero sender-marker mutations, and zero installation-wide lock
+mutations.
+
 ## Physical boundary
 
 This task performs strictly zero:
@@ -153,6 +160,11 @@ At the host-only checkpoint, run and record:
 - stale/historical identity scans;
 - final-head macOS CI and Windows CI;
 - a fresh independent strong R3 review of the exact published head.
+
+Local compilation and `git diff --check` pass. `CAPABILITY_MATRIX.md` is
+byte-for-byte unchanged from the canonical base. Final-head CI, publication,
+and independent R3 remain external release gates; they are not inferred from
+the local suite.
 
 The required independent review result is:
 
