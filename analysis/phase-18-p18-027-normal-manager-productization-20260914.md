@@ -1,9 +1,9 @@
 # P18-027 — Normal Manager Workflow Productization
 
-Date: 2026-09-14  
-Canonical base: `e052ae94919856fc413547fc2e2ce110ce27f39e`  
-Branch: `task/P18-027-normal-manager-productization`  
-Risk: R3 host-side product/safety integration  
+Date: 2026-09-14
+Canonical base: `e052ae94919856fc413547fc2e2ce110ce27f39e`
+Branch: `task/P18-027-normal-manager-productization`
+Risk: R3 host-side product/safety integration
 Physical scope: host-only; no hardware operation was performed
 
 ## Objective and boundary
@@ -130,10 +130,10 @@ cooperatively cancellable after a possible sender-start boundary.
 
 ## Validation
 
-Focused P18-027/readiness/controller/UI validation: **42 tests passed**.  
-Focused P18-017 through P18-026 regression set: **242 tests passed**.  
-Full Python 3.12 portable suite: **830 passed, 3 documented skips**.  
-Compileall: passed.  
+Focused P18-027/readiness/controller/UI validation: **42 tests passed**.
+Focused P18-017 through P18-026 regression set: **242 tests passed**.
+Full Python 3.12 portable suite: **830 passed, 3 documented skips**.
+Compileall: passed.
 `git diff --check`: passed.
 
 The controller tests use events, barriers, and a deterministic callback queue
@@ -172,4 +172,3 @@ To be completed after local validation on the final commit:
 - macOS CI run/job: pending final-head run
 - Windows CI run/job: pending final-head run
 - independent R3: pending; required disposition `P0=0, P1=0, P2=0 — PASS`
-
