@@ -27,6 +27,7 @@ from .prepared_package import (
     _validate_component,
 )
 from .prepared_multi_text import PreparedTextSourceItem
+from .prepared_content import PreparedContentArtifact
 from .text_authoring import TextAuthoringError, encode_cp932_text
 
 
@@ -246,6 +247,11 @@ class PreparedMediaPackage:
     @property
     def estimated_growth_lower_bound(self) -> int:
         return self.minimum_metadata_records * METADATA_RECORD_SIZE + self.aligned_content_bytes
+
+    def to_prepared_content_artifact(self) -> PreparedContentArtifact:
+        """Return the canonical semantic artifact for this package view."""
+
+        return PreparedContentArtifact.from_media_package(self)
 
     def manifest_dict(self) -> dict[str, Any]:
         manifest: dict[str, Any] = {

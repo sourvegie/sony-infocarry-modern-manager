@@ -869,10 +869,10 @@ def launch_ttk_desktop(
     library_toolbar.columnconfigure(1, weight=1)
     library_import_group = ttk.LabelFrame(library_toolbar, text="Select / arrange")
     library_import_group.grid(row=0, column=0, sticky="w")
-    library_review_group = ttk.LabelFrame(library_toolbar, text="Prepare / preview")
+    library_review_group = ttk.LabelFrame(library_toolbar, text="Prepare / Preview")
     library_review_group.grid(row=1, column=0, sticky="w", pady=(4, 0))
     library_experimental_group = ttk.LabelFrame(
-        library_toolbar, text="Experimental transfer readiness"
+        library_toolbar, text="Transfer readiness"
     )
     library_experimental_group.grid(
         row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
@@ -898,13 +898,13 @@ def launch_ttk_desktop(
         library_review_group, text="Prepare", state="disabled"
     )
     library_preview_button = ttk.Button(
-        library_review_group, text="Preview device tree", state="disabled"
+        library_review_group, text="Preview", state="disabled"
     )
     library_selected_queue_button = ttk.Button(
-        library_review_group, text="Review selected (offline)…", state="disabled"
+        library_review_group, text="Review transfer…", state="disabled"
     )
     library_all_queue_button = ttk.Button(
-        library_review_group, text="Review all ready (offline)…", state="disabled"
+        library_review_group, text="Review all ready…", state="disabled"
     )
     library_experimental_button = ttk.Button(
         library_experimental_group,
@@ -1233,7 +1233,7 @@ def launch_ttk_desktop(
         "Device Manager writes are limited to the guarded existing-TXT workflow.\n"
         "The exact proven Library TXT/BMP/TXT package is Experimental: the normal UI can reach a guarded one-shot review only after a fresh separately authorized VNW-V15 preflight; this build has no physical ttk validation.\n"
         "Unsupported package shapes remain unavailable; recovery is unresolved and automatic write retry is never used.\n"
-        "Text Converter and Ebook Renderer are offline-only in this milestone.\n\n"
+        "Text Converter and Ebook Renderer are offline-only in the current product scope.\n\n"
         "Recovery: preserve any before/after backup, do not retry a started write, "
         "and use only read-only detection or backup checks after a disconnect.\n"
         "The separate InfoCarry-Toolkit project remains read-only and is not imported.\n",
@@ -1590,7 +1590,7 @@ def launch_ttk_desktop(
                 format_library_preparation_audit(result.prepared.to_dict()),
             )
             library_status_var.set(
-                f"Prepared {item.source_filename} hierarchy offline; choose Preview device tree "
+                f"Prepared {item.source_filename} hierarchy offline; choose Preview "
                 "to inspect exact destinations; no device access"
             )
         except (LibraryPreparationError, LibraryError, ValueError, OSError) as exc:

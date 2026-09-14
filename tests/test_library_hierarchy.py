@@ -176,6 +176,14 @@ class HierarchicalLibraryTests(unittest.TestCase):
 
         self.assertEqual(first.prepared.to_dict(), second.prepared.to_dict())
         self.assertEqual(first.foundation.plan.plan_sha256, second.foundation.plan.plan_sha256)
+        self.assertEqual(
+            report["prepared_content_artifact"]["artifact_identity"],
+            first.prepared.artifact.artifact_identity,
+        )
+        self.assertEqual(
+            report["device_tree_preview"]["prepared_content_identity"],
+            first.prepared.artifact.artifact_identity,
+        )
         self.assertEqual(report["prepared_manifest"]["profile_id"], HIERARCHICAL_OFFLINE_PROFILE_ID)
         self.assertEqual(report["device_tree_preview"]["profile_status"], HIERARCHICAL_OFFLINE_PROFILE_STATUS)
         self.assertEqual(

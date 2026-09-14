@@ -25,6 +25,7 @@ from .capability_profile import (
     initial_capability_profile,
 )
 from .device_model_profile import CapacityObservation, DeviceModelProfile
+from .prepared_content import PreparedContentArtifact, PreparedContentError
 
 
 TRANSFER_FOUNDATION_FORMAT = "infocarry-transfer-foundation-v1"
@@ -80,6 +81,7 @@ class PreparedItem:
     children: tuple[Mapping[str, Any], ...]
     grouping_contract: str = "explicit_prepared_package"
     profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID
+    prepared_content_identity: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.library_item_id, str) or not self.library_item_id:
@@ -90,6 +92,8 @@ class PreparedItem:
         }:
             raise TransferFoundationError("package grouping must be explicit")
         _digest(self.package_manifest_sha256, "package_manifest_sha256")
+        if self.prepared_content_identity is not None:
+            _digest(self.prepared_content_identity, "prepared_content_identity")
         if not isinstance(self.children, tuple):
             raise TransferFoundationError("prepared children must remain ordered")
         try:
@@ -116,6 +120,50 @@ class PreparedItem:
             self,
             "children",
             tuple(_freeze(child) for child in normalized),
+        )
+
+    @classmethod
+    def from_prepared_content(
+        cls,
+        artifact: PreparedContentArtifact,
+        *,
+        library_item_id: str,
+        package_manifest_sha256: Optional[str] = None,
+        grouping_contract: Optional[str] = None,
+    ) -> "PreparedItem":
+        """Create the transfer-plan adapter from the canonical artifact."""
+
+        if not isinstance(artifact, PreparedContentArtifact):
+            raise TransferFoundationError("prepared content artifact is malformed")
+        if not isinstance(library_item_id, str) or not library_item_id:
+            raise TransferFoundationError("Library item identity is required")
+        try:
+            if grouping_contract is None:
+                grouping_contract = (
+                    "explicit_prepared_hierarchy"
+                    if artifact.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
+                    else "explicit_prepared_package"
+                )
+            if package_manifest_sha256 is None:
+                package_manifest_sha256 = artifact.artifact_identity
+            if grouping_contract == "explicit_prepared_hierarchy":
+                children = artifact.to_hierarchy_nodes(library_item_id)
+                folder_name = artifact.root_name
+                profile_id = HIERARCHICAL_OFFLINE_PROFILE_ID
+            else:
+                children = artifact.to_legacy_children()
+                folder_name = artifact.root_name
+                profile_id = INITIAL_EXPERIMENTAL_PROFILE_ID
+        except PreparedContentError as exc:
+            raise TransferFoundationError(str(exc)) from exc
+        return cls(
+            library_item_id=library_item_id,
+            package_manifest_sha256=package_manifest_sha256,
+            folder_name=folder_name,
+            children=tuple(children),
+            grouping_contract=grouping_contract,
+            profile_id=profile_id,
+            prepared_content_identity=artifact.artifact_identity,
         )
 
     @classmethod
@@ -155,6 +203,23 @@ class PreparedItem:
             raise TransferFoundationError("queue item Library identity is malformed")
         if not isinstance(manifest_sha256, str):
             raise TransferFoundationError("queue item manifest identity is malformed")
+        canonical_value = artifact.get("canonical")
+        if isinstance(canonical_value, Mapping):
+            try:
+                canonical = PreparedContentArtifact.from_dict(canonical_value)
+                if artifact.get("artifact_identity") != canonical.artifact_identity:
+                    raise PreparedContentError("queue item canonical artifact identity differs")
+                prepared = cls.from_prepared_content(
+                    canonical,
+                    library_item_id=library_item_id,
+                    package_manifest_sha256=manifest_sha256,
+                    grouping_contract="explicit_prepared_package",
+                )
+            except PreparedContentError as exc:
+                raise TransferFoundationError(str(exc)) from exc
+            if tuple(paths) != prepared.destination_paths:
+                raise TransferFoundationError("queue item destination is not bound to canonical content")
+            return prepared
         prepared = cls(
             library_item_id=library_item_id,
             package_manifest_sha256=manifest_sha256,
@@ -238,14 +303,16 @@ class PreparedItem:
             "live_enabled": False,
         }:
             raise TransferFoundationError("prepared hierarchy safety envelope is invalid")
-        return cls(
-            library_item_id=root_item_id,
-            package_manifest_sha256=manifest_sha256,
-            folder_name=str(nodes[0].get("name", "")),
-            children=tuple(dict(node) for node in nodes),
-            grouping_contract="explicit_prepared_hierarchy",
-            profile_id=HIERARCHICAL_OFFLINE_PROFILE_ID,
-        )
+        try:
+            artifact = PreparedContentArtifact.from_hierarchy_manifest(value)
+            return cls.from_prepared_content(
+                artifact,
+                library_item_id=root_item_id,
+                package_manifest_sha256=manifest_sha256,
+                grouping_contract="explicit_prepared_hierarchy",
+            )
+        except PreparedContentError as exc:
+            raise TransferFoundationError(str(exc)) from exc
 
     @property
     def destination_paths(self) -> tuple[str, ...]:
@@ -263,6 +330,7 @@ class PreparedItem:
             "folder_name": self.folder_name,
             "grouping_contract": self.grouping_contract,
             "profile_id": self.profile_id,
+            "prepared_content_identity": self.prepared_content_identity,
         }
         key = (
             "ordered_nodes"
@@ -377,6 +445,7 @@ class TransferPlan:
         return {
             "format": "infocarry-device-tree-preview-v1",
             "profile_id": self.profile_id,
+            "prepared_content_identity": item.prepared_content_identity,
             "profile_status": capability_profile_by_id(self.profile_id).document["status"],
             "plan_sha256": self.plan_sha256,
             "ordered_nodes": nodes,

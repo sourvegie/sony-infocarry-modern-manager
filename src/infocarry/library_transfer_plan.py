@@ -29,6 +29,7 @@ from .prepared_media_package import (
     PreparedMediaPackageError,
     load_prepared_media_package,
 )
+from .prepared_content import PreparedContentArtifact, PreparedContentError
 from .prepared_transfer_plan import (
     PreparedTransferPlanError,
     build_prepared_transfer_plan,
@@ -145,22 +146,6 @@ def _base_item_report(item: LibraryItem) -> dict[str, Any]:
                 "package_root": item.package.root_path,
                 "contract": item.package.format,
                 "child_order": [child.get("name") for child in item.package.children],
-                "ordered_children": [
-                    {
-                        "order": child.get("order"),
-                        "kind": child.get("kind"),
-                        "name": child.get("name"),
-                        "path": child.get("path"),
-                        "source_sha256": child.get("source", {}).get("sha256"),
-                        "source_bytes": child.get("source", {}).get("bytes"),
-                        "prepared_payload_sha256": (
-                            child.get("authoring", {}).get("prepared_payload_sha256")
-                            if child.get("kind") == "txt"
-                            else child.get("bmp", {}).get("payload_sha256")
-                        ),
-                    }
-                    for child in item.package.children
-                ],
             }
         )
     return {
@@ -233,37 +218,26 @@ def _prepare_item_report(
             reasons.append("prepared package child manifest differs from the Library grouping record")
             return report
         package = imported.package
+        try:
+            artifact = package.to_prepared_content_artifact()
+        except PreparedContentError as exc:
+            reasons.append(f"prepared content artifact could not be validated: {exc}")
+            return report
         report["prepared_artifact"].update(
             {
                 "manifest_sha256": imported.manifest_sha256,
                 "manifest_path": str(imported.manifest_path),
                 "source_bytes": sum(child.get("source", {}).get("bytes", 0) for child in imported.children),
-                "prepared_payload_bytes": package.prepared_payload_bytes,
+                "prepared_payload_bytes": artifact.aggregate_size,
                 "aligned_content_bytes": package.aligned_content_bytes,
                 "estimated_growth_lower_bound": package.estimated_growth_lower_bound,
                 "child_order": [child.name for child in package.items],
                 "kind": "flat_txt_bmp_package",
-                "ordered_children": [
-                    {
-                        "order": index,
-                        "kind": child.kind,
-                        "name": child.name,
-                        "path": package.target_item_paths[index],
-                        "source_sha256": child.source_sha256,
-                        "source_bytes": (
-                            len(child.source_bytes)
-                            if child.kind == "bmp"
-                            else len(child.source_bytes)
-                        ),
-                        "prepared_payload_sha256": child.payload_sha256,
-                        "prepared_payload_bytes": (
-                            len(child.source_bytes)
-                            if child.kind == "bmp"
-                            else len(child.authored.payload)
-                        ),
-                    }
-                    for index, child in enumerate(package.items)
-                ],
+                "canonical": artifact.to_dict(),
+                "artifact_identity": artifact.artifact_identity,
+                "root_name": artifact.root_name,
+                "aggregate_size": artifact.aggregate_size,
+                "ordered_children": artifact.to_legacy_children(),
             }
         )
         report["destination"] = {
@@ -340,16 +314,27 @@ def _prepare_item_report(
         reasons.append("prepared manifest hash does not match the Library catalog")
         return report
 
+    try:
+        artifact = package.to_prepared_content_artifact()
+    except PreparedContentError as exc:
+        reasons.append(f"prepared content artifact could not be validated: {exc}")
+        return report
+
     report["prepared_artifact"] = {
         "manifest_sha256": package.prepared_manifest_sha256,
         "manifest_path": item.prepared_manifest_path,
         "source_sha256": package.source_sha256,
         "source_bytes": len(package.source_bytes),
-        "prepared_payload_bytes": package.prepared_payload_bytes,
+        "prepared_payload_bytes": artifact.aggregate_size,
         "aligned_content_bytes": package.aligned_content_bytes,
         "estimated_growth_lower_bound": package.estimated_growth_lower_bound,
         "child_order": [package.item.name],
         "kind": "txt",
+        "canonical": artifact.to_dict(),
+        "artifact_identity": artifact.artifact_identity,
+        "root_name": artifact.root_name,
+        "aggregate_size": artifact.aggregate_size,
+        "ordered_children": artifact.to_legacy_children(),
     }
     report["destination"] = {
         "paths": [package.target_folder_path, package.target_item_path],

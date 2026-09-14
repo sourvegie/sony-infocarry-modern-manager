@@ -35,6 +35,7 @@ from .prepared_media_package import (
     PreparedMediaPackageImport,
     load_prepared_media_package,
 )
+from .prepared_content import PreparedContentError
 from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
@@ -212,6 +213,12 @@ def _library_binding(
     imported: PreparedMediaPackageImport,
 ) -> dict[str, Any]:
     item_dict = item.to_dict()
+    try:
+        prepared_content = imported.package.to_prepared_content_artifact()
+    except PreparedContentError as exc:
+        raise PreparedLibraryPackageBridgeError(
+            f"prepared package could not be adapted to canonical content: {exc}"
+        ) from exc
     children = tuple(_child_binding(child, imported.root) for child in imported.children)
     return {
         "format": P17_003_BRIDGE_FORMAT,
@@ -226,6 +233,8 @@ def _library_binding(
         "manifest_path": str(imported.manifest_path),
         "manifest_sha256": imported.manifest_sha256,
         "folder_name": imported.package.folder_name,
+        "prepared_content_identity": prepared_content.artifact_identity,
+        "prepared_content_aggregate_size": prepared_content.aggregate_size,
         "profile": P17_003_PROFILE,
         "ordered_children": list(children),
         "grouping_policy": "explicit_manifest_one_library_item_no_inference",
@@ -315,6 +324,16 @@ def _validate_selected_package(
     if tuple(item.kind for item in items) != ("txt", "bmp", "txt"):
         raise PreparedLibraryPackageBridgeError(
             "selected package must have ordered TXT/BMP/TXT children"
+        )
+    try:
+        prepared_content = imported.package.to_prepared_content_artifact()
+    except PreparedContentError as exc:
+        raise PreparedLibraryPackageBridgeError(
+            f"selected package canonical preparation is invalid: {exc}"
+        ) from exc
+    if prepared_content.root_name != imported.package.folder_name:
+        raise PreparedLibraryPackageBridgeError(
+            "selected package canonical root differs from its logical target"
         )
     if imported.package.folder_name != item.package.folder_name:
         raise PreparedLibraryPackageBridgeError("Library package folder binding differs")

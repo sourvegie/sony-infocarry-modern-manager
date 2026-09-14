@@ -25,6 +25,7 @@ from .device_model_profile import (
     VNW_V15_PROFILE,
     VNW_V15_PROFILE_ID,
 )
+from .prepared_content import PreparedContentArtifact, PreparedContentError
 
 
 LIBRARY_TRANSFER_READINESS_FORMAT = "infocarry-library-transfer-readiness-v1"
@@ -248,6 +249,7 @@ def build_library_transfer_readiness(
     folder_name = _extract_folder_name(folder_path)
     normalized_children: list[dict[str, Any]] = []
     exact_package = True
+    canonical_artifact: Optional[PreparedContentArtifact] = None
 
     if item.get("operation_type") != "prepared_flat_typed_package":
         reasons.append("the selected item is not an explicitly imported prepared Library package")
@@ -264,6 +266,44 @@ def build_library_transfer_readiness(
         manifest_sha256 = artifact.get("manifest_sha256")
         if not _is_digest(manifest_sha256):
             reasons.append("the prepared package manifest hash is malformed")
+            exact_package = False
+        canonical_value = artifact.get("canonical")
+        try:
+            if isinstance(canonical_value, Mapping):
+                canonical_artifact = PreparedContentArtifact.from_dict(canonical_value)
+                if artifact.get("artifact_identity") != canonical_artifact.artifact_identity:
+                    raise PreparedContentError(
+                        "prepared artifact identity differs from its canonical content"
+                    )
+                if artifact.get("root_name") != canonical_artifact.root_name:
+                    raise PreparedContentError(
+                        "prepared artifact root name differs from its canonical content"
+                    )
+                if artifact.get("aggregate_size") != canonical_artifact.aggregate_size:
+                    raise PreparedContentError(
+                        "prepared artifact aggregate size differs from its canonical content"
+                    )
+                canonical_children = canonical_artifact.to_legacy_children()
+                # The legacy projection remains in persisted reports for
+                # compatibility.  It is not an alternate source of truth:
+                # tampering with it must still invalidate readiness rather
+                # than being silently repaired from the canonical payload.
+                if children != canonical_children:
+                    raise PreparedContentError(
+                        "legacy prepared child projection differs from canonical content"
+                    )
+                children = canonical_children
+            elif isinstance(children, list) and folder_name is not None:
+                # Compatibility adapter for pre-convergence queue reports.  New
+                # reports always carry the canonical artifact above.
+                canonical_artifact = PreparedContentArtifact.from_legacy_children(
+                    root_name=folder_name,
+                    children=children,
+                )
+            else:
+                raise PreparedContentError("canonical prepared content is missing")
+        except PreparedContentError as exc:
+            reasons.append(f"canonical preparation/profile validation failed: {exc}")
             exact_package = False
 
     if not isinstance(children, list) or len(children) != len(EXPERIMENTAL_CHILD_KINDS):
@@ -287,6 +327,16 @@ def build_library_transfer_readiness(
             if folder_name is not None and child.get("path") != f"{folder_path}\\{child.get('name', '')}":
                 reasons.append("prepared package child path is nested, missing, or outside the root folder")
                 exact_package = False
+
+    if canonical_artifact is not None:
+        if folder_name != canonical_artifact.root_name:
+            reasons.append("destination root differs from the canonical prepared artifact")
+            exact_package = False
+        if canonical_artifact.aggregate_size != sum(
+            child.payload_bytes for child in canonical_artifact.children
+        ):
+            reasons.append("canonical prepared aggregate size is inconsistent")
+            exact_package = False
 
     if folder_name is not None and isinstance(paths, list):
         expected_paths = [
@@ -472,6 +522,19 @@ def build_library_transfer_readiness(
         "package": {
             "folder_path": folder_path if isinstance(folder_path, str) else None,
             "ordered_children": _copy(normalized_children),
+            "prepared_content_valid": canonical_artifact is not None,
+            "prepared_artifact_identity": (
+                canonical_artifact.artifact_identity
+                if canonical_artifact is not None
+                else None
+            ),
+            "prepared_content": (
+                canonical_artifact.to_dict()
+                if canonical_artifact is not None
+                else None
+            ),
+            "root_name": canonical_artifact.root_name if canonical_artifact is not None else None,
+            "aggregate_size": canonical_artifact.aggregate_size if canonical_artifact is not None else None,
             "prepared_manifest_sha256": artifact.get("manifest_sha256")
             if isinstance(artifact, Mapping)
             else None,
@@ -481,6 +544,19 @@ def build_library_transfer_readiness(
             "prepared_payload_bytes": artifact.get("prepared_payload_bytes")
             if isinstance(artifact, Mapping)
             else None,
+        },
+        "preparation": {
+            "valid": canonical_artifact is not None,
+            "artifact_identity": (
+                canonical_artifact.artifact_identity
+                if canonical_artifact is not None
+                else None
+            ),
+            "aggregate_size": (
+                canonical_artifact.aggregate_size
+                if canonical_artifact is not None
+                else None
+            ),
         },
         "destination": {
             "paths": _copy(paths) if isinstance(paths, list) else [],
@@ -514,6 +590,8 @@ def build_library_transfer_readiness(
             "transfer_enabled": False,
         },
         "eligibility": {
+            "prepared_content_valid": canonical_artifact is not None,
+            "live_transfer_eligible": host_profile_eligible,
             "host_profile_eligible": host_profile_eligible,
             "needs_fresh_live_evidence": host_profile_eligible and bool(fresh_evidence),
             "blocked": blocked,
@@ -563,6 +641,16 @@ class LibraryTransferReadiness:
     @property
     def host_profile_eligible(self) -> bool:
         return bool(self.report.get("eligibility", {}).get("host_profile_eligible"))
+
+    @property
+    def prepared_content_valid(self) -> bool:
+        return bool(self.report.get("preparation", {}).get("valid"))
+
+    @property
+    def live_transfer_eligible(self) -> bool:
+        """Whether the exact reviewed live shape matches, never authorization."""
+
+        return bool(self.report.get("eligibility", {}).get("live_transfer_eligible"))
 
     @property
     def needs_fresh_live_evidence(self) -> bool:
