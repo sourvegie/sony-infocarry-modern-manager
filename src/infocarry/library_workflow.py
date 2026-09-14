@@ -50,6 +50,7 @@ class LibraryWorkflowPreview:
     def to_dict(self) -> dict[str, Any]:
         return {
             "prepared_manifest": self.prepared.to_dict(),
+            "prepared_content_artifact": self.prepared.artifact.to_dict(),
             "foundation": self.foundation.to_dict(),
             "device_tree_preview": _thaw(self.device_tree),
             "drag_and_drop": {
@@ -99,7 +100,12 @@ class LibraryWorkflowService:
         existing_paths: Optional[Iterable[str]] = None,
     ) -> LibraryWorkflowPreview:
         prepared = prepare_library_hierarchy(self.catalog, item_id)
-        item = PreparedItem.from_hierarchy_manifest(prepared.to_dict())
+        item = PreparedItem.from_prepared_content(
+            prepared.artifact,
+            library_item_id=prepared.manifest["root_item_id"],
+            package_manifest_sha256=prepared.prepared_manifest_sha256,
+            grouping_contract="explicit_prepared_hierarchy",
+        )
         foundation = TransferFoundation.from_prepared_items(
             (item,),
             profile=hierarchical_offline_capability_profile(),

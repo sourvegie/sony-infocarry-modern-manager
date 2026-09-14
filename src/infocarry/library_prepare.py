@@ -7,7 +7,7 @@ there is no USB callback, device candidate, authorization, or transfer path.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 from pathlib import Path
@@ -38,6 +38,7 @@ from .prepared_package import (
     build_prepared_text_package,
 )
 from .prepared_media_package import PreparedMediaPackageError, validate_bmp_payload
+from .prepared_content import PreparedContentArtifact, PreparedContentError
 from .text_authoring import TextAuthoringError, encode_cp932_text
 
 
@@ -56,6 +57,7 @@ class LibraryPreparationResult:
     item: LibraryItem
     package: PreparedTextPackage
     audit: Mapping[str, Any]
+    artifact: PreparedContentArtifact
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -85,6 +87,7 @@ class PreparedLibraryHierarchy:
     """Deterministic strict TXT/BMP hierarchy prepared for offline preview."""
 
     manifest: Mapping[str, Any]
+    _artifact: PreparedContentArtifact = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.manifest, Mapping):
@@ -153,7 +156,18 @@ class PreparedLibraryHierarchy:
         actual = hashlib.sha256(_canonical_json(unsigned)).hexdigest()
         if expected != actual:
             raise LibraryPreparationError("prepared hierarchy manifest hash is inconsistent")
+        try:
+            artifact = PreparedContentArtifact.from_hierarchy_manifest(value)
+        except PreparedContentError as exc:
+            raise LibraryPreparationError(str(exc)) from exc
         object.__setattr__(self, "manifest", _freeze(value))
+        object.__setattr__(self, "_artifact", artifact)
+
+    @property
+    def artifact(self) -> PreparedContentArtifact:
+        """Canonical prepared content represented by this legacy view."""
+
+        return self._artifact
 
     @property
     def prepared_manifest_sha256(self) -> str:
@@ -444,13 +458,18 @@ def prepare_library_item(
             "compatibility": manifest["compatibility"],
         },
     }
-    return LibraryPreparationResult(item=updated, package=package, audit=audit)
+    try:
+        artifact = package.to_prepared_content_artifact()
+    except PreparedContentError as exc:
+        raise LibraryPreparationError(str(exc)) from exc
+    return LibraryPreparationResult(item=updated, package=package, audit=audit, artifact=artifact)
 
 
 __all__ = [
     "HIERARCHICAL_PREPARED_MANIFEST_FORMAT",
     "LibraryPreparationError",
     "LibraryPreparationResult",
+    "PreparedContentArtifact",
     "PreparedLibraryHierarchy",
     "prepare_library_item",
     "prepare_library_hierarchy",

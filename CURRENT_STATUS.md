@@ -2,6 +2,32 @@
 
 Date: 2026-09-14
 
+## P18-026 — Unified Prepared Content Workflow
+
+P18-026 is the current host-only integration branch from canonical base
+`317e123531c302da0e415bb322e0fe47fd306030`. It introduces one canonical
+`PreparedContentArtifact` contract for logical Library root name, ordered typed
+children, prepared payload identity/path, sizes, provenance, profile identity,
+and deterministic artifact identity. Existing hierarchy, TXT-package,
+typed-media-package, and persisted catalog records remain supported as narrow
+compatibility views/adapters; no storage migration was added.
+
+The normal Prepare → Preview → Review transfer path now carries the same
+canonical artifact identity into the host preview, queue plan, readiness gate,
+and transfer-plan adapter. Preparation validity is explicit and remains
+separate from the exact reviewed VNW-V15 live-eligibility gate. Valid
+hierarchical or broader prepared content is still ineligible for live transfer;
+the exact TXT → BMP → TXT shape remains host-profile eligible with live
+execution disabled.
+
+This task does not change `CAPABILITY_MATRIX.md`, ebook conversion, the
+240×320 rendering canvas, or the 237×320 transferable BMP validator. It has
+performed no physical validation and requires final-head macOS/Windows CI and
+fresh independent R3 review before PM acceptance. Physical counters for this
+task are all zero: USB/device operations 0, sender calls 0, real `0x101b` 0,
+claims consumed 0, sender-marker mutations 0, and installation-wide-lock
+mutations 0. See the [P18-026 analysis record](analysis/phase-18-p18-026-unified-prepared-content-20260914.md).
+
 ## Current direction after completed P18-025 physical validation
 
 P18-024 is the inherited complete host-only correction at canonical base

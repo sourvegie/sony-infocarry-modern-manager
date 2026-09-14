@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from .offline_conversion import load_utf8_text_document
+from .prepared_content import PreparedContentArtifact
 from .text_authoring import EncodedText, TextAuthoringError, encode_cp932_text
 
 
@@ -177,6 +178,11 @@ class PreparedTextPackage:
     @property
     def estimated_growth_lower_bound(self) -> int:
         return self.minimum_metadata_records * METADATA_RECORD_SIZE + self.aligned_content_bytes
+
+    def to_prepared_content_artifact(self) -> PreparedContentArtifact:
+        """Return the canonical semantic artifact for this legacy text view."""
+
+        return PreparedContentArtifact.from_text_package(self)
 
     def _base_manifest(self) -> dict[str, Any]:
         return {
