@@ -6,36 +6,30 @@ in `analysis/` and in the archived roadmap through P18-001A.
 The Astra architecture/product review is an advisory input whose project
 decisions are recorded in
 [`analysis/phase-18-astra-architecture-product-review-disposition-20260912.md`](analysis/phase-18-astra-architecture-product-review-disposition-20260912.md).
-P18-020 is complete on canonical `main` and resolves the known
-application-wide existing-text write-safety bypass. The next physical attempt
-is still a new, separately authorized operation; this disposition does not
-authorize hardware use or expand a capability row.
+P18-020 and the subsequent P18-025 physical proof are complete on canonical
+`main`. The P18-025 proof remains a narrow, separately authorized VNW-V15
+operation; it does not authorize new hardware use or expand a capability row.
+P18-026 is now the canonical prepared-content foundation, and P18-027 is the
+current host-only normal-manager productization step.
 
 ## Current sequence
 
-1. **P18-021 — Fresh UI-driven physical validation:** if separately approved,
-   repeat only the exact host-ready VNW-V15 TXT → BMP → TXT operation with a
-   fresh target, fresh evidence, and fresh owner authorization. No P18-018 or
-   earlier approval carries forward.
-2. **P18-022 — Prepared-content/product workflow consolidation:** make
-   manager-prepared and imported content use one prepared-content contract;
-   integrate conversion into Library preparation and simplify the
-   Select → Prepare → Preview → Transfer experience without changing the
-   capability matrix.
-3. **P18-023 — Responsive operation controller and typed outcomes:** move
-   long-running preparation, backup, preflight, and transfer work behind one
-   background controller; use typed readiness/outcome reasons and keep
-   engineering evidence in Technical details.
-4. **P18-024 — Useful bounded flat-package expansion:** consider variable
-   TXT/BMP package shapes only after fresh physical UI validation and a new
-   evidence/review gate. No automatic grouping, hierarchy, batch, or recovery
-   claim follows from this sequence.
-5. **Library-integrated ebook preparation and Windows packaging
+1. **P18-027 — Normal manager workflow productization:** complete the
+   host-only `Add content → Preview → Prepare → Review transfer → Send to
+   InfoCarry → Verified` flow using the canonical prepared-content artifact,
+   typed readiness explanations, Technical Details diagnostics, and one
+   background controller. No physical write or capability expansion belongs
+   in this step.
+2. **Next separately approved physical work:** if approved after the P18-027
+   host exit gate, repeat only the exact verified VNW-V15 TXT → BMP → TXT
+   operation with fresh target, evidence, and owner authorization. No earlier
+   approval carries forward.
+3. **Library-integrated ebook preparation and Windows packaging
    investigation:** extend the offline conversion pipeline and test clean
    packaged Windows environments, including Tk, libusb, x64, and ARM
    assumptions. Do not relax runtime requirements or advertise compatibility
    before those tests pass.
-6. **Later separately gated capability work:** prioritize only evidence-backed
+4. **Later separately gated capability work:** prioritize only evidence-backed
    selective deletion and other exact shapes; keep restore, synchronization,
    interruption recovery, and broad format expansion outside the live product.
 
