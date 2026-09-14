@@ -14,7 +14,7 @@ or recovery behavior.
 | One root-level TXT creation | Clean native add capture and one-folder package evidence | Exact one-record construction and no-retry guarded workflow | One constrained modern root TXT add/read-back smoke | Experimental/narrow only; not a general Library transfer | Arbitrary names, state, and package shapes | Separate operation-specific review and approval for the proven shape |
 | Constrained root-level TXT deletion | Native deletion-effect evidence | Narrow surviving-state/delete candidate and verifier | One constrained modern root TXT deletion/read-back smoke | Not exposed as a normal destructive action | Recovery, generalized delete, and overwrite semantics | Preserve read-only diagnosis; no general delete exposure |
 | Ordered four-TXT package | P15-001 native ordered four-child capture | Exact ordered multi-child candidate and fake workflow | P15-003 exact four-TXT smoke/read-back | Not enabled by the P18 mixed-package product path | General child counts, profiles, and package combinations | Keep as historical constrained evidence |
-| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; complete post-backup and independent read-back verified exact `IC_P18_LIBRARY_20260907_01`, its three ordered children, and the bounded auxiliary-state policy | Experimental/narrow only; normal Library surfaces expose host readiness, fresh-preflight review, and a guarded `Transfer once` state only when a typed fresh operation binding/runtime is supplied; ttk-driven execution is not physically validated | Separate PM/owner authorization and one bounded physical UI validation; interrupted-write recovery and broader shapes | Preserve the exact canonical guarded path; do not enable V10 or broader shapes |
+| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; P18-025 physically validated the exact reviewed VNW-V15 UI/adapter/canonical lifecycle for `IC_P18_LIBRARY_20260913_03`: one logical sender, one real `0x101b`, retries `0`, exact `0x0000`, complete post-backup, independent `readback_verified`, and preserved auxiliary/shared state | Experimental/narrow only; the normal Library path is physically verified for this exact reviewed VNW-V15 package/profile when fresh evidence and separate owner authorization are supplied; default UI state remains authorization-gated and no generalized live transfer is enabled | No blocker for this exact recorded proof; interrupted-write recovery, other shapes, broader targets, and VNW-V10 remain unavailable | Preserve the exact guarded path and require fresh operation-specific evidence and owner authorization for any future run; do not enable V10 or broader shapes |
 | Other flat TXT/BMP combinations, nesting outside the host/offline profile, multiple packages, or batch | No sufficiently specific native evidence | Preparation may remain reviewable only where an exact profile accepts it | Not proven for transfer | Unavailable / preview-only with a precise reason | Missing exact evidence and safety model; no automatic grouping | Obtain a separately scoped evidence and review task |
 | Restore, synchronization, recovery, or alternate modes | Not established for this product boundary | No enabled candidate or execution path | Unproven | Unavailable | Physical recovery and broader state semantics | Read-only diagnosis and evidence work only |
 
@@ -32,6 +32,26 @@ directs the user to read-only diagnosis and preserved evidence.
 
 This matrix records capability status; it is not an owner approval, a hardware
 preflight, or permission to transmit `0x101b`.
+
+## P18-025 exact physical proof
+
+P18-025 is the exact recorded physical proof for one owner-authorized normal
+UI/adapter/canonical guarded VNW-V15 operation targeting
+`IC_P18_LIBRARY_20260913_03`. Fresh native `0x0019` capacity was 3,145,728
+bytes; the target was absent before the write; one logical sender call and one
+real `0x101b` returned exact native `0x0000` with zero retries. The durable
+claim was consumed once, the sender marker completed `none → in-flight →
+resolved` with an empty final marker store, and the installation-wide lock
+remained cleared. Complete post-write backup and independent semantic
+readback verified the exact TXT → BMP → TXT target, shared/unrelated-state
+preservation, the reviewed display-history/bookmark policy, no removed paths,
+and 343 shared paths. The durable terminal result records independently
+verified success.
+
+Evidence is preserved outside Git at the terminal summary and result manifest
+for this operation; the allocator's `p17-017` attempt-directory label is kept
+unchanged as historical evidence. This proof does not authorize another run or
+broaden any row beyond the exact reviewed profile and lifecycle.
 
 ## Device-model boundary
 
@@ -118,6 +138,9 @@ binding or runtime in the default desktop launch, so the ordinary UI remains
 disabled until a separately authorized exact fresh VNW-V15 operation is
 supplied and all canonical gates pass. When supplied, the facade delegates to
 the existing guarded coordinator and adapter; it does not implement native
-transfer semantics or a GUI-specific write path. A future physical operation
-must use target `IC_P18_LIBRARY_20260910_01` and the exact TXT → BMP → TXT
-shape, and is not authorized by this matrix.
+transfer semantics or a GUI-specific write path. P18-025 physically validated
+one exact fresh VNW-V15 operation for target
+`IC_P18_LIBRARY_20260913_03` and the TXT → BMP → TXT shape through that guarded
+path. This is evidence of the narrow reviewed profile, not reusable
+authorization; every future operation still requires its own fresh evidence
+and owner approval, and this matrix does not authorize it.
