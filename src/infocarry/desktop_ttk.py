@@ -1633,7 +1633,23 @@ def launch_ttk_desktop(
     def selected_library_selection_revision() -> tuple[tuple[Any, ...], ...]:
         return tuple(library_item_revision(item) for item in selected_library_items())
 
+    def all_library_revision() -> tuple[Any, ...]:
+        """Capture every catalog item used by an all-ready review."""
+
+        if library_catalog is None:
+            return ("all_ready", ())
+        return (
+            "all_ready",
+            tuple(library_item_revision(item) for item in library_catalog.items),
+        )
+
     def library_selection_matches(revision: Any) -> bool:
+        if (
+            isinstance(revision, tuple)
+            and len(revision) == 2
+            and revision[0] == "all_ready"
+        ):
+            return library_catalog is not None and all_library_revision() == revision
         current = selected_library_revision()
         if (
             isinstance(revision, tuple)
@@ -1712,6 +1728,11 @@ def launch_ttk_desktop(
         """Start a Library operation and apply only current main-thread results."""
 
         nonlocal library_operation_token
+        if worker is not None and worker.is_alive():
+            library_status_var.set(
+                "A Device Manager operation is in progress; Library work will remain disabled"
+            )
+            return
         set_library_operation_busy(True, label=f"{name}…")
 
         def on_progress(update: OperationProgress) -> None:
@@ -2245,7 +2266,11 @@ def launch_ttk_desktop(
                 library_status_var.set("Select one or more Library items; no device access")
                 return
             selected_item_ids = [item.item_id for item in selected_items]
-        revision = selected_library_selection_revision()
+        revision = (
+            all_library_revision()
+            if selection_mode == SELECTION_ALL_READY
+            else selected_library_selection_revision()
+        )
         clear_library_review_for_input_change()
         library_current_revision = revision
 
@@ -2810,6 +2835,11 @@ def launch_ttk_desktop(
 
     def replacement_write_action() -> None:
         nonlocal worker
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager writes remain disabled"
+            )
+            return
         if replacement_safety_owner is None:
             write_button.configure(state="disabled")
             status_var.set(
@@ -2882,6 +2912,11 @@ def launch_ttk_desktop(
         )
         if answer != "REPLACE INFOCARRY TEXT":
             status_var.set("Replacement cancelled; no device write attempted")
+            return
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager writes remain disabled"
+            )
             return
         if worker is not None and worker.is_alive():
             return
@@ -3024,10 +3059,20 @@ def launch_ttk_desktop(
 
     def backup_action() -> None:
         nonlocal worker
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager backup remains disabled"
+            )
+            return
         if worker is not None and worker.is_alive():
             return
         parent = filedialog.askdirectory(title="Choose parent folder for new backup", parent=root)
         if not parent:
+            return
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager backup remains disabled"
+            )
             return
         destination = _backup_destination(Path(parent))
         cancel_event.clear()

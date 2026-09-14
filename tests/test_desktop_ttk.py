@@ -91,6 +91,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "Technical Details",
             "Send to InfoCarry",
             "library_selection_matches",
+            "all_library_revision",
+            "library_operation_controller.busy",
             "root.after(50, process_library_callbacks)",
         ):
             self.assertIn(contract, source)
