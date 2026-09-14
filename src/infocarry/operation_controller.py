@@ -201,12 +201,36 @@ class OperationController(Generic[T]):
                 )
             self._schedule_to_main(lambda: self._deliver_outcome(outcome, on_complete))
 
-        thread = self._thread_factory(
-            target=run,
-            name=f"infocarry-operation-{token.name}",
-            daemon=True,
-        )
-        thread.start()
+        try:
+            thread = self._thread_factory(
+                target=run,
+                name=f"infocarry-operation-{token.name}",
+                daemon=True,
+            )
+            thread.start()
+        except BaseException as exc:
+            # Thread construction/start is normally infallible, but a resource
+            # failure must still become a typed terminal outcome. Otherwise
+            # the owning UI would remain busy forever with no callback to clear
+            # its controls.
+            outcome = OperationOutcome(
+                token=token,
+                status=OperationStatus.FAILED,
+                error=exc,
+            )
+            try:
+                self._post_to_main(
+                    lambda: self._deliver_outcome(outcome, on_complete)
+                )
+            except BaseException:
+                with self._lock:
+                    if self._active == token:
+                        self._active = None
+                        self._cancel_event = None
+                        self._discarded_generations.discard(token.generation)
+                    closed = self._closed
+                if not closed:
+                    on_complete(outcome)
         return token
 
     def _schedule_to_main(self, callback: Callable[[], None]) -> bool:

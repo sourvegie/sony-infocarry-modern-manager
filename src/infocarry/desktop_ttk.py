@@ -1737,6 +1737,8 @@ def launch_ttk_desktop(
         revision: tuple[Any, ...],
         work: Any,
         on_success: Any,
+        *,
+        validate_revision: bool = True,
     ) -> None:
         """Start a Library operation and apply only current main-thread results."""
 
@@ -1754,7 +1756,7 @@ def launch_ttk_desktop(
         def on_complete(outcome: OperationOutcome[Any]) -> None:
             nonlocal library_operation_token, library_current_readiness
             library_operation_token = None
-            if not library_selection_matches(revision):
+            if validate_revision and not library_selection_matches(revision):
                 set_library_operation_busy(False)
                 library_current_readiness = readiness_state_from_error(
                     RuntimeError("content or target changed while the operation was running")
@@ -2467,6 +2469,11 @@ def launch_ttk_desktop(
 
         nonlocal library_prepared_operation, library_current_readiness
 
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            library_status_var.set(
+                "Another manager operation is in progress; Send to InfoCarry remains disabled"
+            )
+            return
         if (
             library_prepared_operation is None
             or not library_execution_facade.transfer_actionable
@@ -2492,6 +2499,11 @@ def launch_ttk_desktop(
         )
         if answer is None:
             library_status_var.set("Send cancelled; no device transaction attempted")
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            library_status_var.set(
+                "Another manager operation started while confirmation was open; Send to InfoCarry remains disabled"
+            )
             return
         try:
             result = library_execution_facade.execute_once(
@@ -2760,24 +2772,33 @@ def launch_ttk_desktop(
                 "Another manager operation is in progress; device inspection remains disabled"
             )
             return
-        try:
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> str:
+            if cancelled.is_set():
+                raise DeviceAccessError("device inspection was cancelled")
+            progress_callback("Checking connected device")
             devices = find_devices()
-        except DeviceAccessError as exc:
-            status_var.set(friendly_error_message(exc))
-            return
-        if not devices:
-            status_var.set("No Sony InfoCarry detected; device writes disabled")
-            return
-        if len(devices) > 1:
-            status_var.set(f"{len(devices)} matching devices detected; connect only one")
-            return
-        device = describe_device(devices[0])
-        location = ""
-        if device.bus is not None and device.address is not None:
-            location = f" on bus {device.bus}, address {device.address}"
-        status_var.set(
-            f"Sony InfoCarry {device.vendor_id:04x}:{device.product_id:04x} detected{location}; "
-            "device writes disabled"
+            if cancelled.is_set():
+                raise DeviceAccessError("device inspection was cancelled")
+            if not devices:
+                return "No Sony InfoCarry detected; device writes disabled"
+            if len(devices) > 1:
+                return f"{len(devices)} matching devices detected; connect only one"
+            device = describe_device(devices[0])
+            location = ""
+            if device.bus is not None and device.address is not None:
+                location = f" on bus {device.bus}, address {device.address}"
+            return (
+                f"Sony InfoCarry {device.vendor_id:04x}:{device.product_id:04x} detected{location}; "
+                "device writes disabled"
+            )
+
+        start_library_operation(
+            "Check device readiness",
+            (),
+            work,
+            lambda message: status_var.set(message),
+            validate_revision=False,
         )
 
     def load_backup_action() -> None:
@@ -2788,6 +2809,11 @@ def launch_ttk_desktop(
             return
         selected = filedialog.askdirectory(title="Choose complete InfoCarry backup", parent=root)
         if not selected:
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation started while the chooser was open; Device Manager remains disabled"
+            )
             return
         try:
             model.load_backup(Path(selected))
@@ -2809,6 +2835,11 @@ def launch_ttk_desktop(
             return
         parent = filedialog.askdirectory(title="Choose destination folder", parent=root)
         if not parent:
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation started while the chooser was open; Device Manager remains disabled"
+            )
             return
         destination = _export_destination(Path(parent))
         try:
@@ -2848,6 +2879,11 @@ def launch_ttk_desktop(
             parent=root,
         )
         if not source:
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation started while the chooser was open; Device Manager remains disabled"
+            )
             return
         try:
             model.select_record(selected[0])

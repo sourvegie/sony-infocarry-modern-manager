@@ -87,6 +87,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
         for contract in (
             "OperationController",
             "library_operation_controller.start",
+            "Check device readiness",
+            "validate_revision=False",
             "library_callbacks",
             "Technical Details",
             "Send to InfoCarry",
@@ -95,6 +97,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "store=False",
             "adopt_prepared_operation",
             "library_operation_controller.busy",
+            "Another manager operation started while the chooser was open",
+            "Another manager operation started while confirmation was open",
             "root.after(50, process_library_callbacks)",
         ):
             self.assertIn(contract, source)

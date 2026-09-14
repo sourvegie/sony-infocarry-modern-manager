@@ -179,6 +179,30 @@ class OperationControllerTests(unittest.TestCase):
         self.assertEqual(self.outcomes[0].status, OperationStatus.FAILED)
         self.assertIsInstance(self.outcomes[0].error, ValueError)
 
+    def test_thread_start_failure_is_typed_and_clears_busy(self):
+        pending = []
+        outcomes = []
+
+        class FailingThread:
+            def __init__(self, **_kwargs):
+                raise RuntimeError("thread creation failed")
+
+        controller = OperationController(
+            pending.append,
+            thread_factory=FailingThread,
+        )
+        controller.start(
+            "thread-start-failure",
+            lambda _cancelled, _progress: "unreachable",
+            on_complete=outcomes.append,
+        )
+        self.assertTrue(controller.busy)
+        self.assertEqual(len(pending), 1)
+        pending.pop()()
+        self.assertFalse(controller.busy)
+        self.assertEqual(outcomes[0].status, OperationStatus.FAILED)
+        self.assertIsInstance(outcomes[0].error, RuntimeError)
+
     def test_close_discards_queued_callbacks_for_destroyed_ui(self):
         started = threading.Event()
         release = threading.Event()
