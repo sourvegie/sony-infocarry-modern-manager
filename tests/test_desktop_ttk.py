@@ -92,6 +92,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "Send to InfoCarry",
             "library_selection_matches",
             "all_library_revision",
+            "store=False",
+            "adopt_prepared_operation",
             "library_operation_controller.busy",
             "root.after(50, process_library_callbacks)",
         ):

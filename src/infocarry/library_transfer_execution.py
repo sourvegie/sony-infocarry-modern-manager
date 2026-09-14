@@ -427,12 +427,16 @@ class LibraryTransferExecutionFacade:
         audit_location: Optional[str] = None,
         cancelled: Optional[Callable[[], bool]] = None,
         progress: Optional[Callable[[str, int, int], None]] = None,
+        store: bool = True,
     ) -> PreparedLibraryTransferOperation:
         """Obtain fresh read-only evidence and seal one future operation.
 
         This method performs no send, claim consumption, marker creation, or
         lock mutation.  The injected runtime is responsible only for the
-        existing read-only detection/capacity/backup boundaries.
+        existing read-only detection/capacity/backup boundaries.  Set
+        ``store=False`` when a worker must return a candidate to a main-thread
+        owner; this prevents an invalidated worker from mutating shared facade
+        state after its result has become stale.
         """
 
         binding = self.operation_binding
@@ -528,8 +532,24 @@ class LibraryTransferExecutionFacade:
             bundle_path=Path(bundle_written).expanduser().resolve(),
             plan_sha256=_sha256_json(fresh_plan_report),
         )
-        self._prepared_operation = prepared
+        if store:
+            self._prepared_operation = prepared
         return prepared
+
+    def adopt_prepared_operation(
+        self, prepared: PreparedLibraryTransferOperation
+    ) -> None:
+        """Commit a worker-produced preflight only from the current owner."""
+
+        if not isinstance(prepared, PreparedLibraryTransferOperation):
+            raise LibraryTransferExecutionError(
+                "prepared operation result is malformed"
+            )
+        if not prepared.ready or not self._binding_matches_prepared_operation(prepared):
+            raise LibraryTransferExecutionError(
+                "prepared operation does not match the current authorized binding"
+            )
+        self._prepared_operation = prepared
 
     def _selected_item_id(self, plan_report: Mapping[str, Any]) -> str:
         selection = plan_report.get("selection")

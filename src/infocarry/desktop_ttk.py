@@ -1670,6 +1670,15 @@ def launch_ttk_desktop(
             library_operation_activity_var.set(label or "Working…")
             library_operation_progress.start(12)
             for button in (
+                check_button,
+                backup_button,
+                open_button,
+                export_button,
+                replacement_button,
+                write_button,
+            ):
+                button.configure(state="disabled")
+            for button in (
                 library_import_button,
                 library_folder_import_button,
                 library_package_import_button,
@@ -1692,6 +1701,10 @@ def launch_ttk_desktop(
             library_operation_progress.stop()
             library_operation_activity_var.set("")
             library_cancel_button.configure(state="disabled")
+            if worker is None or not worker.is_alive():
+                for button in (check_button, backup_button, open_button):
+                    button.configure(state="normal")
+                show_selection()
             show_library_selection()
 
     def library_cancel_action() -> None:
@@ -2426,6 +2439,7 @@ def launch_ttk_desktop(
                 audit_location=str(runtime.evidence_namespace),
                 cancelled=cancelled.is_set,
                 progress=lambda label, _completed, _total: progress_callback(label),
+                store=False,
             )
             progress_callback("Device readiness checked")
             return prepared
@@ -2433,6 +2447,7 @@ def launch_ttk_desktop(
         def success(prepared: PreparedLibraryTransferOperation) -> None:
             nonlocal library_prepared_operation, library_current_plan_report
             nonlocal library_current_readiness, library_current_revision
+            library_execution_facade.adopt_prepared_operation(prepared)
             library_prepared_operation = prepared
             library_current_plan_report = dict(prepared.plan_report)
             library_current_readiness = prepared.readiness
@@ -2740,6 +2755,11 @@ def launch_ttk_desktop(
         status_var.set(model.state.status)
 
     def check_device_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; device inspection remains disabled"
+            )
+            return
         try:
             devices = find_devices()
         except DeviceAccessError as exc:
@@ -2761,6 +2781,11 @@ def launch_ttk_desktop(
         )
 
     def load_backup_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager remains disabled"
+            )
+            return
         selected = filedialog.askdirectory(title="Choose complete InfoCarry backup", parent=root)
         if not selected:
             return
@@ -2773,6 +2798,11 @@ def launch_ttk_desktop(
             messagebox.showerror("Open backup", friendly_error_message(exc), parent=root)
 
     def export_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager remains disabled"
+            )
+            return
         offsets = [tree_items[item] for item in tree.selection() if item in tree_items]
         if not offsets:
             messagebox.showinfo("Download selected", "Select one or more files or folders first.", parent=root)
@@ -2796,6 +2826,11 @@ def launch_ttk_desktop(
             messagebox.showerror("Download selected", friendly_error_message(exc), parent=root)
 
     def replacement_preview_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager remains disabled"
+            )
+            return
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         if len(selected) != 1:
             messagebox.showinfo(
@@ -2835,9 +2870,9 @@ def launch_ttk_desktop(
 
     def replacement_write_action() -> None:
         nonlocal worker
-        if library_operation_controller.busy:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
             status_var.set(
-                "A Library operation is in progress; Device Manager writes remain disabled"
+                "Another manager operation is in progress; Device Manager writes remain disabled"
             )
             return
         if replacement_safety_owner is None:
