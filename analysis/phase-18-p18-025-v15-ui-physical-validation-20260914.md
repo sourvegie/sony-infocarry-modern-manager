@@ -1,19 +1,20 @@
-# P18-025 — VNW-V15 UI Physical-Validation Preparation
+# P18-025 — VNW-V15 UI Physical Validation
 
-Date: 2026-09-14  
-Repository: `sourvegie/sony-infocarry-modern-manager`  
-Canonical base: `dcef4e6594b9ba3b95a885efe9dab3deb4d3a760`  
-Branch: `task/P18-025-v15-ui-physical-validation`  
-Boundary: **HOST-ONLY**
+Date: 2026-09-14
+Repository: `sourvegie/sony-infocarry-modern-manager`
+Canonical base: `3e8fde113acdbf0c8b00f49dcf7cfe0629111806`
+Preparation branch: `task/P18-025-v15-ui-physical-validation`
+Documentation branch: `docs/p18-025-v15-physical-validation-evidence`
+Boundary: **COMPLETE / PHYSICALLY VERIFIED**
 
 ## Fresh operation identity
 
-P18-025 is a new operation. It does not reuse any P18-023 authorization,
+P18-025 was a new operation. It did not reuse any P18-023 authorization,
 confirmation, target, claim, seal, candidate, transaction, or operation
 identity. P18-023 remains historical **BLOCKED before sender entry** because
 the former normal catalog path rejected the package envelope as the duplicate
 owner-visible sibling `00-package`. P18-024 corrected that representation
-seam and is inherited as complete at this canonical base.
+seam and is inherited as complete at the canonical base.
 
 The exact P18-025 target is:
 
@@ -28,7 +29,7 @@ direct children, in this order:
 2. `02-page-01.bmp`
 3. `03-ending.txt`
 
-The later physical stage would require the exact owner phrase:
+The owner supplied the exact phrase once for the bounded physical operation:
 
 ```text
 APPROVE P18-025 V15 UI PHYSICAL VALIDATION 01
@@ -40,8 +41,48 @@ The exact runtime confirmation is:
 ADD IC_P18_LIBRARY_20260913_03 ONCE
 ```
 
-Neither string authorizes execution merely by appearing in this record,
-source, tests, logs, or chat. No physical authorization exists in this task.
+These strings are recorded as evidence of that completed run; their presence
+in this record, source, tests, logs, or chat is not reusable authorization for
+another operation.
+
+## Completed physical validation
+
+The exact reviewed normal UI/adapter/canonical guarded lifecycle completed one
+operation for `IC_P18_LIBRARY_20260913_03` on canonical `main` at
+`3e8fde113acdbf0c8b00f49dcf7cfe0629111806`. The repository was clean and no
+production-code modification was made for the physical run.
+
+Fresh live evidence identified Sony VNW-V15 `VID:PID 0x054c:0x001e`,
+`bcdDevice 0x0100`, with the supported interface/session identity. Native
+`0x0019` capacity was `3,145,728` bytes. The target was absent in the fresh
+pre-write backup. The fresh candidate and transaction were rebuilt and bound
+to the operation identity, bundle, and seals; the P18-024 `00-package`
+projection correction was active with no duplicate owner-visible collision.
+
+The operation used one logical sender call, one real `0x101b`, zero retries,
+and returned native `0x0000`. The durable claim was consumed once. The sender
+marker transitioned `none → in-flight → resolved`, with the final marker store
+empty; the installation-wide indeterminate lock remained cleared. A complete
+post-write backup was obtained and the independent verifier returned
+`readback_verified`.
+
+The target was created exactly once with the direct-child order
+`01-introduction.txt` → `02-page-01.bmp` → `03-ending.txt`. The verified
+prepared payloads were 22 bytes, 10,302 bytes, and 9 bytes respectively, with
+SHA-256 values `d61ca2d514d000e1e92429eb0ade4022dbfd2e12641cf2c278fca54cfe193b8d`,
+`d3f03cf2b000e38d06825353033fe1f2a64a3e50b58c1b407d4433fffd7a3ccb`, and
+`098e0ed5001f9e1f17defd5f6492756d3cfb17aa1dad0f3521860f3c21281318`.
+The verifier confirmed shared/unrelated state preservation, the reviewed
+display-history/bookmark policy, no removed paths, and 343 shared paths.
+The durable terminal result records independently verified success.
+
+Preserved external evidence:
+
+- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/terminal-summary.json`
+- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/attempts/p17-017-attempt-e3a8a272d06d461fa0ca0c1c2ad39964/result-manifest-0001.json`
+
+The attempt directory retains the older `p17-017` label from the evidence
+allocator. It is historical evidence and must not be renamed or rewritten.
 
 ## Capability and safety boundary
 
@@ -119,61 +160,37 @@ P18-024 catalog tests specifically retain the old `00-package` reproduction,
 corrected projection, true duplicate sibling, and internal/generated-node
 collision cases.
 
-At committed host-only head `e9e7833a2e1d4dc6fad26f81c9801d39e5509552`,
-focused execution/projection/readiness/adapter validation passed, the full
-Python 3.12 portable suite passed with **806 tests and 3 intentional skips**,
-and the focused host path recorded zero sender calls, zero real `0x101b`, zero
-real claims, zero sender-marker mutations, and zero installation-wide lock
-mutations.
+The committed host-only preparation checkpoint was
+`28f84f49aa3d020a37ffa17f69d37216baf59cab`; it passed the focused execution,
+projection, readiness, and adapter validation, the full Python 3.12 portable
+suite (**806 tests, 3 intentional skips**), compilation, and whitespace
+checks. It was published with passing macOS and Windows CI and independent
+R3 `P0=0, P1=0, P2=0 — PASS`, then merged to canonical `main` at
+`3e8fde113acdbf0c8b00f49dcf7cfe0629111806`. The physical run above then
+recorded the single live transaction; no stale P18 operation identity was
+reused.
 
-## Physical boundary
+## Physical safety boundary and disposition
 
-This task performs strictly zero:
-
-```text
-USB/device-changing operations = 0
-sender calls                   = 0
-real 0x101b transmissions      = 0
-real claims consumed           = 0
-sender-marker mutations        = 0
-installation-wide lock changes = 0
-```
-
-The later physical gates are documented only, not executed: exact device and
-session identity, fresh complete pre-backup/baseline, fresh native `0x0019`,
-live target absence, fresh candidate and transaction, auxiliary-state review,
-clear lock, inactive marker, valid claim store, immediate exact confirmation,
-final pre-send revalidation, sender ≤ 1, real `0x101b` ≤ 1, and retries = 0.
-
-If a future sender may have started and the result is ambiguous, the only
-valid disposition is `ESCALATION_REQUIRED`: no retry, marker retained or
-updated, installation-wide lock retained or set, and read-only diagnosis only.
+The physical proof is limited to the exact reviewed VNW-V15 package/profile
+and guarded lifecycle above. It does not establish arbitrary 1–8 file live
+transfer, overwrite, deletion, nesting, multiple packages, VNW-V10 support,
+restore/sync, or generalized ebook transfer. Any future operation requires a
+new exact package, fresh evidence, separate owner authorization, and all
+canonical gates. An ambiguous future sender outcome remains
+`ESCALATION_REQUIRED` with no retry and read-only diagnosis only.
 
 ## Validation and release gate
 
-At the host-only checkpoint, run and record:
+For this documentation/evidence codification branch, run and record:
 
 - focused P18-025/P18-024 readiness and projection tests;
 - the complete Python 3.12 portable offline suite;
 - Python compilation checks;
-- `git diff --check`;
 - stale/historical identity scans;
-- final-head macOS CI and Windows CI;
-- a fresh independent strong R3 review of the exact published head.
+- `git diff --check` and documentation/static checks.
 
-Local compilation and `git diff --check` pass. `CAPABILITY_MATRIX.md` is
-byte-for-byte unchanged from the canonical base. Final-head CI, publication,
-and independent R3 remain external release gates; they are not inferred from
-the local suite.
-
-The required independent review result is:
-
-```text
-P0=0, P1=0, P2=0 — PASS
-```
-
-`CAPABILITY_MATRIX.md` is not modified by P18-025. No merge and no physical
-transaction are permitted. The final disposition becomes
-`READY_FOR_HARDWARE_TEST` only after local validation, publication, both
-final-head CI results, and the independent R3 result are all green. Then stop
-for explicit owner authorization.
+The physical run required no R3 hardware review because this follow-up changes
+only documentation and accurately records the already completed exact proof;
+it does not alter code or broaden capability semantics. The documentation
+branch must stop for PM acceptance before merge.

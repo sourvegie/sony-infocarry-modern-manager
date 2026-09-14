@@ -2,37 +2,50 @@
 
 Date: 2026-09-14
 
-## Current direction after P18-025 host-only preparation
+## Current direction after completed P18-025 physical validation
 
 P18-024 is the inherited complete host-only correction at canonical base
 `dcef4e6594b9ba3b95a885efe9dab3deb4d3a760`. It corrected the Library catalog
 projection seam that treated an offline package envelope basename as an
 owner-visible sibling name. The P18 fixture envelope `00-package` remains
 physical archive detail; the manifest's validated logical target folder is
-the deterministic Library node name. The normal catalog/package queue gate
-accepts the exact TXT → BMP → TXT package while genuine owner-visible
-duplicates still fail closed. `CAPABILITY_MATRIX.md` is unchanged.
+the deterministic Library node name. Genuine owner-visible duplicates still
+fail closed.
 
-P18-025 is a new host-only VNW-V15 UI physical-validation preparation on
-branch `task/P18-025-v15-ui-physical-validation`. It uses the fresh target
-`IC_P18_LIBRARY_20260913_03` and the exact direct-child order TXT → BMP → TXT.
-The deterministic path exercises Select → Arrange → Prepare → Preview →
-Review transfer → catalog/package projection → fresh preflight abstraction →
-operation identity/bundle/seals → confirmation → guarded readiness. It must
-stop at `READY_FOR_HARDWARE_TEST`; no physical transaction is part of this
-task. P18-023 remains historical `BLOCKED` before sender entry and none of its
+P18-025 is **COMPLETE — PHYSICALLY VERIFIED** on canonical `main` at
+`3e8fde113acdbf0c8b00f49dcf7cfe0629111806`. The normal reviewed VNW-V15
+Select → Arrange → Prepare → Preview → Review transfer → catalog/package
+projection → fresh preflight → operation identity/bundle/seals → exact
+confirmation → guarded sender lifecycle completed once for
+`IC_P18_LIBRARY_20260913_03` with the direct-child order TXT → BMP → TXT.
+P18-023 remains historical `BLOCKED` before sender entry; none of its
 authorization, confirmation, target, claim, seal, candidate, transaction, or
-operation identity is reused.
+operation identity was reused.
 
-The P18-025 owner approval phrase and runtime confirmation are future physical
-gates only. Their presence in documentation, source, tests, or logs does not
-authorize execution. `CAPABILITY_MATRIX.md` remains unchanged.
+The physical proof is narrowly scoped to this exact reviewed VNW-V15 package
+and lifecycle. It does not enable arbitrary file counts or shapes, overwrite,
+deletion, nesting, multiple packages, VNW-V10, restore/sync, or generalized
+ebook transfer. A future operation still requires fresh evidence, separate
+owner authorization, and the full guarded lifecycle.
 
-The committed host-only checkpoint passes the focused P18-025/P18-024 suites,
-the full Python 3.12 portable suite (**806 tests, 3 intentional skips**),
-compilation, whitespace, and stale-identity checks. Final-head macOS CI,
-Windows CI, publication, and independent R3 review remain release gates before
-the disposition can become `READY_FOR_HARDWARE_TEST`.
+Verified P18-025 facts are: exact Sony VNW-V15 `0x054c:0x001e`,
+`bcdDevice 0x0100`; fresh native `0x0019` capacity `3,145,728` bytes; target
+absent before write; one logical sender and one real `0x101b`; retries `0`;
+native completion `0x0000`; one durable consumed claim; sender marker
+`none → in-flight → resolved` with the final marker store empty; and the
+installation-wide indeterminate lock remained cleared. A complete post-write
+backup and independent `readback_verified` result confirmed the exact target,
+TXT → BMP → TXT order/content, preserved shared and unrelated state, the
+reviewed display-history/bookmark policy, no removed paths, and 343 shared
+paths. The durable terminal result records independently verified success.
+
+The preserved external evidence is at:
+
+- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/terminal-summary.json`
+- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/attempts/p17-017-attempt-e3a8a272d06d461fa0ca0c1c2ad39964/result-manifest-0001.json`
+
+The attempt directory retains the older `p17-017` label from the canonical
+evidence allocator; it is preserved and is not renamed or rewritten.
 
 ### P18-023 — BLOCKED before sender entry
 
@@ -105,8 +118,9 @@ unavailable.
 
 P18-023's documentation and deterministic host preparation remain historical
 reference only. P18-024 is complete in the canonical base used by P18-025;
-P18-025 is the active host-only preparation branch. `CAPABILITY_MATRIX.md`
-remains unchanged.
+P18-025 is now complete as the narrowly scoped physical proof recorded above.
+`CAPABILITY_MATRIX.md` records that exact VNW-V15 evidence and does not broaden
+the supported profile.
 
 ## P18-021 historical blocker and P18-022 fresh operation identity
 
