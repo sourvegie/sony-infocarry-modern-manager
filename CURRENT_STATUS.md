@@ -2,6 +2,32 @@
 
 Date: 2026-09-14
 
+## P18-027 — Normal Manager Workflow Productization
+
+P18-027 is the current host-only delivery branch from canonical base
+`e052ae94919856fc413547fc2e2ce110ce27f39e`. It productizes the normal ttk
+Library path as Add content → Preview → Prepare → Review transfer → Send to
+InfoCarry → Verified, while keeping the Send action behind the existing
+guarded VNW-V15 facade and performing no physical operation.
+
+The normal path now consumes the P18-026 `PreparedContentArtifact` directly,
+uses typed readiness reasons/actions for owner-facing status, and routes
+preparation, preview, transfer review, typed readiness review, and read-only
+device readiness through one background operation controller. Tk updates are
+marshalled to the main thread; source/target/selection revisions discard late
+results, and window teardown prevents late callbacks. Candidate/transaction
+hashes, claims, seals, profile IDs, milestone IDs, and raw transport details
+remain behind the explicit Technical Details action.
+
+Local validation is green: 42 focused P18-027 tests, 242 focused
+P18-017→P18-026 regressions, and the full portable suite (830 passed, 3
+documented skips). `CAPABILITY_MATRIX.md` is unchanged. Physical counters for
+this task are all zero: USB/device operations 0, sender calls 0, real
+`0x101b` 0, claims consumed 0, sender-marker mutations 0, and
+installation-wide-lock mutations 0. Final-head macOS/Windows CI and fresh
+independent strong R3 review remain required before PM acceptance. See the
+[P18-027 analysis record](analysis/phase-18-p18-027-normal-manager-productization-20260914.md).
+
 ## P18-026 — Unified Prepared Content Workflow
 
 P18-026 is the current host-only integration branch from canonical base

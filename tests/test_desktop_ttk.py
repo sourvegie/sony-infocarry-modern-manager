@@ -14,6 +14,10 @@ from infocarry.desktop_ttk import (
     format_library_preparation_audit,
     format_library_transfer_plan,
     format_experimental_library_transfer_review,
+    format_library_host_only_terminal_state,
+    format_library_preparation_summary,
+    format_library_preview_summary,
+    format_library_readiness_summary,
     format_offline_conversion_report,
     format_offline_page_preview,
     format_post_write_verification,
@@ -23,10 +27,83 @@ from infocarry.desktop_ttk import (
 )
 from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.library_transfer_execution import LibraryTransferExecutionError
+from infocarry.library_transfer_readiness import ReadinessAction, ReadinessState
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_normal_library_formatters_hide_technical_identities(self):
+        state = ReadinessState(
+            state="needs_review",
+            message="Content is prepared. Review current device readiness before sending.",
+            action_allowed=False,
+            next_action=ReadinessAction.REVIEW,
+        )
+        summary = format_library_readiness_summary(state)
+        self.assertIn("READY TO TRANSFER", summary)
+        self.assertIn("Send to InfoCarry: disabled", summary)
+        for secret in ("candidate_sha", "transaction_sha", "claim", "seal", "profile_id", "milestone"):
+            self.assertNotIn(secret, summary.lower())
+
+        blocked = ReadinessState(
+            state="blocked",
+            message="Connect the InfoCarry device to continue.",
+            action_allowed=False,
+            next_action=ReadinessAction.RECONNECT,
+        )
+        self.assertIn("NOT READY TO TRANSFER", format_library_readiness_summary(blocked))
+
+    def test_prepare_and_preview_use_the_same_canonical_artifact(self):
+        child = SimpleNamespace(
+            order=0,
+            kind="txt",
+            name="chapter.txt",
+            path="root\\Book\\chapter.txt",
+            payload_bytes=12,
+        )
+        artifact = SimpleNamespace(
+            root_path="root\\Book",
+            children=(child,),
+            aggregate_size=12,
+        )
+        result = SimpleNamespace(artifact=artifact)
+        prepare = format_library_preparation_summary(result)
+        preview = format_library_preview_summary(result)
+        self.assertIn("PREPARE COMPLETE", prepare)
+        self.assertIn("PREVIEW", preview)
+        self.assertIn("root\\Book\\chapter.txt", preview)
+        self.assertIn("same current prepared content", preview)
+        self.assertNotIn("sha", prepare.lower())
+        self.assertNotIn("sha", preview.lower())
+
+    def test_host_only_terminal_state_is_truthful(self):
+        summary = format_library_host_only_terminal_state()
+        self.assertIn("TRANSFERRED AND VERIFIED", summary)
+        self.assertIn("host-only simulation", summary)
+        self.assertIn("No device operation was performed", summary)
+
+    def test_normal_ttk_library_path_uses_controller_and_technical_details_boundary(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        for contract in (
+            "OperationController",
+            "library_operation_controller.start",
+            "Check device readiness",
+            "validate_revision=False",
+            "library_callbacks",
+            "Technical Details",
+            "Send to InfoCarry",
+            "library_selection_matches",
+            "all_library_revision",
+            "store=False",
+            "adopt_prepared_operation",
+            "library_operation_controller.busy",
+            "restore_device_manager_controls",
+            "Another manager operation started while the chooser was open",
+            "Another manager operation started while confirmation was open",
+            "root.after(50, process_library_callbacks)",
+        ):
+            self.assertIn(contract, source)
+
     def test_library_package_shape_accepts_persisted_child_mappings(self):
         package = SimpleNamespace(
             children=(

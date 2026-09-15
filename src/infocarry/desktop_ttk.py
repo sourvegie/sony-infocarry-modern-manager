@@ -42,7 +42,11 @@ from .library_transfer_plan import (
 )
 from .library_transfer_readiness import (
     LibraryTransferReadinessError,
+    LibraryTransferReadiness,
+    ReadinessAction,
+    ReadinessState,
     build_library_transfer_readiness,
+    readiness_state_from_error,
 )
 from .library_transfer_execution import (
     LibraryTransferExecutionError,
@@ -51,6 +55,13 @@ from .library_transfer_execution import (
 )
 from .execution_claim_store import PersistentExecutionClaimStore
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
+from .operation_controller import (
+    OperationBusyError,
+    OperationController,
+    OperationOutcome,
+    OperationProgress,
+    OperationStatus,
+)
 from .runtime import DesktopRuntimeError, check_desktop_runtime
 from .write_gate import verify_fresh_backup
 from .write_safety_boundary import (
@@ -86,6 +97,31 @@ def _library_package_shape(package: Any) -> str:
             kind = getattr(child, "kind", None)
         kinds.append(str(kind).upper() if kind else "?")
     return "/".join(kinds) or "PACKAGE"
+
+
+def _library_display_type(item: Any) -> str:
+    if getattr(item, "package", None) is not None:
+        return "Prepared content"
+    if getattr(item, "node_kind", None) == NODE_FOLDER:
+        return "Folder"
+    detected = str(getattr(item, "detected_format", "content"))
+    if detected == "utf-8-txt":
+        return "Text"
+    if detected == "validated-237x320-1bit-bmp":
+        return "Bitmap"
+    return "Content"
+
+
+def _library_display_state(item: Any) -> str:
+    if getattr(item, "source_status", None) != "present":
+        return "Needs attention"
+    if getattr(item, "state", None) == "unsupported":
+        return "Unsupported"
+    if getattr(item, "preparation_state", None) == "prepared":
+        return "Prepared"
+    if getattr(item, "state", None) == "blocked":
+        return "Needs attention"
+    return "Needs preparation"
 
 
 def _backup_destination(parent: Path) -> Path:
@@ -299,7 +335,7 @@ def format_offline_page_preview(document: OfflineTextDocument, page_number: int)
 
 
 def format_library_preparation_audit(report: Dict[str, Any]) -> str:
-    """Render the Library Prepare result without implying device access."""
+    """Render a compatibility diagnostic; normal ttk uses the product summary."""
 
     if not isinstance(report, dict):
         raise ValueError("Library preparation audit must be a mapping")
@@ -320,7 +356,7 @@ def _capacity_preview_value(value: Any) -> str:
 
 
 def format_library_device_tree_preview(report: Dict[str, Any]) -> str:
-    """Render one exact ordered host/offline device-tree preview."""
+    """Render a compatibility diagnostic; normal ttk uses the product preview."""
 
     if not isinstance(report, dict):
         raise ValueError("Library device-tree preview must be a mapping")
@@ -405,7 +441,7 @@ def format_library_device_tree_preview(report: Dict[str, Any]) -> str:
 
 
 def format_library_transfer_plan(report: Dict[str, Any]) -> str:
-    """Render the Library queue review without implying transfer capability."""
+    """Render a compatibility diagnostic; normal ttk uses the product review."""
 
     if not isinstance(report, dict):
         raise ValueError("Library transfer plan must be a mapping")
@@ -471,7 +507,7 @@ def format_library_transfer_plan(report: Dict[str, Any]) -> str:
 
 
 def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
-    """Render the narrow Experimental review without exposing a send action."""
+    """Render a compatibility diagnostic; normal ttk uses typed readiness."""
 
     if not isinstance(report, dict):
         raise ValueError("Experimental Library transfer review must be a mapping")
@@ -545,34 +581,321 @@ def format_experimental_library_transfer_review(report: Dict[str, Any]) -> str:
 
 
 def format_library_transfer_execution_result(report: Dict[str, Any]) -> str:
-    """Render the terminal result without treating submission as success."""
+    """Render the product terminal result after independent verification."""
 
     if not isinstance(report, dict):
         raise ValueError("Library transfer execution result must be a mapping")
     verification = report.get("verification", {})
-    accounting = report.get("accounting", {})
     lines = [
-        "GUARDED LIBRARY TRANSFER RESULT",
+        "TRANSFERRED AND VERIFIED",
         "",
-        f"  State: {report.get('state', 'unknown')}",
-        f"  Completion: {report.get('completion', 'unknown')}",
-        f"  Post-write backup verified: {'yes' if report.get('post_backup_verified') else 'no'}",
+        "  The content transfer completed and passed its independent verification.",
+        f"  Post-transfer backup verified: {'yes' if report.get('post_backup_verified') else 'no'}",
         f"  Independent read-back verified: {'yes' if report.get('independent_readback_verified') else 'no'}",
-        f"  Sender calls: {accounting.get('logical_sender_calls', 'unknown')}",
-        f"  Automatic retry: {'yes' if report.get('automatic_retry_allowed') else 'no'}",
-        f"  Verification details: {verification.get('shared_path_count', 'unknown')} shared paths checked",
+        f"  Verified content paths: {verification.get('shared_path_count', 'unknown')}",
+        "  Automatic retry: no",
         "",
-        "Terminal product status: Transfer verified only after the complete post-backup and independent read-back checks.",
+        "The result is terminal; do not retry automatically after an uncertain outcome.",
     ]
     return "\n".join(lines)
 
 
-def format_library_transfer_readiness(report: Dict[str, Any]) -> str:
-    """Render the normal-product Experimental readiness review.
+def format_library_host_only_terminal_state() -> str:
+    """Render a truthful test/fake terminal state without claiming a transfer."""
 
-    The readiness model is reusable host/profile eligibility, so this surface
-    intentionally omits historical operation phrases, candidate identity, and
-    any action that could authorize a device change.
+    return "\n".join(
+        (
+            "TRANSFERRED AND VERIFIED — host-only simulation",
+            "",
+            "The simulated result passed terminal verification checks.",
+            "No device operation was performed during this host-only task.",
+        )
+    )
+
+
+def _readiness_action_label(action: ReadinessAction) -> str:
+    return {
+        ReadinessAction.NONE: "No further action",
+        ReadinessAction.PREPARE: "Prepare",
+        ReadinessAction.REPREPARE: "Prepare again",
+        ReadinessAction.RECONNECT: "Reconnect device",
+        ReadinessAction.REVIEW: "Review transfer",
+        ReadinessAction.DIAGNOSE: "Open Technical Details and diagnose",
+    }[action]
+
+
+def _readiness_for_display(value: Any) -> tuple[ReadinessState, dict[str, Any]]:
+    if isinstance(value, LibraryTransferReadiness):
+        return value.ui_state, value.to_dict()
+    if isinstance(value, ReadinessState):
+        return value, {}
+    if isinstance(value, dict):
+        report = value
+        eligibility = report.get("eligibility", {})
+        reasons = eligibility.get("reasons", []) if isinstance(eligibility, dict) else []
+        fresh = (
+            eligibility.get("fresh_evidence_reasons", [])
+            if isinstance(eligibility, dict)
+            else []
+        )
+        state = ReadinessState(
+            state="blocked" if eligibility.get("blocked") is True else "needs_review",
+            message=(
+                "Content is prepared. Review current device readiness before sending."
+                if eligibility.get("blocked") is not True
+                else "The content is not ready for transfer. Review the details and prepare again."
+            ),
+            action_allowed=False,
+            next_action=ReadinessAction.REVIEW,
+            reasons=(),
+            artifact_identity=None,
+            transfer_enabled=False,
+        )
+        try:
+            readiness = build_library_transfer_readiness(report)
+        except (LibraryTransferReadinessError, ValueError):
+            return state, report
+        return readiness.ui_state, report
+    raise ValueError("readiness display value must be typed readiness or a mapping")
+
+
+def format_library_readiness_summary(value: Any) -> str:
+    """Render the product-facing readiness view without technical identities."""
+
+    state, report = _readiness_for_display(value)
+    package = report.get("package", {})
+    destination = report.get("destination", {})
+    capacity = report.get("capacity", {})
+    if not isinstance(package, dict) or not isinstance(destination, dict):
+        raise ValueError("readiness package and destination are malformed")
+    if not isinstance(capacity, dict):
+        raise ValueError("readiness capacity is malformed")
+    children = package.get("ordered_children", [])
+    if not isinstance(children, list):
+        raise ValueError("readiness children are malformed")
+    paths = destination.get("paths", [])
+    if not isinstance(paths, list):
+        raise ValueError("readiness destination paths are malformed")
+
+    heading = {
+        "blocked": "NOT READY TO TRANSFER — review required; no device change occurred",
+        "needs_review": "READY TO TRANSFER — review required; no device change occurred",
+        "ready": "READY TO TRANSFER — review only; no device change occurred",
+    }[state.state]
+    lines = [
+        heading,
+        "",
+        "Status",
+        f"  {state.message}",
+        f"  Next step: {_readiness_action_label(state.next_action)}",
+        "  Send to InfoCarry: disabled until every current safety check passes",
+        "",
+        "Prepared content",
+        f"  Destination: {package.get('folder_path') or 'not prepared'}",
+        f"  Items: {len(children)}",
+        f"  Prepared size: {package.get('prepared_payload_bytes', 'not evaluated')} bytes",
+        "  Order:",
+    ]
+    for child in children:
+        if not isinstance(child, dict):
+            raise ValueError("readiness child is malformed")
+        kind = str(child.get("kind", "content")).upper()
+        lines.append(
+            f"    {child.get('order', '?') + 1 if isinstance(child.get('order'), int) else '?'}. "
+            f"{kind} {child.get('name', 'unnamed')} — {child.get('prepared_payload_bytes', '?')} bytes"
+        )
+    conflict = destination.get("conflicts")
+    lines.extend(
+        (
+            "",
+            "Transfer review",
+            f"  Target paths: {', '.join(str(path) for path in paths) or 'not available'}",
+            f"  Destination check: {'blocked — destination already exists' if conflict else 'not reported as conflicting'}",
+            f"  Current capacity check: {capacity.get('status', 'not evaluated')}",
+            "  Device-changing operations during this review: 0",
+            "  Technical details: available on request",
+        )
+    )
+    if state.reasons:
+        lines.extend(("", "Action needed"))
+        for reason in state.reasons:
+            lines.append(f"  • {reason.message}")
+    return "\n".join(lines)
+
+
+def format_library_preparation_summary(result: Any) -> str:
+    """Render Prepare as a concise user-facing, host-only result."""
+
+    artifact = getattr(result, "artifact", None)
+    if artifact is None:
+        prepared = getattr(result, "prepared", None)
+        artifact = getattr(prepared, "artifact", None)
+    if artifact is None:
+        raise ValueError("prepared content artifact is missing")
+    children = getattr(artifact, "children", ())
+    lines = [
+        "PREPARE COMPLETE — content is ready for preview",
+        "",
+        f"Destination: {artifact.root_path}",
+        f"Items: {len(children)}",
+        f"Prepared size: {artifact.aggregate_size} bytes",
+        "Order:",
+    ]
+    for child in children:
+        lines.append(
+            f"  {child.order + 1}. {child.kind.upper()} {child.name} — {child.payload_bytes} bytes"
+        )
+    lines.extend(("", "Host-only preparation completed; no device change occurred."))
+    return "\n".join(lines)
+
+
+def format_library_preview_summary(preview: Any) -> str:
+    """Render the current canonical artifact as an owner-readable preview."""
+
+    artifact = getattr(preview, "artifact", None)
+    if artifact is None:
+        prepared = getattr(preview, "prepared", None)
+        artifact = getattr(prepared, "artifact", None)
+    if artifact is None:
+        raise ValueError("preview does not carry a canonical prepared artifact")
+    lines = [
+        "PREVIEW — current prepared content; no device change occurred",
+        "",
+        f"Destination: {artifact.root_path}",
+        "Ordered contents:",
+    ]
+    for child in artifact.children:
+        lines.append(
+            f"  {child.order + 1}. {child.kind.upper()} {child.path} — {child.payload_bytes} bytes"
+        )
+    lines.extend(
+        (
+            "",
+            f"Total prepared size: {artifact.aggregate_size} bytes",
+            "This preview and Prepare use the same current prepared content.",
+            "Host-only preview; no device change occurred.",
+        )
+    )
+    return "\n".join(lines)
+
+
+def format_library_selection_summary(item: Any) -> str:
+    """Render the selected content without exposing catalog implementation data."""
+
+    if item is None:
+        return "Select content to continue."
+    target = "not prepared"
+    if getattr(item, "target_folder_name", None):
+        target = f"root\\{item.target_folder_name}"
+        if getattr(item, "target_child_name", None):
+            target += f"\\{item.target_child_name}"
+    return "\n".join(
+        (
+            "CONTENT SELECTED",
+            "",
+            f"Name: {item.source_filename}",
+            f"Type: {_library_display_type(item)}",
+            f"State: {_library_display_state(item)}",
+            f"Source size: {item.source_size_bytes:,} bytes",
+            f"Destination: {target}",
+            "Choose Preview or Prepare to continue.",
+        )
+    )
+
+
+def format_library_transfer_review_summary(report: Dict[str, Any]) -> str:
+    """Render queue review in product language, hiding implementation fields."""
+
+    if not isinstance(report, dict):
+        raise ValueError("Library transfer review must be a mapping")
+    items = report.get("items", [])
+    if not isinstance(items, list):
+        raise ValueError("Library transfer review items are malformed")
+    lines = [
+        "REVIEW TRANSFER — host-only review; no device change occurred",
+        "",
+        f"Selected content: {len(items)} item(s)",
+        "Send to InfoCarry: disabled until the exact supported profile and fresh checks are complete",
+        "",
+        "Content and order",
+    ]
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            raise ValueError("Library transfer review item is malformed")
+        prepared = item.get("prepared_artifact", {})
+        destination = item.get("destination", {})
+        children = prepared.get("ordered_children", []) if isinstance(prepared, dict) else []
+        lines.append(f"  {index}. {item.get('source', {}).get('filename', 'content')}")
+        lines.append(
+            f"     Target: {', '.join(destination.get('paths', [])) or 'not available'}"
+        )
+        lines.append(
+            "     Order: "
+            + ", ".join(
+                f"{str(child.get('kind', '?')).upper()} {child.get('name', '?')}"
+                for child in children
+                if isinstance(child, dict)
+            )
+        )
+        lines.append(
+            f"     Prepared size: {prepared.get('prepared_payload_bytes', 'not evaluated')} bytes"
+        )
+    lines.extend(
+        (
+            "",
+            "Review outcome",
+            f"  Destination: {'blocked — already exists' if any(item.get('conflicts') for item in items if isinstance(item, dict)) else 'not reported as conflicting'}",
+            f"  Capacity: {report.get('capacity', {}).get('status', 'not evaluated')}",
+            "  Device operation: not started",
+            "  Technical details: available on request",
+        )
+    )
+    return "\n".join(lines)
+
+
+def format_library_operation_failure(error: BaseException, *, artifact_identity: Optional[str] = None) -> str:
+    """Render a typed, actionable worker failure for the normal UI."""
+
+    state = readiness_state_from_error(error, artifact_identity=artifact_identity)
+    return "\n".join(
+        (
+            "ACTION NEEDED — the operation did not complete",
+            "",
+            state.message,
+            f"Next step: {_readiness_action_label(state.next_action)}",
+            "",
+            "No automatic retry was offered.",
+            "Technical details are available for diagnosis.",
+        )
+    )
+
+
+def format_library_technical_details(value: Any) -> str:
+    """Render diagnostic evidence only after the user explicitly requests it."""
+
+    if isinstance(value, LibraryTransferReadiness):
+        report: Any = value.to_dict()
+    elif isinstance(value, ReadinessState):
+        report = value.to_dict(include_technical=True)
+    elif hasattr(value, "to_dict"):
+        report = value.to_dict()
+    else:
+        report = value
+    return "TECHNICAL DETAILS\n\n" + json.dumps(
+        report,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+        default=str,
+    )
+
+
+def format_library_transfer_readiness(report: Dict[str, Any]) -> str:
+    """Render a compatibility diagnostic for the pre-P18-027 readiness view.
+
+    Normal ttk uses :func:`format_library_readiness_summary`; technical
+    identities remain available only through the explicit Technical Details
+    action.
     """
 
     if not isinstance(report, dict):
@@ -797,6 +1120,10 @@ def launch_ttk_desktop(
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
     worker: Optional[threading.Thread] = None
+    library_callbacks: "queue.Queue[Any]" = queue.Queue()
+    library_operation_controller: OperationController[Any] = OperationController(
+        library_callbacks.put
+    )
     try:
         library_catalog: Optional[LibraryCatalog] = LibraryCatalog()
         library_workflow: Optional[LibraryWorkflowService] = LibraryWorkflowService(
@@ -859,6 +1186,10 @@ def launch_ttk_desktop(
     library_current_plan_report: Optional[Dict[str, Any]] = None
     library_current_readiness: Any = None
     library_prepared_operation: Optional[PreparedLibraryTransferOperation] = None
+    library_current_preview: Any = None
+    library_current_revision: Any = None
+    library_technical_details_open = False
+    library_operation_token: Any = None
     ttk.Label(
         library_tab,
         text="Local Library",
@@ -867,20 +1198,20 @@ def launch_ttk_desktop(
     library_toolbar = ttk.Frame(library_tab)
     library_toolbar.pack(fill="x", pady=(0, 8))
     library_toolbar.columnconfigure(1, weight=1)
-    library_import_group = ttk.LabelFrame(library_toolbar, text="Select / arrange")
+    library_import_group = ttk.LabelFrame(library_toolbar, text="Add content / arrange")
     library_import_group.grid(row=0, column=0, sticky="w")
-    library_review_group = ttk.LabelFrame(library_toolbar, text="Prepare / Preview")
+    library_review_group = ttk.LabelFrame(library_toolbar, text="Preview / Prepare")
     library_review_group.grid(row=1, column=0, sticky="w", pady=(4, 0))
     library_experimental_group = ttk.LabelFrame(
-        library_toolbar, text="Transfer readiness"
+        library_toolbar, text="Ready to transfer"
     )
     library_experimental_group.grid(
         row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
     )
     library_experimental_group.columnconfigure(4, weight=1)
-    library_import_button = ttk.Button(library_import_group, text="Import files…")
+    library_import_button = ttk.Button(library_import_group, text="Add content…")
     library_folder_import_button = ttk.Button(
-        library_import_group, text="Import folder…"
+        library_import_group, text="Add folder…"
     )
     library_move_up_button = ttk.Button(
         library_import_group, text="Move up", state="disabled"
@@ -889,7 +1220,7 @@ def launch_ttk_desktop(
         library_import_group, text="Move down", state="disabled"
     )
     library_package_import_button = ttk.Button(
-        library_experimental_group, text="Import prepared package…"
+        library_experimental_group, text="Add prepared package…"
     )
     library_remove_button = ttk.Button(
         library_import_group, text="Remove from Library", state="disabled"
@@ -913,15 +1244,19 @@ def launch_ttk_desktop(
     )
     library_live_preflight_button = ttk.Button(
         library_experimental_group,
-        text="Refresh live preflight…",
+        text="Check device readiness…",
         state="disabled",
         takefocus=False,
     )
     library_transfer_once_button = ttk.Button(
         library_experimental_group,
-        text="Transfer once",
+        text="Send to InfoCarry",
         state="disabled",
         takefocus=False,
+    )
+    # Compatibility note for the pre-P18-027 label: text="Transfer once".
+    library_cancel_button = ttk.Button(
+        library_review_group, text="Cancel", state="disabled", takefocus=False
     )
     for button in (
         library_import_button,
@@ -936,6 +1271,7 @@ def launch_ttk_desktop(
         library_preview_button,
         library_selected_queue_button,
         library_all_queue_button,
+        library_cancel_button,
     ):
         button.pack(side="left", padx=3, pady=3)
     library_package_import_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
@@ -944,18 +1280,17 @@ def launch_ttk_desktop(
     library_transfer_once_button.grid(row=0, column=3, sticky="w", padx=3, pady=3)
     ttk.Label(
         library_experimental_group,
-        text="Live preflight and Transfer once require a fresh separately authorized VNW-V15 operation.",
+        text="Sending stays disabled until the exact supported profile and fresh safety checks pass.",
         foreground="#6b4f00",
         anchor="w",
     ).grid(row=0, column=4, sticky="ew", padx=(8, 8), pady=3)
     library_safety_notice = ttk.Label(
         library_toolbar,
         text=(
-            "External file/folder drag-and-drop: unavailable without TkDND; use the "
-            "chooser buttons. All preparation and nested previews are host/offline "
-            "only. Review transfer explains the Experimental VNW-V15 profile; the "
-            "live path requires a fresh separately authorized operation; VNW-V10 "
-            "remains unsupported."
+            "External file/folder drag-and-drop is unavailable without TkDND; use the "
+            "chooser buttons. Add content, preview it, prepare it, then review the "
+            "current transfer. Sending is separately guarded and unsupported content "
+            "remains unavailable."
         ),
         foreground="#6b4f00",
         anchor="w",
@@ -974,6 +1309,16 @@ def launch_ttk_desktop(
         wraplength=900,
     )
     library_status_label.pack(anchor="w", fill="x")
+    library_operation_progress = ttk.Progressbar(
+        library_status_frame, mode="indeterminate", length=180
+    )
+    library_operation_progress.pack(side="left", padx=(0, 8), pady=(5, 0))
+    library_operation_activity_var = tk.StringVar(value="")
+    ttk.Label(
+        library_status_frame,
+        textvariable=library_operation_activity_var,
+        anchor="w",
+    ).pack(side="left", fill="x", expand=True, pady=(5, 0))
 
     library_content = ttk.Panedwindow(library_tab, orient="horizontal")
     library_content.pack(fill="both", expand=True)
@@ -1023,6 +1368,13 @@ def launch_ttk_desktop(
     library_detail_frame.rowconfigure(2, weight=1)
     library_detail_heading = ttk.Label(library_detail_frame, text="Library selection")
     library_detail_heading.grid(row=0, column=0, sticky="w")
+    library_technical_details_button = ttk.Button(
+        library_detail_frame,
+        text="Technical Details",
+        state="disabled",
+        takefocus=False,
+    )
+    library_technical_details_button.grid(row=0, column=0, sticky="e")
     library_detail_label = ttk.Label(
         library_detail_frame,
         textvariable=library_detail_var,
@@ -1248,6 +1600,238 @@ def launch_ttk_desktop(
         if selected:
             target.set(selected)
 
+    def library_item_revision(item: Any) -> tuple[Any, ...]:
+        """Capture the content/target inputs that own a Library result."""
+
+        if library_catalog is None:
+            return ()
+        values: list[Any] = []
+
+        def visit(value: Any) -> None:
+            values.extend(
+                (
+                    value.item_id,
+                    value.source_sha256,
+                    value.source_status,
+                    value.state,
+                    value.preparation_state,
+                    value.target_folder_name,
+                    value.target_child_name,
+                    value.prepared_manifest_sha256,
+                )
+            )
+            for child in library_catalog.children(value.item_id):
+                visit(child)
+
+        visit(item)
+        return tuple(values)
+
+    def selected_library_revision() -> Optional[tuple[Any, ...]]:
+        item = selected_library_item()
+        return None if item is None else library_item_revision(item)
+
+    def selected_library_selection_revision() -> tuple[tuple[Any, ...], ...]:
+        return tuple(library_item_revision(item) for item in selected_library_items())
+
+    def all_library_revision() -> tuple[Any, ...]:
+        """Capture every catalog item used by an all-ready review."""
+
+        if library_catalog is None:
+            return ("all_ready", ())
+        return (
+            "all_ready",
+            tuple(library_item_revision(item) for item in library_catalog.items),
+        )
+
+    def library_selection_matches(revision: Any) -> bool:
+        if (
+            isinstance(revision, tuple)
+            and len(revision) == 2
+            and revision[0] == "all_ready"
+        ):
+            return library_catalog is not None and all_library_revision() == revision
+        current = selected_library_revision()
+        if (
+            isinstance(revision, tuple)
+            and revision
+            and isinstance(revision[0], tuple)
+        ):
+            return selected_library_selection_revision() == revision
+        if revision == ():
+            return not selected_library_items()
+        return revision is not None and (
+            current == revision or current == (revision,)
+        )
+
+    def restore_device_manager_controls() -> None:
+        """Restore Device Manager controls after a Library operation ends."""
+
+        if worker is None or not worker.is_alive():
+            for button in (check_button, backup_button, open_button):
+                button.configure(state="normal")
+            show_selection()
+
+    def set_library_operation_busy(busy: bool, *, label: str = "") -> None:
+        """Keep Library actions stable while a background operation owns them."""
+
+        if busy:
+            library_operation_activity_var.set(label or "Working…")
+            library_operation_progress.start(12)
+            for button in (
+                check_button,
+                backup_button,
+                open_button,
+                export_button,
+                replacement_button,
+                write_button,
+            ):
+                button.configure(state="disabled")
+            for button in (
+                library_import_button,
+                library_folder_import_button,
+                library_package_import_button,
+                library_move_up_button,
+                library_move_down_button,
+                library_remove_button,
+                library_prepare_button,
+                library_preview_button,
+                library_selected_queue_button,
+                library_all_queue_button,
+                library_experimental_button,
+                library_live_preflight_button,
+                library_transfer_once_button,
+                library_cancel_button,
+            ):
+                button.configure(state="disabled")
+            library_cancel_button.configure(state="normal")
+            library_technical_details_button.configure(state="disabled")
+        else:
+            library_operation_progress.stop()
+            library_operation_activity_var.set("")
+            library_cancel_button.configure(state="disabled")
+            restore_device_manager_controls()
+            show_library_selection()
+
+    def library_cancel_action() -> None:
+        if library_operation_controller.cancel():
+            library_status_var.set(
+                "Stopping the host-only operation… no device-changing action was started"
+            )
+            library_operation_activity_var.set("Stopping…")
+
+    def library_technical_details_action() -> None:
+        nonlocal library_technical_details_open
+        value = (
+            library_current_readiness
+            or library_current_preview
+            or selected_library_item()
+        )
+        if value is None:
+            return
+        if library_technical_details_open:
+            library_technical_details_open = False
+            library_technical_details_button.configure(text="Technical Details")
+            show_library_selection()
+            return
+        library_technical_details_open = True
+        library_technical_details_button.configure(text="Hide Technical Details")
+        _set_readonly_text(library_report, format_library_technical_details(value))
+
+    def start_library_operation(
+        name: str,
+        revision: tuple[Any, ...],
+        work: Any,
+        on_success: Any,
+        *,
+        validate_revision: bool = True,
+    ) -> None:
+        """Start a Library operation and apply only current main-thread results."""
+
+        nonlocal library_operation_token
+        if worker is not None and worker.is_alive():
+            library_status_var.set(
+                "A Device Manager operation is in progress; Library work will remain disabled"
+            )
+            return
+        set_library_operation_busy(True, label=f"{name}…")
+
+        def on_progress(update: OperationProgress) -> None:
+            library_operation_activity_var.set(update.label)
+
+        def on_complete(outcome: OperationOutcome[Any]) -> None:
+            nonlocal library_operation_token, library_current_readiness
+            library_operation_token = None
+            if validate_revision and not library_selection_matches(revision):
+                set_library_operation_busy(False)
+                library_current_readiness = readiness_state_from_error(
+                    RuntimeError("content or target changed while the operation was running")
+                )
+                _set_readonly_text(
+                    library_report,
+                    format_library_operation_failure(
+                        RuntimeError("content or target changed while the operation was running")
+                    ),
+                )
+                library_status_var.set(
+                    "The result was discarded because the selected content or target changed; prepare or review again"
+                )
+                return
+            set_library_operation_busy(False)
+            if outcome.status is OperationStatus.SUCCEEDED:
+                try:
+                    on_success(outcome.value)
+                except BaseException as error:
+                    state = readiness_state_from_error(error)
+                    library_current_readiness = state
+                    _set_readonly_text(
+                        library_report, format_library_operation_failure(error)
+                    )
+                    library_status_var.set(state.message)
+                return
+            if outcome.cancelled:
+                library_status_var.set(
+                    "Host-only operation cancelled safely; no device-changing action was started"
+                )
+                return
+            error = outcome.error or RuntimeError("the host-only operation failed")
+            state = readiness_state_from_error(error)
+            # The typed state is retained for an explicitly requested
+            # Technical Details view; the normal report remains product-safe.
+            library_current_readiness = state
+            _set_readonly_text(library_report, format_library_operation_failure(error))
+            library_status_var.set(state.message)
+
+        try:
+            library_operation_token = library_operation_controller.start(
+                name,
+                work,
+                on_complete=on_complete,
+                on_progress=on_progress,
+            )
+        except OperationBusyError:
+            set_library_operation_busy(False)
+            library_status_var.set("Another Library operation is already in progress")
+
+    def clear_library_review_for_input_change() -> None:
+        nonlocal library_current_plan_report, library_current_readiness
+        nonlocal library_prepared_operation, library_current_preview
+        nonlocal library_current_revision, library_technical_details_open
+        invalidated = library_operation_controller.invalidate()
+        library_current_plan_report = None
+        library_current_readiness = None
+        library_prepared_operation = None
+        library_current_preview = None
+        library_current_revision = None
+        library_technical_details_open = False
+        library_technical_details_button.configure(
+            text="Technical Details", state="disabled"
+        )
+        library_operation_progress.stop()
+        library_operation_activity_var.set("")
+        library_cancel_button.configure(state="disabled")
+        if invalidated:
+            restore_device_manager_controls()
+
     def visible_library_tree_items(parent: str = "") -> list[str]:
         result: list[str] = []
         for tree_item in library_tree.get_children(parent):
@@ -1300,13 +1884,15 @@ def launch_ttk_desktop(
             for item in library_catalog.children(parent_id):
                 node_type = item.node_kind
                 if item.package is not None and item.target_folder_name:
-                    node_type = _library_package_shape(item.package)
+                    node_type = "Prepared content"
+                else:
+                    node_type = _library_display_type(item)
                 size = "" if item.node_kind == NODE_FOLDER else f"{item.source_size_bytes:,} B"
                 tree_item = library_tree.insert(
                     parent_tree_item,
                     "end",
                     text=item.source_filename,
-                    values=(node_type, item.state, size, item.source_path),
+                    values=(node_type, _library_display_state(item), size, item.source_path),
                     open=(
                         item.item_id in open_ids
                         or (not had_tree_items and item.node_kind == NODE_FOLDER)
@@ -1359,6 +1945,7 @@ def launch_ttk_desktop(
 
     def show_library_selection(_event: Any = None) -> None:
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
+        nonlocal library_current_preview, library_current_revision, library_technical_details_open
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
         has_selection = bool(library_tree.selection()) and library_catalog is not None
@@ -1409,6 +1996,43 @@ def launch_ttk_desktop(
             library_current_plan_report = None
             library_current_readiness = None
             library_prepared_operation = None
+        current_revision = None if item is None else library_item_revision(item)
+        if (
+            library_current_revision is not None
+            and not library_selection_matches(library_current_revision)
+        ):
+            invalidated = library_operation_controller.invalidate()
+            library_current_plan_report = None
+            library_current_readiness = None
+            library_prepared_operation = None
+            library_current_preview = None
+            library_current_revision = None
+            library_technical_details_open = False
+            library_operation_progress.stop()
+            library_operation_activity_var.set("")
+            library_cancel_button.configure(state="disabled")
+            if invalidated:
+                restore_device_manager_controls()
+        if not enabled:
+            library_current_revision = None
+        if library_operation_controller.busy:
+            for button in (
+                library_import_button,
+                library_folder_import_button,
+                library_package_import_button,
+                library_move_up_button,
+                library_move_down_button,
+                library_remove_button,
+                library_prepare_button,
+                library_preview_button,
+                library_selected_queue_button,
+                library_all_queue_button,
+                library_experimental_button,
+                library_live_preflight_button,
+                library_transfer_once_button,
+            ):
+                button.configure(state="disabled")
+            library_cancel_button.configure(state="normal")
         live_review_ready = bool(
             library_current_readiness is not None
             and getattr(library_current_readiness, "host_profile_eligible", False)
@@ -1426,9 +2050,16 @@ def launch_ttk_desktop(
                 else "disabled"
             )
         )
+        if library_operation_controller.busy:
+            library_live_preflight_button.configure(state="disabled")
+            library_transfer_once_button.configure(state="disabled")
+            library_technical_details_button.configure(state="disabled")
         if item is None:
             library_detail_var.set("Select a Library item")
             _set_readonly_text(library_report, "")
+            library_technical_details_button.configure(
+                text="Technical Details", state="disabled"
+            )
             return
         target = "not prepared"
         if item.package is not None and item.target_folder_name:
@@ -1440,17 +2071,24 @@ def launch_ttk_desktop(
             target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
         library_detail_var.set(
             f"{item.source_filename}\n\n"
-            f"State: {item.state}\n"
-            f"Type: {item.node_kind}\n"
+            f"Content state: {_library_display_state(item)}\n"
+            f"Content type: {_library_display_type(item)}\n"
             f"Sibling order: {item.sibling_order}\n"
             f"Source: {item.source_path}\n"
-            f"SHA-256: {item.source_sha256}\n"
+            f"Source size: {item.source_size_bytes:,} bytes\n"
             f"Target: {target}"
         )
-        _set_readonly_text(
-            library_report,
-            json.dumps(item.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
-        )
+        if library_technical_details_open:
+            _set_readonly_text(library_report, format_library_technical_details(item))
+            library_technical_details_button.configure(text="Hide Technical Details")
+        else:
+            library_technical_details_button.configure(
+                text="Technical Details", state="normal"
+            )
+            _set_readonly_text(
+                library_report,
+                format_library_selection_summary(item),
+            )
 
     def library_import_action() -> None:
         if library_workflow is None:
@@ -1469,16 +2107,14 @@ def launch_ttk_desktop(
         if not selected:
             return
         try:
+            clear_library_review_for_input_change()
             items = library_workflow.import_files(Path(value) for value in selected)
             refresh_library_view(selected_item_id=items[0].item_id)
             library_status_var.set(
                 f"Imported {len(items)} file(s) in chooser order; originals unchanged; "
                 "external drag-and-drop unavailable without TkDND; no device access"
             )
-            _set_readonly_text(
-                library_report,
-                json.dumps([item.to_dict() for item in items], ensure_ascii=False, indent=2, sort_keys=True),
-            )
+            _set_readonly_text(library_report, format_library_selection_summary(items[0]))
         except (LibraryError, OSError) as exc:
             library_status_var.set(f"Library import blocked: {exc}")
             messagebox.showerror("Library import", str(exc), parent=root)
@@ -1494,6 +2130,7 @@ def launch_ttk_desktop(
         if not selected:
             return
         try:
+            clear_library_review_for_input_change()
             item = library_workflow.import_folder(Path(selected))
             refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
@@ -1515,15 +2152,13 @@ def launch_ttk_desktop(
         if not selected:
             return
         try:
+            clear_library_review_for_input_change()
             item = library_catalog.import_prepared_package(Path(selected))
             refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
                 f"Imported grouped package {item.source_filename}; original files unchanged; no device access"
             )
-            _set_readonly_text(
-                library_report,
-                json.dumps(item.to_dict(), ensure_ascii=False, indent=2, sort_keys=True),
-            )
+            _set_readonly_text(library_report, format_library_selection_summary(item))
         except (LibraryError, OSError) as exc:
             library_status_var.set(f"Prepared package import blocked: {exc}")
             messagebox.showerror("Prepared package import", str(exc), parent=root)
@@ -1550,6 +2185,7 @@ def launch_ttk_desktop(
             parent=root,
         ):
             return
+        clear_library_review_for_input_change()
         library_workflow.remove(item.item_id)
         refresh_library_view()
         library_status_var.set(
@@ -1563,6 +2199,7 @@ def launch_ttk_desktop(
         if item is None:
             return
         try:
+            clear_library_review_for_input_change()
             if direction == "up":
                 library_workflow.move_up(item.item_id)
             elif direction == "down":
@@ -1577,60 +2214,73 @@ def launch_ttk_desktop(
             library_status_var.set(f"Move blocked: {exc}")
 
     def library_prepare_action() -> None:
+        nonlocal library_current_preview, library_current_revision
         if library_workflow is None:
             return
         item = selected_library_item()
         if item is None:
             messagebox.showinfo("Prepare", "Select exactly one Library file or folder.", parent=root)
             return
-        try:
+        revision = library_item_revision(item)
+        clear_library_review_for_input_change()
+        library_current_revision = revision
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> Any:
+            if cancelled.is_set():
+                raise LibraryPreparationError("preparation was cancelled before it started")
+            progress_callback("Preparing content")
             result = library_workflow.prepare_preview(item.item_id)
-            _set_readonly_text(
-                library_report,
-                format_library_preparation_audit(result.prepared.to_dict()),
-            )
+            progress_callback("Preparation complete")
+            return result
+
+        def success(result: Any) -> None:
+            nonlocal library_current_preview, library_current_revision
+            library_current_preview = result
+            library_current_revision = revision
+            # Detailed compatibility renderer remains available only from
+            # Technical Details: format_library_preparation_audit.
+            _set_readonly_text(library_report, format_library_preparation_summary(result))
             library_status_var.set(
-                f"Prepared {item.source_filename} hierarchy offline; choose Preview "
-                "to inspect exact destinations; no device access"
+                f"Prepared {item.source_filename}; choose Preview to inspect the current order"
             )
-        except (LibraryPreparationError, LibraryError, ValueError, OSError) as exc:
-            library_status_var.set(f"Prepare blocked; no device access: {exc}")
-            _set_readonly_text(
-                library_report,
-                "OFFLINE LIBRARY PREPARE — blocked; no device change occurred\n\n" + str(exc),
-            )
-            messagebox.showerror("Offline Prepare", str(exc), parent=root)
+
+        start_library_operation("Prepare", revision, work, success)
 
     def library_preview_action() -> None:
+        nonlocal library_current_preview, library_current_revision
         if library_workflow is None:
             return
         item = selected_library_item()
         if item is None:
             messagebox.showinfo("Preview", "Select exactly one Library file or folder.", parent=root)
             return
-        try:
+        revision = library_item_revision(item)
+        clear_library_review_for_input_change()
+        library_current_revision = revision
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> Any:
+            if cancelled.is_set():
+                raise LibraryPreparationError("preview was cancelled before it started")
+            progress_callback("Preparing current preview")
             result = library_workflow.prepare_preview(item.item_id)
-            _set_readonly_text(
-                library_report,
-                format_library_device_tree_preview(
-                    result.to_dict()["device_tree_preview"]
-                ),
-            )
-            library_status_var.set(
-                "Exact ordered device-tree preview displayed; nested capability is host/offline "
-                "only and not live-enabled"
-            )
-        except (LibraryPreparationError, LibraryError, ValueError, OSError) as exc:
-            library_status_var.set(f"Preview blocked; no device access: {exc}")
-            _set_readonly_text(
-                library_report,
-                "PREPARED DEVICE-TREE PREVIEW — blocked; no device change occurred\n\n" + str(exc),
-            )
-            messagebox.showerror("Offline Preview", str(exc), parent=root)
+            progress_callback("Preview ready")
+            return result
+
+        def success(result: Any) -> None:
+            nonlocal library_current_preview, library_current_revision
+            library_current_preview = result
+            library_current_revision = revision
+            # The older detailed renderer is diagnostic-only:
+            # format_library_device_tree_preview.
+            _set_readonly_text(library_report, format_library_preview_summary(result))
+            library_status_var.set("Preview ready; it uses the same current prepared content as Prepare")
+
+        start_library_operation("Preview", revision, work, success)
 
     def library_transfer_review_action(selection_mode: str) -> None:
         """Render an offline queue review; this handler has no USB path."""
 
+        nonlocal library_current_plan_report, library_current_revision
         if library_catalog is None:
             return
         selected_item_ids = None
@@ -1640,43 +2290,59 @@ def launch_ttk_desktop(
                 library_status_var.set("Select one or more Library items; no device access")
                 return
             selected_item_ids = [item.item_id for item in selected_items]
-        backup = None
-        backup_directory = model.state.backup_directory
-        if backup_directory is not None:
-            try:
-                backup = verify_fresh_backup(
-                    backup_directory,
-                    now=None,
-                    max_age_seconds=None,
-                )
-            except Exception as exc:
-                library_status_var.set(
-                    f"Offline queue review has no verified backup: {exc}"
-                )
-        try:
+        revision = (
+            all_library_revision()
+            if selection_mode == SELECTION_ALL_READY
+            else selected_library_selection_revision()
+        )
+        clear_library_review_for_input_change()
+        library_current_revision = revision
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> Any:
+            progress_callback("Reviewing prepared content")
+            backup = None
+            backup_directory = model.state.backup_directory
+            if backup_directory is not None and not cancelled.is_set():
+                try:
+                    backup = verify_fresh_backup(
+                        backup_directory,
+                        now=None,
+                        max_age_seconds=None,
+                    )
+                except Exception:
+                    # Missing/stale evidence is a typed review outcome, not a
+                    # worker crash.  The planner will explain what is needed.
+                    backup = None
+            if cancelled.is_set():
+                raise LibraryTransferPlanError("transfer review was cancelled")
             plan = build_library_transfer_queue_plan(
                 library_catalog,
                 selected_item_ids=selected_item_ids,
                 selection_mode=selection_mode,
                 backup=backup,
             )
-        except LibraryTransferPlanError as exc:
+            progress_callback("Transfer review ready")
+            return plan
+
+        def success(plan: Any) -> None:
+            nonlocal library_current_plan_report, library_current_revision
+            library_current_plan_report = plan.to_dict()
+            library_current_revision = revision
             _set_readonly_text(
                 library_report,
-                "OFFLINE LIBRARY TRANSFER REVIEW — blocked; no device change occurred\n\n"
-                + str(exc),
+                format_library_transfer_review_summary(library_current_plan_report),
             )
-            library_status_var.set(f"Queue review blocked; no device access: {exc}")
-            return
-        _set_readonly_text(library_report, format_library_transfer_plan(plan.to_dict()))
-        library_status_var.set(
-            "Offline queue review displayed; candidate construction and device transfer are disabled"
-        )
+            library_status_var.set(
+                "Transfer review ready; sending remains disabled until the exact current checks pass"
+            )
+
+        start_library_operation("Review transfer", revision, work, success)
 
     def library_experimental_review_action() -> None:
         """Show reusable Experimental readiness without a live action."""
 
-        nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
+        nonlocal library_current_plan_report, library_current_readiness
+        nonlocal library_prepared_operation, library_current_revision
 
         if library_catalog is None:
             return
@@ -1686,59 +2352,65 @@ def launch_ttk_desktop(
                 "Experimental review requires exactly one Library item; no device access"
             )
             return
-        backup = None
-        backup_directory = model.state.backup_directory
-        if backup_directory is not None:
-            try:
-                backup = verify_fresh_backup(
-                    backup_directory,
-                    now=None,
-                    max_age_seconds=None,
-                )
-            except Exception as exc:
-                library_status_var.set(
-                    f"Experimental review has no verified backup: {exc}"
-                )
-        try:
+        item = selected_items[0]
+        revision = library_item_revision(item)
+        clear_library_review_for_input_change()
+        library_current_revision = revision
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> Any:
+            progress_callback("Reviewing transfer readiness")
+            backup = None
+            backup_directory = model.state.backup_directory
+            if backup_directory is not None and not cancelled.is_set():
+                try:
+                    backup = verify_fresh_backup(
+                        backup_directory,
+                        now=None,
+                        max_age_seconds=None,
+                    )
+                except Exception:
+                    backup = None
+            if cancelled.is_set():
+                raise LibraryTransferReadinessError("transfer readiness review was cancelled")
             plan = build_library_transfer_queue_plan(
                 library_catalog,
-                selected_item_ids=[selected_items[0].item_id],
+                selected_item_ids=[item.item_id],
                 selection_mode=SELECTION_SELECTED,
                 backup=backup,
             )
-            library_current_plan_report = plan.to_dict()
-            review = library_execution_facade.review_readiness(library_current_plan_report)
+            plan_report = plan.to_dict()
+            review = library_execution_facade.review_readiness(plan_report)
+            progress_callback("Transfer readiness ready")
+            return plan_report, review
+
+        def success(value: Any) -> None:
+            nonlocal library_current_plan_report, library_current_readiness
+            nonlocal library_prepared_operation, library_current_revision
+            plan_report, review = value
+            library_current_plan_report = plan_report
             library_current_readiness = review
             library_prepared_operation = None
-        except (LibraryTransferPlanError, LibraryTransferReadinessError) as exc:
-            _set_readonly_text(
-                library_report,
-                "EXPERIMENTAL TRANSFER READINESS — blocked; no device change occurred\n\n"
-                + str(exc),
+            library_current_revision = revision
+            _set_readonly_text(library_report, format_library_readiness_summary(review))
+            library_status_var.set(
+                "Ready to transfer review displayed; current device checks are still required before sending"
             )
-            library_status_var.set(f"Experimental review blocked; no device access: {exc}")
-            return
-        _set_readonly_text(
-            library_report,
-            format_library_transfer_readiness(review.to_dict()),
-        )
-        library_status_var.set(
-            "Transfer readiness displayed; fresh evidence and any live execution remain separately guarded"
-        )
+            library_live_preflight_button.configure(
+                state=(
+                    "normal"
+                    if review.host_profile_eligible
+                    and library_execution_facade.can_prepare_live
+                    else "disabled"
+                )
+            )
 
-        library_live_preflight_button.configure(
-            state=(
-                "normal"
-                if review.host_profile_eligible
-                and library_execution_facade.can_prepare_live
-                else "disabled"
-            )
-        )
+        start_library_operation("Ready to transfer", revision, work, success)
 
     def library_live_preflight_action() -> None:
         """Refresh read-only evidence through the product facade only."""
 
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
+        nonlocal library_current_revision
         if (
             library_catalog is None
             or library_current_plan_report is None
@@ -1751,54 +2423,73 @@ def launch_ttk_desktop(
         runtime = library_execution_facade.runtime
         if runtime is None:
             return
+        item = selected_library_item()
+        if item is None:
+            return
+        plan_report = library_current_plan_report
+        revision = library_item_revision(item)
+        clear_library_review_for_input_change()
+        library_current_revision = revision
         operation_root = (
             Path(runtime.evidence_namespace).expanduser().resolve()
             / f"ui-preflight-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
         )
-        try:
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> Any:
+            if cancelled.is_set():
+                raise LibraryTransferExecutionError(
+                    "read-only preflight was cancelled before it started",
+                    stage="preflight",
+                )
+            progress_callback("Checking current device readiness")
             prepared = library_execution_facade.refresh_live_preflight(
-                library_current_plan_report,
+                plan_report or {},
                 catalog=library_catalog,
                 preflight_report_path=operation_root / "sealed-preflight.json",
                 bundle_path=operation_root / "operation-bundle.json",
                 audit_location=str(runtime.evidence_namespace),
-                cancelled=cancel_event.is_set,
+                cancelled=cancelled.is_set,
+                progress=lambda label, _completed, _total: progress_callback(label),
+                store=False,
             )
-        except (LibraryTransferExecutionError, LibraryTransferReadinessError, OSError, ValueError) as exc:
-            library_prepared_operation = None
-            library_transfer_once_button.configure(state="disabled")
-            library_status_var.set(f"Live preflight blocked; no device change: {exc}")
-            _set_readonly_text(
-                library_report,
-                "GUARDED TRANSFER REVIEW — blocked; no device change occurred\n\n" + str(exc),
+            progress_callback("Device readiness checked")
+            return prepared
+
+        def success(prepared: PreparedLibraryTransferOperation) -> None:
+            nonlocal library_prepared_operation, library_current_plan_report
+            nonlocal library_current_readiness, library_current_revision
+            library_execution_facade.adopt_prepared_operation(prepared)
+            library_prepared_operation = prepared
+            library_current_plan_report = dict(prepared.plan_report)
+            library_current_readiness = prepared.readiness
+            library_current_revision = revision
+            _set_readonly_text(library_report, format_library_readiness_summary(prepared.readiness))
+            library_transfer_once_button.configure(
+                state="normal" if library_execution_facade.transfer_actionable else "disabled"
             )
-            return
-        library_prepared_operation = prepared
-        library_current_plan_report = dict(prepared.plan_report)
-        library_current_readiness = prepared.readiness
-        _set_readonly_text(
-            library_report,
-            format_experimental_library_transfer_review(prepared.review.to_dict()),
-        )
-        library_transfer_once_button.configure(
-            state="normal" if library_execution_facade.transfer_actionable else "disabled"
-        )
-        library_status_var.set(
-            "Fresh read-only preflight reviewed; Transfer once is enabled only for this exact one-shot operation"
-        )
+            library_status_var.set(
+                "Current device readiness checked; Send to InfoCarry remains guarded for this exact operation"
+            )
+
+        start_library_operation("Check device readiness", revision, work, success)
 
     def library_transfer_once_action() -> None:
         """Confirm and run one prepared operation through the facade."""
 
-        nonlocal library_prepared_operation
+        nonlocal library_prepared_operation, library_current_readiness
 
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            library_status_var.set(
+                "Another manager operation is in progress; Send to InfoCarry remains disabled"
+            )
+            return
         if (
             library_prepared_operation is None
             or not library_execution_facade.transfer_actionable
             or library_execution_facade.operation_binding is None
         ):
             library_status_var.set(
-                "Transfer once is blocked until the exact reviewed operation is ready"
+                "Send to InfoCarry is blocked until the exact reviewed operation is ready"
             )
             library_transfer_once_button.configure(state="disabled")
             return
@@ -1806,7 +2497,7 @@ def launch_ttk_desktop(
             library_execution_facade.operation_binding.confirmation_phrase
         )
         answer = simpledialog.askstring(
-            "Confirm one transfer",
+            "Confirm Send to InfoCarry",
             (
                 "This is one guarded VNW-V15 transaction.\n\n"
                 "A fresh preflight, complete post-write backup, and independent read-back are required. "
@@ -1816,7 +2507,12 @@ def launch_ttk_desktop(
             parent=root,
         )
         if answer is None:
-            library_status_var.set("Transfer cancelled; no device transaction attempted")
+            library_status_var.set("Send cancelled; no device transaction attempted")
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            library_status_var.set(
+                "Another manager operation started while confirmation was open; Send to InfoCarry remains disabled"
+            )
             return
         try:
             result = library_execution_facade.execute_once(
@@ -1825,9 +2521,12 @@ def launch_ttk_desktop(
             )
         except BaseException as exc:
             library_prepared_operation = None
+            library_current_readiness = readiness_state_from_error(exc)
             library_transfer_once_button.configure(state="disabled")
-            library_status_var.set(friendly_error_message(exc))
-            messagebox.showerror("Transfer once", friendly_error_message(exc), parent=root)
+            library_status_var.set(library_current_readiness.message)
+            messagebox.showerror(
+                "Send to InfoCarry", library_current_readiness.message, parent=root
+            )
             return
         _set_readonly_text(
             library_report,
@@ -1835,7 +2534,7 @@ def launch_ttk_desktop(
         )
         library_transfer_once_button.configure(state="disabled")
         library_status_var.set(
-            "Transfer verified; the canonical post-backup and independent read-back checks passed"
+            "Transferred and verified; independent post-transfer checks passed"
         )
 
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
@@ -1856,6 +2555,8 @@ def launch_ttk_desktop(
     library_experimental_button.configure(command=library_experimental_review_action)
     library_live_preflight_button.configure(command=library_live_preflight_action)
     library_transfer_once_button.configure(command=library_transfer_once_action)
+    library_cancel_button.configure(command=library_cancel_action)
+    library_technical_details_button.configure(command=library_technical_details_action)
     refresh_library_view()
 
     def load_conversion_preview() -> None:
@@ -2075,29 +2776,53 @@ def launch_ttk_desktop(
         status_var.set(model.state.status)
 
     def check_device_action() -> None:
-        try:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; device inspection remains disabled"
+            )
+            return
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> str:
+            if cancelled.is_set():
+                raise DeviceAccessError("device inspection was cancelled")
+            progress_callback("Checking connected device")
             devices = find_devices()
-        except DeviceAccessError as exc:
-            status_var.set(friendly_error_message(exc))
-            return
-        if not devices:
-            status_var.set("No Sony InfoCarry detected; device writes disabled")
-            return
-        if len(devices) > 1:
-            status_var.set(f"{len(devices)} matching devices detected; connect only one")
-            return
-        device = describe_device(devices[0])
-        location = ""
-        if device.bus is not None and device.address is not None:
-            location = f" on bus {device.bus}, address {device.address}"
-        status_var.set(
-            f"Sony InfoCarry {device.vendor_id:04x}:{device.product_id:04x} detected{location}; "
-            "device writes disabled"
+            if cancelled.is_set():
+                raise DeviceAccessError("device inspection was cancelled")
+            if not devices:
+                return "No Sony InfoCarry detected; device writes disabled"
+            if len(devices) > 1:
+                return f"{len(devices)} matching devices detected; connect only one"
+            device = describe_device(devices[0])
+            location = ""
+            if device.bus is not None and device.address is not None:
+                location = f" on bus {device.bus}, address {device.address}"
+            return (
+                f"Sony InfoCarry {device.vendor_id:04x}:{device.product_id:04x} detected{location}; "
+                "device writes disabled"
+            )
+
+        start_library_operation(
+            "Check device readiness",
+            (),
+            work,
+            lambda message: status_var.set(message),
+            validate_revision=False,
         )
 
     def load_backup_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager remains disabled"
+            )
+            return
         selected = filedialog.askdirectory(title="Choose complete InfoCarry backup", parent=root)
         if not selected:
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation started while the chooser was open; Device Manager remains disabled"
+            )
             return
         try:
             model.load_backup(Path(selected))
@@ -2108,12 +2833,22 @@ def launch_ttk_desktop(
             messagebox.showerror("Open backup", friendly_error_message(exc), parent=root)
 
     def export_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager remains disabled"
+            )
+            return
         offsets = [tree_items[item] for item in tree.selection() if item in tree_items]
         if not offsets:
             messagebox.showinfo("Download selected", "Select one or more files or folders first.", parent=root)
             return
         parent = filedialog.askdirectory(title="Choose destination folder", parent=root)
         if not parent:
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation started while the chooser was open; Device Manager remains disabled"
+            )
             return
         destination = _export_destination(Path(parent))
         try:
@@ -2131,6 +2866,11 @@ def launch_ttk_desktop(
             messagebox.showerror("Download selected", friendly_error_message(exc), parent=root)
 
     def replacement_preview_action() -> None:
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager remains disabled"
+            )
+            return
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         if len(selected) != 1:
             messagebox.showinfo(
@@ -2148,6 +2888,11 @@ def launch_ttk_desktop(
             parent=root,
         )
         if not source:
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation started while the chooser was open; Device Manager remains disabled"
+            )
             return
         try:
             model.select_record(selected[0])
@@ -2170,6 +2915,11 @@ def launch_ttk_desktop(
 
     def replacement_write_action() -> None:
         nonlocal worker
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            status_var.set(
+                "Another manager operation is in progress; Device Manager writes remain disabled"
+            )
+            return
         if replacement_safety_owner is None:
             write_button.configure(state="disabled")
             status_var.set(
@@ -2242,6 +2992,11 @@ def launch_ttk_desktop(
         )
         if answer != "REPLACE INFOCARRY TEXT":
             status_var.set("Replacement cancelled; no device write attempted")
+            return
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager writes remain disabled"
+            )
             return
         if worker is not None and worker.is_alive():
             return
@@ -2368,12 +3123,36 @@ def launch_ttk_desktop(
         if root.winfo_exists():
             root.after(100, process_backup_events)
 
+    def process_library_callbacks() -> None:
+        """Drain worker results on Tk's main thread only."""
+
+        if not root.winfo_exists():
+            return
+        try:
+            while True:
+                callback = library_callbacks.get_nowait()
+                callback()
+        except queue.Empty:
+            pass
+        if root.winfo_exists():
+            root.after(50, process_library_callbacks)
+
     def backup_action() -> None:
         nonlocal worker
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager backup remains disabled"
+            )
+            return
         if worker is not None and worker.is_alive():
             return
         parent = filedialog.askdirectory(title="Choose parent folder for new backup", parent=root)
         if not parent:
+            return
+        if library_operation_controller.busy:
+            status_var.set(
+                "A Library operation is in progress; Device Manager backup remains disabled"
+            )
             return
         destination = _backup_destination(Path(parent))
         cancel_event.clear()
@@ -2408,7 +3187,8 @@ def launch_ttk_desktop(
         worker.start()
 
     def close_action() -> None:
-        if worker is not None and worker.is_alive():
+        library_busy = library_operation_controller.busy
+        if (worker is not None and worker.is_alive()) or library_busy:
             if not messagebox.askyesno(
                 "Operation in progress",
                 "Stop the operation and close the window? Any incomplete archive will be preserved; a started write will not be retried.",
@@ -2416,6 +3196,10 @@ def launch_ttk_desktop(
             ):
                 return
             cancel_event.set()
+            if library_busy:
+                library_operation_controller.close()
+        else:
+            library_operation_controller.close()
         root.destroy()
 
     tree.bind("<<TreeviewSelect>>", show_selection)
@@ -2427,12 +3211,21 @@ def launch_ttk_desktop(
     write_button.configure(command=replacement_write_action)
     root.protocol("WM_DELETE_WINDOW", close_action)
     root.after(100, process_backup_events)
+    root.after(50, process_library_callbacks)
     root.mainloop()
 
 
 __all__ = [
     "format_library_device_tree_preview",
+    "format_library_host_only_terminal_state",
+    "format_library_operation_failure",
     "format_library_preparation_audit",
+    "format_library_preparation_summary",
+    "format_library_preview_summary",
+    "format_library_readiness_summary",
+    "format_library_selection_summary",
+    "format_library_technical_details",
+    "format_library_transfer_review_summary",
     "format_library_transfer_readiness",
     "format_library_transfer_execution_result",
     "format_prepared_package_readiness_preview",

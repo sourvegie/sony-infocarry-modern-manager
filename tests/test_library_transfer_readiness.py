@@ -8,7 +8,10 @@ from infocarry.library_transfer_readiness import (
     EXPERIMENTAL_CHILD_KINDS,
     LIBRARY_TRANSFER_READINESS_STATUS,
     LibraryTransferReadinessError,
+    ReadinessAction,
+    ReadinessReasonCode,
     build_library_transfer_readiness,
+    readiness_state_from_error,
     validate_library_transfer_readiness,
 )
 
@@ -144,6 +147,82 @@ def _plan(
 
 
 class LibraryTransferReadinessTests(unittest.TestCase):
+    def test_typed_readiness_is_deterministic_and_separates_diagnostics(self):
+        first = build_library_transfer_readiness(_plan())
+        second = build_library_transfer_readiness(_plan())
+
+        self.assertEqual(first.reason_codes, second.reason_codes)
+        self.assertEqual(first.user_message, second.user_message)
+        self.assertFalse(first.action_allowed)
+        self.assertEqual(first.next_action, ReadinessAction.REVIEW)
+        self.assertIn(ReadinessReasonCode.FRESH_BACKUP_REQUIRED, first.reason_codes)
+        self.assertIn(ReadinessReasonCode.FRESH_CAPACITY_REQUIRED, first.reason_codes)
+        safe = first.ui_state.to_dict()
+        technical = first.ui_state.to_dict(include_technical=True)
+        self.assertNotIn("technical_detail", str(safe))
+        self.assertIn("technical_detail", str(technical))
+
+    def test_missing_fresh_capacity_is_not_send_actionable(self):
+        readiness = build_library_transfer_readiness(_plan())
+
+        self.assertTrue(readiness.prepared_content_valid)
+        self.assertFalse(readiness.action_allowed)
+        self.assertIn(ReadinessReasonCode.FRESH_CAPACITY_REQUIRED, readiness.reason_codes)
+        self.assertEqual(readiness.next_action, ReadinessAction.REVIEW)
+
+    def test_destination_exists_and_unsupported_profile_have_typed_states(self):
+        collision = _plan(baseline=True)
+        collision["items"][0]["conflicts"] = [{"path": "root\\Book", "reason": "exists"}]
+        collision["items"][0]["queue_ready"] = False
+        collision["items"][0]["reasons"] = [
+            "one or more destination paths conflict with the verified backup"
+        ]
+        collision_readiness = build_library_transfer_readiness(collision)
+        self.assertIn(ReadinessReasonCode.DESTINATION_EXISTS, collision_readiness.reason_codes)
+        self.assertEqual(collision_readiness.next_action, ReadinessAction.REVIEW)
+
+        unsupported = _plan(baseline=True, children=_children(kinds=("txt", "txt", "txt")))
+        unsupported_readiness = build_library_transfer_readiness(unsupported)
+        self.assertTrue(unsupported_readiness.prepared_content_valid)
+        self.assertFalse(unsupported_readiness.host_profile_eligible)
+        self.assertIn(
+            ReadinessReasonCode.UNSUPPORTED_LIVE_PROFILE,
+            unsupported_readiness.reason_codes,
+        )
+
+    def test_error_mapping_covers_safe_recovery_actions(self):
+        content = readiness_state_from_error(RuntimeError("source changed during preparation"))
+        self.assertIn(ReadinessReasonCode.CONTENT_CHANGED, content.reason_codes)
+        self.assertEqual(content.next_action, ReadinessAction.REPREPARE)
+
+        target = readiness_state_from_error(RuntimeError("target changed after review"))
+        self.assertIn(ReadinessReasonCode.TARGET_CHANGED, target.reason_codes)
+        self.assertEqual(target.next_action, ReadinessAction.REVIEW)
+
+        disconnected = readiness_state_from_error(RuntimeError("device not connected"))
+        self.assertIn(ReadinessReasonCode.DEVICE_NOT_CONNECTED, disconnected.reason_codes)
+        self.assertEqual(disconnected.next_action, ReadinessAction.RECONNECT)
+
+        locked = readiness_state_from_error(RuntimeError("installation-wide safety lock is active"))
+        self.assertIn(ReadinessReasonCode.SAFETY_LOCK_ACTIVE, locked.reason_codes)
+        self.assertEqual(locked.next_action, ReadinessAction.DIAGNOSE)
+
+        indeterminate = readiness_state_from_error(
+            RuntimeError("possible sender start"),
+        )
+        self.assertIn(
+            ReadinessReasonCode.VALIDATION_FAILED,
+            indeterminate.reason_codes,
+        )
+        indeterminate_after_start = readiness_state_from_error(
+            type("Indeterminate", (RuntimeError,), {"state": "indeterminate_after_transaction_start"})()
+        )
+        self.assertIn(
+            ReadinessReasonCode.PREVIOUS_OPERATION_INDETERMINATE,
+            indeterminate_after_start.reason_codes,
+        )
+        self.assertEqual(indeterminate_after_start.next_action, ReadinessAction.DIAGNOSE)
+
     def test_exact_package_is_reusable_host_eligible_but_needs_fresh_evidence(self):
         readiness = build_library_transfer_readiness(_plan()).to_dict()
 
