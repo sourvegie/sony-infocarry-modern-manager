@@ -1663,6 +1663,14 @@ def launch_ttk_desktop(
             current == revision or current == (revision,)
         )
 
+    def restore_device_manager_controls() -> None:
+        """Restore Device Manager controls after a Library operation ends."""
+
+        if worker is None or not worker.is_alive():
+            for button in (check_button, backup_button, open_button):
+                button.configure(state="normal")
+            show_selection()
+
     def set_library_operation_busy(busy: bool, *, label: str = "") -> None:
         """Keep Library actions stable while a background operation owns them."""
 
@@ -1701,10 +1709,7 @@ def launch_ttk_desktop(
             library_operation_progress.stop()
             library_operation_activity_var.set("")
             library_cancel_button.configure(state="disabled")
-            if worker is None or not worker.is_alive():
-                for button in (check_button, backup_button, open_button):
-                    button.configure(state="normal")
-                show_selection()
+            restore_device_manager_controls()
             show_library_selection()
 
     def library_cancel_action() -> None:
@@ -1811,7 +1816,7 @@ def launch_ttk_desktop(
         nonlocal library_current_plan_report, library_current_readiness
         nonlocal library_prepared_operation, library_current_preview
         nonlocal library_current_revision, library_technical_details_open
-        library_operation_controller.invalidate()
+        invalidated = library_operation_controller.invalidate()
         library_current_plan_report = None
         library_current_readiness = None
         library_prepared_operation = None
@@ -1824,6 +1829,8 @@ def launch_ttk_desktop(
         library_operation_progress.stop()
         library_operation_activity_var.set("")
         library_cancel_button.configure(state="disabled")
+        if invalidated:
+            restore_device_manager_controls()
 
     def visible_library_tree_items(parent: str = "") -> list[str]:
         result: list[str] = []
@@ -1994,7 +2001,7 @@ def launch_ttk_desktop(
             library_current_revision is not None
             and not library_selection_matches(library_current_revision)
         ):
-            library_operation_controller.invalidate()
+            invalidated = library_operation_controller.invalidate()
             library_current_plan_report = None
             library_current_readiness = None
             library_prepared_operation = None
@@ -2004,6 +2011,8 @@ def launch_ttk_desktop(
             library_operation_progress.stop()
             library_operation_activity_var.set("")
             library_cancel_button.configure(state="disabled")
+            if invalidated:
+                restore_device_manager_controls()
         if not enabled:
             library_current_revision = None
         if library_operation_controller.busy:

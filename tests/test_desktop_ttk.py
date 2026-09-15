@@ -97,6 +97,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "store=False",
             "adopt_prepared_operation",
             "library_operation_controller.busy",
+            "restore_device_manager_controls",
             "Another manager operation started while the chooser was open",
             "Another manager operation started while confirmation was open",
             "root.after(50, process_library_callbacks)",
