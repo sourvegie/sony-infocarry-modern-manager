@@ -18,6 +18,8 @@ from typing import Any, Mapping, Optional, Sequence
 from .backup_format import BackupFormatError, parse_backup_blob
 from .capacity_evidence import NativeCapacityResponse
 from .library import (
+    NODE_FILE,
+    NODE_FOLDER,
     PREPARATION_PREPARED,
     SOURCE_PRESENT,
     STATE_READY,
@@ -220,9 +222,86 @@ def _base_item_report(
     }
 
 
+def _canonical_source_binding_error(
+    catalog: LibraryCatalog,
+    root: LibraryItem,
+    artifact: PreparedContentArtifact,
+) -> Optional[str]:
+    """Recheck source provenance without rebuilding the prepared artifact."""
+
+    if root.node_kind == NODE_FILE:
+        path = Path(root.source_path)
+        if path.is_symlink() or not path.is_file():
+            return "source is missing or no longer a regular file"
+        try:
+            source = path.read_bytes()
+        except OSError as exc:
+            return f"source could not be revalidated: {exc}"
+        source_sha256 = _sha256(source)
+        if source_sha256 != root.source_sha256:
+            return "source hash changed since preparation"
+        if source_sha256 not in {child.source_sha256 for child in artifact.children}:
+            return "source hash is not represented by the canonical prepared artifact"
+        return None
+
+    if root.node_kind != NODE_FOLDER:
+        return "canonical prepared content has an unsupported Library source node"
+
+    children_by_id = {
+        child.node_id: child
+        for child in artifact.children
+        if child.node_id is not None
+    }
+
+    def visit(item: LibraryItem) -> Optional[str]:
+        path = Path(item.source_path)
+        if item.node_kind == NODE_FOLDER:
+            if path.is_symlink() or not path.is_dir():
+                return f"source folder is missing or changed: {path}"
+            try:
+                actual_names = sorted(
+                    (entry.name for entry in path.iterdir()),
+                    key=lambda name: name.encode("utf-8", "surrogatepass"),
+                )
+            except OSError as exc:
+                return f"source folder could not be revalidated: {exc}"
+            recorded_names = sorted(
+                (child.source_filename for child in catalog.children(item.item_id)),
+                key=lambda name: name.encode("utf-8", "surrogatepass"),
+            )
+            if actual_names != recorded_names:
+                return f"folder contents changed since preparation: {path}"
+            for child in catalog.children(item.item_id):
+                error = visit(child)
+                if error is not None:
+                    return error
+            return None
+        if item.node_kind != NODE_FILE:
+            return f"source node is unsupported: {item.source_path}"
+        if path.is_symlink() or not path.is_file():
+            return f"source is missing or no longer a regular file: {path}"
+        try:
+            source = path.read_bytes()
+        except OSError as exc:
+            return f"source could not be revalidated: {exc}"
+        source_sha256 = _sha256(source)
+        if source_sha256 != item.source_sha256:
+            return f"source hash changed since preparation: {item.source_filename}"
+        child = children_by_id.get(item.item_id)
+        if child is not None and (
+            child.source_sha256 != source_sha256
+            or child.source_bytes != len(source)
+        ):
+            return f"canonical source binding differs: {item.source_filename}"
+        return None
+
+    return visit(root)
+
+
 def _prepare_item_report(
     item: LibraryItem,
     *,
+    catalog: LibraryCatalog,
     backup: Optional[VerifiedBackup],
     available_capacity_bytes: Optional[int],
     canonical_override: Optional[PreparedContentArtifact] = None,
@@ -261,10 +340,9 @@ def _prepare_item_report(
         if artifact.artifact_identity != item.prepared_manifest_sha256:
             reasons.append("canonical artifact identity does not match the Library catalog")
             return report
-        if item.node_kind == "file" and item.source_sha256 not in {
-            child.source_sha256 for child in artifact.children
-        }:
-            reasons.append("source hash is not represented by the canonical prepared artifact")
+        source_error = _canonical_source_binding_error(catalog, item, artifact)
+        if source_error is not None:
+            reasons.append(source_error)
             return report
         report["prepared_artifact"].update(
             {
@@ -668,6 +746,7 @@ def build_library_transfer_queue_plan(
     items = [
         _prepare_item_report(
             item,
+            catalog=catalog,
             backup=backup,
             available_capacity_bytes=available_capacity_bytes,
             canonical_override=(

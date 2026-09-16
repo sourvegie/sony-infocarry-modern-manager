@@ -102,6 +102,21 @@ class ContentWorkspaceTests(unittest.TestCase):
         self.assertEqual(refreshed.preparation_state, "stale")
         self.assertIsNone(refreshed.prepared_artifact)
 
+    def test_review_rechecks_source_before_using_saved_artifact(self):
+        source = self.root / "story.txt"
+        source.write_text("before", encoding="utf-8")
+        catalog = LibraryCatalog(self.root / "library.json")
+        imported = catalog.import_file(source)
+        preview = LibraryWorkflowService(catalog).prepare_preview(imported.item_id)
+        source.write_text("after", encoding="utf-8")
+        plan = build_library_transfer_queue_plan(
+            catalog,
+            selected_item_ids=[imported.item_id],
+            canonical_artifacts={imported.item_id: preview.artifact},
+        ).to_dict()
+        self.assertIn("source hash changed", " ".join(plan["items"][0]["reasons"]))
+        self.assertFalse(plan["items"][0]["queue_ready"])
+
     def test_strict_unsupported_character_is_typed(self):
         source = self.root / "unsupported.txt"
         source.write_text("not representable 😀", encoding="utf-8")
