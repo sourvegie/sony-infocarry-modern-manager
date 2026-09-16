@@ -53,13 +53,19 @@ class ContentWorkspaceTests(unittest.TestCase):
 
     def test_txt_is_deterministic_and_surfaces_normalization(self):
         source = self.root / "story.txt"
-        source.write_text("A “quoted” line — with an ellipsis…\n", encoding="utf-8")
+        source_text = "A “quoted” line — with an ellipsis…\r\n"
+        # Use explicit bytes so the source fixture has the same CRLF semantics
+        # on every host.  Path.read_text() intentionally performs native
+        # newline translation on Windows and is therefore not a stable oracle
+        # for the raw source text used by the preview.
+        source.write_bytes(source_text.encode("utf-8"))
         first = self.workspace.prepare(source)
         second = self.workspace.prepare(source)
         self.assertEqual(first.artifact.to_dict(), second.artifact.to_dict())
         self.assertEqual(first.source_kind, ContentSourceKind.TXT)
         self.assertEqual(first.preview.artifact, first.artifact)
-        self.assertEqual(first.preview.text_excerpt, source.read_text(encoding="utf-8"))
+        self.assertEqual(first.preview.text_excerpt, source_text)
+        self.assertEqual(first.preparation_metadata["newline_policy"], "crlf")
         self.assertTrue(first.preview.normalization_substitutions)
         self.assertTrue(first.preview.warnings)
 
