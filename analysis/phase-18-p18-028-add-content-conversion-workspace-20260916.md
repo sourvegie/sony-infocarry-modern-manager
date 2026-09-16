@@ -139,3 +139,20 @@ acceptance after final validation and review status are recorded.
 Publication, final-head macOS/Windows CI, and the fresh independent R3 review
 are external follow-up gates; their identifiers and outcomes must be appended
 before PM acceptance.
+
+## Independent review result
+
+Fresh independent R3 re-review passed on exact head `8b8a26a`. The reviewer
+confirmed the separate legacy hierarchy-manifest and canonical-artifact
+identities, source binding for direct files and folders, host-only ownership,
+and the strict acceptance boundary. Reviewer validation reported 59 focused
+tests passed, 843 full-suite tests passed with 3 intentional skips,
+`compileall`, `git diff --check`, and ownership scans passed. Findings:
+
+- P0 = 0 — PASS
+- P1 = 0 — PASS
+- P2 = 0 — PASS
+
+The reviewer made no working-tree changes. PR creation and final-head
+macOS/Windows CI were not run because the host safety reviewer rejected the
+push to the private `origin` remote pending explicit destination confirmation.

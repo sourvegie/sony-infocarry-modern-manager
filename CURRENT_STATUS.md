@@ -29,7 +29,9 @@ the network; the branch was created from the checked-out P18-027 successor
 head `2943b85`, with the discrepancy recorded for review. Physical counters
 for P18-028 are all zero: USB/device operations 0, sender calls 0, real
 `0x101b` 0, claims consumed 0, sender-marker mutations 0, and
-installation-wide-lock mutations 0. `CAPABILITY_MATRIX.md` is unchanged.
+installation-wide-lock mutations 0. Independent R3 review passes with
+P0/P1/P2 = 0/0/0. `CAPABILITY_MATRIX.md` is unchanged; PR and final-head CI
+remain pending the explicit private-origin publication approval.
 
 ## P18-027 — Normal Manager Workflow Productization
 
