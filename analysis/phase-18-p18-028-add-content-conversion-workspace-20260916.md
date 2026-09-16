@@ -114,14 +114,16 @@ EPUB message. No Tk work is added to the conversion worker's result path.
 
 ## Validation record
 
-The final local validation run passed: 127 focused tests and 842 tests in the
+The final local validation run passed: 128 focused tests and 843 tests in the
 full Python 3.12 portable suite, with 3 intentional skips. Independent review
-identified a source-mutation gap at the Review transfer boundary; the fix
-rechecks source bytes/hashes and folder structure without rebuilding payloads,
-and the regression is included in the counts below.
+identified two review-level gaps: source mutation at the Review transfer
+boundary, and the distinction between the legacy hierarchy manifest digest
+and canonical artifact identity. Both fixes preserve the canonical payload,
+recheck source bytes/hashes and folder structure, and have regressions in the
+counts below.
 
-- Focused conversion/import/preparation/UI tests: 127 passed.
-- Full Python 3.12 portable suite: 842 passed, 3 intentional skips.
+- Focused conversion/import/preparation/UI tests: 128 passed.
+- Full Python 3.12 portable suite: 843 passed, 3 intentional skips.
 - `compileall`: passed.
 - `git diff --check`: passed.
 - Static ownership scans: conversion workspace has no USB/sender/authorization

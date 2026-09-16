@@ -20,8 +20,8 @@ transferable BMP viewport remain distinct and are documented as separate
 adapters. Preparation validity remains separate from live eligibility; the
 existing exact VNW-V15 TXT → BMP → TXT boundary is unchanged.
 
-Local validation is green: 127 focused conversion/import/preparation/UI tests
-passed, and the full Python 3.12 portable suite passed 842 tests with 3
+Local validation is green: 128 focused conversion/import/preparation/UI tests
+passed, and the full Python 3.12 portable suite passed 843 tests with 3
 intentional skips; `compileall` and `git diff --check` also pass. Final-head
 publication/review identifiers are recorded in the [P18-028 analysis record](analysis/phase-18-p18-028-add-content-conversion-workspace-20260916.md)
 after authorized external attempts. The requested base hash was unavailable locally and over

@@ -117,6 +117,25 @@ class ContentWorkspaceTests(unittest.TestCase):
         self.assertIn("source hash changed", " ".join(plan["items"][0]["reasons"]))
         self.assertFalse(plan["items"][0]["queue_ready"])
 
+    def test_folder_hierarchy_keeps_legacy_manifest_and_canonical_identity_distinct(self):
+        folder = self.root / "Book"
+        folder.mkdir()
+        (folder / "one.txt").write_text("one", encoding="utf-8")
+        catalog = LibraryCatalog(self.root / "library.json")
+        imported = catalog.import_folder(folder)
+        preview = LibraryWorkflowService(catalog).prepare_preview(imported.item_id)
+        saved = catalog.get(imported.item_id)
+        self.assertNotEqual(saved.prepared_manifest_sha256, preview.artifact.artifact_identity)
+        plan = build_library_transfer_queue_plan(
+            catalog,
+            selected_item_ids=[imported.item_id],
+            canonical_artifacts={imported.item_id: preview.artifact},
+        )
+        item_report = plan.to_dict()["items"][0]
+        self.assertEqual(item_report["prepared_artifact"]["artifact_identity"], preview.artifact.artifact_identity)
+        self.assertEqual(item_report["prepared_artifact"]["manifest_sha256"], saved.prepared_manifest_sha256)
+        self.assertFalse(plan.queue_ready)
+
     def test_strict_unsupported_character_is_typed(self):
         source = self.root / "unsupported.txt"
         source.write_text("not representable 😀", encoding="utf-8")

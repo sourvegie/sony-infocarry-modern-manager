@@ -337,7 +337,13 @@ def _prepare_item_report(
             except PreparedContentError as exc:
                 reasons.append(f"canonical prepared content could not be validated: {exc}")
                 return report
-        if artifact.artifact_identity != item.prepared_manifest_sha256:
+        canonical_identity = (item.prepared_metadata or {}).get(
+            "canonical_artifact_identity"
+        )
+        if (
+            artifact.artifact_identity != item.prepared_manifest_sha256
+            and canonical_identity != artifact.artifact_identity
+        ):
             reasons.append("canonical artifact identity does not match the Library catalog")
             return report
         source_error = _canonical_source_binding_error(catalog, item, artifact)
