@@ -107,7 +107,9 @@ A user can additionally:
 
 - import supported sources into a persistent local Library by picker or
   drag-and-drop;
-- prepare and preview them using tested conversion profiles;
+- add TXT/BMP content or existing prepared folders/packages, then prepare and
+  preview them through one canonical prepared-content artifact using tested
+  conversion profiles;
 - select one explicitly grouped prepared package for a transfer-readiness
   review;
 - review destinations, conflicts, prepared sizes, device capacity evidence,

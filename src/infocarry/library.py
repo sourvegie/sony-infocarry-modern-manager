@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from .prepared_package import PreparedPackageError, _validate_component
+from .prepared_content import PreparedContentArtifact, PreparedContentError
 
 
 LIBRARY_FORMAT = "infocarry-library-v1"
@@ -327,6 +328,8 @@ class LibraryItem:
     last_validation_error: Optional[str] = None
     source_observations: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     package: Optional[LibraryPackageReference] = None
+    prepared_artifact: Optional[dict[str, Any]] = None
+    prepared_metadata: Optional[dict[str, Any]] = None
     node_kind: str = NODE_FILE
     parent_id: Optional[str] = None
     sibling_order: int = 0
@@ -357,6 +360,15 @@ class LibraryItem:
             raise LibraryCatalogError("observed_source_size_bytes must be non-negative")
         if self.prepared_manifest_sha256 is not None:
             _validate_sha256(self.prepared_manifest_sha256, "prepared_manifest_sha256")
+        if self.prepared_artifact is not None:
+            if not isinstance(self.prepared_artifact, dict):
+                raise LibraryCatalogError("prepared_artifact must be an object or null")
+            try:
+                PreparedContentArtifact.from_dict(self.prepared_artifact)
+            except PreparedContentError as exc:
+                raise LibraryCatalogError(f"prepared artifact is invalid: {exc}") from exc
+        if self.prepared_metadata is not None and not isinstance(self.prepared_metadata, dict):
+            raise LibraryCatalogError("prepared_metadata must be an object or null")
         if self.package is not None:
             if not self.supported:
                 raise LibraryCatalogError("prepared package item must remain supported")
@@ -410,6 +422,10 @@ class LibraryItem:
         if self.package is not None:
             value["item_kind"] = LIBRARY_PACKAGE_ITEM_KIND
             value["package"] = self.package.to_dict()
+        if self.prepared_artifact is not None:
+            value["prepared_artifact"] = dict(self.prepared_artifact)
+        if self.prepared_metadata is not None:
+            value["prepared_metadata"] = dict(self.prepared_metadata)
         return value
 
     @classmethod
@@ -499,6 +515,16 @@ class LibraryItem:
                 last_validation_error=value.get("last_validation_error"),
                 source_observations=tuple(dict(observation) for observation in observations),
                 package=package,
+                prepared_artifact=(
+                    None
+                    if value.get("prepared_artifact") is None
+                    else dict(value["prepared_artifact"])
+                ),
+                prepared_metadata=(
+                    None
+                    if value.get("prepared_metadata") is None
+                    else dict(value["prepared_metadata"])
+                ),
                 node_kind=str(node_kind),
                 parent_id=value.get("parent_id"),
                 sibling_order=sibling_order,
@@ -888,6 +914,7 @@ class LibraryCatalog:
         logical_name = _prepared_package_library_name(imported.package.folder_name)
         manifest_size = imported.manifest_path.stat().st_size
         if existing is None:
+            artifact = imported.package.to_prepared_content_artifact()
             observation = {
                 "timestamp_utc": timestamp,
                 "status": SOURCE_PRESENT,
@@ -920,6 +947,11 @@ class LibraryCatalog:
                 last_validation_error=None,
                 source_observations=(observation,),
                 package=reference,
+                prepared_artifact=artifact.to_dict(),
+                prepared_metadata={
+                    "compatibility_adapter": "PreparedMediaPackage.to_prepared_content_artifact",
+                    "package_manifest_sha256": imported.manifest_sha256,
+                },
                 node_kind=NODE_PREPARED_PACKAGE,
                 parent_id=None,
                 sibling_order=len(self.roots),
@@ -1060,6 +1092,8 @@ class LibraryCatalog:
         prepared_manifest_sha256: Optional[str] = None,
         prepared_manifest_path: Optional[str] = None,
         last_validation_error: Optional[str] = None,
+        prepared_artifact: Optional[dict[str, Any]] = None,
+        prepared_metadata: Optional[dict[str, Any]] = None,
     ) -> LibraryItem:
         if preparation_state not in VALID_PREPARATION_STATES:
             raise LibraryError(f"unsupported preparation state: {preparation_state}")
@@ -1077,6 +1111,16 @@ class LibraryCatalog:
             prepared_manifest_sha256=prepared_manifest_sha256,
             prepared_manifest_path=prepared_manifest_path,
             last_validation_error=last_validation_error,
+            prepared_artifact=(
+                None
+                if prepared_artifact is None
+                else dict(prepared_artifact)
+            ),
+            prepared_metadata=(
+                None
+                if prepared_metadata is None
+                else dict(prepared_metadata)
+            ),
         )
         self._commit_items({**self._items, item_id: updated})
         return updated
@@ -1120,6 +1164,8 @@ class LibraryCatalog:
             observed_timestamp_utc=timestamp,
             last_validation_error=error,
             source_observations=observations,
+            prepared_artifact=(None if status == SOURCE_CHANGED else existing.prepared_artifact),
+            prepared_metadata=(None if status == SOURCE_CHANGED else existing.prepared_metadata),
         )
 
     @staticmethod
@@ -1157,6 +1203,8 @@ class LibraryCatalog:
             observed_timestamp_utc=timestamp,
             last_validation_error=f"prepared package validation failed: {message}",
             source_observations=observations,
+            prepared_artifact=None,
+            prepared_metadata=None,
         )
 
     @staticmethod
@@ -1261,6 +1309,16 @@ class LibraryCatalog:
             observed_timestamp_utc=timestamp,
             last_validation_error=error,
             source_observations=observations,
+            prepared_artifact=(
+                None
+                if status == SOURCE_CHANGED or not details["supported"] or details["validation_error"] is not None
+                else existing.prepared_artifact
+            ),
+            prepared_metadata=(
+                None
+                if status == SOURCE_CHANGED or not details["supported"] or details["validation_error"] is not None
+                else existing.prepared_metadata
+            ),
         )
 
     @staticmethod
@@ -1294,6 +1352,8 @@ class LibraryCatalog:
                 )
             ),
             source_observations=observations,
+            prepared_artifact=None,
+            prepared_metadata=None,
         )
 
 

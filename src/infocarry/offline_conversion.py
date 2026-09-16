@@ -17,7 +17,12 @@ from pathlib import Path
 import struct
 from typing import Sequence
 
-from .text_authoring import EncodedText, TextAuthoringError, encode_cp932_text
+from .text_authoring import (
+    CP932_NORMALIZATION_POLICY,
+    EncodedText,
+    TextAuthoringError,
+    encode_cp932_text,
+)
 
 
 class OfflineConversionError(ValueError):
@@ -87,6 +92,16 @@ class OfflineTextDocument:
             "source_characters": len(self.original_text),
             "source_utf8_bytes": len(self.original_text.encode("utf-8")),
             "normalized_characters": len(self.authored.normalized_text),
+            "normalization_policy": CP932_NORMALIZATION_POLICY,
+            "normalization_substitutions": [
+                {"from": source, "to": replacement}
+                for source, replacement in self.authored.substitutions
+            ],
+            "normalization_warning": (
+                "Some characters were normalized for CP932 compatibility."
+                if self.authored.substitutions
+                else None
+            ),
             "encoded_payload_bytes": len(self.authored.payload),
             "encoded_payload_sha256": hashlib.sha256(self.authored.payload).hexdigest(),
             "page_count": self.page_count,
