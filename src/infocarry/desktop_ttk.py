@@ -34,6 +34,7 @@ from .library import (
 )
 from .library_prepare import LibraryPreparationError
 from .library_workflow import LibraryWorkflowService
+from .prepared_content import PreparedContentArtifact, PreparedContentError
 from .library_transfer_plan import (
     LibraryTransferPlanError,
     SELECTION_ALL_READY,
@@ -100,7 +101,7 @@ def _library_package_shape(package: Any) -> str:
 
 
 def _library_display_type(item: Any) -> str:
-    if getattr(item, "package", None) is not None:
+    if getattr(item, "package", None) is not None or getattr(item, "prepared_artifact", None) is not None:
         return "Prepared content"
     if getattr(item, "node_kind", None) == NODE_FOLDER:
         return "Folder"
@@ -745,6 +746,15 @@ def format_library_preparation_summary(result: Any) -> str:
         lines.append(
             f"  {child.order + 1}. {child.kind.upper()} {child.name} — {child.payload_bytes} bytes"
         )
+    workspace_preview = getattr(getattr(result, "prepared", None), "preview", None)
+    if workspace_preview is not None and getattr(workspace_preview, "normalization_substitutions", ()):
+        lines.extend(
+            (
+                "",
+                "Needs attention",
+                "Some characters were normalized for target text compatibility; review the substitutions before sending.",
+            )
+        )
     lines.extend(("", "Host-only preparation completed; no device change occurred."))
     return "\n".join(lines)
 
@@ -758,16 +768,37 @@ def format_library_preview_summary(preview: Any) -> str:
         artifact = getattr(prepared, "artifact", None)
     if artifact is None:
         raise ValueError("preview does not carry a canonical prepared artifact")
+    title = getattr(artifact, "root_name", None)
+    if not isinstance(title, str) or not title:
+        title = str(getattr(artifact, "root_path", "content")).rsplit("\\", 1)[-1]
     lines = [
         "PREVIEW — current prepared content; no device change occurred",
         "",
+        f"Title: {title}",
         f"Destination: {artifact.root_path}",
+        f"Items: {len(artifact.children)}",
+        f"Approximate prepared size: {artifact.aggregate_size:,} bytes",
         "Ordered contents:",
     ]
     for child in artifact.children:
         lines.append(
             f"  {child.order + 1}. {child.kind.upper()} {child.path} — {child.payload_bytes} bytes"
         )
+    workspace_preview = getattr(getattr(preview, "prepared", None), "preview", None)
+    if workspace_preview is not None:
+        if getattr(workspace_preview, "text_excerpt", None):
+            lines.extend(("", "Readable preview", workspace_preview.text_excerpt))
+        if getattr(workspace_preview, "rendered_details", ()):
+            lines.extend(("", "Content details", *workspace_preview.rendered_details))
+        substitutions = getattr(workspace_preview, "normalization_substitutions", ())
+        if substitutions:
+            lines.extend(
+                (
+                    "",
+                    "Needs attention",
+                    "Some characters were normalized for target text compatibility; review the substitutions before sending.",
+                )
+            )
     lines.extend(
         (
             "",
@@ -1208,7 +1239,7 @@ def launch_ttk_desktop(
     library_experimental_group.grid(
         row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
     )
-    library_experimental_group.columnconfigure(4, weight=1)
+    library_experimental_group.columnconfigure(3, weight=1)
     library_import_button = ttk.Button(library_import_group, text="Add content…")
     library_folder_import_button = ttk.Button(
         library_import_group, text="Add folder…"
@@ -1220,7 +1251,7 @@ def launch_ttk_desktop(
         library_import_group, text="Move down", state="disabled"
     )
     library_package_import_button = ttk.Button(
-        library_experimental_group, text="Add prepared package…"
+        library_import_group, text="Add prepared package…"
     )
     library_remove_button = ttk.Button(
         library_import_group, text="Remove from Library", state="disabled"
@@ -1263,6 +1294,7 @@ def launch_ttk_desktop(
         library_folder_import_button,
         library_move_up_button,
         library_move_down_button,
+        library_package_import_button,
         library_remove_button,
     ):
         button.pack(side="left", padx=3, pady=3)
@@ -1274,16 +1306,15 @@ def launch_ttk_desktop(
         library_cancel_button,
     ):
         button.pack(side="left", padx=3, pady=3)
-    library_package_import_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
-    library_experimental_button.grid(row=0, column=1, sticky="w", padx=3, pady=3)
-    library_live_preflight_button.grid(row=0, column=2, sticky="w", padx=3, pady=3)
-    library_transfer_once_button.grid(row=0, column=3, sticky="w", padx=3, pady=3)
+    library_experimental_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
+    library_live_preflight_button.grid(row=0, column=1, sticky="w", padx=3, pady=3)
+    library_transfer_once_button.grid(row=0, column=2, sticky="w", padx=3, pady=3)
     ttk.Label(
         library_experimental_group,
         text="Sending stays disabled until the exact supported profile and fresh safety checks pass.",
         foreground="#6b4f00",
         anchor="w",
-    ).grid(row=0, column=4, sticky="ew", padx=(8, 8), pady=3)
+    ).grid(row=0, column=3, sticky="ew", padx=(8, 8), pady=3)
     library_safety_notice = ttk.Label(
         library_toolbar,
         text=(
@@ -1618,6 +1649,11 @@ def launch_ttk_desktop(
                     value.target_folder_name,
                     value.target_child_name,
                     value.prepared_manifest_sha256,
+                    (
+                        value.prepared_artifact.get("artifact_identity")
+                        if isinstance(getattr(value, "prepared_artifact", None), dict)
+                        else None
+                    ),
                 )
             )
             for child in library_catalog.children(value.item_id):
@@ -1943,20 +1979,50 @@ def launch_ttk_desktop(
                 continue
         return items
 
+    def canonical_artifacts_for(
+        items: Sequence[Any],
+        *,
+        current_item_id: Optional[str] = None,
+    ) -> dict[str, PreparedContentArtifact]:
+        """Bind queue/review to the currently displayed canonical artifact."""
+
+        result: dict[str, PreparedContentArtifact] = {}
+        current_preview = library_current_preview
+        current_artifact = getattr(current_preview, "artifact", None)
+        for item in items:
+            if (
+                current_item_id is not None
+                and item.item_id == current_item_id
+                and isinstance(current_artifact, PreparedContentArtifact)
+            ):
+                result[item.item_id] = current_artifact
+                continue
+            value = getattr(item, "prepared_artifact", None)
+            if isinstance(value, dict):
+                try:
+                    result[item.item_id] = PreparedContentArtifact.from_dict(value)
+                except PreparedContentError:
+                    continue
+        return result
+
     def show_library_selection(_event: Any = None) -> None:
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         nonlocal library_current_preview, library_current_revision, library_technical_details_open
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
         has_selection = bool(library_tree.selection()) and library_catalog is not None
-        hierarchy_enabled = enabled and item.node_kind != NODE_PREPARED_PACKAGE
+        hierarchy_enabled = enabled
         selected_items = selected_library_items()
-        legacy_selection = bool(selected_items) and all(
-            selected.package is not None for selected in selected_items
+        prepared_selection = bool(selected_items) and all(
+            selected.package is not None or selected.prepared_artifact is not None
+            for selected in selected_items
         )
-        legacy_items_available = bool(
+        prepared_items_available = bool(
             library_catalog is not None
-            and any(value.package is not None for value in library_catalog.items)
+            and any(
+                value.package is not None or value.prepared_artifact is not None
+                for value in library_catalog.items
+            )
         )
         library_remove_button.configure(state="normal" if enabled else "disabled")
         library_move_up_button.configure(
@@ -1976,13 +2042,17 @@ def launch_ttk_desktop(
         library_prepare_button.configure(state="normal" if hierarchy_enabled else "disabled")
         library_preview_button.configure(state="normal" if hierarchy_enabled else "disabled")
         library_selected_queue_button.configure(
-            state="normal" if has_selection and legacy_selection else "disabled"
+            state="normal" if has_selection and prepared_selection else "disabled"
         )
         library_all_queue_button.configure(
-            state="normal" if legacy_items_available else "disabled"
+            state="normal" if prepared_items_available else "disabled"
         )
         library_experimental_button.configure(
-            state="normal" if enabled and item.package is not None else "disabled"
+            state=(
+                "normal"
+                if enabled and (item.package is not None or item.prepared_artifact is not None)
+                else "disabled"
+            )
         )
         current_item_id = item.item_id if item is not None else None
         prepared_item_id = (
@@ -2095,11 +2165,12 @@ def launch_ttk_desktop(
             messagebox.showerror("Library", library_catalog_error or "Library is unavailable", parent=root)
             return
         selected = filedialog.askopenfilenames(
-            title="Import TXT/BMP files into Library",
+            title="Add content to Library",
             filetypes=(
-                ("Supported TXT/BMP files", ("*.txt", "*.bmp")),
+                ("Supported source files", ("*.txt", "*.bmp", "*.epub")),
                 ("UTF-8 text files", "*.txt"),
                 ("237x320 1-bit bitmap files", "*.bmp"),
+                ("EPUB files (conversion not ready yet)", "*.epub"),
                 ("All files", "*"),
             ),
             parent=root,
@@ -2229,7 +2300,11 @@ def launch_ttk_desktop(
             if cancelled.is_set():
                 raise LibraryPreparationError("preparation was cancelled before it started")
             progress_callback("Preparing content")
-            result = library_workflow.prepare_preview(item.item_id)
+            result = library_workflow.prepare_preview(
+                item.item_id,
+                cancel_event=cancelled,
+                progress=progress_callback,
+            )
             progress_callback("Preparation complete")
             return result
 
@@ -2262,7 +2337,11 @@ def launch_ttk_desktop(
             if cancelled.is_set():
                 raise LibraryPreparationError("preview was cancelled before it started")
             progress_callback("Preparing current preview")
-            result = library_workflow.prepare_preview(item.item_id)
+            result = library_workflow.prepare_preview(
+                item.item_id,
+                cancel_event=cancelled,
+                progress=progress_callback,
+            )
             progress_callback("Preview ready")
             return result
 
@@ -2290,6 +2369,18 @@ def launch_ttk_desktop(
                 library_status_var.set("Select one or more Library items; no device access")
                 return
             selected_item_ids = [item.item_id for item in selected_items]
+        else:
+            selected_items = []
+        selected_for_plan = (
+            tuple(library_catalog.items)
+            if selection_mode == SELECTION_ALL_READY
+            else tuple(selected_items)
+        )
+        current_selected_item_id = (
+            selected_items[0].item_id
+            if len(selected_items) == 1
+            else None
+        )
         revision = (
             all_library_revision()
             if selection_mode == SELECTION_ALL_READY
@@ -2320,6 +2411,10 @@ def launch_ttk_desktop(
                 selected_item_ids=selected_item_ids,
                 selection_mode=selection_mode,
                 backup=backup,
+                canonical_artifacts=canonical_artifacts_for(
+                    selected_for_plan,
+                    current_item_id=current_selected_item_id,
+                ),
             )
             progress_callback("Transfer review ready")
             return plan
@@ -2372,11 +2467,13 @@ def launch_ttk_desktop(
                     backup = None
             if cancelled.is_set():
                 raise LibraryTransferReadinessError("transfer readiness review was cancelled")
+            canonical_artifacts = canonical_artifacts_for((item,))
             plan = build_library_transfer_queue_plan(
                 library_catalog,
                 selected_item_ids=[item.item_id],
                 selection_mode=SELECTION_SELECTED,
                 backup=backup,
+                canonical_artifacts=canonical_artifacts,
             )
             plan_report = plan.to_dict()
             review = library_execution_facade.review_readiness(plan_report)

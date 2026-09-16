@@ -10,12 +10,34 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Optional
+import threading
+from typing import Any, Callable, Iterable, Mapping, Optional
 
 from .capability_profile import hierarchical_offline_capability_profile
 from .device_model_profile import VNW_V15_PROFILE
-from .library import LibraryCatalog, LibraryError, LibraryItem
-from .library_prepare import PreparedLibraryHierarchy, prepare_library_hierarchy
+from .content_workspace import (
+    ContentWorkspace,
+    ContentWorkspaceCancelled,
+    ContentWorkspaceError,
+    ContentWorkspaceResult,
+    ContentWorkspaceSettings,
+)
+from .library import (
+    PREPARATION_BLOCKED,
+    PREPARATION_PREPARED,
+    STATE_BLOCKED,
+    STATE_READY,
+    LibraryCatalog,
+    LibraryError,
+    LibraryItem,
+    NODE_FOLDER,
+)
+from .library_prepare import (
+    LibraryPreparationError,
+    PreparedLibraryHierarchy,
+    prepare_library_hierarchy,
+)
+from .prepared_content import PreparedContentArtifact
 from .transfer_foundation import PreparedItem, TransferFoundation
 
 
@@ -40,17 +62,24 @@ def _thaw(value: Any) -> Any:
 
 @dataclass(frozen=True)
 class LibraryWorkflowPreview:
-    prepared: PreparedLibraryHierarchy
+    prepared: Any
     foundation: TransferFoundation
     device_tree: Mapping[str, Any]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "device_tree", _freeze(self.device_tree))
 
+    @property
+    def artifact(self) -> PreparedContentArtifact:
+        artifact = getattr(self.prepared, "artifact", None)
+        if not isinstance(artifact, PreparedContentArtifact):
+            raise ValueError("workflow preview does not carry a canonical artifact")
+        return artifact
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "prepared_manifest": self.prepared.to_dict(),
-            "prepared_content_artifact": self.prepared.artifact.to_dict(),
+            "prepared_content_artifact": self.artifact.to_dict(),
             "foundation": self.foundation.to_dict(),
             "device_tree_preview": _thaw(self.device_tree),
             "drag_and_drop": {
@@ -98,17 +127,131 @@ class LibraryWorkflowService:
         item_id: str,
         *,
         existing_paths: Optional[Iterable[str]] = None,
+        settings: Optional[ContentWorkspaceSettings] = None,
+        cancel_event: Optional[threading.Event] = None,
+        progress: Optional[Callable[[str, Optional[int], Optional[int]], None]] = None,
     ) -> LibraryWorkflowPreview:
-        prepared = prepare_library_hierarchy(self.catalog, item_id)
+        if cancel_event is not None and cancel_event.is_set():
+            raise ContentWorkspaceCancelled("content preparation was cancelled")
+        if progress is not None:
+            progress("Refreshing source")
+        try:
+            current = self.catalog.refresh(item_id)
+        except LibraryError as exc:
+            raise LibraryPreparationError(str(exc)) from exc
+        if current.source_status != "present":
+            raise LibraryPreparationError(
+                current.last_validation_error or "Library source is not current and present"
+            )
+
+        if current.node_kind == NODE_FOLDER:
+            if progress is not None:
+                progress("Preparing folder hierarchy")
+            prepared: Any = prepare_library_hierarchy(self.catalog, item_id)
+            artifact = prepared.artifact
+            preparation_manifest = prepared.prepared_manifest_sha256
+            target_child_name = None
+        else:
+            workspace = ContentWorkspace()
+            workspace_settings = settings or ContentWorkspaceSettings(
+                root_name=current.target_folder_name or None
+            )
+            try:
+                if (
+                    settings is None
+                    and current.package is None
+                    and current.prepared_artifact is not None
+                ):
+                    prepared = workspace.preview_existing_artifact(
+                        Path(current.source_path),
+                        PreparedContentArtifact.from_dict(current.prepared_artifact),
+                        metadata=current.prepared_metadata,
+                    )
+                    if progress is not None:
+                        progress("Loaded current prepared content")
+                else:
+                    prepared = workspace.prepare(
+                        Path(current.source_path),
+                        settings=workspace_settings,
+                        cancel_event=cancel_event,
+                        progress=progress,
+                    )
+            except (ContentWorkspaceError, ValueError) as exc:
+                if (
+                    not isinstance(exc, ContentWorkspaceCancelled)
+                    and current.package is None
+                    and current.supported
+                ):
+                    self.catalog.update_preparation(
+                        current.item_id,
+                        preparation_state=PREPARATION_BLOCKED,
+                        state=STATE_BLOCKED,
+                        target_folder_name=current.target_folder_name,
+                        target_child_name=current.target_child_name,
+                        prepared_manifest_sha256=None,
+                        prepared_manifest_path=None,
+                        last_validation_error=str(exc),
+                    )
+                raise LibraryPreparationError(str(exc)) from exc
+            artifact = prepared.artifact
+            preparation_manifest = (
+                current.prepared_manifest_sha256
+                if current.package is not None and current.prepared_manifest_sha256 is not None
+                else artifact.artifact_identity
+            )
+            target_child_name = artifact.children[0].name if len(artifact.children) == 1 else None
+
+        if cancel_event is not None and cancel_event.is_set():
+            raise ContentWorkspaceCancelled("content preparation was cancelled")
+
+        if current.package is None:
+            updated = self.catalog.update_preparation(
+                current.item_id,
+                preparation_state=PREPARATION_PREPARED,
+                state=STATE_READY,
+                target_folder_name=artifact.root_name,
+                target_child_name=target_child_name,
+                prepared_manifest_sha256=preparation_manifest,
+                prepared_manifest_path=None,
+                last_validation_error=None,
+                prepared_artifact=artifact.to_dict(),
+                prepared_metadata=(
+                    {
+                        **dict(prepared.preparation_metadata),
+                        "canonical_artifact_identity": artifact.artifact_identity,
+                    }
+                    if isinstance(prepared, ContentWorkspaceResult)
+                    else {
+                        "compatibility_adapter": "LibraryCatalog + prepare_library_hierarchy",
+                        "hierarchy_profile": "host-offline-hierarchical-library-txt-bmp-v1",
+                        "canonical_artifact_identity": artifact.artifact_identity,
+                    }
+                ),
+            )
+            current = updated
+
+        grouping_contract = (
+            "explicit_prepared_hierarchy"
+            if current.package is None
+            else "explicit_prepared_package"
+        )
         item = PreparedItem.from_prepared_content(
-            prepared.artifact,
-            library_item_id=prepared.manifest["root_item_id"],
-            package_manifest_sha256=prepared.prepared_manifest_sha256,
-            grouping_contract="explicit_prepared_hierarchy",
+            artifact,
+            library_item_id=(
+                prepared.manifest["root_item_id"]
+                if isinstance(prepared, PreparedLibraryHierarchy)
+                else current.item_id
+            ),
+            package_manifest_sha256=preparation_manifest,
+            grouping_contract=grouping_contract,
         )
         foundation = TransferFoundation.from_prepared_items(
             (item,),
-            profile=hierarchical_offline_capability_profile(),
+            profile=(
+                hierarchical_offline_capability_profile()
+                if grouping_contract == "explicit_prepared_hierarchy"
+                else None
+            ),
             device_model_profile=VNW_V15_PROFILE,
         )
         preview = foundation.plan.preview(

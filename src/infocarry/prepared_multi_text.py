@@ -23,7 +23,12 @@ from .prepared_package import (
     _canonical_json,
     _validate_component,
 )
-from .text_authoring import EncodedText, TextAuthoringError, encode_cp932_text
+from .text_authoring import (
+    CP932_NORMALIZATION_POLICY,
+    EncodedText,
+    TextAuthoringError,
+    encode_cp932_text,
+)
 
 
 PREPARED_MULTI_TEXT_PACKAGE_FORMAT = "infocarry-prepared-multiple-text-package-v1"
@@ -99,7 +104,12 @@ class PreparedTextSourceItem:
                 "normalized_characters": len(self.authored.normalized_text),
                 "prepared_payload_bytes": len(self.authored.payload),
                 "prepared_payload_sha256": self.payload_sha256,
-                "unsupported_characters_replaced": False,
+                "unsupported_characters_replaced": bool(self.authored.substitutions),
+                "normalization_policy": CP932_NORMALIZATION_POLICY,
+                "normalization_substitutions": [
+                    {"from": source, "to": replacement}
+                    for source, replacement in self.authored.substitutions
+                ],
                 "embedded_nul_rejected": True,
             },
             "native_wrapper": {
@@ -200,7 +210,15 @@ class PreparedTextPackageSet:
                 "source_mutated": False,
                 "candidate_bytes_included": False,
                 "overwrite_allowed": False,
-                "unsupported_characters_replaced": False,
+                "unsupported_characters_replaced": any(
+                    item.authored.substitutions for item in self.items
+                ),
+                "normalization_policy": CP932_NORMALIZATION_POLICY,
+                "normalization_substitutions": [
+                    {"from": source, "to": replacement}
+                    for item in self.items
+                    for source, replacement in item.authored.substitutions
+                ],
                 "embedded_nul_rejected": True,
                 "category_assigned": False,
                 "mark_assigned": False,

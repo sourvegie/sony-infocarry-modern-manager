@@ -18,6 +18,8 @@ from typing import Any, Mapping, Optional, Sequence
 from .backup_format import BackupFormatError, parse_backup_blob
 from .capacity_evidence import NativeCapacityResponse
 from .library import (
+    NODE_FILE,
+    NODE_FOLDER,
     PREPARATION_PREPARED,
     SOURCE_PRESENT,
     STATE_READY,
@@ -45,6 +47,7 @@ SELECTION_SELECTED = "selected"
 SELECTION_ALL_READY = "all_ready"
 PREPARED_ROOT_TXT_OPERATION = "prepared_root_txt_package"
 PREPARED_FLAT_PACKAGE_OPERATION = "prepared_flat_typed_package"
+PREPARED_CONTENT_ARTIFACT_OPERATION = "prepared_content_artifact"
 QUEUE_GROUPING_POLICY = "one_prepared_package_per_library_item_no_automatic_grouping"
 
 
@@ -123,23 +126,63 @@ def _backup_summary(backup: VerifiedBackup) -> dict[str, Any]:
     }
 
 
-def _base_item_report(item: LibraryItem) -> dict[str, Any]:
+def _base_item_report(
+    item: LibraryItem,
+    canonical_override: Optional[PreparedContentArtifact] = None,
+) -> dict[str, Any]:
     target_paths = []
+    canonical_artifact = canonical_override
+    if canonical_artifact is None and item.prepared_artifact is not None:
+        try:
+            candidate = PreparedContentArtifact.from_dict(item.prepared_artifact)
+            metadata = item.prepared_metadata or {}
+            canonical_identity = metadata.get("canonical_artifact_identity")
+            if (
+                item.prepared_manifest_sha256 == candidate.artifact_identity
+                or canonical_identity == candidate.artifact_identity
+            ):
+                canonical_artifact = candidate
+        except PreparedContentError:
+            canonical_artifact = None
+    if item.package is None and canonical_artifact is not None:
+        target_paths = [
+            canonical_artifact.root_path,
+            *(child.path for child in canonical_artifact.children),
+        ]
     if item.target_folder_name:
-        folder = f"root\\{item.target_folder_name}"
-        target_paths.append(folder)
-        if item.package is not None:
-            target_paths.extend(
-                f"{folder}\\{child['name']}"
-                for child in item.package.children
-            )
-        elif item.target_child_name:
-            target_paths.append(f"{folder}\\{item.target_child_name}")
+        if not target_paths:
+            folder = f"root\\{item.target_folder_name}"
+            target_paths.append(folder)
+            if item.package is not None:
+                target_paths.extend(
+                    f"{folder}\\{child['name']}"
+                    for child in item.package.children
+                )
+            elif item.target_child_name:
+                target_paths.append(f"{folder}\\{item.target_child_name}")
     is_package = item.package is not None
     prepared_artifact: dict[str, Any] = {
         "manifest_sha256": item.prepared_manifest_sha256,
         "manifest_path": item.prepared_manifest_path,
     }
+    operation_type = PREPARED_ROOT_TXT_OPERATION
+    if item.package is None and canonical_artifact is not None:
+        prepared_artifact.update(
+            {
+                "contract": "infocarry-prepared-content-v1",
+                "child_order": [child.name for child in canonical_artifact.children],
+                "canonical": canonical_artifact.to_dict(),
+                "artifact_identity": canonical_artifact.artifact_identity,
+                "root_name": canonical_artifact.root_name,
+                "aggregate_size": canonical_artifact.aggregate_size,
+                "source_bytes": sum(child.source_bytes for child in canonical_artifact.children),
+                "prepared_payload_bytes": canonical_artifact.aggregate_size,
+                "estimated_growth_lower_bound": canonical_artifact.aggregate_size,
+                "kind": "canonical_prepared_content",
+                "ordered_children": canonical_artifact.to_legacy_children(),
+            }
+        )
+        operation_type = PREPARED_CONTENT_ARTIFACT_OPERATION
     if is_package:
         prepared_artifact.update(
             {
@@ -148,6 +191,7 @@ def _base_item_report(item: LibraryItem) -> dict[str, Any]:
                 "child_order": [child.get("name") for child in item.package.children],
             }
         )
+        operation_type = PREPARED_FLAT_PACKAGE_OPERATION
     return {
         "item_id": item.item_id,
         "source": {
@@ -163,7 +207,7 @@ def _base_item_report(item: LibraryItem) -> dict[str, Any]:
             "folder_path": target_paths[0] if target_paths else None,
             "child_path": target_paths[1] if len(target_paths) > 1 else None,
         },
-        "operation_type": PREPARED_FLAT_PACKAGE_OPERATION if is_package else PREPARED_ROOT_TXT_OPERATION,
+        "operation_type": operation_type,
         "execution_eligible": False,
         "compatibility_state": "blocked",
         "conflicts": [],
@@ -178,13 +222,91 @@ def _base_item_report(item: LibraryItem) -> dict[str, Any]:
     }
 
 
+def _canonical_source_binding_error(
+    catalog: LibraryCatalog,
+    root: LibraryItem,
+    artifact: PreparedContentArtifact,
+) -> Optional[str]:
+    """Recheck source provenance without rebuilding the prepared artifact."""
+
+    if root.node_kind == NODE_FILE:
+        path = Path(root.source_path)
+        if path.is_symlink() or not path.is_file():
+            return "source is missing or no longer a regular file"
+        try:
+            source = path.read_bytes()
+        except OSError as exc:
+            return f"source could not be revalidated: {exc}"
+        source_sha256 = _sha256(source)
+        if source_sha256 != root.source_sha256:
+            return "source hash changed since preparation"
+        if source_sha256 not in {child.source_sha256 for child in artifact.children}:
+            return "source hash is not represented by the canonical prepared artifact"
+        return None
+
+    if root.node_kind != NODE_FOLDER:
+        return "canonical prepared content has an unsupported Library source node"
+
+    children_by_id = {
+        child.node_id: child
+        for child in artifact.children
+        if child.node_id is not None
+    }
+
+    def visit(item: LibraryItem) -> Optional[str]:
+        path = Path(item.source_path)
+        if item.node_kind == NODE_FOLDER:
+            if path.is_symlink() or not path.is_dir():
+                return f"source folder is missing or changed: {path}"
+            try:
+                actual_names = sorted(
+                    (entry.name for entry in path.iterdir()),
+                    key=lambda name: name.encode("utf-8", "surrogatepass"),
+                )
+            except OSError as exc:
+                return f"source folder could not be revalidated: {exc}"
+            recorded_names = sorted(
+                (child.source_filename for child in catalog.children(item.item_id)),
+                key=lambda name: name.encode("utf-8", "surrogatepass"),
+            )
+            if actual_names != recorded_names:
+                return f"folder contents changed since preparation: {path}"
+            for child in catalog.children(item.item_id):
+                error = visit(child)
+                if error is not None:
+                    return error
+            return None
+        if item.node_kind != NODE_FILE:
+            return f"source node is unsupported: {item.source_path}"
+        if path.is_symlink() or not path.is_file():
+            return f"source is missing or no longer a regular file: {path}"
+        try:
+            source = path.read_bytes()
+        except OSError as exc:
+            return f"source could not be revalidated: {exc}"
+        source_sha256 = _sha256(source)
+        if source_sha256 != item.source_sha256:
+            return f"source hash changed since preparation: {item.source_filename}"
+        child = children_by_id.get(item.item_id)
+        if child is not None and (
+            child.source_sha256 != source_sha256
+            or child.source_bytes != len(source)
+        ):
+            return f"canonical source binding differs: {item.source_filename}"
+        return None
+
+    return visit(root)
+
+
 def _prepare_item_report(
     item: LibraryItem,
     *,
+    catalog: LibraryCatalog,
     backup: Optional[VerifiedBackup],
     available_capacity_bytes: Optional[int],
+    canonical_override: Optional[PreparedContentArtifact] = None,
 ) -> dict[str, Any]:
-    report = _base_item_report(item)
+    report = _base_item_report(item, canonical_override)
     reasons = report["reasons"]
     if not item.supported:
         reasons.append("Library source format is unsupported")
@@ -192,11 +314,107 @@ def _prepare_item_report(
         reasons.append(f"Library source is not current and present ({item.source_status})")
     if item.state != STATE_READY or item.preparation_state != PREPARATION_PREPARED:
         reasons.append("Library item has no current prepared artifact")
-    if not item.target_folder_name or (item.package is None and not item.target_child_name):
+    generic_artifact = (
+        item.package is None
+        and item.prepared_artifact is not None
+        and report["operation_type"] == PREPARED_CONTENT_ARTIFACT_OPERATION
+    )
+    if not generic_artifact and (
+        not item.target_folder_name or (item.package is None and not item.target_child_name)
+    ):
         reasons.append("prepared destination folder and child are missing")
     if item.prepared_manifest_sha256 is None:
         reasons.append("prepared manifest hash is missing")
     if reasons:
+        return report
+
+    if generic_artifact:
+        if canonical_override is not None:
+            artifact = canonical_override
+        else:
+            try:
+                artifact = PreparedContentArtifact.from_dict(item.prepared_artifact)
+            except PreparedContentError as exc:
+                reasons.append(f"canonical prepared content could not be validated: {exc}")
+                return report
+        canonical_identity = (item.prepared_metadata or {}).get(
+            "canonical_artifact_identity"
+        )
+        if (
+            artifact.artifact_identity != item.prepared_manifest_sha256
+            and canonical_identity != artifact.artifact_identity
+        ):
+            reasons.append("canonical artifact identity does not match the Library catalog")
+            return report
+        source_error = _canonical_source_binding_error(catalog, item, artifact)
+        if source_error is not None:
+            reasons.append(source_error)
+            return report
+        report["prepared_artifact"].update(
+            {
+                "canonical": artifact.to_dict(),
+                "artifact_identity": artifact.artifact_identity,
+                "root_name": artifact.root_name,
+                "aggregate_size": artifact.aggregate_size,
+                "ordered_children": artifact.to_legacy_children(),
+            }
+        )
+        report["destination"] = {
+            "paths": [artifact.root_path, *(child.path for child in artifact.children)],
+            "folder_path": artifact.root_path,
+            "child_path": artifact.children[0].path if len(artifact.children) == 1 else None,
+        }
+        report["compatibility_state"] = "prepared_content_valid_transfer_profile_pending"
+        lower_bound = artifact.aggregate_size
+        report["capacity"]["lower_bound_bytes"] = lower_bound
+        if backup is not None:
+            try:
+                display_paths = _backup_display_paths(backup)
+            except LibraryTransferPlanError as exc:
+                reasons.append(f"verified backup comparison failed: {exc}")
+                return report
+            for destination in report["destination"]["paths"]:
+                existing = display_paths.get(destination.casefold())
+                if existing is not None:
+                    report["conflicts"].append(
+                        {
+                            "path": existing["path"],
+                            "record_offset": existing["record_offset"],
+                            "record_kind": existing["record_kind"],
+                            "reason": "proposed Library destination already exists in the verified backup",
+                        }
+                    )
+            report["capacity"] = {
+                "status": (
+                    "unknown"
+                    if available_capacity_bytes is None
+                    else (
+                        "insufficient_for_lower_bound"
+                        if available_capacity_bytes < lower_bound
+                        else "sufficient_for_lower_bound_only"
+                    )
+                ),
+                "baseline_model_bytes": len(_read_verified_blob(backup)),
+                "candidate_model_bytes": None,
+                "lower_bound_bytes": lower_bound,
+                "available_bytes": available_capacity_bytes,
+                "exact_growth_known": False,
+            }
+            if report["conflicts"]:
+                reasons.append("one or more destination paths conflict with the verified backup")
+            if report["capacity"]["status"] == "insufficient_for_lower_bound":
+                reasons.append("available capacity is below the prepared-content lower bound")
+            elif report["capacity"]["status"] == "unknown":
+                reasons.append("available capacity was not supplied for this queue review")
+        else:
+            report["capacity"] = {
+                "status": "not_evaluated_without_verified_backup",
+                "lower_bound_bytes": lower_bound,
+                "available_bytes": None,
+                "exact_growth_known": False,
+            }
+            reasons.append("verified device backup is required for destination and capacity review")
+        report["queue_ready"] = not reasons
         return report
 
     if item.package is not None:
@@ -447,6 +665,7 @@ def build_library_transfer_queue_plan(
     backup: Optional[VerifiedBackup] = None,
     available_capacity_bytes: Optional[int] = None,
     capacity_evidence: Optional[NativeCapacityResponse] = None,
+    canonical_artifacts: Optional[Mapping[str, PreparedContentArtifact]] = None,
 ) -> "LibraryTransferQueuePlan":
     """Build a no-device Library queue review plan.
 
@@ -513,6 +732,7 @@ def build_library_transfer_queue_plan(
                         item.package is not None
                         and len(item.package.children) >= 2
                     )
+                    or item.prepared_artifact is not None
                 )
             )
             if is_ready:
@@ -532,8 +752,14 @@ def build_library_transfer_queue_plan(
     items = [
         _prepare_item_report(
             item,
+            catalog=catalog,
             backup=backup,
             available_capacity_bytes=available_capacity_bytes,
+            canonical_override=(
+                None
+                if canonical_artifacts is None
+                else canonical_artifacts.get(item.item_id)
+            ),
         )
         for item in selected
     ]
@@ -742,6 +968,7 @@ build_library_transfer_plan = build_library_transfer_queue_plan
 __all__ = [
     "LIBRARY_TRANSFER_PLAN_FORMAT",
     "LIBRARY_TRANSFER_PLAN_NOTICE",
+    "PREPARED_CONTENT_ARTIFACT_OPERATION",
     "PREPARED_FLAT_PACKAGE_OPERATION",
     "PREPARED_ROOT_TXT_OPERATION",
     "QUEUE_GROUPING_POLICY",

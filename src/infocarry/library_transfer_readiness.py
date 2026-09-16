@@ -57,6 +57,7 @@ class ReadinessReasonCode(str, Enum):
     SAFETY_LOCK_ACTIVE = "safety_lock_active"
     PREVIOUS_OPERATION_INDETERMINATE = "previous_operation_indeterminate"
     UNSUPPORTED_LIVE_PROFILE = "unsupported_live_profile"
+    UNSUPPORTED_SOURCE_FORMAT = "unsupported_source_format"
     PREPARATION_FAILED = "preparation_failed"
     REVIEW_REQUIRED = "review_required"
     VALIDATION_FAILED = "validation_failed"
@@ -85,6 +86,7 @@ _REASON_MESSAGES: dict[ReadinessReasonCode, str] = {
     ReadinessReasonCode.SAFETY_LOCK_ACTIVE: "A previous operation needs diagnosis before another operation can start.",
     ReadinessReasonCode.PREVIOUS_OPERATION_INDETERMINATE: "A previous operation needs diagnosis. Do not retry automatically.",
     ReadinessReasonCode.UNSUPPORTED_LIVE_PROFILE: "This prepared content is valid, but its transfer shape is not currently supported.",
+    ReadinessReasonCode.UNSUPPORTED_SOURCE_FORMAT: "This format is not ready for conversion yet.",
     ReadinessReasonCode.PREPARATION_FAILED: "Preparation could not be completed. Fix the content and prepare it again.",
     ReadinessReasonCode.REVIEW_REQUIRED: "Review transfer to confirm the current state before sending.",
     ReadinessReasonCode.VALIDATION_FAILED: "The content is not ready for transfer. Review the details and prepare again.",
@@ -102,6 +104,7 @@ _REASON_ACTIONS: dict[ReadinessReasonCode, ReadinessAction] = {
     ReadinessReasonCode.SAFETY_LOCK_ACTIVE: ReadinessAction.DIAGNOSE,
     ReadinessReasonCode.PREVIOUS_OPERATION_INDETERMINATE: ReadinessAction.DIAGNOSE,
     ReadinessReasonCode.UNSUPPORTED_LIVE_PROFILE: ReadinessAction.REVIEW,
+    ReadinessReasonCode.UNSUPPORTED_SOURCE_FORMAT: ReadinessAction.PREPARE,
     ReadinessReasonCode.PREPARATION_FAILED: ReadinessAction.REPREPARE,
     ReadinessReasonCode.REVIEW_REQUIRED: ReadinessAction.REVIEW,
     ReadinessReasonCode.VALIDATION_FAILED: ReadinessAction.REVIEW,
@@ -212,7 +215,14 @@ def _reason_code_for_text(text: str) -> ReadinessReasonCode:
         return ReadinessReasonCode.FRESH_BACKUP_REQUIRED
     if "already exists" in lowered or "conflict" in lowered or "overlap" in lowered:
         return ReadinessReasonCode.DESTINATION_EXISTS
-    if "unsupported" in lowered or "exactly three" in lowered or "txt" in lowered and "bmp" in lowered:
+    if "not ready for conversion" in lowered:
+        return ReadinessReasonCode.UNSUPPORTED_SOURCE_FORMAT
+    if (
+        "unsupported" in lowered
+        or "not currently supported" in lowered
+        or "exactly three" in lowered
+        or "txt" in lowered and "bmp" in lowered
+    ):
         return ReadinessReasonCode.UNSUPPORTED_LIVE_PROFILE
     if "prepare" in lowered or "prepared artifact" in lowered:
         return ReadinessReasonCode.PREPARATION_FAILED
@@ -547,8 +557,10 @@ def build_library_transfer_readiness(
     exact_package = True
     canonical_artifact: Optional[PreparedContentArtifact] = None
 
+    generic_artifact = item.get("operation_type") == "prepared_content_artifact"
     if item.get("operation_type") != "prepared_flat_typed_package":
-        reasons.append("the selected item is not an explicitly imported prepared Library package")
+        if not generic_artifact:
+            reasons.append("the selected item is not an explicitly imported prepared Library package")
         exact_package = False
     if item.get("execution_eligible") is not False:
         reasons.append("the selected package cannot advertise execution eligibility")
@@ -556,8 +568,13 @@ def build_library_transfer_readiness(
         reasons.append("the prepared package manifest is missing")
         exact_package = False
     else:
-        if artifact.get("contract") != PREPARED_MEDIA_PACKAGE_FORMAT:
-            reasons.append("the prepared package manifest contract is unsupported")
+        expected_contract = (
+            "infocarry-prepared-content-v1"
+            if generic_artifact
+            else PREPARED_MEDIA_PACKAGE_FORMAT
+        )
+        if artifact.get("contract") != expected_contract:
+            reasons.append("the prepared content manifest contract is unsupported")
             exact_package = False
         manifest_sha256 = artifact.get("manifest_sha256")
         if not _is_digest(manifest_sha256):
@@ -602,7 +619,18 @@ def build_library_transfer_readiness(
             reasons.append(f"canonical preparation/profile validation failed: {exc}")
             exact_package = False
 
-    if not isinstance(children, list) or len(children) != len(EXPERIMENTAL_CHILD_KINDS):
+    if generic_artifact:
+        if canonical_artifact is not None:
+            expected_paths = [
+                canonical_artifact.root_path,
+                *(child.path for child in canonical_artifact.children),
+            ]
+            if paths != expected_paths:
+                reasons.append("destination paths differ from the canonical prepared content")
+        reasons.append(
+            "prepared content is valid, but its transfer shape is not currently supported"
+        )
+    elif not isinstance(children, list) or len(children) != len(EXPERIMENTAL_CHILD_KINDS):
         reasons.append("the selected package must contain exactly three direct children")
         exact_package = False
     else:
@@ -634,7 +662,7 @@ def build_library_transfer_readiness(
             reasons.append("canonical prepared aggregate size is inconsistent")
             exact_package = False
 
-    if folder_name is not None and isinstance(paths, list):
+    if not generic_artifact and folder_name is not None and isinstance(paths, list):
         expected_paths = [
             folder_path,
             *[
@@ -645,7 +673,7 @@ def build_library_transfer_readiness(
         if paths != expected_paths or len(paths) != 1 + len(EXPERIMENTAL_CHILD_KINDS):
             reasons.append("destination must contain exactly the root folder and its three direct children")
             exact_package = False
-    elif not isinstance(paths, list):
+    elif not generic_artifact and not isinstance(paths, list):
         reasons.append("prepared package destination paths are malformed")
         exact_package = False
 

@@ -28,7 +28,7 @@ from .prepared_package import (
 )
 from .prepared_multi_text import PreparedTextSourceItem
 from .prepared_content import PreparedContentArtifact
-from .text_authoring import TextAuthoringError, encode_cp932_text
+from .text_authoring import CP932_NORMALIZATION_POLICY, TextAuthoringError, encode_cp932_text
 
 
 EXPECTED_BMP_WIDTH = 237
@@ -298,7 +298,17 @@ class PreparedMediaPackage:
                 "source_mutated": False,
                 "candidate_bytes_included": False,
                 "overwrite_allowed": False,
-                "unsupported_characters_replaced": False,
+                "unsupported_characters_replaced": any(
+                    isinstance(item, PreparedTextSourceItem) and item.authored.substitutions
+                    for item in self.items
+                ),
+                "normalization_policy": CP932_NORMALIZATION_POLICY,
+                "normalization_substitutions": [
+                    {"from": source, "to": replacement}
+                    for item in self.items
+                    if isinstance(item, PreparedTextSourceItem)
+                    for source, replacement in item.authored.substitutions
+                ],
                 "embedded_nul_rejected": True,
             },
         }
@@ -582,12 +592,18 @@ def load_prepared_media_package(root: Path) -> PreparedMediaPackageImport:
                 if wrapper.get("required") is not True or wrapper.get("length_bytes") != NATIVE_TEXT_PREFIX_LENGTH:
                     raise PreparedMediaPackageError("TXT native wrapper metadata is not supported")
                 authoring = _require_mapping(item.get("authoring"), f"item {index} authoring")
+                expected_substitutions = [
+                    {"from": source, "to": replacement}
+                    for source, replacement in prepared_item.authored.substitutions
+                ]
                 if (
                     authoring.get("prepared_encoding") != "cp932"
                     or authoring.get("newline_policy") != "crlf"
-                    or authoring.get("unsupported_characters_replaced") is not False
+                    or authoring.get("unsupported_characters_replaced")
+                    is not bool(expected_substitutions)
                     or authoring.get("embedded_nul_rejected") is not True
                     or authoring.get("prepared_payload_bytes") != len(prepared_item.authored.payload)
+                    or authoring.get("normalization_substitutions", []) != expected_substitutions
                 ):
                     raise PreparedMediaPackageError(f"TXT authoring metadata mismatch for item {index}")
                 if authoring.get("prepared_payload_sha256") != prepared_item.payload_sha256:

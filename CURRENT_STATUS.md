@@ -1,6 +1,37 @@
 # Current Project Status
 
-Date: 2026-09-14
+Date: 2026-09-16
+
+## P18-028 — Add Content & Conversion Workspace
+
+P18-028 is the current host-only integration task on
+`task/P18-028-add-content-conversion-workspace`. The normal Library workflow
+now accepts TXT, exact prepared BMP, existing prepared folders, and existing
+prepared typed-media packages through one `ContentWorkspace` seam. Successful
+preparation terminates at the canonical `PreparedContentArtifact`, which is
+persisted with preparation metadata and reused by Preview, Review transfer,
+and typed readiness. Preview shows title, ordered content, count, approximate
+prepared size, readable text where applicable, render/payload details, and
+normalization warnings without exposing technical hashes in the normal path.
+
+EPUB remains intentionally deferred with the typed state “This format is not
+ready for conversion yet.” The 240×320 rendering canvas and 237×320
+transferable BMP viewport remain distinct and are documented as separate
+adapters. Preparation validity remains separate from live eligibility; the
+existing exact VNW-V15 TXT → BMP → TXT boundary is unchanged.
+
+Local validation is green: 128 focused conversion/import/preparation/UI tests
+passed, and the full Python 3.12 portable suite passed 843 tests with 3
+intentional skips; `compileall` and `git diff --check` also pass. Final-head
+publication/review identifiers are recorded in the [P18-028 analysis record](analysis/phase-18-p18-028-add-content-conversion-workspace-20260916.md)
+after authorized external attempts. The requested base hash was unavailable locally and over
+the network; the branch was created from the checked-out P18-027 successor
+head `2943b85`, with the discrepancy recorded for review. Physical counters
+for P18-028 are all zero: USB/device operations 0, sender calls 0, real
+`0x101b` 0, claims consumed 0, sender-marker mutations 0, and
+installation-wide-lock mutations 0. Independent R3 review passes with
+P0/P1/P2 = 0/0/0. `CAPABILITY_MATRIX.md` is unchanged; PR and final-head CI
+remain pending the explicit private-origin publication approval.
 
 ## P18-027 — Normal Manager Workflow Productization
 

@@ -424,6 +424,11 @@ def prepare_library_item(
         )
         raise LibraryPreparationError(message)
 
+    try:
+        artifact = package.to_prepared_content_artifact()
+    except PreparedContentError as exc:
+        raise LibraryPreparationError(str(exc)) from exc
+
     updated = catalog.update_preparation(
         item.item_id,
         preparation_state=PREPARATION_PREPARED,
@@ -433,6 +438,14 @@ def prepare_library_item(
         prepared_manifest_sha256=package.prepared_manifest_sha256,
         prepared_manifest_path=None,
         last_validation_error=None,
+        prepared_artifact=artifact.to_dict(),
+        prepared_metadata={
+            "compatibility_adapter": "PreparedTextPackage.to_prepared_content_artifact",
+            "normalization_policy": package.manifest_dict()["safety"].get("normalization_policy"),
+            "normalization_substitutions": package.manifest_dict()["safety"].get(
+                "normalization_substitutions", []
+            ),
+        },
     )
     manifest = package.manifest_dict()
     audit = {
@@ -458,10 +471,6 @@ def prepare_library_item(
             "compatibility": manifest["compatibility"],
         },
     }
-    try:
-        artifact = package.to_prepared_content_artifact()
-    except PreparedContentError as exc:
-        raise LibraryPreparationError(str(exc)) from exc
     return LibraryPreparationResult(item=updated, package=package, audit=audit, artifact=artifact)
 
 

@@ -28,6 +28,76 @@ TEXT_AUTHORING_FORMAT = "infocarry-text-authoring-preview-v1"
 TEXT_ENCODING = "cp932"
 TEXT_NEWLINE_POLICY = "crlf"
 
+# These are deliberately small, explicit substitutions at the encoding
+# boundary.  They cover punctuation and a few common Latin variants that are
+# frequently introduced by copy/paste, while unsupported symbols continue to
+# fail closed instead of being replaced with an arbitrary question mark.
+CP932_SAFE_SUBSTITUTIONS = {
+    "\u2018": "'",
+    "\u2019": "'",
+    "\u201c": '"',
+    "\u201d": '"',
+    "\u2013": "-",
+    "\u2014": "-",
+    "\u2212": "-",
+    "\u2026": "...",
+    "\u00a0": " ",
+    "\u00c0": "A",
+    "\u00c1": "A",
+    "\u00c2": "A",
+    "\u00c3": "A",
+    "\u00c4": "A",
+    "\u00c5": "A",
+    "\u00e0": "a",
+    "\u00e1": "a",
+    "\u00e2": "a",
+    "\u00e3": "a",
+    "\u00e4": "a",
+    "\u00e5": "a",
+    "\u00c7": "C",
+    "\u00e7": "c",
+    "\u00c8": "E",
+    "\u00c9": "E",
+    "\u00ca": "E",
+    "\u00cb": "E",
+    "\u00e8": "e",
+    "\u00e9": "e",
+    "\u00ea": "e",
+    "\u00eb": "e",
+    "\u00cc": "I",
+    "\u00cd": "I",
+    "\u00ce": "I",
+    "\u00cf": "I",
+    "\u00ec": "i",
+    "\u00ed": "i",
+    "\u00ee": "i",
+    "\u00ef": "i",
+    "\u00d1": "N",
+    "\u00f1": "n",
+    "\u00d2": "O",
+    "\u00d3": "O",
+    "\u00d4": "O",
+    "\u00d5": "O",
+    "\u00d6": "O",
+    "\u00f2": "o",
+    "\u00f3": "o",
+    "\u00f4": "o",
+    "\u00f5": "o",
+    "\u00f6": "o",
+    "\u00d9": "U",
+    "\u00da": "U",
+    "\u00db": "U",
+    "\u00dc": "U",
+    "\u00f9": "u",
+    "\u00fa": "u",
+    "\u00fb": "u",
+    "\u00fc": "u",
+    "\u00dd": "Y",
+    "\u00fd": "y",
+    "\u00ff": "y",
+}
+CP932_NORMALIZATION_POLICY = "explicit-punctuation-and-common-latin-v1"
+
 
 class TextAuthoringError(VicDataError):
     """Raised when text cannot be represented by the conservative policy."""
@@ -40,10 +110,24 @@ class EncodedText:
     original_text: str
     normalized_text: str
     payload: bytes
+    substitutions: tuple[tuple[str, str], ...] = ()
 
 
 def _normalize_crlf(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n")
+
+
+def _normalize_cp932_safe_characters(text: str) -> tuple[str, tuple[tuple[str, str], ...]]:
+    substitutions: list[tuple[str, str]] = []
+    normalized: list[str] = []
+    for character in text:
+        replacement = CP932_SAFE_SUBSTITUTIONS.get(character)
+        if replacement is None:
+            normalized.append(character)
+            continue
+        normalized.append(replacement)
+        substitutions.append((character, replacement))
+    return "".join(normalized), tuple(substitutions)
 
 
 def encode_cp932_text(text: str) -> EncodedText:
@@ -58,7 +142,7 @@ def encode_cp932_text(text: str) -> EncodedText:
         raise TextAuthoringError("text input must be a Unicode string")
     if "\x00" in text:
         raise TextAuthoringError("text input must not contain NUL characters")
-    normalized = _normalize_crlf(text)
+    normalized, substitutions = _normalize_cp932_safe_characters(_normalize_crlf(text))
     try:
         payload = normalized.encode(TEXT_ENCODING, errors="strict")
     except UnicodeEncodeError as exc:
@@ -67,7 +151,7 @@ def encode_cp932_text(text: str) -> EncodedText:
         raise TextAuthoringError(
             f"text contains characters unsupported by CP932 ({codepoints})"
         ) from exc
-    return EncodedText(text, normalized, payload)
+    return EncodedText(text, normalized, payload, substitutions)
 
 
 def _validate_capacity(max_payload_bytes: Optional[int]) -> Optional[int]:
@@ -154,7 +238,11 @@ def preview_text_replacement(
         ).hexdigest(),
         "encoded_payload_bytes": len(authored.payload),
         "encoded_payload_sha256": hashlib.sha256(authored.payload).hexdigest(),
-        "unsupported_characters_replaced": False,
+        "unsupported_characters_replaced": bool(authored.substitutions),
+        "normalization_substitutions": [
+            {"from": source, "to": replacement}
+            for source, replacement in authored.substitutions
+        ],
         "nul_characters_rejected": True,
     }
     audit["capacity"] = {
@@ -202,6 +290,8 @@ def preview_decoded_text_replacement(
 
 __all__ = [
     "EncodedText",
+    "CP932_NORMALIZATION_POLICY",
+    "CP932_SAFE_SUBSTITUTIONS",
     "TEXT_AUTHORING_FORMAT",
     "TEXT_ENCODING",
     "TEXT_NEWLINE_POLICY",

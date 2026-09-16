@@ -16,7 +16,12 @@ from typing import Any, Iterable, Mapping, Optional
 
 from .offline_conversion import load_utf8_text_document
 from .prepared_content import PreparedContentArtifact
-from .text_authoring import EncodedText, TextAuthoringError, encode_cp932_text
+from .text_authoring import (
+    CP932_NORMALIZATION_POLICY,
+    EncodedText,
+    TextAuthoringError,
+    encode_cp932_text,
+)
 
 
 PREPARED_PACKAGE_FORMAT = "infocarry-prepared-text-package-v1"
@@ -103,7 +108,12 @@ class PreparedTextItem:
                 "bytes_included": False,
                 "source": "existing validated TXT record template required",
             },
-            "unsupported_characters_replaced": False,
+            "unsupported_characters_replaced": bool(self.authored.substitutions),
+            "normalization_policy": CP932_NORMALIZATION_POLICY,
+            "normalization_substitutions": [
+                {"from": source, "to": replacement}
+                for source, replacement in self.authored.substitutions
+            ],
             "embedded_nul_rejected": True,
         }
 
@@ -229,7 +239,14 @@ class PreparedTextPackage:
                 "source_mutated": False,
                 "candidate_bytes_included": False,
                 "overwrite_allowed": False,
-                "unsupported_characters_replaced": False,
+                "unsupported_characters_replaced": bool(
+                    self.item.authored.substitutions
+                ),
+                "normalization_policy": CP932_NORMALIZATION_POLICY,
+                "normalization_substitutions": [
+                    {"from": source, "to": replacement}
+                    for source, replacement in self.item.authored.substitutions
+                ],
                 "embedded_nul_rejected": True,
                 "category_assigned": False,
                 "mark_assigned": False,

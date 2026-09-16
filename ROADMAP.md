@@ -9,10 +9,17 @@ decisions are recorded in
 P18-020 and the subsequent P18-025 physical proof are complete on canonical
 `main`. The P18-025 proof remains a narrow, separately authorized VNW-V15
 operation; it does not authorize new hardware use or expand a capability row.
-P18-026 is now the canonical prepared-content foundation, and P18-027 is the
-current host-only normal-manager productization step.
+P18-026 is now the canonical prepared-content foundation, P18-027 productized
+the normal manager, and P18-028 connects Add Content/conversion to that
+canonical workflow as a host-only step.
 
 ## Current sequence
+
+0. **P18-028 — Add Content & Conversion Workspace:** connect supported TXT,
+   prepared BMP, prepared-folder, and prepared-package inputs to one
+   deterministic `PreparedContentArtifact` through Add content → Preview →
+   Prepare → Review transfer. EPUB remains deferred until a complete tested
+   extraction/rendering path exists; no live capability changes belong here.
 
 1. **P18-027 — Normal manager workflow productization:** complete the
    host-only `Add content → Preview → Prepare → Review transfer → Send to
