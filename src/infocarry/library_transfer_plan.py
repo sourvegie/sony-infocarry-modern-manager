@@ -23,6 +23,7 @@ from .library import (
     PREPARATION_PREPARED,
     SOURCE_PRESENT,
     STATE_READY,
+    SUPPORTED_EPUB_FORMAT,
     LibraryCatalog,
     LibraryItem,
 )
@@ -48,6 +49,7 @@ SELECTION_ALL_READY = "all_ready"
 PREPARED_ROOT_TXT_OPERATION = "prepared_root_txt_package"
 PREPARED_FLAT_PACKAGE_OPERATION = "prepared_flat_typed_package"
 PREPARED_CONTENT_ARTIFACT_OPERATION = "prepared_content_artifact"
+PREPARED_EPUB_OPERATION = "prepared_epub_content"
 QUEUE_GROUPING_POLICY = "one_prepared_package_per_library_item_no_automatic_grouping"
 
 
@@ -178,11 +180,19 @@ def _base_item_report(
                 "source_bytes": sum(child.source_bytes for child in canonical_artifact.children),
                 "prepared_payload_bytes": canonical_artifact.aggregate_size,
                 "estimated_growth_lower_bound": canonical_artifact.aggregate_size,
-                "kind": "canonical_prepared_content",
+                "kind": (
+                    "epub_prepared_content"
+                    if item.detected_format == SUPPORTED_EPUB_FORMAT
+                    else "canonical_prepared_content"
+                ),
                 "ordered_children": canonical_artifact.to_legacy_children(),
             }
         )
-        operation_type = PREPARED_CONTENT_ARTIFACT_OPERATION
+        operation_type = (
+            PREPARED_EPUB_OPERATION
+            if item.detected_format == SUPPORTED_EPUB_FORMAT
+            else PREPARED_CONTENT_ARTIFACT_OPERATION
+        )
     if is_package:
         prepared_artifact.update(
             {
@@ -287,6 +297,10 @@ def _canonical_source_binding_error(
         source_sha256 = _sha256(source)
         if source_sha256 != item.source_sha256:
             return f"source hash changed since preparation: {item.source_filename}"
+        if item.detected_format == SUPPORTED_EPUB_FORMAT:
+            # The EPUB package hash binds the source container.  Its logical
+            # children intentionally bind to chapter/image entries instead.
+            return None
         child = children_by_id.get(item.item_id)
         if child is not None and (
             child.source_sha256 != source_sha256
@@ -317,7 +331,8 @@ def _prepare_item_report(
     generic_artifact = (
         item.package is None
         and item.prepared_artifact is not None
-        and report["operation_type"] == PREPARED_CONTENT_ARTIFACT_OPERATION
+        and report["operation_type"]
+        in {PREPARED_CONTENT_ARTIFACT_OPERATION, PREPARED_EPUB_OPERATION}
     )
     if not generic_artifact and (
         not item.target_folder_name or (item.package is None and not item.target_child_name)
@@ -329,6 +344,8 @@ def _prepare_item_report(
         return report
 
     if generic_artifact:
+        if item.detected_format == SUPPORTED_EPUB_FORMAT:
+            reasons.append("EPUB preparation is host-only and is not currently eligible for live transfer")
         if canonical_override is not None:
             artifact = canonical_override
         else:
@@ -969,6 +986,7 @@ __all__ = [
     "LIBRARY_TRANSFER_PLAN_FORMAT",
     "LIBRARY_TRANSFER_PLAN_NOTICE",
     "PREPARED_CONTENT_ARTIFACT_OPERATION",
+    "PREPARED_EPUB_OPERATION",
     "PREPARED_FLAT_PACKAGE_OPERATION",
     "PREPARED_ROOT_TXT_OPERATION",
     "QUEUE_GROUPING_POLICY",

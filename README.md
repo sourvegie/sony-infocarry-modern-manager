@@ -104,7 +104,12 @@ text preview reads UTF-8 input, normalizes it to CRLF, validates strict CP932
 encoding and an optional caller-supplied limit, and writes only a JSON audit;
 it never includes candidate payload bytes or transmits anything.
 
-The local Library supports ordered hierarchical folders and TXT/BMP leaves.
+The local Library supports ordered hierarchical folders and TXT/BMP/EPUB
+sources. EPUB preparation is host-only: bounded EPUB 2/3 packages are
+inspected without extraction, network access, or script execution, then
+text-centric chapters are normalized into deterministic TXT children and only
+the existing exact local 237×320 1-bit BMP profile is retained as an image
+child.
 Normal multi-file and recursive-folder chooser imports are non-destructive;
 Move up/Move down changes explicit sibling order, and Library removal never
 touches a device or source file. The approved Tk runtime has no external
@@ -116,7 +121,14 @@ evidence; its previous version is retained as `library.previous.json` after a
 successful update.
 
 `Prepare` reuses strict UTF-8 → CP932/CRLF TXT preparation and validated
-237×320 uncompressed 1-bit BMP preparation. The separate
+237×320 uncompressed 1-bit BMP preparation. EPUB preparation uses the same
+normalization boundary, preserves title/provenance/hash metadata, reports
+unsupported features explicitly, and produces one canonical
+`PreparedContentArtifact`. ZIP slip, external entities, remote resources,
+DRM/encryption, malformed package data, and bounded-resource violations fail
+closed; the source ZIP is bounded at 64 MiB, with 512 entries, 8 MiB per
+entry, 32 MiB total decompressed data, and a 1000:1 compression-ratio limit.
+The separate
 `host-offline-hierarchical-library-txt-bmp-v1` draft accepts one prepared root,
 1–8 leaves, directory depth at most 2, no empty directories, at most 9
 directories/17 logical nodes, 39 CP932 bytes per component, 259 CP932 bytes per

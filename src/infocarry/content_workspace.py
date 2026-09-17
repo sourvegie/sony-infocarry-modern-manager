@@ -28,6 +28,29 @@ from .prepared_media_package import (
 )
 from .prepared_package import PreparedPackageError, build_prepared_text_package
 from .text_authoring import CP932_NORMALIZATION_POLICY
+from .epub_support import (
+    CONTENT_WORKSPACE_FORMAT,
+    DEFAULT_EPUB_LIMITS,
+    EPUB_MAX_ARCHIVE_ENTRIES,
+    EPUB_MAX_CHAPTERS,
+    EPUB_MAX_COMPRESSION_RATIO,
+    EPUB_MAX_ENTRY_UNCOMPRESSED_BYTES,
+    EPUB_MAX_IMAGE_CHILDREN,
+    EPUB_MAX_SOURCE_BYTES,
+    EPUB_MAX_TEXT_CHARACTERS,
+    EPUB_MAX_TITLE_CHARACTERS,
+    EPUB_MAX_TOTAL_UNCOMPRESSED_BYTES,
+    EpubInspection,
+    EpubLimits,
+    EpubPackageError,
+    EpubSecurityError,
+    PREPARED_EPUB_PROFILE_ID,
+    PreparedContentPayload,
+    PreparedContentResult,
+    inspect_epub as _inspect_epub,
+    materialize as _materialize_epub,
+    prepare_epub as _prepare_epub,
+)
 
 
 class ContentWorkspaceError(ValueError):
@@ -45,6 +68,7 @@ class ContentWorkspaceCancelled(ContentWorkspaceError):
 class ContentSourceKind(str, Enum):
     TXT = "txt"
     BMP = "bmp"
+    EPUB = "epub"
     PREPARED_FOLDER = "prepared_folder"
     PREPARED_PACKAGE = "prepared_package"
 
@@ -250,10 +274,25 @@ def _bmp_artifact(path: Path, root_name: str, payload: bytes) -> PreparedContent
     return PreparedContentArtifact(root_name, (child,))
 
 
+class _CallableCancelEvent:
+    """Adapt the EPUB callable cancellation contract to the workspace event API."""
+
+    def __init__(self, callback: Callable[[], bool]) -> None:
+        self._callback = callback
+
+    def is_set(self) -> bool:
+        return bool(self._callback())
+
+
 class ContentWorkspace:
     """Prepare supported sources using existing utilities and one result type."""
 
     EPUB_NOT_READY_MESSAGE = "This format is not ready for conversion yet."
+
+    def __init__(self, *, limits: EpubLimits = DEFAULT_EPUB_LIMITS) -> None:
+        if not isinstance(limits, EpubLimits):
+            raise TypeError("EPUB limits must be an EpubLimits value")
+        self.limits = limits
 
     def detect_source_kind(self, source: Path) -> ContentSourceKind | None:
         path = Path(source).expanduser()
@@ -268,6 +307,8 @@ class ContentWorkspace:
             return ContentSourceKind.TXT
         if suffix == ".bmp":
             return ContentSourceKind.BMP
+        if suffix == ".epub":
+            return ContentSourceKind.EPUB
         return None
 
     def prepare(
@@ -277,7 +318,7 @@ class ContentWorkspace:
         settings: ContentWorkspaceSettings | None = None,
         cancel_event: Any = None,
         progress: Optional[Progress] = None,
-    ) -> ContentWorkspaceResult:
+    ) -> ContentWorkspaceResult | PreparedContentResult:
         """Prepare one TXT, BMP, existing package, or source folder offline."""
 
         selected = Path(source).expanduser()
@@ -295,6 +336,12 @@ class ContentWorkspace:
             return self._prepare_txt(path, settings, cancel_event, progress)
         if kind is ContentSourceKind.BMP:
             return self._prepare_bmp(path, settings, cancel_event, progress)
+        if kind is ContentSourceKind.EPUB:
+            return self.prepare_epub(
+                path,
+                root_name=settings.root_name,
+                cancelled=(None if cancel_event is None else cancel_event.is_set),
+            )
         if kind is ContentSourceKind.PREPARED_PACKAGE:
             return self._prepare_package(path, cancel_event, progress)
         return self._prepare_folder(path, cancel_event, progress)
@@ -377,6 +424,42 @@ class ContentWorkspace:
             source_kind=kind,
             preparation_metadata=details,
         )
+
+    def inspect_epub(self, source: Path) -> EpubInspection:
+        return _inspect_epub(source, limits=self.limits)
+
+    def prepare_epub(
+        self,
+        source: Path,
+        *,
+        root_name: Optional[str] = None,
+        cancelled: Optional[Callable[[], bool]] = None,
+    ) -> PreparedContentResult:
+        return _prepare_epub(
+            source,
+            root_name=root_name,
+            limits=self.limits,
+            cancelled=cancelled,
+        )
+
+    def prepare_source(
+        self,
+        source: Path,
+        *,
+        root_name: Optional[str] = None,
+        cancelled: Optional[Callable[[], bool]] = None,
+    ) -> ContentWorkspaceResult | PreparedContentResult:
+        """Source-level alias retained for the normal manager boundary."""
+
+        return self.prepare(
+            source,
+            settings=ContentWorkspaceSettings(root_name=root_name),
+            cancel_event=(None if cancelled is None else _CallableCancelEvent(cancelled)),
+        )
+
+    @staticmethod
+    def materialize(result: PreparedContentResult, destination: Path) -> Path:
+        return _materialize_epub(result, destination)
 
     def _prepare_txt(
         self,
@@ -562,6 +645,7 @@ class ContentWorkspace:
 
 
 __all__ = [
+    "CONTENT_WORKSPACE_FORMAT",
     "ContentSourceKind",
     "ContentWorkspace",
     "ContentWorkspaceCancelled",
@@ -569,5 +653,58 @@ __all__ = [
     "ContentWorkspacePreview",
     "ContentWorkspaceResult",
     "ContentWorkspaceSettings",
+    "DEFAULT_EPUB_LIMITS",
+    "EPUB_MAX_ARCHIVE_ENTRIES",
+    "EPUB_MAX_CHAPTERS",
+    "EPUB_MAX_COMPRESSION_RATIO",
+    "EPUB_MAX_ENTRY_UNCOMPRESSED_BYTES",
+    "EPUB_MAX_IMAGE_CHILDREN",
+    "EPUB_MAX_SOURCE_BYTES",
+    "EPUB_MAX_TEXT_CHARACTERS",
+    "EPUB_MAX_TITLE_CHARACTERS",
+    "EPUB_MAX_TOTAL_UNCOMPRESSED_BYTES",
+    "EpubInspection",
+    "EpubLimits",
+    "EpubPackageError",
+    "EpubSecurityError",
+    "PREPARED_EPUB_PROFILE_ID",
+    "PreparedContentPayload",
+    "PreparedContentResult",
     "UnsupportedContentError",
+    "inspect_epub",
+    "prepare_content",
+    "prepare_epub",
 ]
+
+
+def inspect_epub(source: Path, *, limits: EpubLimits = DEFAULT_EPUB_LIMITS) -> EpubInspection:
+    return _inspect_epub(source, limits=limits)
+
+
+def prepare_epub(
+    source: Path,
+    *,
+    root_name: Optional[str] = None,
+    limits: EpubLimits = DEFAULT_EPUB_LIMITS,
+    cancelled: Optional[Callable[[], bool]] = None,
+) -> PreparedContentResult:
+    return _prepare_epub(
+        source,
+        root_name=root_name,
+        limits=limits,
+        cancelled=cancelled,
+    )
+
+
+def prepare_content(
+    source: Path,
+    *,
+    root_name: Optional[str] = None,
+    limits: EpubLimits = DEFAULT_EPUB_LIMITS,
+    cancelled: Optional[Callable[[], bool]] = None,
+) -> ContentWorkspaceResult | PreparedContentResult:
+    return ContentWorkspace(limits=limits).prepare_source(
+        source,
+        root_name=root_name,
+        cancelled=cancelled,
+    )

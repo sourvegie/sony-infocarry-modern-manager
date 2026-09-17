@@ -30,6 +30,7 @@ LIBRARY_VERSION = 2
 LEGACY_LIBRARY_VERSION = 1
 SUPPORTED_TEXT_FORMAT = "utf-8-txt"
 SUPPORTED_BITMAP_FORMAT = "validated-237x320-1bit-bmp"
+SUPPORTED_EPUB_FORMAT = "epub"
 
 NODE_FILE = "file"
 NODE_FOLDER = "folder"
@@ -272,6 +273,28 @@ def _source_details(path: Path) -> dict[str, Any]:
             "supported": True,
             "validation_error": None,
         }
+    if suffix == ".epub":
+        # Import-time EPUB validation is bounded and host-only.  It reads the
+        # local ZIP/OCF structure without extraction, network access, or USB.
+        from .content_workspace import ContentWorkspaceError, inspect_epub
+
+        try:
+            inspect_epub(path)
+        except (ContentWorkspaceError, ValueError) as exc:
+            return {
+                "sha256": source_sha256,
+                "size_bytes": stat.st_size,
+                "detected_format": SUPPORTED_EPUB_FORMAT,
+                "supported": True,
+                "validation_error": f"EPUB failed bounded package inspection: {exc}",
+            }
+        return {
+            "sha256": source_sha256,
+            "size_bytes": stat.st_size,
+            "detected_format": SUPPORTED_EPUB_FORMAT,
+            "supported": True,
+            "validation_error": None,
+        }
     if suffix != ".txt":
         return {
             "sha256": source_sha256,
@@ -279,8 +302,8 @@ def _source_details(path: Path) -> dict[str, Any]:
             "detected_format": suffix[1:] if suffix else "unknown",
             "supported": False,
             "validation_error": (
-                "unsupported source format; only UTF-8 .txt and exact "
-                "237x320 1-bit .bmp are supported"
+                "unsupported source format; only UTF-8 .txt, exact "
+                "237x320 1-bit .bmp, and bounded .epub sources are supported"
             ),
         }
 
@@ -1371,6 +1394,7 @@ __all__ = [
     "PREPARATION_UNPREPARED",
     "PREPARED_MEDIA_PACKAGE_FORMAT",
     "SUPPORTED_BITMAP_FORMAT",
+    "SUPPORTED_EPUB_FORMAT",
     "STATE_BLOCKED",
     "STATE_IMPORTED",
     "STATE_READY",

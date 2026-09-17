@@ -21,6 +21,7 @@ from .content_workspace import (
     ContentWorkspaceError,
     ContentWorkspaceResult,
     ContentWorkspaceSettings,
+    PreparedContentResult,
 )
 from .library import (
     PREPARATION_BLOCKED,
@@ -31,6 +32,7 @@ from .library import (
     LibraryError,
     LibraryItem,
     NODE_FOLDER,
+    SUPPORTED_EPUB_FORMAT,
 )
 from .library_prepare import (
     LibraryPreparationError,
@@ -152,6 +154,7 @@ class LibraryWorkflowService:
             preparation_manifest = prepared.prepared_manifest_sha256
             target_child_name = None
         else:
+            is_epub = current.detected_format == SUPPORTED_EPUB_FORMAT
             workspace = ContentWorkspace()
             workspace_settings = settings or ContentWorkspaceSettings(
                 root_name=current.target_folder_name or None
@@ -161,6 +164,7 @@ class LibraryWorkflowService:
                     settings is None
                     and current.package is None
                     and current.prepared_artifact is not None
+                    and not is_epub
                 ):
                     prepared = workspace.preview_existing_artifact(
                         Path(current.source_path),
@@ -220,10 +224,24 @@ class LibraryWorkflowService:
                         **dict(prepared.preparation_metadata),
                         "canonical_artifact_identity": artifact.artifact_identity,
                     }
-                    if isinstance(prepared, ContentWorkspaceResult)
+                    if isinstance(prepared, (ContentWorkspaceResult, PreparedContentResult))
+                    and hasattr(prepared, "preparation_metadata")
                     else {
-                        "compatibility_adapter": "LibraryCatalog + prepare_library_hierarchy",
-                        "hierarchy_profile": "host-offline-hierarchical-library-txt-bmp-v1",
+                        "compatibility_adapter": (
+                            "ContentWorkspace EPUB preparation"
+                            if isinstance(prepared, PreparedContentResult)
+                            else "LibraryCatalog + prepare_library_hierarchy"
+                        ),
+                        "hierarchy_profile": (
+                            None
+                            if isinstance(prepared, PreparedContentResult)
+                            else "host-offline-hierarchical-library-txt-bmp-v1"
+                        ),
+                        **(
+                            dict(prepared.report())
+                            if isinstance(prepared, PreparedContentResult)
+                            else {}
+                        ),
                         "canonical_artifact_identity": artifact.artifact_identity,
                     }
                 ),
@@ -231,9 +249,9 @@ class LibraryWorkflowService:
             current = updated
 
         grouping_contract = (
-            "explicit_prepared_hierarchy"
-            if current.package is None
-            else "explicit_prepared_package"
+            "explicit_prepared_package"
+            if current.package is not None or current.detected_format == SUPPORTED_EPUB_FORMAT
+            else "explicit_prepared_hierarchy"
         )
         item = PreparedItem.from_prepared_content(
             artifact,

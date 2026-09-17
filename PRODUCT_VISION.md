@@ -107,9 +107,9 @@ A user can additionally:
 
 - import supported sources into a persistent local Library by picker or
   drag-and-drop;
-- add TXT/BMP content or existing prepared folders/packages, then prepare and
-  preview them through one canonical prepared-content artifact using tested
-  conversion profiles;
+- prepare and preview supported sources and existing prepared folders/packages
+  through one canonical prepared-content artifact using tested conversion
+  profiles;
 - select one explicitly grouped prepared package for a transfer-readiness
   review;
 - review destinations, conflicts, prepared sizes, device capacity evidence,
@@ -150,15 +150,17 @@ do not substitute for that fresh evidence.
 
 All supported source types should converge on one prepared-content contract.
 Conversion is Library preparation, not a second transfer application or a
-USB-aware subsystem:
+USB-aware subsystem. P18-029 adds a bounded EPUB 2/3 text-centric source
+through the same host-only workspace:
 
 `source → normalize/render → preview → prepared artifact → Library → transfer`
 
 The prepared artifact records its source, conversion profile, deterministic
-outputs, warnings, and provenance once. Transfer eligibility is a capability
+outputs, warnings, and provenance once. Transfer-shape analysis distinguishes
+the exact reviewed VNW-V15 TXT → BMP → TXT shape from future direct-leaf
+possibilities and unmappable hierarchy. Transfer eligibility is a capability
 of that artifact and its exact target/profile, not a separate kind of content.
-This unification is a product direction for the next host-only work; it does
-not expand the capability matrix or make a new shape live.
+EPUB preparation does not authorize any new device operation.
 
 ### v1.0 — General content manager
 
