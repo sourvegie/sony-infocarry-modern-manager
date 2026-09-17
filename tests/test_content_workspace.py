@@ -448,6 +448,9 @@ class ContentWorkspaceTests(unittest.TestCase):
         preview = LibraryWorkflowService(catalog).prepare_preview(item.item_id)
         self.assertEqual(preview.prepared.artifact.profile_id, "prepared-epub-content-v1")
         self.assertFalse(preview.to_dict()["foundation"]["usb_accessed"])
+        self.assertFalse(hasattr(preview.foundation, "attach_candidate"))
+        self.assertFalse(hasattr(preview.foundation, "attach_authorization"))
+        self.assertTrue(preview.to_dict()["foundation"]["host_only"])
 
 
 if __name__ == "__main__":

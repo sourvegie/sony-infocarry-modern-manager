@@ -65,7 +65,7 @@ def _thaw(value: Any) -> Any:
 @dataclass(frozen=True)
 class LibraryWorkflowPreview:
     prepared: Any
-    foundation: TransferFoundation
+    foundation: Any
     device_tree: Mapping[str, Any]
 
     def __post_init__(self) -> None:
@@ -89,6 +89,17 @@ class LibraryWorkflowPreview:
                 "chooser_import_available": True,
             },
         }
+
+
+@dataclass(frozen=True)
+class HostOnlyTransferPreview:
+    """EPUB preview record without candidate or authorization attachment APIs."""
+
+    plan: Any
+    _report: Mapping[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return _thaw(self._report)
 
 
 class LibraryWorkflowService:
@@ -146,6 +157,7 @@ class LibraryWorkflowService:
                 current.last_validation_error or "Library source is not current and present"
             )
 
+        is_epub = False
         if current.node_kind == NODE_FOLDER:
             if progress is not None:
                 progress("Preparing folder hierarchy")
@@ -272,6 +284,16 @@ class LibraryWorkflowService:
             ),
             device_model_profile=VNW_V15_PROFILE,
         )
+        if is_epub:
+            foundation = HostOnlyTransferPreview(
+                plan=foundation.plan,
+                _report={
+                    **foundation.to_dict(),
+                    "host_only": True,
+                    "candidate_attachment": "unavailable",
+                    "authorization_attachment": "unavailable",
+                },
+            )
         preview = foundation.plan.preview(
             existing_paths=(None if existing_paths is None else tuple(existing_paths))
         )
@@ -280,6 +302,7 @@ class LibraryWorkflowService:
 
 __all__ = [
     "EXTERNAL_FILE_DROP_STATUS",
+    "HostOnlyTransferPreview",
     "LibraryWorkflowPreview",
     "LibraryWorkflowService",
 ]

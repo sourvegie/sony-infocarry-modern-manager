@@ -1,8 +1,8 @@
 # P18-029 — EPUB Conversion + Transfer-Shape Preparation
 
-Date: 2026-09-17  
-Branch: `task/P18-029-epub-transfer-shape-preparation`  
-Risk: R2/R3-boundary host-side parser, persistence, and transfer-review integration  
+Date: 2026-09-17
+Branch: `task/P18-029-epub-transfer-shape-preparation`
+Risk: R2/R3-boundary host-side parser, persistence, and transfer-review integration
 Physical device activity: none
 
 ## Pre-publication anomaly resolution
@@ -37,7 +37,7 @@ P18-028, producing the observed net change of `843 - 29 + 16 = 830`.
 
 The omitted canonical tests were:
 
-- `tests.test_content_workspace.ContentWorkspaceTests`: 
+- `tests.test_content_workspace.ContentWorkspaceTests`:
   `test_bmp_is_deterministic_and_payload_mutation_changes_identity`,
   `test_cancellation_is_safe_before_preparation`,
   `test_epub_is_explicitly_deferred` (the final branch retains this test slot
@@ -105,7 +105,10 @@ It recognizes the exact reviewed VNW-V15 TXT → BMP → TXT shape, labels bound
 flat direct-leaf TXT/BMP shapes as future-only, and marks nested or unsupported
 shapes unmappable. It does not construct candidates, authorize operations,
 open USB, call a sender, or alter the capability envelope. EPUB preparation
-and review remain ineligible for live transfer.
+and review remain ineligible for live transfer. EPUB workflow previews expose a
+`HostOnlyTransferPreview` record with the plan/report only; the generic
+candidate and authorization attachment methods are not exposed on the EPUB
+preview object.
 
 The existing live boundary remains exactly VNW-V15 direct-leaf
 `TXT → BMP → TXT`; no second sender or transfer pipeline was added. VNW-V10
@@ -121,6 +124,13 @@ remains `UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`.
 - `PYTHONPATH=src .venv/bin/python -m compileall -q src tests`: passed.
 - `git diff --check`: passed.
 - `CAPABILITY_MATRIX.md`: unchanged from the requested base.
+
+The first exact-head independent R3 review found P1/P2 findings: the EPUB
+preview had exposed the generic candidate/authorization attachment methods,
+and Markdown hard-break whitespace invalidated the claimed diff check. Both
+were corrected in the next bounded round. The EPUB preview now uses the
+method-free host-only record above, and the analysis record contains no
+trailing whitespace. The corrected commit requires a fresh exact-head review.
 
 No hardware-facing or device-changing operation was run. Physical counters
 are all zero: USB/device operations 0, sender calls 0, real `0x101b` 0, claims
