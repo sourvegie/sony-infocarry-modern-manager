@@ -24,9 +24,11 @@ live eligibility. No physical or read-only hardware operation has occurred;
 all device-changing, sender, real `0x101b`, claim, marker, and lock counters
 remain zero. Focused P18-030 validation is green; the full portable suite is
 870 passed with 3 existing intentional skips, and compile/whitespace/matrix
-checks are clean, and the corrected working tree has an independent
-`P0=0, P1=0, P2=0 — PASS` review. Fresh post-publication exact-head R3 review,
-publication, and PM acceptance remain pending. The durable record is the
+checks are clean. PR 57 is open and unmerged. Its first final-head gate found
+host-only newline portability and whitespace P2 findings; the scoped
+correction changes only exact synthetic fixture bytes and record formatting.
+Both CI platforms and a fresh independent exact-head R3 review must pass on
+the corrected commit before PM acceptance. The durable record is the
 [P18-030 analysis record](analysis/phase-18-p18-030-v15-four-leaf-capability-preparation-20260918.md).
 
 ## P18-029 — EPUB conversion and transfer-shape preparation (preceding host-only task)

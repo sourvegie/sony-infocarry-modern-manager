@@ -51,15 +51,9 @@ class FourLeafValidationTests(unittest.TestCase):
         fixture = _multi_fixture.PreparedMultiCandidateTests()
         temporary, _old_package, backup, _old_candidate, template = fixture._case(mixed=True)
         root = Path(temporary.name)
-        (root / "one.txt").write_text(
-            "P18-030 introduction leaf.\n", encoding="utf-8"
-        )
-        (root / "two.txt").write_text(
-            "P18-030 ending leaf.\n", encoding="utf-8"
-        )
-        (root / "fourth.txt").write_text(
-            "P18-030 extra fourth leaf.\n", encoding="utf-8"
-        )
+        (root / "one.txt").write_bytes(b"P18-030 introduction leaf.\n")
+        (root / "two.txt").write_bytes(b"P18-030 ending leaf.\n")
+        (root / "fourth.txt").write_bytes(b"P18-030 extra fourth leaf.\n")
         sources = (
             (root / "one.txt", FOUR_LEAF_CHILD_NAMES[0]),
             (root / "page.bmp", FOUR_LEAF_CHILD_NAMES[1]),

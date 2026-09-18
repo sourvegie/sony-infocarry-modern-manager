@@ -1,9 +1,9 @@
 # P18-030 — VNW-V15 four-leaf direct-content capability preparation
 
-Date: 2026-09-19  
-Risk: R3 host-side preparation  
-Canonical base: `4d8f432040f715380e03796a855f9dd26ede82f3`  
-Branch: `task/P18-030-v15-four-leaf-capability-preparation`  
+Date: 2026-09-19
+Risk: R3 host-side preparation
+Canonical base: `4d8f432040f715380e03796a855f9dd26ede82f3`
+Branch: `task/P18-030-v15-four-leaf-capability-preparation`
 Outcome while preparing: host-only; physical stage not performed
 
 ## Scope and safety disposition
@@ -25,8 +25,8 @@ than treating it as verified/live-enabled.
 
 ## Exact validation profile
 
-Profile ID: `experimental-vnw-v15-four-leaf-direct-validation-v1`  
-Profile status: `validation_only_not_live_enabled`  
+Profile ID: `experimental-vnw-v15-four-leaf-direct-validation-v1`
+Profile status: `validation_only_not_live_enabled`
 Profile SHA-256: `ac7b37934e9800d906f80c663561097eb6a0b59aff4c6502e09fb4c4da4f1475`
 
 The descriptor binds the reviewed `sony-vnw-v15-reviewed-v1` model, one
@@ -40,8 +40,8 @@ the foundation's `execute_once` descriptor remains disabled.
 
 ## Deterministic disposable artifact
 
-Target root: `IC_P18_4LEAF_20260918_01`  
-Artifact identity: `4b1aecada00bed36f1c053385453f75028bfebda6488b2fcbf471409f431c7f8`  
+Target root: `IC_P18_4LEAF_20260918_01`
+Artifact identity: `4b1aecada00bed36f1c053385453f75028bfebda6488b2fcbf471409f431c7f8`
 Aggregate prepared payload: `10,380` bytes
 
 | Order | Kind | Name | Prepared bytes | SHA-256 |
@@ -96,6 +96,14 @@ corrected working tree is `P0=0, P1=0, P2=0 — PASS`; final-head macOS/Windows
 CI, fresh post-publication R3 review, and publication identifiers remain
 pending and must be recorded before the task can stop at
 `READY_FOR_HARDWARE_TEST`.
+
+The first published-head gate exposed two host-only P2 defects: the synthetic
+TXT fixtures used platform-default newline translation on Windows, changing
+their source-bound artifact identity, and this record contained Markdown
+trailing spaces. The scoped correction writes exact LF fixture bytes and
+removes the trailing spaces. No production capability or safety boundary was
+changed; both CI platforms and a fresh exact-head R3 review must rerun on the
+corrected commit.
 
 ## Publication and physical gate
 
