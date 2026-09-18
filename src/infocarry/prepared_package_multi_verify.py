@@ -240,7 +240,10 @@ def verify_prepared_multi_package_readback(
         expected_payload = item.authored.payload if item.kind == "txt" else item.source_bytes
         prefix, payload = parsed.payload_parts(record)
         if payload != expected_payload:
-            raise PreparedMultiVerificationError(f"post-operation payload differs at {_display_path((folder_path, record.name), item.kind)}")
+            raise PreparedMultiVerificationError(
+                f"post-operation payload differs at "
+                f"{_display_path(folder_path + (record.name,), item.kind)}"
+            )
         if record.timestamp_be32 != int(candidate.audit["candidate"]["new_record_timestamp_be32"], 16):
             raise PreparedMultiVerificationError("new record timestamp differs from candidate policy")
         if _sha256(prefix) != candidate.audit["package"]["ordered_items"][ordered.index(record)]["native_prefix_sha256"]:

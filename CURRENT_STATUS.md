@@ -1,10 +1,39 @@
 # Current Project Status
 
-Date: 2026-09-17
+Date: 2026-09-19
 
-## P18-029 — EPUB conversion and transfer-shape preparation (host-only)
+## P18-030 — VNW-V15 four-leaf direct-content capability preparation (host-only)
 
-P18-029 is the current host-only task on
+P18-030 is the current R3 host-preparation task on
+`task/P18-030-v15-four-leaf-capability-preparation`, based exactly on
+`4d8f432040f715380e03796a855f9dd26ede82f3`. It adds an explicit,
+validation-only VNW-V15 profile for one absent root with exactly
+`TXT → BMP → TXT → TXT`; it does not widen the normal product profile or
+enable execution. The reusable candidate builder, authorization gate,
+transfer foundation, and independent read-back verifier remain the only
+corresponding seams.
+
+The deterministic disposable target is `IC_P18_4LEAF_20260918_01` with
+`01-introduction.txt` (28 bytes), `02-page-01.bmp` (10,302 bytes),
+`03-ending.txt` (22 bytes), and `04-extra.txt` (28 bytes), for 10,380
+prepared payload bytes. Its profile-bound artifact identity is
+`4b1aecada00bed36f1c053385453f75028bfebda6488b2fcbf471409f431c7f8`. The
+normal readiness/UI path still requires exactly `TXT → BMP → TXT`; four-leaf
+content remains a future direct-leaf candidate and is blocked from normal
+live eligibility. No physical or read-only hardware operation has occurred;
+all device-changing, sender, real `0x101b`, claim, marker, and lock counters
+remain zero. Focused P18-030 validation is green; the full portable suite is
+870 passed with 3 existing intentional skips, and compile/whitespace/matrix
+checks are clean. PR 57 is open and unmerged. Its first final-head gate found
+host-only newline portability and whitespace P2 findings; the scoped
+correction changes only exact synthetic fixture bytes and record formatting.
+Both CI platforms and a fresh independent exact-head R3 review must pass on
+the corrected commit before PM acceptance. The durable record is the
+[P18-030 analysis record](analysis/phase-18-p18-030-v15-four-leaf-capability-preparation-20260918.md).
+
+## P18-029 — EPUB conversion and transfer-shape preparation (preceding host-only task)
+
+P18-029 was the preceding host-only task on
 `task/P18-029-epub-transfer-shape-preparation`, rebuilt from the exact
 canonical P18-028 base `8aaddd2bd29bb10087083e9f1bf5ab863af4bce8`. The initial
 local attempt was based on the wrong P18-026 continuation; that branch remains
