@@ -12,13 +12,12 @@ import hashlib
 import json
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 
 from .capability_profile import (
     HIERARCHICAL_OFFLINE_PROFILE_ID,
     hierarchical_offline_capability_profile,
 )
-
 from .library import (
     PREPARATION_BLOCKED,
     PREPARATION_PREPARED,
@@ -30,6 +29,7 @@ from .library import (
     LibraryItem,
     NODE_FILE,
     NODE_FOLDER,
+    SUPPORTED_EPUB_FORMAT,
 )
 from .prepared_package import (
     PREPARED_PACKAGE_CONFIRMATION,
@@ -55,7 +55,7 @@ class LibraryPreparationResult:
     """Prepared package and user-visible audit for one Library item."""
 
     item: LibraryItem
-    package: PreparedTextPackage
+    package: Any
     audit: Mapping[str, Any]
     artifact: PreparedContentArtifact
 
@@ -362,18 +362,82 @@ def _blocked_item(
 def prepare_library_item(
     catalog: LibraryCatalog,
     item_id: str,
-    folder_name: str,
-    child_name: str,
+    folder_name: Optional[str] = None,
+    child_name: Optional[str] = None,
     *,
     now: Optional[str] = None,
+    cancelled: Optional[Callable[[], bool]] = None,
 ) -> LibraryPreparationResult:
-    """Prepare one current Library TXT source without any device operation."""
+    """Prepare one current Library source without any device operation."""
 
     item = catalog.get(item_id)
     try:
         item = catalog.refresh(item_id, now=now)
     except LibraryError as exc:
         raise LibraryPreparationError(str(exc)) from exc
+
+    if item.detected_format == SUPPORTED_EPUB_FORMAT:
+        from .content_workspace import ContentWorkspace, ContentWorkspaceError
+
+        try:
+            result = ContentWorkspace().prepare_epub(
+                Path(item.source_path),
+                root_name=folder_name,
+                cancelled=cancelled,
+            )
+        except (ContentWorkspaceError, ValueError) as exc:
+            message = str(exc)
+            if "cancelled" not in message.casefold():
+                _blocked_item(
+                    catalog,
+                    item,
+                    message,
+                    folder_name=folder_name,
+                    child_name=None,
+                )
+            raise LibraryPreparationError(message) from exc
+        if result.source_sha256 != item.source_sha256:
+            message = "source changed during offline EPUB preparation; no artifact was accepted"
+            _blocked_item(catalog, item, message, folder_name=folder_name, child_name=None)
+            raise LibraryPreparationError(message)
+        updated = catalog.update_preparation(
+            item.item_id,
+            preparation_state=PREPARATION_PREPARED,
+            state=STATE_READY,
+            target_folder_name=result.artifact.root_name,
+            target_child_name=None,
+            prepared_manifest_sha256=result.artifact.artifact_identity,
+            prepared_manifest_path=None,
+            last_validation_error=None,
+            prepared_artifact=result.artifact.to_dict(),
+            prepared_metadata={
+                **result.report(),
+                "canonical_artifact_identity": result.artifact.artifact_identity,
+            },
+        )
+        audit = result.report()
+        audit.update(
+            {
+                "operation": "offline_library_prepare_epub",
+                "device_operation": "none",
+                "item_id": updated.item_id,
+                "source": {
+                    "path": updated.source_path,
+                    "filename": updated.source_filename,
+                    "sha256": updated.source_sha256,
+                    "bytes": updated.source_size_bytes,
+                },
+            }
+        )
+        return LibraryPreparationResult(item=updated, package=result, audit=audit, artifact=result.artifact)
+
+    if (
+        not isinstance(folder_name, str)
+        or not folder_name
+        or not isinstance(child_name, str)
+        or not child_name
+    ):
+        raise LibraryPreparationError("TXT preparation requires a target folder name and child name")
 
     if not item.supported or item.detected_format != "utf-8-txt":
         message = "Library item is unsupported; only UTF-8 .txt preparation is supported"

@@ -1,37 +1,46 @@
 # Current Project Status
 
-Date: 2026-09-16
+Date: 2026-09-17
+
+## P18-029 — EPUB conversion and transfer-shape preparation (host-only)
+
+P18-029 is the current host-only task on
+`task/P18-029-epub-transfer-shape-preparation`, rebuilt from the exact
+canonical P18-028 base `8aaddd2bd29bb10087083e9f1bf5ab863af4bce8`. The initial
+local attempt was based on the wrong P18-026 continuation; that branch remains
+preserved as a backup, and the corrected test collection and provenance are
+recorded in the [P18-029 analysis record](analysis/phase-18-p18-029-epub-transfer-shape-preparation-20260917.md).
+
+The bounded `ContentWorkspace` accepts EPUB 2/3 ZIP/OCF packages and routes
+safe container/OPF/spine/XHTML extraction through strict CP932/CRLF authoring.
+Text-centric chapters become deterministic TXT children; only exact local
+237×320 1-bit BMP images become BMP children. Metadata, normalization notices,
+unsupported-feature classifications, source/payload hashes, and a canonical
+`PreparedContentArtifact` are retained. ZIP slip, normalized duplicates,
+excessive entries/size/ratio, malformed XML, external entities,
+remote resources, DRM/encryption, and missing package links fail closed or
+remain explicitly classified. No network, script execution, candidate,
+authorization, sender, USB, device, claim, marker, or lock path is reachable
+from the workspace.
+
+`TransferShapeAssessment` is descriptive and host-only. It identifies the
+current exact VNW-V15 TXT → BMP → TXT shape, labels other flat TXT/BMP leaves
+as future direct-leaf shapes requiring separate capability validation, and
+marks hierarchy/unsupported shapes unmappable. Existing live readiness still
+accepts only its established exact shape and remains disabled/authorization-
+gated; no capability envelope was expanded. Host validation is complete, but
+publication, final-head CI, independent exact-head R3 review, and PM acceptance
+remain pending. Physical device operations for this task are zero.
 
 ## P18-028 — Add Content & Conversion Workspace
 
-P18-028 is the current host-only integration task on
+P18-028 remains the preceding host-only integration task on
 `task/P18-028-add-content-conversion-workspace`. The normal Library workflow
-now accepts TXT, exact prepared BMP, existing prepared folders, and existing
-prepared typed-media packages through one `ContentWorkspace` seam. Successful
-preparation terminates at the canonical `PreparedContentArtifact`, which is
-persisted with preparation metadata and reused by Preview, Review transfer,
-and typed readiness. Preview shows title, ordered content, count, approximate
-prepared size, readable text where applicable, render/payload details, and
-normalization warnings without exposing technical hashes in the normal path.
-
-EPUB remains intentionally deferred with the typed state “This format is not
-ready for conversion yet.” The 240×320 rendering canvas and 237×320
-transferable BMP viewport remain distinct and are documented as separate
-adapters. Preparation validity remains separate from live eligibility; the
-existing exact VNW-V15 TXT → BMP → TXT boundary is unchanged.
-
-Local validation is green: 128 focused conversion/import/preparation/UI tests
-passed, and the full Python 3.12 portable suite passed 843 tests with 3
-intentional skips; `compileall` and `git diff --check` also pass. Final-head
-publication/review identifiers are recorded in the [P18-028 analysis record](analysis/phase-18-p18-028-add-content-conversion-workspace-20260916.md)
-after authorized external attempts. The requested base hash was unavailable locally and over
-the network; the branch was created from the checked-out P18-027 successor
-head `2943b85`, with the discrepancy recorded for review. Physical counters
-for P18-028 are all zero: USB/device operations 0, sender calls 0, real
-`0x101b` 0, claims consumed 0, sender-marker mutations 0, and
-installation-wide-lock mutations 0. Independent R3 review passes with
-P0/P1/P2 = 0/0/0. `CAPABILITY_MATRIX.md` is unchanged; PR and final-head CI
-remain pending the explicit private-origin publication approval.
+accepts TXT, exact prepared BMP, existing prepared folders, and existing
+prepared typed-media packages through one `ContentWorkspace` seam. Its full
+suite result was 843 passed with 3 intentional skips. The 240×320 rendering
+canvas and 237×320 transferable BMP viewport remain distinct, and preparation
+validity remains separate from live eligibility.
 
 ## P18-027 — Normal Manager Workflow Productization
 

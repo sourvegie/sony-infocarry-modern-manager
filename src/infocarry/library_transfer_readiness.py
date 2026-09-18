@@ -557,7 +557,10 @@ def build_library_transfer_readiness(
     exact_package = True
     canonical_artifact: Optional[PreparedContentArtifact] = None
 
-    generic_artifact = item.get("operation_type") == "prepared_content_artifact"
+    generic_artifact = item.get("operation_type") in {
+        "prepared_content_artifact",
+        "prepared_epub_content",
+    }
     if item.get("operation_type") != "prepared_flat_typed_package":
         if not generic_artifact:
             reasons.append("the selected item is not an explicitly imported prepared Library package")

@@ -65,9 +65,18 @@ Select a node and use **Move up** or **Move down** to arrange siblings. Removing
 a Library node changes only the local catalog; it does not delete the source or
 anything on an InfoCarry.
 
-**Prepare** validates strict CP932/CRLF TXT or exact 237×320 uncompressed 1-bit
-BMP content. **Preview** shows the exact ordered device-tree proposal, types,
-prepared sizes, destinations, validation results, and conflicts. The nested
+**Prepare** validates strict CP932/CRLF TXT, bounded EPUB 2/3 content, or exact
+237×320 uncompressed 1-bit BMP content. EPUB text chapters become deterministic
+TXT children; only local BMP images already matching the exact supported media
+profile become BMP children. Title metadata, normalization notices, and
+unsupported features are shown in the technical report. **Preview** shows the
+exact ordered device-tree proposal, types, prepared sizes, destinations,
+validation results, and conflicts; for EPUB it also shows bounded readable
+chapter previews and the prepared content shape. EPUB does not introduce a
+crop or rasterization rule: the separate 240×320 rendering canvas remains
+distinct from the exact 237×320 transferable BMP viewport.
+EPUB preparation is bounded to a 64 MiB source ZIP, 512 entries, 8 MiB per
+entry, 32 MiB total decompressed data, and a 1000:1 compression ratio. The nested
 draft accepts exactly one prepared root with 1–8 leaves, at most two directory
 levels below the device root, no empty folders, at most 9 directories and 17
 logical nodes, 39 CP932 bytes per component, 259 CP932 bytes per relative path,
@@ -171,8 +180,11 @@ read-only detection or backup checks.
 
 ## Deliberate limitations
 
-The Text Converter and Ebook Renderer tabs are offline-only first slices; full
-EPUB/MOBI parsing and font-backed page rendering remain separate milestones.
+The Text Converter and Ebook Renderer tabs are offline-only. EPUB preparation
+is now available through the Library, but remains a deliberately bounded
+text-centric subset: no DRM bypass, network fetching, script execution,
+complex CSS layout, MathML, unsupported SVG, audio/video, or font-backed page
+rendering is promised. Unsupported features are classified or fail closed.
 All device operations outside the single existing-TXT replacement remain
 blocked by the project risk register.
 

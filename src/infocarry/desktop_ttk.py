@@ -110,6 +110,8 @@ def _library_display_type(item: Any) -> str:
         return "Text"
     if detected == "validated-237x320-1bit-bmp":
         return "Bitmap"
+    if detected == "epub":
+        return "EPUB"
     return "Content"
 
 
@@ -2170,7 +2172,7 @@ def launch_ttk_desktop(
                 ("Supported source files", ("*.txt", "*.bmp", "*.epub")),
                 ("UTF-8 text files", "*.txt"),
                 ("237x320 1-bit bitmap files", "*.bmp"),
-                ("EPUB files (conversion not ready yet)", "*.epub"),
+                ("EPUB files", "*.epub"),
                 ("All files", "*"),
             ),
             parent=root,

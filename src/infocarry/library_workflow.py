@@ -21,6 +21,7 @@ from .content_workspace import (
     ContentWorkspaceError,
     ContentWorkspaceResult,
     ContentWorkspaceSettings,
+    PreparedContentResult,
 )
 from .library import (
     PREPARATION_BLOCKED,
@@ -31,6 +32,7 @@ from .library import (
     LibraryError,
     LibraryItem,
     NODE_FOLDER,
+    SUPPORTED_EPUB_FORMAT,
 )
 from .library_prepare import (
     LibraryPreparationError,
@@ -63,7 +65,7 @@ def _thaw(value: Any) -> Any:
 @dataclass(frozen=True)
 class LibraryWorkflowPreview:
     prepared: Any
-    foundation: TransferFoundation
+    foundation: Any
     device_tree: Mapping[str, Any]
 
     def __post_init__(self) -> None:
@@ -87,6 +89,17 @@ class LibraryWorkflowPreview:
                 "chooser_import_available": True,
             },
         }
+
+
+@dataclass(frozen=True)
+class HostOnlyTransferPreview:
+    """EPUB preview record without candidate or authorization attachment APIs."""
+
+    plan: Any
+    _report: Mapping[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return _thaw(self._report)
 
 
 class LibraryWorkflowService:
@@ -144,6 +157,7 @@ class LibraryWorkflowService:
                 current.last_validation_error or "Library source is not current and present"
             )
 
+        is_epub = False
         if current.node_kind == NODE_FOLDER:
             if progress is not None:
                 progress("Preparing folder hierarchy")
@@ -152,6 +166,7 @@ class LibraryWorkflowService:
             preparation_manifest = prepared.prepared_manifest_sha256
             target_child_name = None
         else:
+            is_epub = current.detected_format == SUPPORTED_EPUB_FORMAT
             workspace = ContentWorkspace()
             workspace_settings = settings or ContentWorkspaceSettings(
                 root_name=current.target_folder_name or None
@@ -161,6 +176,7 @@ class LibraryWorkflowService:
                     settings is None
                     and current.package is None
                     and current.prepared_artifact is not None
+                    and not is_epub
                 ):
                     prepared = workspace.preview_existing_artifact(
                         Path(current.source_path),
@@ -220,10 +236,24 @@ class LibraryWorkflowService:
                         **dict(prepared.preparation_metadata),
                         "canonical_artifact_identity": artifact.artifact_identity,
                     }
-                    if isinstance(prepared, ContentWorkspaceResult)
+                    if isinstance(prepared, (ContentWorkspaceResult, PreparedContentResult))
+                    and hasattr(prepared, "preparation_metadata")
                     else {
-                        "compatibility_adapter": "LibraryCatalog + prepare_library_hierarchy",
-                        "hierarchy_profile": "host-offline-hierarchical-library-txt-bmp-v1",
+                        "compatibility_adapter": (
+                            "ContentWorkspace EPUB preparation"
+                            if isinstance(prepared, PreparedContentResult)
+                            else "LibraryCatalog + prepare_library_hierarchy"
+                        ),
+                        "hierarchy_profile": (
+                            None
+                            if isinstance(prepared, PreparedContentResult)
+                            else "host-offline-hierarchical-library-txt-bmp-v1"
+                        ),
+                        **(
+                            dict(prepared.report())
+                            if isinstance(prepared, PreparedContentResult)
+                            else {}
+                        ),
                         "canonical_artifact_identity": artifact.artifact_identity,
                     }
                 ),
@@ -231,9 +261,9 @@ class LibraryWorkflowService:
             current = updated
 
         grouping_contract = (
-            "explicit_prepared_hierarchy"
-            if current.package is None
-            else "explicit_prepared_package"
+            "explicit_prepared_package"
+            if current.package is not None or current.detected_format == SUPPORTED_EPUB_FORMAT
+            else "explicit_prepared_hierarchy"
         )
         item = PreparedItem.from_prepared_content(
             artifact,
@@ -254,6 +284,16 @@ class LibraryWorkflowService:
             ),
             device_model_profile=VNW_V15_PROFILE,
         )
+        if is_epub:
+            foundation = HostOnlyTransferPreview(
+                plan=foundation.plan,
+                _report={
+                    **foundation.to_dict(),
+                    "host_only": True,
+                    "candidate_attachment": "unavailable",
+                    "authorization_attachment": "unavailable",
+                },
+            )
         preview = foundation.plan.preview(
             existing_paths=(None if existing_paths is None else tuple(existing_paths))
         )
@@ -262,6 +302,7 @@ class LibraryWorkflowService:
 
 __all__ = [
     "EXTERNAL_FILE_DROP_STATUS",
+    "HostOnlyTransferPreview",
     "LibraryWorkflowPreview",
     "LibraryWorkflowService",
 ]
