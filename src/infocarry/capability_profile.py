@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import copy
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -22,6 +23,8 @@ INITIAL_EXPERIMENTAL_PROFILE_ID = "experimental-flat-root-folder-txt-bmp-v1"
 CAPABILITY_PROFILE_STATUS = "defined_not_live_enabled"
 HIERARCHICAL_OFFLINE_PROFILE_ID = "host-offline-hierarchical-library-txt-bmp-v1"
 HIERARCHICAL_OFFLINE_PROFILE_STATUS = "host_offline_draft_not_live_enabled"
+FOUR_LEAF_VALIDATION_PROFILE_ID = "experimental-vnw-v15-four-leaf-direct-validation-v1"
+FOUR_LEAF_VALIDATION_PROFILE_STATUS = "validation_only_not_live_enabled"
 _DIGEST_LENGTH = 64
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 
@@ -151,6 +154,47 @@ INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
     _PROFILE_DOCUMENT
 )
 
+# This is deliberately a separate exact envelope.  It must not widen the
+# initial product profile's 1–8 host envelope or the normal three-leaf live
+# operation.  The profile is used only by the future physical-validation
+# preparation path and remains explicitly non-live.
+_FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT: dict[str, Any] = copy.deepcopy(
+    _PROFILE_DOCUMENT
+)
+_FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT.update(
+    {
+        "profile_id": FOUR_LEAF_VALIDATION_PROFILE_ID,
+        "status": FOUR_LEAF_VALIDATION_PROFILE_STATUS,
+    }
+)
+_FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["operation"].update(
+    {
+        "name": "validate_one_exact_vnw_v15_four_leaf_root",
+        "exact_child_kinds": ["txt", "bmp", "txt", "txt"],
+        "candidate_construction_allowed": True,
+        "authorization_allowed": True,
+        "execution_allowed": False,
+        "device_write_allowed": False,
+    }
+)
+_FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["children"].update(
+    {
+        "minimum": 4,
+        "maximum": 4,
+        "exact_order": ["txt", "bmp", "txt", "txt"],
+    }
+)
+_FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["exposure"].update(
+    {
+        "validation_only": True,
+        "physical_validation_only": True,
+    }
+)
+
+FOUR_LEAF_VALIDATION_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
+    _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT
+)
+
 _HIERARCHICAL_PROFILE_DOCUMENT: dict[str, Any] = {
     "format": CAPABILITY_PROFILE_FORMAT,
     "profile_id": HIERARCHICAL_OFFLINE_PROFILE_ID,
@@ -237,7 +281,11 @@ def validate_capability_profile(value: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise CapabilityProfileError("capability profile must be an object")
     normalized = _thaw(value)
-    if normalized not in (_PROFILE_DOCUMENT, _HIERARCHICAL_PROFILE_DOCUMENT):
+    if normalized not in (
+        _PROFILE_DOCUMENT,
+        _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT,
+        _HIERARCHICAL_PROFILE_DOCUMENT,
+    ):
         raise CapabilityProfileError(
             "capability profile differs from every reviewed built-in envelope"
         )
@@ -282,7 +330,10 @@ class CapabilityProfile:
     ) -> tuple[dict[str, Any], ...]:
         """Validate one explicitly ordered flat package against this policy."""
 
-        if self.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
+        if self.profile_id not in {
+            INITIAL_EXPERIMENTAL_PROFILE_ID,
+            FOUR_LEAF_VALIDATION_PROFILE_ID,
+        }:
             raise CapabilityProfileError("flat package validation requires the exact flat profile")
         child_policy = self.document["children"]
         limits = self.document["limits"]
@@ -290,7 +341,17 @@ class CapabilityProfile:
         if not isinstance(children, Sequence) or isinstance(children, (str, bytes)):
             raise CapabilityProfileError("package children must be an ordered sequence")
         if not child_policy["minimum"] <= len(children) <= child_policy["maximum"]:
-            raise CapabilityProfileError("package child count is outside the 1–8 envelope")
+            raise CapabilityProfileError(
+                "package child count is outside the selected capability envelope"
+            )
+        exact_order = tuple(child_policy.get("exact_order", ()))
+        if exact_order and tuple(
+            child.get("kind") if isinstance(child, Mapping) else None
+            for child in children
+        ) != exact_order:
+            raise CapabilityProfileError(
+                "package child kinds do not match the selected exact validation profile"
+            )
         _validate_component(
             folder_name,
             label="package folder name",
@@ -544,17 +605,28 @@ def hierarchical_offline_capability_profile() -> CapabilityProfile:
     return CapabilityProfile(HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE)
 
 
+def four_leaf_validation_profile() -> CapabilityProfile:
+    """Return the exact non-live VNW-V15 four-leaf validation envelope."""
+
+    return CapabilityProfile(FOUR_LEAF_VALIDATION_CAPABILITY_PROFILE)
+
+
 def capability_profile_by_id(profile_id: str) -> CapabilityProfile:
     if profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID:
         return initial_capability_profile()
     if profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
         return hierarchical_offline_capability_profile()
+    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+        return four_leaf_validation_profile()
     raise CapabilityProfileError(f"unsupported capability profile: {profile_id}")
 
 
 __all__ = [
     "CAPABILITY_PROFILE_FORMAT",
     "CAPABILITY_PROFILE_STATUS",
+    "FOUR_LEAF_VALIDATION_CAPABILITY_PROFILE",
+    "FOUR_LEAF_VALIDATION_PROFILE_ID",
+    "FOUR_LEAF_VALIDATION_PROFILE_STATUS",
     "HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE",
     "HIERARCHICAL_OFFLINE_PROFILE_ID",
     "HIERARCHICAL_OFFLINE_PROFILE_STATUS",
@@ -564,6 +636,7 @@ __all__ = [
     "INITIAL_EXPERIMENTAL_PROFILE_ID",
     "initial_capability_profile",
     "hierarchical_offline_capability_profile",
+    "four_leaf_validation_profile",
     "capability_profile_by_id",
     "validate_capability_profile",
 ]

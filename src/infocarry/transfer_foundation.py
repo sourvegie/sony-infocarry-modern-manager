@@ -19,6 +19,7 @@ from typing import Any, Mapping, Optional, Sequence
 from .capability_profile import (
     CapabilityProfile,
     CapabilityProfileError,
+    FOUR_LEAF_VALIDATION_PROFILE_ID,
     HIERARCHICAL_OFFLINE_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     capability_profile_by_id,
@@ -102,7 +103,10 @@ class PreparedItem:
             raise TransferFoundationError(str(exc)) from exc
         try:
             if self.grouping_contract == "explicit_prepared_package":
-                if self.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
+                if self.profile_id not in {
+                    INITIAL_EXPERIMENTAL_PROFILE_ID,
+                    FOUR_LEAF_VALIDATION_PROFILE_ID,
+                }:
                     raise CapabilityProfileError("flat package is bound to the wrong profile")
                 normalized = profile.validate_package(
                     folder_name=self.folder_name,
@@ -153,7 +157,17 @@ class PreparedItem:
             else:
                 children = artifact.to_legacy_children()
                 folder_name = artifact.root_name
-                profile_id = INITIAL_EXPERIMENTAL_PROFILE_ID
+                profile_id = (
+                    FOUR_LEAF_VALIDATION_PROFILE_ID
+                    if artifact.profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+                    else INITIAL_EXPERIMENTAL_PROFILE_ID
+                )
+                if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+                    exact_profile = capability_profile_by_id(profile_id)
+                    if artifact.profile_sha256 != exact_profile.sha256:
+                        raise TransferFoundationError(
+                            "four-leaf validation artifact profile hash differs"
+                        )
         except PreparedContentError as exc:
             raise TransferFoundationError(str(exc)) from exc
         return cls(
@@ -675,14 +689,18 @@ class TransferFoundation:
             )
         expected_model_profile_id = selected_profile.device_model_profile_id
         wrong_model = device_model_profile.profile_id != expected_model_profile_id
-        flat_capability_mismatch = (
-            selected_profile.profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID
-            and (
+        flat_capability_mismatch = False
+        if selected_profile.profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID:
+            flat_capability_mismatch = (
                 not device_model_profile.transfer_capable
                 or device_model_profile.transfer_capability_profile_id
                 != selected_profile.profile_id
             )
-        )
+        elif selected_profile.profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+            # The validation envelope is derived from the already reviewed
+            # VNW-V15 model, but it is not a new model capability or a live
+            # product profile.
+            flat_capability_mismatch = not device_model_profile.transfer_capable
         if wrong_model or flat_capability_mismatch:
             raise TransferFoundationError(
                 "device-model profile does not authorize this capability profile"
@@ -712,7 +730,11 @@ class TransferFoundation:
                 disabled_reason=(
                     "host/offline hierarchical profile cannot construct or execute a live candidate"
                     if selected_profile.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
-                    else "initial capability profile is defined but not live-enabled"
+                    else (
+                        "exact four-leaf validation profile is host-only and not live-enabled"
+                        if selected_profile.profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+                        else "initial capability profile is defined but not live-enabled"
+                    )
                 )
             ),
             read_back=ReadBackVerification(),
