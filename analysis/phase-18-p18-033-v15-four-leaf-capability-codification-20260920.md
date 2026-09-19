@@ -110,10 +110,8 @@ There are no remaining review findings; PM acceptance is the remaining gate.
 
 - Commit: `a0ddf7f8670d5b0d73ac8c9573f507a5690da2d6`
 - Pull request: #60, open and unmerged, targeting `main`.
-- Available GitHub workflow: `Offline tests`, run ID `35456833157`, initially
-  queued after publication.
-- This repository has no macOS or Windows workflow definitions; local host
-  validation above is the available cross-platform evidence for this task.
+- Available GitHub workflow: `Offline tests`, run ID `35456901297`, passed on
+  both macOS job `105933694939` and Windows job `105933694815`.
 
 Physical boundary for P18-033 is strictly zero: USB/device operations 0,
 sender calls 0, real `0x101b` 0, claims consumed 0, sender-marker mutations
