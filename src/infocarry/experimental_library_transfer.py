@@ -27,6 +27,7 @@ from .execution_claim_store import (
     ExecutionClaimStoreError,
     PersistentExecutionClaimStore,
 )
+from .execution_profile import guarded_execution_profile
 from .indeterminate_write_lock import (
     IndeterminateWriteLockError,
     PersistentIndeterminateWriteLock,
@@ -129,7 +130,7 @@ class GuardedLibraryExecutionCoordinator:
         indeterminate_write_lock: PersistentIndeterminateWriteLock,
         execution_claim_store: PersistentExecutionClaimStore,
         device_model_profile: DeviceModelProfile = VNW_V15_PROFILE,
-        capability_profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
+        capability_profile_id: Optional[str] = None,
         operation_binding: Optional[LibraryTransferOperationBinding] = None,
     ) -> None:
         if not isinstance(indeterminate_write_lock, PersistentIndeterminateWriteLock):
@@ -146,11 +147,17 @@ class GuardedLibraryExecutionCoordinator:
                 "only the reviewed VNW-V15 transfer-capable model profile is actionable",
                 stage="model_profile",
             )
-        if capability_profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
+        selected_profile_id = capability_profile_id or (
+            operation_binding.profile_id
+            if operation_binding is not None
+            else INITIAL_EXPERIMENTAL_PROFILE_ID
+        )
+        try:
+            selected_profile = guarded_execution_profile(selected_profile_id)
+        except ValueError as exc:
             raise GuardedLibraryExecutionError(
-                "only the exact Experimental flat package capability profile is actionable",
-                stage="capability_profile",
-            )
+                str(exc), stage="capability_profile"
+            ) from exc
         self.indeterminate_write_lock = indeterminate_write_lock
         if not isinstance(execution_claim_store, PersistentExecutionClaimStore):
             raise GuardedLibraryExecutionError(
@@ -164,7 +171,7 @@ class GuardedLibraryExecutionCoordinator:
             device_model_profile=device_model_profile,
         )
         self.device_model_profile = device_model_profile
-        self.capability_profile_id = capability_profile_id
+        self.capability_profile_id = selected_profile.profile_id
         if operation_binding is not None and not isinstance(
             operation_binding, LibraryTransferOperationBinding
         ):
@@ -183,10 +190,15 @@ class GuardedLibraryExecutionCoordinator:
             return
         try:
             binding.require_authorized()
-            expected_children = (
-                (0, "txt", "01-introduction.txt"),
-                (1, "bmp", "02-page-01.bmp"),
-                (2, "txt", "03-ending.txt"),
+            execution_profile = guarded_execution_profile(binding.profile_id)
+            if execution_profile.profile_id != self.capability_profile_id:
+                raise ValueError("operation binding profile differs from coordinator profile")
+            execution_profile.require_target(binding.target_folder_name)
+            expected_children = tuple(
+                (index, kind, name)
+                for index, (kind, name) in enumerate(
+                    zip(execution_profile.child_kinds, execution_profile.child_names)
+                )
             )
             actual_children = tuple(
                 (child.get("order"), child.get("kind"), child.get("name"))
@@ -194,10 +206,32 @@ class GuardedLibraryExecutionCoordinator:
             )
             expected_paths = [
                 f"root\\{binding.target_folder_name}",
-                f"root\\{binding.target_folder_name}\\01-introduction.txt",
-                f"root\\{binding.target_folder_name}\\02-page-01.bmp",
-                f"root\\{binding.target_folder_name}\\03-ending.txt",
+                *[
+                    f"root\\{binding.target_folder_name}\\{name}"
+                    for name in execution_profile.child_names
+                ],
             ]
+            sealed_report = _strict_json_object(
+                Path(operation_bundle.sealed_report.path)
+            )
+            candidate_audit = sealed_report.get("candidate", {})
+            library_binding = (
+                candidate_audit.get("library_binding", {})
+                if isinstance(candidate_audit, Mapping)
+                else {}
+            )
+            if not isinstance(library_binding, Mapping):
+                raise ValueError("candidate Library binding is malformed")
+            bound_profile_id = library_binding.get(
+                "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
+            )
+            if bound_profile_id != execution_profile.profile_id:
+                raise ValueError("candidate profile differs from the operation binding")
+            if execution_profile.operation_specific and (
+                library_binding.get("profile_sha256")
+                != execution_profile.profile_sha256
+            ):
+                raise ValueError("candidate validation profile hash differs")
             if (
                 operation_bundle.device_identity != binding.device_identity
                 or operation_bundle.expected_folder_name != binding.target_folder_name

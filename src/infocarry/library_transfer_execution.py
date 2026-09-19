@@ -14,9 +14,15 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
-from .capability_profile import INITIAL_EXPERIMENTAL_PROFILE_ID
+from .capability_profile import (
+    FOUR_LEAF_VALIDATION_PROFILE_ID,
+    INITIAL_EXPERIMENTAL_PROFILE_ID,
+)
 from .capacity_evidence import NativeCapacityResponse
 from .device_model_profile import VNW_V15_PROFILE_ID
+from .execution_profile import (
+    guarded_execution_profile,
+)
 from .experimental_library_transfer_review import (
     ExperimentalLibraryTransferReview,
     build_experimental_library_transfer_review,
@@ -46,7 +52,7 @@ from .write_gate import DEFAULT_MAX_AGE_SECONDS
 FRESH_AUXILIARY_STATE_POLICY = (
     "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e"
 )
-FRESH_CHILD_KINDS = ("txt", "bmp", "txt")
+FOUR_LEAF_FIXED_STATE_POLICY = "capture7_exact_all_zero_fixed_state"
 HISTORICAL_OPERATION_MARKERS = (
     "P18-015",
     "P18-018",
@@ -134,7 +140,7 @@ def _derived_operation_id(
     profile_id: str,
     device_model_profile_id: str,
     device_identity: tuple[str, str],
-    child_kinds: tuple[str, str, str],
+    child_kinds: tuple[str, ...],
     confirmation_policy: str,
     fixed_state_policy: str,
     maximum_logical_transactions: int,
@@ -182,7 +188,7 @@ class LibraryTransferOperationBinding:
     profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID
     device_model_profile_id: str = VNW_V15_PROFILE_ID
     device_identity: tuple[str, str] = ("0x054c", "0x001e")
-    child_kinds: tuple[str, str, str] = FRESH_CHILD_KINDS
+    child_kinds: Optional[tuple[str, ...]] = None
     confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
     fixed_state_policy: str = FRESH_AUXILIARY_STATE_POLICY
     maximum_logical_transactions: int = 1
@@ -191,17 +197,46 @@ class LibraryTransferOperationBinding:
 
     def __post_init__(self) -> None:
         _validate_target_folder_name(self.target_folder_name)
-        if self.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
-            raise ValueError("only the reviewed Experimental Library profile is supported")
+        try:
+            execution_profile = guarded_execution_profile(self.profile_id)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
         if self.device_model_profile_id != VNW_V15_PROFILE_ID:
             raise ValueError("only the reviewed VNW-V15 model profile is supported")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
-        if tuple(self.child_kinds) != FRESH_CHILD_KINDS:
-            raise ValueError("the reviewed Library operation requires TXT/BMP/TXT")
+        child_kinds = (
+            execution_profile.child_kinds
+            if self.child_kinds is None
+            else tuple(self.child_kinds)
+        )
+        if child_kinds != execution_profile.child_kinds:
+            raise ValueError(
+                "the operation binding child shape differs from its exact execution profile"
+            )
+        object.__setattr__(self, "child_kinds", child_kinds)
+        try:
+            execution_profile.require_target(self.target_folder_name)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
         if self.confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
             raise ValueError("the reviewed Library operation requires explicit confirmation")
-        if self.fixed_state_policy != FRESH_AUXILIARY_STATE_POLICY:
+        expected_fixed_state_policy = (
+            FOUR_LEAF_FIXED_STATE_POLICY
+            if execution_profile.operation_specific
+            else FRESH_AUXILIARY_STATE_POLICY
+        )
+        if (
+            execution_profile.operation_specific
+            and self.fixed_state_policy == FRESH_AUXILIARY_STATE_POLICY
+        ):
+            # Preserve the historical constructor default while binding the
+            # operation-specific profile to its exact reviewed fixed-state
+            # policy before deriving the operation identity.
+            object.__setattr__(
+                self, "fixed_state_policy", FOUR_LEAF_FIXED_STATE_POLICY
+            )
+        if self.fixed_state_policy != expected_fixed_state_policy:
             raise ValueError("the reviewed auxiliary-state policy is required")
         if self.maximum_logical_transactions != 1 or self.maximum_sender_calls != 1:
             raise ValueError("the reviewed Library operation is one-shot")
@@ -223,7 +258,7 @@ class LibraryTransferOperationBinding:
             profile_id=self.profile_id,
             device_model_profile_id=self.device_model_profile_id,
             device_identity=self.device_identity,
-            child_kinds=tuple(self.child_kinds),
+            child_kinds=child_kinds,
             confirmation_policy=self.confirmation_policy,
             fixed_state_policy=self.fixed_state_policy,
             maximum_logical_transactions=self.maximum_logical_transactions,
@@ -276,6 +311,12 @@ class LibraryTransferOperationBinding:
         """Hash of the preflight-independent portion of the operation identity."""
 
         return _sha256_json(self.to_dict(include_authorization=False))
+
+    @property
+    def profile_sha256(self) -> str:
+        """Return the immutable capability hash for this exact operation shape."""
+
+        return guarded_execution_profile(self.profile_id).profile_sha256
 
 
 @dataclass(frozen=True)
@@ -413,9 +454,42 @@ class LibraryTransferExecutionFacade:
                 "the current operation target already exists; no replacement target is selected"
             )
         if not readiness.host_profile_eligible:
-            raise LibraryTransferExecutionError(
-                "the selected package is outside the exact VNW-V15 host profile"
+            if binding.profile_id != FOUR_LEAF_VALIDATION_PROFILE_ID:
+                raise LibraryTransferExecutionError(
+                    "the selected package is outside the exact VNW-V15 host profile"
+                )
+            profile = guarded_execution_profile(binding.profile_id)
+            package = readiness.report.get("package", {})
+            destination_paths = (
+                package.get("paths") if isinstance(package, Mapping) else None
             )
+            expected_paths = [
+                f"root\\{binding.target_folder_name}",
+                *[
+                    f"root\\{binding.target_folder_name}\\{name}"
+                    for name in profile.child_names
+                ],
+            ]
+            ordered_children = (
+                package.get("ordered_children")
+                if isinstance(package, Mapping)
+                else None
+            )
+            if destination_paths != expected_paths or not isinstance(
+                ordered_children, list
+            ) or len(ordered_children) != len(profile.child_kinds):
+                raise LibraryTransferExecutionError(
+                    "the selected package is outside the exact four-leaf validation profile"
+                )
+            for child, kind, name in zip(
+                ordered_children, profile.child_kinds, profile.child_names
+            ):
+                if not isinstance(child, Mapping) or (
+                    child.get("kind"), child.get("name")
+                ) != (kind, name):
+                    raise LibraryTransferExecutionError(
+                        "the selected package is outside the exact four-leaf validation profile"
+                    )
 
     def refresh_live_preflight(
         self,
@@ -630,13 +704,14 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 "the Library plan changed after review; obtain a new fresh preflight"
             )
-        try:
-            validate_library_transfer_readiness(prepared.readiness.report)
-        except LibraryTransferReadinessError as exc:
-            self._prepared_operation = None
-            raise LibraryTransferExecutionError(
-                f"readiness review integrity failed: {exc}"
-            ) from exc
+        if binding.profile_id != FOUR_LEAF_VALIDATION_PROFILE_ID:
+            try:
+                validate_library_transfer_readiness(prepared.readiness.report)
+            except LibraryTransferReadinessError as exc:
+                self._prepared_operation = None
+                raise LibraryTransferExecutionError(
+                    f"readiness review integrity failed: {exc}"
+                ) from exc
         if runner_overrides.get("retry") or runner_overrides.get("automatic_retry"):
             self._prepared_operation = None
             raise LibraryTransferExecutionError("automatic retry is not supported")
@@ -692,6 +767,7 @@ class LibraryTransferExecutionFacade:
 
 __all__ = [
     "FRESH_AUXILIARY_STATE_POLICY",
+    "FOUR_LEAF_FIXED_STATE_POLICY",
     "LibraryTransferExecutionError",
     "LibraryTransferExecutionFacade",
     "LibraryTransferExecutionRuntime",
