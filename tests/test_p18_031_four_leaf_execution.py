@@ -21,7 +21,10 @@ from infocarry.four_leaf_validation import (
     FourLeafValidationReadback,
 )
 from infocarry.library import LibraryCatalog
-from infocarry.library_transfer_execution import LibraryTransferOperationBinding
+from infocarry.library_transfer_execution import (
+    FRESH_AUXILIARY_STATE_POLICY,
+    LibraryTransferOperationBinding,
+)
 from infocarry.prepared_library_package_bridge import (
     PreparedLibraryPackageBridgeError,
     authorize_prepared_library_package,
@@ -145,6 +148,18 @@ class P18031FourLeafExecutionTests(unittest.TestCase):
             command: b"\x00" * 64
             for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)
         }
+        display_history = bytearray(64)
+        display_history[0:4] = (1).to_bytes(4, "big")
+        display_history[8:12] = (0x80).to_bytes(4, "big")
+        display_history[60:] = b"HIST"
+        fixed_state[0x001B] = bytes(display_history)
+        bookmark = bytearray(64)
+        bookmark_values = (0x80, 0xC00, 0, 0x14, 0xFFF101C5)
+        bookmark[:20] = b"".join(
+            value.to_bytes(4, "big") for value in bookmark_values
+        )
+        bookmark[40:] = b"B" * 24
+        fixed_state[0x001F] = bytes(bookmark)
         files = []
         for filename, content in (
             ("01-introduction.txt", "Introduction\n"),
@@ -447,6 +462,54 @@ class P18031FourLeafExecutionTests(unittest.TestCase):
         self.assertEqual(
             authorization.profile_sha256, four_leaf_validation_profile().sha256
         )
+
+    def test_four_leaf_reuses_canonical_auxiliary_state_policy(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        self.assertEqual(
+            setup["binding"].fixed_state_policy,
+            FRESH_AUXILIARY_STATE_POLICY,
+        )
+        self.assertEqual(
+            setup["preflight"].candidate.core.audit_dict()["policy"]["fixed_state"],
+            FRESH_AUXILIARY_STATE_POLICY,
+        )
+        with self.assertRaisesRegex(ValueError, "auxiliary-state policy"):
+            LibraryTransferOperationBinding(
+                target_folder_name=FOUR_LEAF_VALIDATION_TARGET,
+                owner_approval_phrase=OWNER_APPROVAL,
+                confirmation_phrase=CONFIRMATION,
+                profile_id=FOUR_LEAF_VALIDATION_PROFILE_ID,
+                fixed_state_policy="capture7_exact_all_zero_fixed_state",
+            )
+
+    def test_capture7_policy_stale_bundle_stops_before_any_callback(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        stale_bundle = replace(
+            setup["bundle"],
+            fixed_state_policy="capture7_exact_all_zero_fixed_state",
+        )
+        with self.assertRaises(GuardedLibraryExecutionError) as raised:
+            GuardedLibraryExecutionCoordinator(
+                operation_binding=setup["binding"],
+                indeterminate_write_lock=setup["lock"],
+                execution_claim_store=setup["claims"],
+            ).execute(
+                stale_bundle,
+                plan_report=_plan_for_setup(setup),
+                confirmation_interaction=lambda _review: self.fail(
+                    "stale policy must stop before confirmation"
+                ),
+                detect_device=lambda: self.fail("stale policy must stop before device access"),
+                query_capacity=lambda: self.fail("stale policy must stop before capacity"),
+                backend=PackageWorkflowBackend(),
+                capture=lambda *_args, **_kwargs: self.fail(
+                    "stale policy must stop before backup"
+                ),
+                evidence_namespace=setup["evidence"],
+            )
+        self.assertEqual(raised.exception.stage, "operation_identity")
 
     def test_wrong_profile_hash_and_non_exact_shapes_fail_closed(self):
         setup = self._setup()
