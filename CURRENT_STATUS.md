@@ -2,6 +2,28 @@
 
 Date: 2026-09-19
 
+## P18-032 — VNW-V15 four-leaf auxiliary-state policy closure (host-only)
+
+P18-032 is the narrow R3 host-side correction on
+`task/P18-032-v15-four-leaf-aux-state-closure`, based exactly on canonical
+`737746319162b7ffc65fded19fa47db19d2a69fc`. The exact VNW-V15 four-leaf
+operation binding now reuses the existing reviewed semantic auxiliary-state
+preservation policy rather than requiring the capture-7 all-zero label. The
+candidate, authorization, sealed bundle, and canonical guarded execution
+layers remain unchanged; stale policy identities fail closed before any
+callback. The exact enabled shape remains only `TXT → BMP → TXT → TXT`,
+arbitrary 1–8 execution and VNW-V10 remain disabled, and
+`CAPABILITY_MATRIX.md` is unchanged.
+
+Local validation is green: the focused P18-025→P18-031 regression set is
+137 passed, the full portable Python 3.12 suite is 880 passed with 3
+pre-existing skips, and compile/whitespace checks are clean. This task has
+performed no USB/device-changing operation; sender calls, real `0x101b`,
+claims, sender-marker mutations, and installation-lock mutations are all
+zero. Publication, final-head macOS/Windows CI, independent exact-head R3,
+and PM acceptance remain pending. The durable record is the
+[P18-032 analysis record](analysis/phase-18-p18-032-v15-four-leaf-aux-state-closure-20260919.md).
+
 ## P18-030 — VNW-V15 four-leaf direct-content capability preparation (host-only)
 
 P18-030 is the current R3 host-preparation task on

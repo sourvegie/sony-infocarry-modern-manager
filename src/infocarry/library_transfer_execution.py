@@ -52,7 +52,6 @@ from .write_gate import DEFAULT_MAX_AGE_SECONDS
 FRESH_AUXILIARY_STATE_POLICY = (
     "verified_display_history_0x001b_and_bookmark_0x001f_semantic_rebase_plus_zero_count_0x001c_to_0x001e"
 )
-FOUR_LEAF_FIXED_STATE_POLICY = "capture7_exact_all_zero_fixed_state"
 HISTORICAL_OPERATION_MARKERS = (
     "P18-015",
     "P18-018",
@@ -221,21 +220,13 @@ class LibraryTransferOperationBinding:
             raise ValueError(str(exc)) from exc
         if self.confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
             raise ValueError("the reviewed Library operation requires explicit confirmation")
-        expected_fixed_state_policy = (
-            FOUR_LEAF_FIXED_STATE_POLICY
-            if execution_profile.operation_specific
-            else FRESH_AUXILIARY_STATE_POLICY
-        )
-        if (
-            execution_profile.operation_specific
-            and self.fixed_state_policy == FRESH_AUXILIARY_STATE_POLICY
-        ):
-            # Preserve the historical constructor default while binding the
-            # operation-specific profile to its exact reviewed fixed-state
-            # policy before deriving the operation identity.
-            object.__setattr__(
-                self, "fixed_state_policy", FOUR_LEAF_FIXED_STATE_POLICY
-            )
+        # The exact four-leaf profile reuses the canonical reviewed VNW-V15
+        # auxiliary-state preservation policy.  The candidate builder owns
+        # the semantic pointer validation/rebase and reports the actual
+        # policy into the sealed candidate; this binding must match that
+        # policy so a capture-era all-zero expectation cannot authorize a
+        # semantically different operation.
+        expected_fixed_state_policy = FRESH_AUXILIARY_STATE_POLICY
         if self.fixed_state_policy != expected_fixed_state_policy:
             raise ValueError("the reviewed auxiliary-state policy is required")
         if self.maximum_logical_transactions != 1 or self.maximum_sender_calls != 1:
@@ -767,7 +758,6 @@ class LibraryTransferExecutionFacade:
 
 __all__ = [
     "FRESH_AUXILIARY_STATE_POLICY",
-    "FOUR_LEAF_FIXED_STATE_POLICY",
     "LibraryTransferExecutionError",
     "LibraryTransferExecutionFacade",
     "LibraryTransferExecutionRuntime",
