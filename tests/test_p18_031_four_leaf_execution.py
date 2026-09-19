@@ -18,7 +18,6 @@ from infocarry.four_leaf_validation import (
     FOUR_LEAF_CHILD_KINDS,
     FOUR_LEAF_CHILD_NAMES,
     FOUR_LEAF_VALIDATION_TARGET,
-    FourLeafValidationReadback,
 )
 from infocarry.library import LibraryCatalog
 from infocarry.library_transfer_execution import (
@@ -44,6 +43,7 @@ from infocarry.prepared_library_package_operation_bundle import (
     PreparedLibraryPackageOperationBundle,
 )
 from infocarry.prepared_multi_package_workflow import PreparedMultiFakeTransport
+from infocarry.prepared_package_multi_verify import PreparedMultiPackageReadback
 from infocarry.prepared_media_package import (
     build_prepared_media_package,
     export_prepared_media_package,
@@ -287,8 +287,7 @@ class P18031FourLeafExecutionTests(unittest.TestCase):
         self.assertEqual(
             result.runner_result.audit["profile"], FOUR_LEAF_VALIDATION_PROFILE_ID
         )
-        self.assertIsInstance(result.verification, FourLeafValidationReadback)
-        self.assertEqual(result.verification.to_dict()["validation_profile_id"], FOUR_LEAF_VALIDATION_PROFILE_ID)
+        self.assertIsInstance(result.verification, PreparedMultiPackageReadback)
         self.assertEqual(result.runner_result.audit["workflow"]["sender_calls"], 1)
         self.assertEqual(
             result.runner_result.audit["workflow"]["operation_sequence"].count(
@@ -328,13 +327,9 @@ class P18031FourLeafExecutionTests(unittest.TestCase):
             now=self.now,
             max_age_seconds=None,
         )
-        self.assertIsInstance(result.verification, FourLeafValidationReadback)
+        self.assertIsInstance(result.verification, PreparedMultiPackageReadback)
         self.assertEqual(
-            result.verification.to_dict()["validation_profile_id"],
-            FOUR_LEAF_VALIDATION_PROFILE_ID,
-        )
-        self.assertEqual(
-            result.authorization.to_dict()["validation_profile"]["profile_id"],
+            result.authorization.to_dict()["capability_profile"]["profile_id"],
             FOUR_LEAF_VALIDATION_PROFILE_ID,
         )
 

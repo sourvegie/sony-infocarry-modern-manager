@@ -962,9 +962,9 @@ def format_library_transfer_readiness(report: Dict[str, Any]) -> str:
     status = eligibility.get("status_text")
     if not isinstance(status, str) or not status:
         status = (
-            "Experimental profile eligible — live transfer not enabled in this build"
+            "Reviewed shape eligible — guarded live transfer requires fresh evidence"
             if host_eligible
-            else "Blocked — selected package is outside the Experimental profile"
+            else "Blocked — selected package is outside a reviewed shape"
         )
     conflicts = destination.get("conflicts", [])
     if not isinstance(conflicts, list):
@@ -974,7 +974,7 @@ def format_library_transfer_readiness(report: Dict[str, Any]) -> str:
         raise ValueError("Library transfer readiness children are malformed")
 
     lines = [
-        "EXPERIMENTAL TRANSFER READINESS — host review only; no device change occurred",
+        "TRANSFER READINESS — host review only; no device change occurred",
         "",
         "Status",
         f"  {status}",

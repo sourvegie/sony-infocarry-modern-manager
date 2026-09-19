@@ -1,4 +1,4 @@
-"""UI-independent readiness model for the Experimental Library profile.
+"""UI-independent readiness model for the reviewed Library profiles.
 
 This module describes reusable host/product eligibility only.  It deliberately
 does not import the historical operation review, candidate builders, claim
@@ -18,6 +18,8 @@ from .capability_profile import (
     CAPABILITY_PROFILE_STATUS,
     CapabilityProfileError,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
+    VNW_V15_FOUR_LEAF_PROFILE_ID,
+    capability_profile_by_id,
     initial_capability_profile,
 )
 from .device_model_profile import (
@@ -27,6 +29,12 @@ from .device_model_profile import (
     VNW_V15_PROFILE_ID,
 )
 from .prepared_content import PreparedContentArtifact, PreparedContentError
+from .transfer_shape import (
+    EXACT_VERIFIED_LIVE_PROFILE,
+    FOUR_LEAF_VERIFIED_CHILD_KINDS,
+    TransferShapeAssessment,
+    assess_transfer_shape,
+)
 
 
 LIBRARY_TRANSFER_READINESS_FORMAT = "infocarry-library-transfer-readiness-v1"
@@ -35,7 +43,7 @@ EXPERIMENTAL_LIBRARY_PROFILE_STATUS = CAPABILITY_PROFILE_STATUS
 EXPERIMENTAL_CHILD_KINDS = ("txt", "bmp", "txt")
 PREPARED_MEDIA_PACKAGE_FORMAT = "infocarry-prepared-typed-media-package-v1"
 LIBRARY_TRANSFER_READINESS_STATUS = (
-    "Experimental profile eligible — live transfer not enabled in this build"
+    "Verified VNW-V15 shape eligible — guarded live transfer requires fresh evidence"
 )
 
 
@@ -382,7 +390,7 @@ def _add_plan_reasons(
     else:
         selected_ids = selection.get("selected_item_ids")
         if selection.get("mode") != "selected":
-            reasons.append("the Experimental profile requires explicit selected-item planning")
+            reasons.append("the reviewed Library profile requires explicit selected-item planning")
         elif not isinstance(selected_ids, list) or len(selected_ids) != 1:
             reasons.append("select exactly one prepared Library package; selections are never merged")
 
@@ -535,7 +543,7 @@ def build_library_transfer_readiness(
     items = plan_report.get("items")
     item: Mapping[str, Any] = {}
     if not isinstance(items, list) or len(items) != 1:
-        reasons.append("the Experimental profile requires exactly one selected Library package")
+        reasons.append("the reviewed Library profile requires exactly one selected Library package")
     elif not isinstance(items[0], Mapping):
         reasons.append("the selected Library package report is malformed")
     else:
@@ -556,6 +564,8 @@ def build_library_transfer_readiness(
     normalized_children: list[dict[str, Any]] = []
     exact_package = True
     canonical_artifact: Optional[PreparedContentArtifact] = None
+    transfer_shape: Optional[TransferShapeAssessment] = None
+    selected_profile_id = INITIAL_EXPERIMENTAL_PROFILE_ID
 
     generic_artifact = item.get("operation_type") in {
         "prepared_content_artifact",
@@ -622,37 +632,74 @@ def build_library_transfer_readiness(
             reasons.append(f"canonical preparation/profile validation failed: {exc}")
             exact_package = False
 
-    if generic_artifact:
-        if canonical_artifact is not None:
-            expected_paths = [
+    if canonical_artifact is not None:
+        try:
+            transfer_shape = assess_transfer_shape(canonical_artifact)
+        except (TypeError, ValueError) as exc:
+            reasons.append(f"transfer-shape assessment failed: {exc}")
+            exact_package = False
+        else:
+            if transfer_shape.classification != EXACT_VERIFIED_LIVE_PROFILE:
+                reasons.extend(transfer_shape.reasons)
+                reasons.append(
+                    "exact supported direct-leaf orders are TXT → BMP → TXT "
+                    "and TXT → BMP → TXT → TXT"
+                )
+                exact_package = False
+            elif transfer_shape.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
+                selected_profile_id = VNW_V15_FOUR_LEAF_PROFILE_ID
+            if paths != [
                 canonical_artifact.root_path,
                 *(child.path for child in canonical_artifact.children),
-            ]
-            if paths != expected_paths:
+            ]:
                 reasons.append("destination paths differ from the canonical prepared content")
-        reasons.append(
-            "prepared content is valid, but its transfer shape is not currently supported"
-        )
-    elif not isinstance(children, list) or len(children) != len(EXPERIMENTAL_CHILD_KINDS):
-        reasons.append("the selected package must contain exactly three direct children")
+                exact_package = False
+
+    if not isinstance(children, list):
+        reasons.append("the selected package ordered children are malformed")
+        exact_package = False
+    elif canonical_artifact is None:
+        reasons.append("the canonical prepared content is missing")
         exact_package = False
     else:
+        expected_kinds = (
+            transfer_shape.ordered_kinds
+            if transfer_shape is not None
+            else ()
+        )
+        if (
+            len(children) != len(expected_kinds)
+            or transfer_shape is None
+            or transfer_shape.classification != EXACT_VERIFIED_LIVE_PROFILE
+        ):
+            reasons.append(
+                "the selected package must contain exactly three direct children "
+                "or exactly four direct children in a reviewed order"
+            )
+            exact_package = False
         if folder_name is None:
             reasons.append("the package destination must be exactly one root-level folder")
             exact_package = False
-        for index, (child, expected_kind) in enumerate(
-            zip(children, EXPERIMENTAL_CHILD_KINDS)
-        ):
+        for index, child in enumerate(children):
             if not isinstance(child, Mapping):
                 reasons.append(f"prepared package child {index + 1} is malformed")
                 exact_package = False
                 continue
             normalized_children.append(dict(child))
+            expected_kind = expected_kinds[index] if index < len(expected_kinds) else None
             if child.get("kind") != expected_kind or child.get("order") != index:
-                reasons.append("child order/kinds must be exactly TXT → BMP → TXT")
+                reasons.append(
+                    "child order/kinds must match one of the two physically verified "
+                    "VNW-V15 direct-leaf shapes"
+                )
                 exact_package = False
-            if folder_name is not None and child.get("path") != f"{folder_path}\\{child.get('name', '')}":
-                reasons.append("prepared package child path is nested, missing, or outside the root folder")
+            if (
+                folder_path is not None
+                and child.get("path") != f"{folder_path}\\{child.get('name', '')}"
+            ):
+                reasons.append(
+                    "prepared package child path is nested, missing, or outside the root folder"
+                )
                 exact_package = False
 
     if canonical_artifact is not None:
@@ -673,8 +720,10 @@ def build_library_transfer_readiness(
                 for child in normalized_children
             ],
         ]
-        if paths != expected_paths or len(paths) != 1 + len(EXPERIMENTAL_CHILD_KINDS):
-            reasons.append("destination must contain exactly the root folder and its three direct children")
+        if paths != expected_paths or len(paths) != 1 + len(normalized_children):
+            reasons.append(
+                "destination must contain exactly the root folder and its reviewed direct children"
+            )
             exact_package = False
     elif not generic_artifact and not isinstance(paths, list):
         reasons.append("prepared package destination paths are malformed")
@@ -683,7 +732,7 @@ def build_library_transfer_readiness(
     if exact_package and folder_name is not None:
         try:
             normalized_children = list(
-                initial_capability_profile().validate_package(
+                capability_profile_by_id(selected_profile_id).validate_package(
                     folder_name=folder_name,
                     children=normalized_children,
                 )
@@ -817,22 +866,39 @@ def build_library_transfer_readiness(
     fresh_evidence = list(dict.fromkeys(fresh_evidence))
     reasons = list(dict.fromkeys(reasons))
     state = "eligible_needs_fresh_live_evidence" if host_profile_eligible else "blocked"
-    status_text = (
-        LIBRARY_TRANSFER_READINESS_STATUS
-        if host_profile_eligible
-        else f"Blocked — {reasons[0] if reasons else 'selected package is outside the Experimental profile'}"
-    )
+    if host_profile_eligible:
+        status_text = LIBRARY_TRANSFER_READINESS_STATUS
+    elif canonical_artifact is not None and canonical_artifact.valid_preparation:
+        status_text = (
+            "Blocked — prepared content is valid but outside a reviewed Library "
+            f"shape: {reasons[0] if reasons else 'unsupported exact shape'}"
+        )
+    else:
+        status_text = (
+            "Blocked — "
+            f"{reasons[0] if reasons else 'selected package is outside a reviewed Library profile'}"
+        )
 
     report: dict[str, Any] = {
         "format": LIBRARY_TRANSFER_READINESS_FORMAT,
         "state": state,
         "profile": {
-            "id": EXPERIMENTAL_LIBRARY_PROFILE_ID,
-            "status": EXPERIMENTAL_LIBRARY_PROFILE_STATUS,
+            "id": selected_profile_id,
+            "status": capability_profile_by_id(selected_profile_id).document["status"],
             "device_model_profile_id": VNW_V15_PROFILE_ID,
-            "required_child_kinds": list(EXPERIMENTAL_CHILD_KINDS),
+            "required_child_kinds": (
+                list(transfer_shape.ordered_kinds)
+                if transfer_shape is not None
+                and transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE
+                else list(EXPERIMENTAL_CHILD_KINDS)
+            ),
             "root_level_only": True,
-            "exact_child_count": len(EXPERIMENTAL_CHILD_KINDS),
+            "exact_child_count": (
+                transfer_shape.child_count
+                if transfer_shape is not None
+                and transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE
+                else None
+            ),
             "automatic_grouping": False,
             "multi_selection_merge": False,
             "live_enabled": False,
@@ -927,6 +993,8 @@ def build_library_transfer_readiness(
             "fresh_evidence_reasons": fresh_evidence,
         },
     }
+    if transfer_shape is not None:
+        report["transfer_shape"] = transfer_shape.to_dict()
     ui_state = _readiness_state_from_report(
         report,
         reasons=reasons,

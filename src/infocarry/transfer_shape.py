@@ -16,6 +16,10 @@ EXACT_VERIFIED_LIVE_PROFILE = "exact_verified_vnw_v15_txt_bmp_txt"
 PLAUSIBLE_FUTURE_DIRECT_LEAF_V15 = "plausible_future_vnw_v15_direct_leaf"
 UNMAPPABLE_UNSUPPORTED_SHAPE = "unmappable_unsupported_shape"
 CURRENT_VERIFIED_CHILD_KINDS = ("txt", "bmp", "txt")
+FOUR_LEAF_VERIFIED_CHILD_KINDS = ("txt", "bmp", "txt", "txt")
+VERIFIED_LIVE_CHILD_KINDS = frozenset(
+    {CURRENT_VERIFIED_CHILD_KINDS, FOUR_LEAF_VERIFIED_CHILD_KINDS}
+)
 MAX_FUTURE_DIRECT_LEAF_CHILDREN = 8
 
 
@@ -99,13 +103,17 @@ def assess_transfer_shape(
         and child.path.rsplit("\\", 1)[0] == artifact.root_path
         for child in artifact.children
     )
-    exact = direct_leaf and kinds == CURRENT_VERIFIED_CHILD_KINDS
+    exact = direct_leaf and kinds in VERIFIED_LIVE_CHILD_KINDS
     plausible = direct_leaf and 1 <= len(kinds) <= MAX_FUTURE_DIRECT_LEAF_CHILDREN and all(kind in {"txt", "bmp"} for kind in kinds)
     reasons: list[str] = []
     if exact:
         classification = EXACT_VERIFIED_LIVE_PROFILE
         requires = False
-        reasons.append("ordered direct children exactly match the reviewed VNW-V15 TXT → BMP → TXT shape")
+        shape = " → ".join(kind.upper() for kind in kinds)
+        reasons.append(
+            "ordered direct children exactly match the physically verified "
+            f"VNW-V15 {shape} live shape"
+        )
     elif plausible:
         classification = PLAUSIBLE_FUTURE_DIRECT_LEAF_V15
         requires = True
@@ -142,10 +150,12 @@ def assess_transfer_shape(
 __all__ = [
     "CURRENT_VERIFIED_CHILD_KINDS",
     "EXACT_VERIFIED_LIVE_PROFILE",
+    "FOUR_LEAF_VERIFIED_CHILD_KINDS",
     "MAX_FUTURE_DIRECT_LEAF_CHILDREN",
     "PLAUSIBLE_FUTURE_DIRECT_LEAF_V15",
     "TRANSFER_SHAPE_ASSESSMENT_FORMAT",
     "TransferShapeAssessment",
     "UNMAPPABLE_UNSUPPORTED_SHAPE",
+    "VERIFIED_LIVE_CHILD_KINDS",
     "assess_transfer_shape",
 ]

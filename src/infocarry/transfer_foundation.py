@@ -19,9 +19,9 @@ from typing import Any, Mapping, Optional, Sequence
 from .capability_profile import (
     CapabilityProfile,
     CapabilityProfileError,
-    FOUR_LEAF_VALIDATION_PROFILE_ID,
     HIERARCHICAL_OFFLINE_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
+    VNW_V15_FOUR_LEAF_PROFILE_ID,
     capability_profile_by_id,
     initial_capability_profile,
 )
@@ -105,7 +105,7 @@ class PreparedItem:
             if self.grouping_contract == "explicit_prepared_package":
                 if self.profile_id not in {
                     INITIAL_EXPERIMENTAL_PROFILE_ID,
-                    FOUR_LEAF_VALIDATION_PROFILE_ID,
+                    VNW_V15_FOUR_LEAF_PROFILE_ID,
                 }:
                     raise CapabilityProfileError("flat package is bound to the wrong profile")
                 normalized = profile.validate_package(
@@ -158,15 +158,15 @@ class PreparedItem:
                 children = artifact.to_legacy_children()
                 folder_name = artifact.root_name
                 profile_id = (
-                    FOUR_LEAF_VALIDATION_PROFILE_ID
-                    if artifact.profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+                    VNW_V15_FOUR_LEAF_PROFILE_ID
+                    if artifact.profile_id == VNW_V15_FOUR_LEAF_PROFILE_ID
                     else INITIAL_EXPERIMENTAL_PROFILE_ID
                 )
-                if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+                if profile_id == VNW_V15_FOUR_LEAF_PROFILE_ID:
                     exact_profile = capability_profile_by_id(profile_id)
                     if artifact.profile_sha256 != exact_profile.sha256:
                         raise TransferFoundationError(
-                            "four-leaf validation artifact profile hash differs"
+                            "four-leaf capability artifact profile hash differs"
                         )
         except PreparedContentError as exc:
             raise TransferFoundationError(str(exc)) from exc
@@ -472,6 +472,8 @@ class TransferPlan:
                 "capability_match": (
                     "host_offline_only_not_live_capable"
                     if self.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
+                    else "physically_verified_vnw_v15_shape"
+                    if self.profile_id == VNW_V15_FOUR_LEAF_PROFILE_ID
                     else "defined_not_live_enabled"
                 ),
             },
@@ -696,10 +698,9 @@ class TransferFoundation:
                 or device_model_profile.transfer_capability_profile_id
                 != selected_profile.profile_id
             )
-        elif selected_profile.profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
-            # The validation envelope is derived from the already reviewed
-            # VNW-V15 model, but it is not a new model capability or a live
-            # product profile.
+        elif selected_profile.profile_id == VNW_V15_FOUR_LEAF_PROFILE_ID:
+            # The exact four-leaf envelope is bound to the reviewed VNW-V15
+            # model; it does not inherit the broader host-side 1–8 envelope.
             flat_capability_mismatch = not device_model_profile.transfer_capable
         if wrong_model or flat_capability_mismatch:
             raise TransferFoundationError(
@@ -731,8 +732,8 @@ class TransferFoundation:
                     "host/offline hierarchical profile cannot construct or execute a live candidate"
                     if selected_profile.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
                     else (
-                        "exact four-leaf validation profile is host-only and not live-enabled"
-                        if selected_profile.profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+                        "exact physically verified four-leaf shape requires fresh guarded evidence"
+                        if selected_profile.profile_id == VNW_V15_FOUR_LEAF_PROFILE_ID
                         else "initial capability profile is defined but not live-enabled"
                     )
                 )

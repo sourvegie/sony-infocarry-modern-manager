@@ -1,11 +1,10 @@
-"""Machine-enforced capability policy for the first product envelope.
+"""Machine-enforced capability policies for the reviewed product envelopes.
 
-The profile is deliberately narrower than a general ebook promise and is
-separate from native proof.  It describes what the product may validate and
-review: one new flat root folder containing one to eight ordered strict TXT
-or validated one-bit BMP children.  Live execution is explicitly disabled in
-this profile; a later R3 boundary must enable a separately reviewed exact
-operation.
+The initial profile remains deliberately narrower than a general ebook
+promise and is separate from native proof.  The exact VNW-V15 four-leaf
+profile records a separately reviewed physical shape while the host foundation
+continues to require fresh evidence, typed binding, and the guarded execution
+boundary before any device-changing action.
 """
 
 from __future__ import annotations
@@ -23,8 +22,14 @@ INITIAL_EXPERIMENTAL_PROFILE_ID = "experimental-flat-root-folder-txt-bmp-v1"
 CAPABILITY_PROFILE_STATUS = "defined_not_live_enabled"
 HIERARCHICAL_OFFLINE_PROFILE_ID = "host-offline-hierarchical-library-txt-bmp-v1"
 HIERARCHICAL_OFFLINE_PROFILE_STATUS = "host_offline_draft_not_live_enabled"
-FOUR_LEAF_VALIDATION_PROFILE_ID = "experimental-vnw-v15-four-leaf-direct-validation-v1"
-FOUR_LEAF_VALIDATION_PROFILE_STATUS = "validation_only_not_live_enabled"
+# The public capability is the exact physically verified VNW-V15 shape.  The
+# historical validation constant names remain as compatibility aliases for
+# persisted host artifacts and older callers; they do not describe the
+# capability status or its product exposure.
+VNW_V15_FOUR_LEAF_PROFILE_ID = "verified-vnw-v15-four-leaf-direct-v1"
+VNW_V15_FOUR_LEAF_PROFILE_STATUS = "physically_verified_live_supported"
+FOUR_LEAF_VALIDATION_PROFILE_ID = VNW_V15_FOUR_LEAF_PROFILE_ID
+FOUR_LEAF_VALIDATION_PROFILE_STATUS = VNW_V15_FOUR_LEAF_PROFILE_STATUS
 _DIGEST_LENGTH = 64
 _EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 
@@ -155,9 +160,10 @@ INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
 )
 
 # This is deliberately a separate exact envelope.  It must not widen the
-# initial product profile's 1–8 host envelope or the normal three-leaf live
-# operation.  The profile is used only by the future physical-validation
-# preparation path and remains explicitly non-live.
+# initial product profile's 1–8 host envelope.  Its physical proof enables
+# only this exact ordered shape in the normal VNW-V15 live capability model;
+# fresh backup, capacity, target, authorization, sender-marker, lock, and
+# independent readback gates remain required for every operation.
 _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT: dict[str, Any] = copy.deepcopy(
     _PROFILE_DOCUMENT
 )
@@ -169,12 +175,12 @@ _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT.update(
 )
 _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["operation"].update(
     {
-        "name": "validate_one_exact_vnw_v15_four_leaf_root",
+        "name": "add_one_exact_vnw_v15_four_leaf_root",
         "exact_child_kinds": ["txt", "bmp", "txt", "txt"],
         "candidate_construction_allowed": True,
         "authorization_allowed": True,
-        "execution_allowed": False,
-        "device_write_allowed": False,
+        "execution_allowed": True,
+        "device_write_allowed": True,
     }
 )
 _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["children"].update(
@@ -186,8 +192,9 @@ _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["children"].update(
 )
 _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT["exposure"].update(
     {
-        "validation_only": True,
-        "physical_validation_only": True,
+        "live_supported": True,
+        "normal_gui_send_exposed": True,
+        "normal_cli_send_exposed": True,
     }
 )
 
@@ -606,7 +613,7 @@ def hierarchical_offline_capability_profile() -> CapabilityProfile:
 
 
 def four_leaf_validation_profile() -> CapabilityProfile:
-    """Return the exact non-live VNW-V15 four-leaf validation envelope."""
+    """Return the exact physically verified VNW-V15 four-leaf envelope."""
 
     return CapabilityProfile(FOUR_LEAF_VALIDATION_CAPABILITY_PROFILE)
 
@@ -627,6 +634,8 @@ __all__ = [
     "FOUR_LEAF_VALIDATION_CAPABILITY_PROFILE",
     "FOUR_LEAF_VALIDATION_PROFILE_ID",
     "FOUR_LEAF_VALIDATION_PROFILE_STATUS",
+    "VNW_V15_FOUR_LEAF_PROFILE_ID",
+    "VNW_V15_FOUR_LEAF_PROFILE_STATUS",
     "HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE",
     "HIERARCHICAL_OFFLINE_PROFILE_ID",
     "HIERARCHICAL_OFFLINE_PROFILE_STATUS",
