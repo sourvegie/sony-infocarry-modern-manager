@@ -227,11 +227,11 @@ class GuardedLibraryExecutionCoordinator:
             )
             if bound_profile_id != execution_profile.profile_id:
                 raise ValueError("candidate profile differs from the operation binding")
-            if execution_profile.operation_specific and (
+            if execution_profile.profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID and (
                 library_binding.get("profile_sha256")
                 != execution_profile.profile_sha256
             ):
-                raise ValueError("candidate validation profile hash differs")
+                raise ValueError("candidate capability profile hash differs")
             if (
                 operation_bundle.device_identity != binding.device_identity
                 or operation_bundle.expected_folder_name != binding.target_folder_name

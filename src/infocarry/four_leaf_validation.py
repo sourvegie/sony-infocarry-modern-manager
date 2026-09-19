@@ -3,8 +3,9 @@
 This module binds the reviewed four-leaf capability descriptor to the existing
 ordered-package candidate builder, authorization gate, transfer foundation,
 and independent read-back verifier.  It deliberately contains no transport,
-claim, marker, lock, or sender implementation: the exact profile is
-validation-only and cannot enable execution.
+claim, marker, lock, or sender implementation.  The normal live path uses the
+generic seams directly; these names remain as a compatibility adapter for the
+historical deterministic evidence fixtures.
 """
 
 from __future__ import annotations
@@ -65,7 +66,7 @@ FOUR_LEAF_VALIDATION_CONFIRMATION = (
 
 
 class FourLeafValidationError(ValueError):
-    """Raised when the exact validation-only four-leaf shape is not bound."""
+    """Raised when the exact reviewed four-leaf shape is not bound."""
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -117,14 +118,14 @@ def _profile_binding(artifact: PreparedContentArtifact) -> dict[str, Any]:
         "ordered_kinds": list(FOUR_LEAF_CHILD_KINDS),
         "ordered_names": list(FOUR_LEAF_CHILD_NAMES),
         "live_enabled": False,
-        "validation_only": True,
+        "live_supported": True,
     }
 
 
 def bind_four_leaf_validation_profile(
     artifact: PreparedContentArtifact,
 ) -> PreparedContentArtifact:
-    """Bind a validated direct-leaf artifact to the exact non-live profile."""
+    """Bind a validated direct-leaf artifact to the exact reviewed profile."""
 
     if not isinstance(artifact, PreparedContentArtifact):
         raise FourLeafValidationError("prepared content artifact is malformed")
@@ -405,7 +406,7 @@ class FourLeafValidationAuthorization:
     def to_dict(self) -> dict[str, Any]:
         return {
             "format": FOUR_LEAF_VALIDATION_FORMAT,
-            "state": "authorized_for_host_validation_only",
+            "state": "authorized_for_guarded_review_only",
             "usb_transmission_performed": False,
             "execution_enabled": False,
             "profile_id": self.profile_id,

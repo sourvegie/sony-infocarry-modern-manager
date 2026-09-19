@@ -40,13 +40,6 @@ from .execution_profile import (
     guarded_execution_profile,
 )
 from .capability_profile import INITIAL_EXPERIMENTAL_PROFILE_ID
-from .four_leaf_validation import (
-    FOUR_LEAF_VALIDATION_PROFILE_ID,
-    bind_four_leaf_validation_profile,
-    build_four_leaf_validation_candidate,
-    authorize_four_leaf_candidate,
-    verify_four_leaf_readback,
-)
 from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
@@ -249,7 +242,7 @@ def _library_binding(
         "ownership_policy": "non_owning_original_files_unchanged",
     }
     execution_profile = guarded_execution_profile(profile_id)
-    if execution_profile.operation_specific:
+    if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
         binding.update(
             {
                 "profile_id": execution_profile.profile_id,
@@ -356,11 +349,6 @@ def _validate_selected_package(
         )
     if imported.package.folder_name != item.package.folder_name:
         raise PreparedLibraryPackageBridgeError("Library package folder binding differs")
-    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
-        try:
-            prepared_content = bind_four_leaf_validation_profile(prepared_content)
-        except ValueError as exc:
-            raise PreparedLibraryPackageBridgeError(str(exc)) from exc
     binding = _library_binding(
         catalog,
         item,
@@ -437,10 +425,6 @@ class PreparedLibraryPackageAuthorization:
             )
         if self.profile_id is not None:
             execution_profile = guarded_execution_profile(self.profile_id)
-            if not execution_profile.operation_specific:
-                raise PreparedLibraryPackageBridgeError(
-                    "only an operation-specific profile may use the extended binding"
-                )
             if self.library_binding.get("profile_id") != self.profile_id:
                 raise PreparedLibraryPackageBridgeError(
                     "Library authorization profile binding differs"
@@ -499,7 +483,7 @@ class PreparedLibraryPackageAuthorization:
             ),
         }
         if self.profile_id is not None:
-            value["validation_profile"] = {
+            value["capability_profile"] = {
                 "profile_id": self.profile_id,
                 "profile_sha256": self.profile_sha256,
                 "artifact_identity": self.artifact_identity,
@@ -531,28 +515,14 @@ def authorize_prepared_library_package(
     profile_id = candidate.library_binding.get(
         "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
     )
-    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
-        if confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
-            raise PreparedLibraryPackageBridgeError(
-                "four-leaf validation requires explicit operation confirmation"
-            )
-        try:
-            validation_authorization = authorize_four_leaf_candidate(
-                candidate.core,
-                confirmation=confirmation,
-            )
-            core = validation_authorization.authorization
-        except ValueError as exc:
-            raise PreparedLibraryPackageBridgeError(str(exc)) from exc
-    else:
-        try:
-            core = authorize_prepared_multi_package(
-                candidate.core,
-                confirmation=confirmation,
-                confirmation_policy=confirmation_policy,
-            )
-        except PreparedMultiPackageGateError as exc:
-            raise PreparedLibraryPackageBridgeError(str(exc)) from exc
+    try:
+        core = authorize_prepared_multi_package(
+            candidate.core,
+            confirmation=confirmation,
+            confirmation_policy=confirmation_policy,
+        )
+    except PreparedMultiPackageGateError as exc:
+        raise PreparedLibraryPackageBridgeError(str(exc)) from exc
     binding_copy = json.loads(json.dumps(binding, ensure_ascii=True))
     execution_profile = guarded_execution_profile(
         binding_copy.get("profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID)
@@ -563,17 +533,17 @@ def authorize_prepared_library_package(
         library_binding_sha256=_sha256(_canonical_json(binding_copy)),
         profile_id=(
             execution_profile.profile_id
-            if execution_profile.operation_specific
+            if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID
             else None
         ),
         profile_sha256=(
             execution_profile.profile_sha256
-            if execution_profile.operation_specific
+            if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID
             else None
         ),
         artifact_identity=(
             binding_copy.get("artifact_identity")
-            if execution_profile.operation_specific
+            if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID
             else None
         ),
     )
@@ -618,30 +588,17 @@ def build_prepared_library_package_candidate(
             "template bytes do not match the reviewed native mixed-package template"
         )
     try:
-        if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
-            core = build_four_leaf_validation_candidate(
-                imported.package,
-                backup,
-                template,
-                new_record_timestamp_be32=new_record_timestamp_be32,
-                native_capacity_response=native_capacity_response,
-                template_folder_path=tuple(template_folder_path),
-                template_item_paths=paths,
-                template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
-                allow_verified_bookmarks=True,
-            )
-        else:
-            core = build_prepared_multi_package_candidate(
-                imported.package,
-                backup,
-                template,
-                new_record_timestamp_be32=new_record_timestamp_be32,
-                native_capacity_response=native_capacity_response,
-                template_folder_path=tuple(template_folder_path),
-                template_item_paths=paths,
-                template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
-                allow_verified_bookmarks=True,
-            )
+        core = build_prepared_multi_package_candidate(
+            imported.package,
+            backup,
+            template,
+            new_record_timestamp_be32=new_record_timestamp_be32,
+            native_capacity_response=native_capacity_response,
+            template_folder_path=tuple(template_folder_path),
+            template_item_paths=paths,
+            template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+            allow_verified_bookmarks=True,
+        )
     except (PreparedMultiCandidateError, OSError) as exc:
         raise PreparedLibraryPackageBridgeError(
             f"selected Library package candidate construction failed: {exc}"
@@ -920,32 +877,21 @@ def run_prepared_library_package_fake_workflow(
         template_item_paths=preflight._paths(),
         candidate_enricher=enrich,
         candidate_builder=(
-            (
-                lambda package, backup, template, **kwargs: build_four_leaf_validation_candidate(
-                    package,
-                    backup,
-                    template,
-                    template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
-                    allow_verified_bookmarks=True,
-                    **kwargs,
-                )
+            lambda package, backup, template, **kwargs: build_prepared_multi_package_candidate(
+                package,
+                backup,
+                template,
+                template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+                allow_verified_bookmarks=True,
+                **kwargs,
             )
-            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
-            else None
         ),
         authorization_builder=(
-            (
-                lambda candidate, *, confirmation: authorize_four_leaf_candidate(
-                    candidate, confirmation=confirmation
-                )
+            lambda candidate, *, confirmation: authorize_prepared_multi_package(
+                candidate,
+                confirmation=confirmation,
+                confirmation_policy=preflight.authorization.core.confirmation_policy,
             )
-            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
-            else None
-        ),
-        readback_verifier=(
-            verify_four_leaf_readback
-            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
-            else None
         ),
     )
     result: PreparedMultiPackageWorkflowResult = workflow.run(
@@ -1002,11 +948,7 @@ def run_prepared_library_package_fake_workflow(
         before_backup=result.before_backup,
         after_backup=result.after_backup,
         completion=result.completion,
-        verification=(
-            result.verification
-            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
-            else replace(result.verification, candidate=result.candidate)
-        ),
+        verification=replace(result.verification, candidate=result.candidate),
         audit=audit,
     )
 
