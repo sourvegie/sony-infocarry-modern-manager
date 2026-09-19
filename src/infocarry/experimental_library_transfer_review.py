@@ -16,6 +16,10 @@ import json
 from typing import Any, Mapping, Optional
 
 from .experimental_transfer_contract import experimental_safety_contract
+from .capability_profile import (
+    INITIAL_EXPERIMENTAL_PROFILE_ID,
+)
+from .execution_profile import guarded_execution_profile
 
 
 EXPERIMENTAL_LIBRARY_REVIEW_FORMAT = "infocarry-experimental-library-transfer-review-v1"
@@ -77,14 +81,27 @@ def _copy(value: Any) -> Any:
 
 def _expected_paths(
     target_folder_name: str = EXPERIMENTAL_TARGET_FOLDER,
+    *,
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
 ) -> list[str]:
+    profile = guarded_execution_profile(profile_id)
     return [
         f"root\\{target_folder_name}",
         *[
             f"root\\{target_folder_name}\\{name}"
-            for _order, _kind, name in EXPERIMENTAL_CHILDREN
+            for name in profile.child_names
         ],
     ]
+
+
+def _children_for_profile(profile_id: str) -> tuple[tuple[int, str, str], ...]:
+    profile = guarded_execution_profile(profile_id)
+    return tuple(
+        (order, kind, name)
+        for order, (kind, name) in enumerate(
+            zip(profile.child_kinds, profile.child_names)
+        )
+    )
 
 
 def _operation_binding_values(operation_binding: Any) -> dict[str, str]:
@@ -97,6 +114,7 @@ def _operation_binding_values(operation_binding: Any) -> dict[str, str]:
             "confirmation_phrase": EXPERIMENTAL_CONFIRMATION,
             "confirmation_policy": EXPERIMENTAL_CONFIRMATION_POLICY,
             "operation": EXPERIMENTAL_OPERATION,
+            "profile_id": INITIAL_EXPERIMENTAL_PROFILE_ID,
         }
     values = {
         "target_folder_name": getattr(operation_binding, "target_folder_name", None),
@@ -110,9 +128,16 @@ def _operation_binding_values(operation_binding: Any) -> dict[str, str]:
             operation_binding, "confirmation_policy", None
         ),
         "operation": getattr(operation_binding, "operation_id", None),
+        "profile_id": getattr(
+            operation_binding, "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
+        ),
     }
     if any(not isinstance(value, str) or not value for value in values.values()):
         raise ExperimentalLibraryTransferReviewError("operation binding is incomplete")
+    try:
+        guarded_execution_profile(values["profile_id"])
+    except ValueError as exc:
+        raise ExperimentalLibraryTransferReviewError(str(exc)) from exc
     return values
 
 
@@ -132,8 +157,10 @@ def _package_is_exact(
     item: Mapping[str, Any],
     *,
     target_folder_name: str = EXPERIMENTAL_TARGET_FOLDER,
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
 ) -> tuple[bool, list[str]]:
-    expected_paths = _expected_paths(target_folder_name)
+    expected_children = _children_for_profile(profile_id)
+    expected_paths = _expected_paths(target_folder_name, profile_id=profile_id)
     reasons: list[str] = []
     if item.get("operation_type") != "prepared_flat_typed_package":
         reasons.append("the selected item is not an explicitly imported prepared package")
@@ -141,10 +168,12 @@ def _package_is_exact(
     if not isinstance(artifact, Mapping) or artifact.get("contract") != PREPARED_MEDIA_PACKAGE_FORMAT:
         reasons.append("the package is not the versioned P17-002 typed-media contract")
     children = artifact.get("ordered_children") if isinstance(artifact, Mapping) else None
-    if not isinstance(children, list) or len(children) != len(EXPERIMENTAL_CHILDREN):
-        reasons.append("the package does not contain exactly three ordered children")
+    if not isinstance(children, list) or len(children) != len(expected_children):
+        reasons.append(
+            f"the package does not contain exactly {len(expected_children)} ordered children"
+        )
     else:
-        for child, expected in zip(children, EXPERIMENTAL_CHILDREN):
+        for child, expected in zip(children, expected_children):
             if not isinstance(child, Mapping):
                 reasons.append("the package child manifest is malformed")
                 break
@@ -187,11 +216,13 @@ def _sealed_ready_bindings(
     owner_approval_phrase: str,
     confirmation_phrase: str,
     confirmation_policy: str,
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
     operation_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Validate only the public shape; the canonical runner validates bytes."""
 
-    expected_paths = _expected_paths(target_folder_name)
+    expected_children = _children_for_profile(profile_id)
+    expected_paths = _expected_paths(target_folder_name, profile_id=profile_id)
 
     if bundle.get("format") != "infocarry-p17-017-library-package-operation-bundle-v1":
         raise ExperimentalLibraryTransferReviewError("operation bundle format is unsupported")
@@ -210,9 +241,9 @@ def _sealed_ready_bindings(
     if bundle.get("safety") != EXPERIMENTAL_SAFETY_POLICY:
         raise ExperimentalLibraryTransferReviewError("operation bundle safety policy differs from the reviewed one-shot policy")
     children = bundle.get("package_children")
-    if not isinstance(children, list) or len(children) != len(EXPERIMENTAL_CHILDREN):
+    if not isinstance(children, list) or len(children) != len(expected_children):
         raise ExperimentalLibraryTransferReviewError("operation bundle package children are malformed")
-    for child, expected in zip(children, EXPERIMENTAL_CHILDREN):
+    for child, expected in zip(children, expected_children):
         if not isinstance(child, Mapping) or tuple(
             (child.get("order"), child.get("kind"), child.get("name"))
         ) != expected:
@@ -238,7 +269,12 @@ def _sealed_ready_bindings(
 
     if preflight.get("state") != "ready_for_hardware_test_host_only":
         raise ExperimentalLibraryTransferReviewError("sealed preflight is not host-ready")
-    if preflight.get("profile") != EXPERIMENTAL_LIBRARY_PROFILE:
+    expected_runner_profile = (
+        EXPERIMENTAL_LIBRARY_PROFILE
+        if profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID
+        else profile_id
+    )
+    if preflight.get("profile") != expected_runner_profile:
         raise ExperimentalLibraryTransferReviewError("sealed preflight profile differs from the reviewed profile")
     if preflight.get("device_identity") != ["0x054c", "0x001e"]:
         raise ExperimentalLibraryTransferReviewError("sealed preflight device identity differs")
@@ -276,6 +312,17 @@ def _sealed_ready_bindings(
     package = candidate.get("package")
     if not isinstance(candidate_summary, Mapping) or not isinstance(package, Mapping):
         raise ExperimentalLibraryTransferReviewError("sealed preflight candidate summary is malformed")
+    library_binding = candidate.get("library_binding")
+    if (
+        profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID
+        and (
+            not isinstance(library_binding, Mapping)
+            or library_binding.get("profile_id") != profile_id
+        )
+    ):
+        raise ExperimentalLibraryTransferReviewError(
+            "sealed candidate execution profile differs"
+        )
     if operation_id is not None and not isinstance(transaction_summary, Mapping):
         raise ExperimentalLibraryTransferReviewError("sealed preflight transaction summary is missing")
     if candidate_summary.get("blob_sha256") != bundle.get("candidate_blob_sha256"):
@@ -324,13 +371,13 @@ def _sealed_ready_bindings(
     if package.get("paths") != expected_paths:
         raise ExperimentalLibraryTransferReviewError("candidate package paths differ from the reviewed profile")
     candidate_children = package.get("ordered_items")
-    if not isinstance(candidate_children, list) or len(candidate_children) != len(EXPERIMENTAL_CHILDREN):
+    if not isinstance(candidate_children, list) or len(candidate_children) != len(expected_children):
         raise ExperimentalLibraryTransferReviewError("candidate package child summary is incomplete")
     plan_artifact = item.get("prepared_artifact")
     plan_children = plan_artifact.get("ordered_children") if isinstance(plan_artifact, Mapping) else None
-    if not isinstance(plan_children, list) or len(plan_children) != len(EXPERIMENTAL_CHILDREN):
+    if not isinstance(plan_children, list) or len(plan_children) != len(expected_children):
         raise ExperimentalLibraryTransferReviewError("Library package child manifest is incomplete")
-    for child, plan_child, expected in zip(candidate_children, plan_children, EXPERIMENTAL_CHILDREN):
+    for child, plan_child, expected in zip(candidate_children, plan_children, expected_children):
         order, kind, _name = expected
         if not isinstance(child, Mapping) or (
             child.get("order"),
@@ -362,7 +409,7 @@ def _sealed_ready_bindings(
 
     bundle_children = bundle.get("package_children")
     for bundle_child, plan_child, expected in zip(
-        bundle_children, plan_children, EXPERIMENTAL_CHILDREN
+        bundle_children, plan_children, expected_children
     ):
         if not isinstance(bundle_child, Mapping) or not isinstance(plan_child, Mapping):
             raise ExperimentalLibraryTransferReviewError(
@@ -487,6 +534,7 @@ def build_experimental_library_transfer_review(
 
     binding = _operation_binding_values(operation_binding)
     target_folder_name = binding["target_folder_name"]
+    profile_id = binding["profile_id"]
     binding_sha256 = (
         getattr(operation_binding, "binding_sha256", None)
         if operation_binding is not None
@@ -535,6 +583,7 @@ def build_experimental_library_transfer_review(
         exact_item, profile_reasons = _package_is_exact(
             item,
             target_folder_name=target_folder_name,
+            profile_id=profile_id,
         )
         reasons.extend(profile_reasons)
     except ExperimentalLibraryTransferReviewError as exc:
@@ -573,6 +622,7 @@ def build_experimental_library_transfer_review(
                 owner_approval_phrase=binding["owner_approval_phrase"],
                 confirmation_phrase=binding["confirmation_phrase"],
                 confirmation_policy=binding["confirmation_policy"],
+                profile_id=profile_id,
                 operation_id=(
                     binding["operation"] if operation_binding is not None else None
                 ),
@@ -594,7 +644,11 @@ def build_experimental_library_transfer_review(
         "format": EXPERIMENTAL_LIBRARY_REVIEW_FORMAT,
         "state": "experimental_review",
         "notice": "EXPERIMENTAL LIBRARY TRANSFER REVIEW — no device access or device change occurred",
-        "profile": EXPERIMENTAL_LIBRARY_PROFILE,
+        "profile": (
+            EXPERIMENTAL_LIBRARY_PROFILE
+            if profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID
+            else profile_id
+        ),
         "operation": binding["operation"],
         "product_exposure": "experimental_review_and_guarded_transfer_boundary",
         "selection": {
@@ -612,7 +666,7 @@ def build_experimental_library_transfer_review(
         },
         "destination": {
             "paths": _copy(expected_paths),
-            "absence_rule": "all four expected paths must be absent from the fresh verified backup",
+            "absence_rule": "all expected paths must be absent from the fresh verified backup",
             "conflicts": _copy(item.get("conflicts", [])),
         },
         "capacity": {
@@ -657,7 +711,9 @@ def build_experimental_library_transfer_review(
             "fresh_complete_post_backup_required": True,
             "independent_read_back_required": True,
             "wrapper_reconciliation": "P17-019 candidate-core disk-only verification",
-            "expected_post_paths": _expected_paths(target_folder_name),
+            "expected_post_paths": _expected_paths(
+                target_folder_name, profile_id=profile_id
+            ),
             "audit_location": audit_location,
         },
         "eligibility": {
@@ -696,6 +752,7 @@ def build_experimental_library_transfer_review(
         "confirmation_phrase": binding["confirmation_phrase"],
         "confirmation_policy": binding["confirmation_policy"],
         "fixed_state_policy": bindings.get("fixed_state_policy"),
+        "profile_id": profile_id,
     }
     report["operation_identity"] = {
         **identity_payload,

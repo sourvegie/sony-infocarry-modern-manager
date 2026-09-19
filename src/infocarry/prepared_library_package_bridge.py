@@ -36,6 +36,17 @@ from .prepared_media_package import (
     load_prepared_media_package,
 )
 from .prepared_content import PreparedContentError
+from .execution_profile import (
+    guarded_execution_profile,
+)
+from .capability_profile import INITIAL_EXPERIMENTAL_PROFILE_ID
+from .four_leaf_validation import (
+    FOUR_LEAF_VALIDATION_PROFILE_ID,
+    bind_four_leaf_validation_profile,
+    build_four_leaf_validation_candidate,
+    authorize_four_leaf_candidate,
+    verify_four_leaf_readback,
+)
 from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
@@ -211,16 +222,13 @@ def _library_binding(
     catalog: LibraryCatalog,
     item: LibraryItem,
     imported: PreparedMediaPackageImport,
+    *,
+    profile_id: str,
+    prepared_content: Any,
 ) -> dict[str, Any]:
     item_dict = item.to_dict()
-    try:
-        prepared_content = imported.package.to_prepared_content_artifact()
-    except PreparedContentError as exc:
-        raise PreparedLibraryPackageBridgeError(
-            f"prepared package could not be adapted to canonical content: {exc}"
-        ) from exc
     children = tuple(_child_binding(child, imported.root) for child in imported.children)
-    return {
+    binding = {
         "format": P17_003_BRIDGE_FORMAT,
         "library_format": LIBRARY_FORMAT,
         "library_version": LIBRARY_VERSION,
@@ -240,11 +248,23 @@ def _library_binding(
         "grouping_policy": "explicit_manifest_one_library_item_no_inference",
         "ownership_policy": "non_owning_original_files_unchanged",
     }
+    execution_profile = guarded_execution_profile(profile_id)
+    if execution_profile.operation_specific:
+        binding.update(
+            {
+                "profile_id": execution_profile.profile_id,
+                "profile_sha256": execution_profile.profile_sha256,
+                "artifact_identity": prepared_content.artifact_identity,
+            }
+        )
+    return binding
 
 
 def _validate_selected_package(
     catalog: LibraryCatalog,
     selected_item_id: str,
+    *,
+    profile_id: str,
 ) -> tuple[LibraryItem, PreparedMediaPackageImport, dict[str, Any]]:
     if not isinstance(catalog, LibraryCatalog):
         raise PreparedLibraryPackageBridgeError("a LibraryCatalog is required")
@@ -311,19 +331,18 @@ def _validate_selected_package(
         raise PreparedLibraryPackageBridgeError(
             "authoritative package child grouping differs from the Library record"
         )
+    execution_profile = guarded_execution_profile(profile_id)
+    execution_profile.require_target(imported.package.folder_name)
     items = tuple(imported.package.items)
-    expected_names = (
-        "01-introduction.txt",
-        "02-page-01.bmp",
-        "03-ending.txt",
-    )
-    if len(items) != 3 or tuple(item.name for item in items) != expected_names:
+    if len(items) != len(execution_profile.child_names) or tuple(
+        item.name for item in items
+    ) != execution_profile.child_names:
         raise PreparedLibraryPackageBridgeError(
-            "selected package must be exactly introduction TXT, BMP page, ending TXT"
+            "selected package child names differ from its exact execution profile"
         )
-    if tuple(item.kind for item in items) != ("txt", "bmp", "txt"):
+    if tuple(item.kind for item in items) != execution_profile.child_kinds:
         raise PreparedLibraryPackageBridgeError(
-            "selected package must have ordered TXT/BMP/TXT children"
+            "selected package child kinds differ from its exact execution profile"
         )
     try:
         prepared_content = imported.package.to_prepared_content_artifact()
@@ -337,7 +356,18 @@ def _validate_selected_package(
         )
     if imported.package.folder_name != item.package.folder_name:
         raise PreparedLibraryPackageBridgeError("Library package folder binding differs")
-    binding = _library_binding(catalog, item, imported)
+    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+        try:
+            prepared_content = bind_four_leaf_validation_profile(prepared_content)
+        except ValueError as exc:
+            raise PreparedLibraryPackageBridgeError(str(exc)) from exc
+    binding = _library_binding(
+        catalog,
+        item,
+        imported,
+        profile_id=profile_id,
+        prepared_content=prepared_content,
+    )
     return item, imported, binding
 
 
@@ -395,6 +425,9 @@ class PreparedLibraryPackageAuthorization:
     core: PreparedMultiPackageAuthorization
     library_binding: Mapping[str, Any]
     library_binding_sha256: str
+    profile_id: Optional[str] = None
+    profile_sha256: Optional[str] = None
+    artifact_identity: Optional[str] = None
 
     def __post_init__(self) -> None:
         actual = _sha256(_canonical_json(self.library_binding))
@@ -402,6 +435,24 @@ class PreparedLibraryPackageAuthorization:
             raise PreparedLibraryPackageBridgeError(
                 "Library authorization binding hash does not match its contents"
             )
+        if self.profile_id is not None:
+            execution_profile = guarded_execution_profile(self.profile_id)
+            if not execution_profile.operation_specific:
+                raise PreparedLibraryPackageBridgeError(
+                    "only an operation-specific profile may use the extended binding"
+                )
+            if self.library_binding.get("profile_id") != self.profile_id:
+                raise PreparedLibraryPackageBridgeError(
+                    "Library authorization profile binding differs"
+                )
+            if self.profile_sha256 != execution_profile.profile_sha256:
+                raise PreparedLibraryPackageBridgeError(
+                    "Library authorization profile hash differs"
+                )
+            if not isinstance(self.artifact_identity, str) or len(self.artifact_identity) != 64:
+                raise PreparedLibraryPackageBridgeError(
+                    "Library authorization artifact identity is malformed"
+                )
 
     def require_same_candidate(self, candidate: PreparedLibraryPackageCandidate) -> None:
         if not isinstance(candidate, PreparedLibraryPackageCandidate):
@@ -424,6 +475,19 @@ class PreparedLibraryPackageAuthorization:
             raise PreparedLibraryPackageBridgeError(
                 "Library candidate binding hash differs from authorization"
             )
+        if self.profile_id is not None:
+            if candidate_binding.get("profile_id") != self.profile_id:
+                raise PreparedLibraryPackageBridgeError(
+                    "Library candidate profile differs from authorization"
+                )
+            if candidate_binding.get("profile_sha256") != self.profile_sha256:
+                raise PreparedLibraryPackageBridgeError(
+                    "Library candidate profile hash differs from authorization"
+                )
+            if candidate_binding.get("artifact_identity") != self.artifact_identity:
+                raise PreparedLibraryPackageBridgeError(
+                    "Library candidate artifact identity differs from authorization"
+                )
 
     def to_dict(self) -> dict[str, Any]:
         value = self.core.to_dict()
@@ -434,6 +498,12 @@ class PreparedLibraryPackageAuthorization:
                 json.dumps(self.library_binding, ensure_ascii=True)
             ),
         }
+        if self.profile_id is not None:
+            value["validation_profile"] = {
+                "profile_id": self.profile_id,
+                "profile_sha256": self.profile_sha256,
+                "artifact_identity": self.artifact_identity,
+            }
         return value
 
 
@@ -458,19 +528,54 @@ def authorize_prepared_library_package(
         raise PreparedLibraryPackageBridgeError(
             "candidate Library bindings are inconsistent"
         )
-    try:
-        core = authorize_prepared_multi_package(
-            candidate.core,
-            confirmation=confirmation,
-            confirmation_policy=confirmation_policy,
-        )
-    except PreparedMultiPackageGateError as exc:
-        raise PreparedLibraryPackageBridgeError(str(exc)) from exc
+    profile_id = candidate.library_binding.get(
+        "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
+    )
+    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+        if confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
+            raise PreparedLibraryPackageBridgeError(
+                "four-leaf validation requires explicit operation confirmation"
+            )
+        try:
+            validation_authorization = authorize_four_leaf_candidate(
+                candidate.core,
+                confirmation=confirmation,
+            )
+            core = validation_authorization.authorization
+        except ValueError as exc:
+            raise PreparedLibraryPackageBridgeError(str(exc)) from exc
+    else:
+        try:
+            core = authorize_prepared_multi_package(
+                candidate.core,
+                confirmation=confirmation,
+                confirmation_policy=confirmation_policy,
+            )
+        except PreparedMultiPackageGateError as exc:
+            raise PreparedLibraryPackageBridgeError(str(exc)) from exc
     binding_copy = json.loads(json.dumps(binding, ensure_ascii=True))
+    execution_profile = guarded_execution_profile(
+        binding_copy.get("profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID)
+    )
     return PreparedLibraryPackageAuthorization(
         core=core,
         library_binding=binding_copy,
         library_binding_sha256=_sha256(_canonical_json(binding_copy)),
+        profile_id=(
+            execution_profile.profile_id
+            if execution_profile.operation_specific
+            else None
+        ),
+        profile_sha256=(
+            execution_profile.profile_sha256
+            if execution_profile.operation_specific
+            else None
+        ),
+        artifact_identity=(
+            binding_copy.get("artifact_identity")
+            if execution_profile.operation_specific
+            else None
+        ),
     )
 
 
@@ -484,6 +589,7 @@ def build_prepared_library_package_candidate(
     native_capacity_response: NativeCapacityResponse,
     template_folder_path: tuple[str, ...] = P17_003_TEMPLATE_FOLDER_PATH,
     template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
 ) -> PreparedLibraryPackageCandidate:
     """Revalidate one imported package and enrich the existing native builder."""
 
@@ -493,7 +599,11 @@ def build_prepared_library_package_candidate(
         raise PreparedLibraryPackageBridgeError(
             "parsed native 0x0019 capacity evidence is required"
         )
-    _item, imported, binding = _validate_selected_package(catalog, selected_item_id)
+    _item, imported, binding = _validate_selected_package(
+        catalog,
+        selected_item_id,
+        profile_id=profile_id,
+    )
     paths = dict(template_item_paths or P17_003_TEMPLATE_ITEM_PATHS)
     if tuple(template_folder_path) != P17_003_TEMPLATE_FOLDER_PATH:
         raise PreparedLibraryPackageBridgeError(
@@ -508,17 +618,30 @@ def build_prepared_library_package_candidate(
             "template bytes do not match the reviewed native mixed-package template"
         )
     try:
-        core = build_prepared_multi_package_candidate(
-            imported.package,
-            backup,
-            template,
-            new_record_timestamp_be32=new_record_timestamp_be32,
-            native_capacity_response=native_capacity_response,
-            template_folder_path=tuple(template_folder_path),
-            template_item_paths=paths,
-            template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
-            allow_verified_bookmarks=True,
-        )
+        if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+            core = build_four_leaf_validation_candidate(
+                imported.package,
+                backup,
+                template,
+                new_record_timestamp_be32=new_record_timestamp_be32,
+                native_capacity_response=native_capacity_response,
+                template_folder_path=tuple(template_folder_path),
+                template_item_paths=paths,
+                template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+                allow_verified_bookmarks=True,
+            )
+        else:
+            core = build_prepared_multi_package_candidate(
+                imported.package,
+                backup,
+                template,
+                new_record_timestamp_be32=new_record_timestamp_be32,
+                native_capacity_response=native_capacity_response,
+                template_folder_path=tuple(template_folder_path),
+                template_item_paths=paths,
+                template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+                allow_verified_bookmarks=True,
+            )
     except (PreparedMultiCandidateError, OSError) as exc:
         raise PreparedLibraryPackageBridgeError(
             f"selected Library package candidate construction failed: {exc}"
@@ -557,7 +680,9 @@ def _seal_payload(
             key: list(value) for key, value in sorted(template_item_paths.items())
         },
         "new_record_timestamp_be32": f"0x{new_record_timestamp_be32:08x}",
-        "confirmation_phrase": P17_003_CONFIRMATION_PHRASE,
+        "confirmation_phrase": audit.get(
+            "confirmation_phrase", authorization.core.confirmation_phrase
+        ),
         "automatic_retry_allowed": False,
         "read_only_hardware_accessed": bool(
             audit.get("read_only_hardware_accessed", False)
@@ -633,6 +758,7 @@ def prepare_prepared_library_package_preflight(
     template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
     confirmation_phrase: str = P17_003_CONFIRMATION_PHRASE,
     confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
 ) -> PreparedLibraryPackagePreflight:
     """Prepare one exact future operation without device access or USB."""
 
@@ -645,6 +771,7 @@ def prepare_prepared_library_package_preflight(
         native_capacity_response=native_capacity_response,
         template_folder_path=template_folder_path,
         template_item_paths=template_item_paths,
+        profile_id=profile_id,
     )
     authorization = authorize_prepared_library_package(
         candidate,
@@ -755,6 +882,11 @@ def run_prepared_library_package_fake_workflow(
     """
 
     preflight.verify_seal()
+    profile_id = guarded_execution_profile(
+        preflight.candidate.library_binding.get(
+            "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
+        )
+    ).profile_id
     current = build_prepared_library_package_candidate(
         catalog,
         selected_item_id,
@@ -764,6 +896,7 @@ def run_prepared_library_package_fake_workflow(
         native_capacity_response=preflight.capacity_response,
         template_folder_path=preflight.template_folder_path,
         template_item_paths=preflight._paths(),
+        profile_id=profile_id,
     )
     if current.audit_dict() != preflight.candidate.audit_dict():
         raise PreparedLibraryPackageBridgeError(
@@ -786,6 +919,34 @@ def run_prepared_library_package_fake_workflow(
         template_folder_path=preflight.template_folder_path,
         template_item_paths=preflight._paths(),
         candidate_enricher=enrich,
+        candidate_builder=(
+            (
+                lambda package, backup, template, **kwargs: build_four_leaf_validation_candidate(
+                    package,
+                    backup,
+                    template,
+                    template_subset_policy_sha256=P17_003_REVIEWED_TEMPLATE_BLOB_SHA256,
+                    allow_verified_bookmarks=True,
+                    **kwargs,
+                )
+            )
+            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+            else None
+        ),
+        authorization_builder=(
+            (
+                lambda candidate, *, confirmation: authorize_four_leaf_candidate(
+                    candidate, confirmation=confirmation
+                )
+            )
+            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+            else None
+        ),
+        readback_verifier=(
+            verify_four_leaf_readback
+            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+            else None
+        ),
     )
     result: PreparedMultiPackageWorkflowResult = workflow.run(
         backup_destination=backup_destination,
@@ -806,10 +967,24 @@ def run_prepared_library_package_fake_workflow(
         result.candidate,
         current.library_binding,
     )
+    core_authorization = getattr(
+        result.authorization, "authorization", result.authorization
+    )
     authorization = PreparedLibraryPackageAuthorization(
-        result.authorization,
+        core_authorization,
         current.library_binding,
         _sha256(_canonical_json(current.library_binding)),
+        profile_id=(profile_id if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID else None),
+        profile_sha256=(
+            guarded_execution_profile(profile_id).profile_sha256
+            if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID
+            else None
+        ),
+        artifact_identity=(
+            current.library_binding.get("artifact_identity")
+            if profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID
+            else None
+        ),
     )
     authorization.require_same_candidate(candidate)
     audit = dict(result.audit)
@@ -827,7 +1002,11 @@ def run_prepared_library_package_fake_workflow(
         before_backup=result.before_backup,
         after_backup=result.after_backup,
         completion=result.completion,
-        verification=replace(result.verification, candidate=result.candidate),
+        verification=(
+            result.verification
+            if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+            else replace(result.verification, candidate=result.candidate)
+        ),
         audit=audit,
     )
 

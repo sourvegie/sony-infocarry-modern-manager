@@ -33,6 +33,11 @@ from .backup_state_identity import (
     derive_backup_state_identity,
 )
 from .capacity_evidence import NativeCapacityResponse
+from .capability_profile import (
+    FOUR_LEAF_VALIDATION_PROFILE_ID,
+    INITIAL_EXPERIMENTAL_PROFILE_ID,
+)
+from .execution_profile import guarded_execution_profile
 from .device_info import RawInfoResponse
 from .execution_claim_store import (
     ExecutionClaimAlreadyConsumedError,
@@ -71,6 +76,10 @@ from .prepared_multi_package_gate import (
 from .prepared_package_multi_verify import (
     PreparedMultiPackageReadback,
     verify_prepared_multi_package_readback,
+)
+from .four_leaf_validation import (
+    FourLeafValidationReadback,
+    verify_four_leaf_readback,
 )
 from .protocol import TransferCancelledError
 from .write_gate import (
@@ -175,6 +184,77 @@ Clock = Callable[[], float]
 EvidenceRootAllocator = Callable[[Path], Path]
 
 P17_017_EVIDENCE_OUTPUT_POLICY = EVIDENCE_OUTPUT_POLICY
+
+
+def _profile_id_from_candidate(
+    candidate: PreparedLibraryPackageCandidate | Mapping[str, Any],
+) -> str:
+    """Resolve the exact guarded profile from the immutable Library binding."""
+
+    if isinstance(candidate, PreparedLibraryPackageCandidate):
+        binding = candidate.library_binding
+    else:
+        binding = candidate.get("library_binding")
+    if not isinstance(binding, Mapping):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "candidate Library binding does not contain an execution profile",
+            stage="profile",
+            state="failed",
+        )
+    profile_id = binding.get("profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID)
+    if not isinstance(profile_id, str):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "candidate execution profile id is malformed",
+            stage="profile",
+            state="failed",
+        )
+    try:
+        return guarded_execution_profile(profile_id).profile_id
+    except ValueError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            str(exc), stage="profile", state="failed"
+        ) from exc
+
+
+def _runner_profile_label(profile_id: str) -> str:
+    """Keep the historical label for the default shape and exact-id bind others."""
+
+    return P17_005_PROFILE if profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID else profile_id
+
+
+def _verify_profile_readback(
+    candidate: PreparedLibraryPackageCandidate,
+    post_directory: Path,
+    *,
+    completion: Any,
+    now: Optional[datetime],
+    max_age_seconds: Optional[float],
+) -> PreparedMultiPackageReadback | FourLeafValidationReadback:
+    """Use the shared verifier, with the four-leaf profile's exact wrapper."""
+
+    profile_id = _profile_id_from_candidate(candidate)
+    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+        try:
+            return verify_four_leaf_readback(
+                candidate.core,
+                post_directory,
+                completion=completion,
+                now=now,
+                max_age_seconds=max_age_seconds,
+            )
+        except Exception as exc:
+            raise PreparedLibraryPackageLiveAdapterError(
+                f"four-leaf read-back verification failed: {exc}",
+                stage="post_operation_readback",
+                state="failed",
+            ) from exc
+    return verify_prepared_multi_package_readback(
+        candidate.core,
+        post_directory,
+        completion=completion,
+        now=now,
+        max_age_seconds=max_age_seconds,
+    )
 
 
 @dataclass(frozen=True)
@@ -726,6 +806,7 @@ def _validate_result_audit(
 ) -> dict[str, Any]:
     """Require the complete hash-only success record for the manifest."""
 
+    profile_id = _profile_id_from_candidate(preflight.candidate)
     value = _thaw(result_audit)
     if not isinstance(value, dict):
         raise PreparedLibraryPackageLiveAdapterError(
@@ -772,7 +853,7 @@ def _validate_result_audit(
     if (
         value["format"] != P17_005_RUNNER_FORMAT
         or value["state"] != "readback_verified"
-        or value["profile"] != P17_005_PROFILE
+        or value["profile"] != _runner_profile_label(profile_id)
         or value["device_identity"] != list(_expected_device_hex())
         or value["expected_folder_name"] != preflight.expected_folder_name
         or value["usb_transmission_performed"] is not True
@@ -782,7 +863,7 @@ def _validate_result_audit(
         or value["completion"] != "0x0000"
     ):
         raise PreparedLibraryPackageLiveAdapterError(
-            "result_audit does not describe the exact verified P17-005 success",
+            "result_audit does not describe the exact verified guarded success",
             stage="evidence_manifest",
             state="failed",
         )
@@ -858,6 +939,15 @@ def _validate_result_audit(
         "details",
         "automatic_retry",
     }
+    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
+        verification_required.update(
+            {
+                "validation_profile_id",
+                "validation_profile_sha256",
+                "validation_artifact_identity",
+                "execution_enabled",
+            }
+        )
     if not isinstance(verification, Mapping) or set(verification) != verification_required or (
         verification.get("format") != "infocarry-ordered-package-readback-v1"
         or verification.get("state") != "readback_verified"
@@ -879,6 +969,17 @@ def _validate_result_audit(
         or not _backup_report_matches(
             after_backup,
             verification.get("after_backup"),
+        )
+        or (
+            profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
+            and (
+                verification.get("validation_profile_id") != profile_id
+                or verification.get("validation_profile_sha256")
+                != preflight.candidate.library_binding.get("profile_sha256")
+                or verification.get("validation_artifact_identity")
+                != preflight.candidate.library_binding.get("artifact_identity")
+                or verification.get("execution_enabled") is not False
+            )
         )
     ):
         raise PreparedLibraryPackageLiveAdapterError(
@@ -1054,9 +1155,10 @@ def _seal_payload(
     expected_folder_name: str,
     audit: Mapping[str, Any],
 ) -> dict[str, Any]:
+    profile_id = _profile_id_from_candidate(core.candidate)
     return {
         "format": P17_005_RUNNER_FORMAT,
-        "profile": P17_005_PROFILE,
+        "profile": _runner_profile_label(profile_id),
         "device_identity": list(_expected_device_hex()),
         "expected_folder_name": expected_folder_name,
         "core_preflight_seal_sha256": core.seal_sha256,
@@ -1250,13 +1352,57 @@ def load_prepared_library_package_live_preflight(
     unexpected field and fails before any live callback could be reached.
     """
 
-    (
-        expected_folder_name,
-        owner_approval_phrase,
-        confirmation_phrase,
-        confirmation_policy,
-    ) = _resolve_operation_binding(operation_binding)
     report = _strict_json_object(Path(report_path))
+    try:
+        profile_id = _profile_id_from_candidate(report["candidate"])
+    except (KeyError, TypeError, PreparedLibraryPackageLiveAdapterError) as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"P17-012 sealed preflight profile binding is malformed: {exc}",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        ) from exc
+    if operation_binding is None and profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "typed operation binding is required for an operation-specific sealed preflight",
+            stage="preflight_load",
+            state="failed",
+            audit={"operation_sequence": []},
+        )
+    if operation_binding is None:
+        expected_folder_name = report.get("expected_folder_name")
+        owner_approval_phrase = report.get("owner_approval_phrase")
+        confirmation_phrase = report.get("confirmation_phrase")
+        confirmation_policy = report.get("confirmation_policy")
+        if not all(
+            isinstance(value, str)
+            for value in (
+                expected_folder_name,
+                owner_approval_phrase,
+                confirmation_phrase,
+                confirmation_policy,
+            )
+        ):
+            raise PreparedLibraryPackageLiveAdapterError(
+                "sealed preflight phrases are malformed",
+                stage="preflight_load",
+                state="failed",
+                audit={"operation_sequence": []},
+            )
+    else:
+        (
+            expected_folder_name,
+            owner_approval_phrase,
+            confirmation_phrase,
+            confirmation_policy,
+        ) = _resolve_operation_binding(operation_binding)
+        if operation_binding is not None and operation_binding.profile_id != profile_id:
+            raise PreparedLibraryPackageLiveAdapterError(
+                "typed operation profile differs from the sealed candidate profile",
+                stage="preflight_load",
+                state="failed",
+                audit={"operation_sequence": []},
+            )
     missing = sorted(P17_012_SEALED_PREFLIGHT_KEYS - set(report))
     unexpected = sorted(set(report) - P17_012_SEALED_PREFLIGHT_KEYS)
     if missing or unexpected:
@@ -1271,7 +1417,7 @@ def load_prepared_library_package_live_preflight(
     expected_scalars = {
         "format": P17_005_RUNNER_FORMAT,
         "state": "ready_for_hardware_test_host_only",
-        "profile": P17_005_PROFILE,
+        "profile": _runner_profile_label(profile_id),
         "device_identity": list(_expected_device_hex()),
         "expected_folder_name": expected_folder_name,
         "read_only_preflight": True,
@@ -1422,6 +1568,7 @@ def load_prepared_library_package_live_preflight(
             template_item_paths=P17_003_TEMPLATE_ITEM_PATHS,
             confirmation_phrase=report["confirmation_phrase"],
             confirmation_policy=report["confirmation_policy"],
+            profile_id=profile_id,
         )
     except (PreparedLibraryPackageBridgeError, OSError, ValueError, TypeError) as exc:
         raise PreparedLibraryPackageLiveAdapterError(
@@ -1605,6 +1752,10 @@ def _resolve_prepared_library_package_operation_bundle(
         )
         if capacity_response.to_dict() != report_capacity:
             raise ValueError("capacity response differs from the sealed bundle")
+        if binding.get("profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID) != INITIAL_EXPERIMENTAL_PROFILE_ID and bundle.operation_id is None:
+            raise OperationBundleError(
+                "operation-specific operation bundles require a typed operation id"
+            )
         preflight = load_prepared_library_package_live_preflight(
             report_path,
             catalog=catalog,
@@ -1619,6 +1770,9 @@ def _resolve_prepared_library_package_operation_bundle(
                     confirmation_phrase=bundle.confirmation_phrase,
                     confirmation_policy=bundle.confirmation_policy,
                     operation_id=bundle.operation_id,
+                    profile_id=binding.get(
+                        "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
+                    ),
                 )
                 if bundle.operation_id is not None
                 else None
@@ -1660,7 +1814,7 @@ class PreparedLibraryPackageLiveResult:
     before_backup: VerifiedBackup
     after_backup: VerifiedBackup
     completion: int
-    verification: PreparedMultiPackageReadback
+    verification: PreparedMultiPackageReadback | FourLeafValidationReadback
     audit: Mapping[str, Any]
 
 
@@ -1705,7 +1859,7 @@ class PreparedLibraryPackageLiveWrapperResult:
     """
 
     runner_result: PreparedLibraryPackageLiveResult
-    verification: PreparedMultiPackageReadback
+    verification: PreparedMultiPackageReadback | FourLeafValidationReadback
     audit: Mapping[str, Any]
 
     @property
@@ -1845,24 +1999,32 @@ def reconcile_prepared_library_package_live_result(
         fail("runner before backup does not match sealed preflight state", "post_backup")
     if before_identity != candidate_identity:
         fail("runner before backup does not match candidate backup state", "post_backup")
-    if not isinstance(result.verification, PreparedMultiPackageReadback):
+    if not isinstance(
+        result.verification,
+        (PreparedMultiPackageReadback, FourLeafValidationReadback),
+    ):
         fail("runner read-back result is malformed", "readback")
+    runner_verification = (
+        result.verification.verification
+        if isinstance(result.verification, FourLeafValidationReadback)
+        else result.verification
+    )
     if (
         not result.verification.success
-        or type(result.verification.completion) is not int
-        or result.verification.completion != 0
-        or result.verification.candidate.candidate_blob_sha256
+        or type(runner_verification.completion) is not int
+        or runner_verification.completion != 0
+        or runner_verification.candidate.candidate_blob_sha256
         != result.candidate.candidate_blob_sha256
-        or result.verification.candidate.transaction_sha256
+        or runner_verification.candidate.transaction_sha256
         != result.candidate.transaction_sha256
-        or result.verification.before.directory != result.before_backup.directory
-        or result.verification.after.directory != result.after_backup.directory
+        or runner_verification.before.directory != result.before_backup.directory
+        or runner_verification.after.directory != result.after_backup.directory
     ):
         fail("runner result does not contain the exact successful read-back", "readback")
 
     try:
-        independent = verify_prepared_multi_package_readback(
-            result.preflight.candidate.core,
+        independent = _verify_profile_readback(
+            result.preflight.candidate,
             result.after_backup.directory,
             completion=result.completion,
             now=now,
@@ -1893,8 +2055,16 @@ def reconcile_prepared_library_package_live_result(
         "post_backup_verified": True,
         "independent_readback_verified": True,
         "verification": {
-            "shared_path_count": independent.shared_path_count,
-            "details": dict(independent.details),
+            "shared_path_count": (
+                independent.verification.shared_path_count
+                if isinstance(independent, FourLeafValidationReadback)
+                else independent.shared_path_count
+            ),
+            "details": dict(
+                independent.verification.details
+                if isinstance(independent, FourLeafValidationReadback)
+                else independent.details
+            ),
             "automatic_retry": False,
         },
         "automatic_retry_allowed": False,
@@ -2005,6 +2175,17 @@ def prepare_prepared_library_package_live_preflight(
         capture=capture,
         preview_callback=preview_callback,
     )
+    profile_id = (
+        operation_binding.profile_id
+        if operation_binding is not None
+        else INITIAL_EXPERIMENTAL_PROFILE_ID
+    )
+    try:
+        profile_id = guarded_execution_profile(profile_id).profile_id
+    except ValueError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            str(exc), stage="profile", state="failed"
+        ) from exc
     sequence = ["read_only_preflight"]
     try:
         if cancelled is not None and cancelled():
@@ -2071,6 +2252,7 @@ def prepare_prepared_library_package_live_preflight(
             template_item_paths=P17_003_TEMPLATE_ITEM_PATHS,
             confirmation_phrase=confirmation_phrase,
             confirmation_policy=confirmation_policy,
+            profile_id=profile_id,
         )
         if core.candidate.library_binding.get("folder_name") != expected_folder_name:
             raise ValueError("selected Library package differs from the exact P17-004 destination")
@@ -2088,7 +2270,7 @@ def prepare_prepared_library_package_live_preflight(
     audit = {
         "format": P17_005_RUNNER_FORMAT,
         "state": "ready_for_hardware_test_host_only",
-        "profile": P17_005_PROFILE,
+        "profile": _runner_profile_label(profile_id),
         "device_identity": list(_expected_device_hex()),
         "expected_folder_name": expected_folder_name,
         "read_only_preflight": True,
@@ -2346,6 +2528,7 @@ def execute_prepared_library_package_live(
             native_capacity_response=capacity,
             template_folder_path=preflight.core.template_folder_path,
             template_item_paths=preflight.core._paths(),
+            profile_id=_profile_id_from_candidate(preflight.candidate),
         )
         if candidate.library_binding.get("folder_name") != preflight.expected_folder_name:
             raise ValueError("selected Library destination differs from sealed preflight")
@@ -2641,8 +2824,8 @@ def execute_prepared_library_package_live(
         if after.device_identity != _expected_device_hex():
             raise ValueError("post-operation backup identity differs from Sony 0x054c:0x001e")
         sequence.append("fresh_post_operation_backup_verified")
-        verification = verify_prepared_multi_package_readback(
-            candidate.core,
+        verification = _verify_profile_readback(
+            candidate,
             after.directory,
             completion=completion,
             now=None,
@@ -2654,7 +2837,7 @@ def execute_prepared_library_package_live(
         audit = {
             "format": P17_005_RUNNER_FORMAT,
             "state": "readback_verified",
-            "profile": P17_005_PROFILE,
+            "profile": _runner_profile_label(_profile_id_from_candidate(candidate)),
             "device_identity": list(_expected_device_hex()),
             "expected_folder_name": preflight.expected_folder_name,
             "usb_transmission_performed": True,
@@ -2845,8 +3028,11 @@ def write_prepared_library_package_evidence_manifest(
             state="failed",
         )
     try:
-        independently_verified = verify_prepared_multi_package_readback(
-            replace(preflight.candidate.core, backup=verified_before),
+        independently_verified = _verify_profile_readback(
+            replace(
+                preflight.candidate,
+                core=replace(preflight.candidate.core, backup=verified_before),
+            ),
             verified_after.directory,
             completion=0,
             now=now,
@@ -2860,7 +3046,7 @@ def write_prepared_library_package_evidence_manifest(
         ) from exc
     actual_verification = validated_result_audit["verification"]
     expected_verification = independently_verified.to_dict()
-    for key in (
+    verification_keys = [
         "format",
         "state",
         "success",
@@ -2871,7 +3057,17 @@ def write_prepared_library_package_evidence_manifest(
         "fixed_state_sha256",
         "details",
         "automatic_retry",
-    ):
+    ]
+    if _profile_id_from_candidate(preflight.candidate) == FOUR_LEAF_VALIDATION_PROFILE_ID:
+        verification_keys.extend(
+            [
+                "validation_profile_id",
+                "validation_profile_sha256",
+                "validation_artifact_identity",
+                "execution_enabled",
+            ]
+        )
+    for key in verification_keys:
         if actual_verification.get(key) != expected_verification.get(key):
             raise PreparedLibraryPackageLiveAdapterError(
                 f"result_audit verification field {key!r} differs from independent read-back",

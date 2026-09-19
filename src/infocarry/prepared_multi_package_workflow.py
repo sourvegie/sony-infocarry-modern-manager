@@ -41,6 +41,9 @@ FakeSendCallback = Callable[..., Any]
 DetectDeviceCallback = Callable[[], tuple[int, int]]
 CapacityQueryCallback = Callable[[], NativeCapacityResponse]
 CandidateEnricher = Callable[[PreparedMultiPackageCandidate], PreparedMultiPackageCandidate]
+CandidateBuilder = Callable[..., PreparedMultiPackageCandidate]
+AuthorizationBuilder = Callable[..., Any]
+ReadbackVerifier = Callable[..., Any]
 Clock = Callable[[], float]
 
 
@@ -197,6 +200,9 @@ class GuardedPreparedMultiPackageWorkflow:
         template_folder_path: tuple[str, ...] = ("root", "Template"),
         template_item_paths: Optional[Mapping[str, tuple[str, ...]]] = None,
         candidate_enricher: Optional[CandidateEnricher] = None,
+        candidate_builder: Optional[CandidateBuilder] = None,
+        authorization_builder: Optional[AuthorizationBuilder] = None,
+        readback_verifier: Optional[ReadbackVerifier] = None,
     ) -> None:
         if not callable(capture):
             raise TypeError("capture callback is required")
@@ -206,6 +212,12 @@ class GuardedPreparedMultiPackageWorkflow:
             raise TypeError("device detection and parsed capacity query callbacks are required")
         if candidate_enricher is not None and not callable(candidate_enricher):
             raise TypeError("candidate_enricher must be callable when supplied")
+        if candidate_builder is not None and not callable(candidate_builder):
+            raise TypeError("candidate_builder must be callable when supplied")
+        if authorization_builder is not None and not callable(authorization_builder):
+            raise TypeError("authorization_builder must be callable when supplied")
+        if readback_verifier is not None and not callable(readback_verifier):
+            raise TypeError("readback_verifier must be callable when supplied")
         self._capture = capture
         self._transport = transport
         self._template = template
@@ -218,6 +230,9 @@ class GuardedPreparedMultiPackageWorkflow:
             else {key: tuple(value) for key, value in template_item_paths.items()}
         )
         self._candidate_enricher = candidate_enricher
+        self._candidate_builder = candidate_builder
+        self._authorization_builder = authorization_builder
+        self._readback_verifier = readback_verifier
 
     def run(
         self,
@@ -326,7 +341,10 @@ class GuardedPreparedMultiPackageWorkflow:
                     template_item_paths["txt"] = ("root", "Template", "chapter")
                 if any(item.kind == "bmp" for item in package.items) and "bmp" not in template_item_paths:
                     template_item_paths["bmp"] = ("root", "Template", "page")
-            current = build_prepared_multi_package_candidate(
+            build_candidate = (
+                self._candidate_builder or build_prepared_multi_package_candidate
+            )
+            current = build_candidate(
                 package,
                 before,
                 self._template,
@@ -356,10 +374,10 @@ class GuardedPreparedMultiPackageWorkflow:
         try:
             _check_cancelled(cancelled)
             _check_deadline(clock, deadline)
-            authorization = authorize_prepared_multi_package(
-                current,
-                confirmation=confirmation,
+            authorize_candidate = (
+                self._authorization_builder or authorize_prepared_multi_package
             )
+            authorization = authorize_candidate(current, confirmation=confirmation)
             authorization.require_same_candidate(current)
             sequence.append("authorization")
         except PreparedMultiPackageWorkflowError:
@@ -452,7 +470,10 @@ class GuardedPreparedMultiPackageWorkflow:
                 max_age_seconds=max_age_seconds,
             )
             sequence.append("fresh_post_operation_backup")
-            verification = verify_prepared_multi_package_readback(
+            verify_readback = (
+                self._readback_verifier or verify_prepared_multi_package_readback
+            )
+            verification = verify_readback(
                 current,
                 after.directory,
                 completion=completion,
