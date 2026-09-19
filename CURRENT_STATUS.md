@@ -31,7 +31,10 @@ counters are strictly zero: USB/device operations 0, sender calls 0, real
 installation-wide-lock mutations 0. Focused P18-033 and P18-025→P18-032
 regressions are green; the full portable suite is 883 tests with 880 passed
 and 3 documented skips. Exact-head independent R2 review passed with
-`P0=0, P1=0, P2=0`; PM acceptance is the remaining gate. The durable record is the
+`P0=0, P1=0, P2=0`; PR #60 is open and unmerged against `main`; the available
+GitHub `Offline tests` run is `35456833157` and is queued. This repository has
+no macOS/Windows workflow definitions. PM acceptance is the remaining gate.
+The durable record is the
 [P18-033 analysis record](analysis/phase-18-p18-033-v15-four-leaf-capability-codification-20260920.md).
 
 ## P18-032 — VNW-V15 four-leaf auxiliary-state policy closure (host-only)

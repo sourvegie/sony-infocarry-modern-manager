@@ -106,6 +106,15 @@ tests with 880 passed and 3 documented skips; `compileall` passed; and
 Fresh independent exact-head R2 review passed with `P0=0, P1=0, P2=0`.
 There are no remaining review findings; PM acceptance is the remaining gate.
 
+## Publication
+
+- Commit: `a0ddf7f8670d5b0d73ac8c9573f507a5690da2d6`
+- Pull request: #60, open and unmerged, targeting `main`.
+- Available GitHub workflow: `Offline tests`, run ID `35456833157`, initially
+  queued after publication.
+- This repository has no macOS or Windows workflow definitions; local host
+  validation above is the available cross-platform evidence for this task.
+
 Physical boundary for P18-033 is strictly zero: USB/device operations 0,
 sender calls 0, real `0x101b` 0, claims consumed 0, sender-marker mutations
 0, and installation-wide-lock mutations 0.
