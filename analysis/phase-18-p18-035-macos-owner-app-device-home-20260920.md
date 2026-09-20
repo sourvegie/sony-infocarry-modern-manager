@@ -5,9 +5,10 @@ Branch: `task/P18-035-macos-owner-app-device-home`
 Canonical base: `3b6697eac01b6c35d588d163325bedb99ddf76ff`  
 Risk: R2 product/runtime work; R3-quality review required for persistent
 write-safety path changes.  
-State: PR #62 is open against the exact canonical base. Local implementation
-and validation pass; corrected-head CI, independent exact-head review, and PM
-acceptance remain pending.
+State: PR #62 is open against the exact canonical base. The published head
+`dd1e49a` passed offline, Windows, and macOS CI, including the macOS
+LaunchServices smoke. A final first-launch status correction is validated
+locally and awaits publication, fresh CI, exact-head review, and PM acceptance.
 
 ## Packaging method and runtime
 
@@ -49,8 +50,11 @@ checks for safety files in proposed `InfoCarry` alternate roots. Conflicting
 alternate state, inaccessible state, corrupt state, or an existing historical
 support root with a missing claims database blocks owner creation without
 replacing or deleting the historical state. Read-only Device Home remains
-available. The actual legacy location was checked read-only; no state was
-moved or changed. Tests cover fresh/restarted profiles, clear and active
+available with a visible actionable safety notice initialized at launch. The
+device state is labeled unchecked until the owner requests a read-only refresh;
+the UI does not claim a disconnected result before discovery. The actual
+legacy location was checked read-only; no state was moved or changed. Tests
+cover fresh/restarted profiles, clear and active
 locks, abandoned sender markers, corrupt/missing databases, inaccessible
 paths, alternate-root disagreement, and replacement/update behavior at the
 stable path.
@@ -84,8 +88,8 @@ This is descriptive preparation UX only; no write capability was added.
 
 Local host validation:
 
-- Focused paths/safety, desktop, and Windows packaging tests: 39 passed.
-- Full portable Python 3.12 suite: 925 passed, 3 existing intentional skips.
+- Focused paths/safety, desktop, and Windows packaging tests: 40 passed.
+- Full portable Python 3.12 suite: 926 passed, 3 existing intentional skips.
 - `compileall` and `git diff --check`: passed.
 - Local arm64 onedir package build and strict ad-hoc signature verification:
   passed.
@@ -97,20 +101,27 @@ was ignored by Git, and the Windows packaged smoke referenced a removed
 private path helper and the old window title. The spec is now explicitly
 tracked; the smoke uses the shared path abstraction and current product title.
 The macOS build metadata also now reports the actual Resources and Frameworks
-locations. Corrected-head CI is pending.
+locations. The published head's offline run 188, macOS package run 4, and
+Windows package run 12 all passed. The macOS LaunchServices open from a
+Japanese working directory and the Windows packaged runtime smoke both
+passed. A later review found that the UI initially claimed disconnection
+before checking and left an active safety-lock notice blank until a guarded
+action was attempted. The current local correction shows an unchecked device
+status and initializes the visible safety notice at launch. It still needs a
+published-head CI rerun and fresh exact-head review.
 
 The local LaunchServices smoke could not launch the bundle from the isolated
 `/private/tmp` worktree: `open` returned `kLSNoExecutableErr`, and local
 LaunchServices had no indexed entry for this temporary bundle path. The bundle
 itself has a valid plist, matching `CFBundleExecutable` and executable names,
-arm64 Mach-O, and a valid code signature. The automated macOS workflow retains
-a LaunchServices open from a Japanese working directory and verifies the
-frozen-runtime report; that result is pending CI and is required before PM
-acceptance. No runtime smoke report was produced by the failed local open.
+arm64 Mach-O, and a valid code signature. The published-head macOS workflow
+successfully opened the bundle through LaunchServices from a Japanese working
+directory and validated the frozen-runtime report. No runtime smoke report
+was produced by the failed local open.
 
 Windows backend and packaging sources remain in place. The full suite passed
-the Windows backend tests locally; Windows Actions status is pending on the
-published PR. Human visual checks remain for Finder launch on the owner's
+the Windows backend tests locally, and the published head's Windows Actions
+package smoke passed. Human visual checks remain for Finder launch on the owner's
 Mac, Retina and normal scaling, resizing, keyboard/focus behavior, native
 open/save dialogs, long Japanese paths, and useful error dialogs. No
 read-only physical VNW-V15 inspection was performed.

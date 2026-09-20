@@ -1192,12 +1192,29 @@ def _application_write_safety_status(
     return True, None
 
 
+def _application_safety_notice(
+    owner: Optional[PersistentWriteSafetyOwner],
+    configuration_error: Optional[str],
+) -> Optional[str]:
+    if configuration_error:
+        return configuration_error
+    _, detail = _application_write_safety_status(owner)
+    return detail
+
+
 def _persistent_safety_unavailable_message(detail: str) -> str:
     return (
         "Read-only Device Home remains available. Device-changing actions are disabled "
         "because existing write-safety state could not be verified. Do not remove or "
         "recreate the safety files. Review the state with project support.\n\n"
         f"Details: {detail}"
+    )
+
+
+def _initial_device_home_status() -> tuple[str, str]:
+    return (
+        "Device status not checked",
+        "Refresh Device Home to check for a connected Sony InfoCarry VNW-V15.",
     )
 
 
@@ -1287,14 +1304,17 @@ def launch_ttk_desktop(
 
     status_var = tk.StringVar(value=f"Ready — {runtime.description}; device writes disabled")
     backup_var = tk.StringVar(value="No backup loaded")
-    device_home_heading_var = tk.StringVar(value="Device disconnected")
-    device_home_message_var = tk.StringVar(
-        value="Connect a Sony InfoCarry VNW-V15, then refresh Device Home."
+    initial_device_home_heading, initial_device_home_message = _initial_device_home_status()
+    device_home_heading_var = tk.StringVar(value=initial_device_home_heading)
+    device_home_message_var = tk.StringVar(value=initial_device_home_message)
+    initial_safety_detail = _application_safety_notice(
+        replacement_safety_owner,
+        replacement_safety_configuration_error,
     )
     safety_state_var = tk.StringVar(
         value=(
-            _persistent_safety_unavailable_message(replacement_safety_configuration_error)
-            if replacement_safety_configuration_error
+            _persistent_safety_unavailable_message(initial_safety_detail)
+            if initial_safety_detail
             else ""
         )
     )

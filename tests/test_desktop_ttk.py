@@ -14,7 +14,9 @@ from infocarry.desktop_ttk import (
     LIBRARY_DETAIL_MIN_WIDTH,
     LIBRARY_LIST_MIN_WIDTH,
     LIBRARY_MINIMUM_GEOMETRY,
+    _application_safety_notice,
     _application_write_safety_status,
+    _initial_device_home_status,
     _library_package_shape,
     _persistent_safety_unavailable_message,
     format_library_device_tree_preview,
@@ -56,6 +58,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
 
         self.assertIsNone(owner)
         self.assertEqual(explanation, "existing execution claim store is corrupt")
+        self.assertEqual(_application_safety_notice(owner, explanation), explanation)
         source = inspect.getsource(launch_ttk_desktop)
         self.assertIn("_try_create_application_write_safety_owner", source)
         safety_message_source = inspect.getsource(_persistent_safety_unavailable_message)
@@ -64,6 +67,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("textvariable=safety_state_var", source)
         self.assertIn("safety_state_label.grid(row=5, column=0", source)
         self.assertIn("safety_state_var.set(_persistent_safety_unavailable_message(detail))", source)
+        self.assertIn("initial_safety_detail = _application_safety_notice(", source)
 
     def test_active_global_lock_has_visible_actionable_read_only_message(self):
         with TemporaryDirectory(prefix="infocarry-ui-lock-") as temporary:
@@ -78,15 +82,23 @@ class DesktopTtkMessageTests(unittest.TestCase):
                 incident_id="incident-active",
                 attempt_id="attempt-active",
             )
-
             available, detail = _application_write_safety_status(owner)
+            self.assertFalse(available)
+            self.assertIsNotNone(detail)
+            startup_detail = _application_safety_notice(owner, None)
+            self.assertEqual(startup_detail, detail)
+            message = _persistent_safety_unavailable_message(startup_detail or "")
+            self.assertIn("Read-only Device Home remains available", message)
+            self.assertIn("globally locked", message)
+            self.assertIn("Do not remove or recreate the safety files", message)
 
-        self.assertFalse(available)
-        self.assertIsNotNone(detail)
-        message = _persistent_safety_unavailable_message(detail or "")
-        self.assertIn("Read-only Device Home remains available", message)
-        self.assertIn("globally locked", message)
-        self.assertIn("Do not remove or recreate the safety files", message)
+    def test_device_home_startup_does_not_claim_disconnected_before_inspection(self):
+        heading, message = _initial_device_home_status()
+
+        self.assertEqual(heading, "Device status not checked")
+        self.assertIn("Refresh Device Home to check", message)
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("_initial_device_home_status()", source)
 
     def test_early_transfer_eligibility_names_exact_supported_shapes(self):
         self.assertIn("TXT → BMP → TXT", format_early_transfer_eligibility_summary())
