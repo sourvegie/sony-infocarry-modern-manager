@@ -14,6 +14,8 @@ from infocarry.desktop_ttk import (
     LIBRARY_DETAIL_MIN_WIDTH,
     LIBRARY_LIST_MIN_WIDTH,
     LIBRARY_MINIMUM_GEOMETRY,
+    _backup_review_filesystem_revision,
+    _source_review_filesystem_revision,
     _application_safety_notice,
     _application_write_safety_status,
     _initial_device_home_status,
@@ -29,6 +31,7 @@ from infocarry.desktop_ttk import (
     format_library_preparation_summary,
     format_library_preview_summary,
     format_library_readiness_summary,
+    format_library_transfer_review_summary,
     format_offline_conversion_report,
     format_offline_page_preview,
     format_post_write_verification,
@@ -46,6 +49,104 @@ from infocarry.write_safety_boundary import create_default_application_write_saf
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_source_file_metadata_stales_an_open_transfer_review(self):
+        with TemporaryDirectory(prefix="infocarry-review-source-") as temporary:
+            source = Path(temporary) / "story.txt"
+            source.write_text("before", encoding="utf-8")
+            original = _source_review_filesystem_revision(source)
+            source.write_text("after with new content", encoding="utf-8")
+            changed = _source_review_filesystem_revision(source)
+
+        self.assertNotEqual(original, changed)
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("_source_review_filesystem_revision(value.source_path)", source)
+        self.assertIn("root.after(1000, process_library_review_freshness)", source)
+        self.assertIn("invalidate_library_transfer_review_if_stale()", source)
+
+    def test_prepared_package_normalization_locations_are_owner_visible(self):
+        artifact = PreparedContentArtifact(
+            "Book",
+            (
+                PreparedContentChild(
+                    order=0,
+                    kind="txt",
+                    name="chapter.txt",
+                    path="root\\Book\\chapter.txt",
+                    payload_sha256=hashlib.sha256(b"prepared").hexdigest(),
+                    payload_bytes=8,
+                    payload_path="prepared/chapter.txt",
+                ),
+            ),
+        )
+        workspace_preview = SimpleNamespace(
+            source_kind=SimpleNamespace(value="prepared_package"),
+            source_path=Path("package"),
+            normalization_substitutions=(("“", '"'),),
+            normalization_occurrences=(),
+            normalization_details=(
+                ("chapter.txt", "source.txt", 2, 4, "“", '"'),
+            ),
+            rendered_details=(),
+            warnings=(),
+        )
+        prepared = SimpleNamespace(
+            artifact=artifact,
+            preview=workspace_preview,
+            source_path=Path("package"),
+            source_format="prepared_package",
+        )
+        summary = format_library_preparation_summary(
+            SimpleNamespace(artifact=artifact, prepared=prepared)
+        )
+        self.assertIn("chapter.txt (source source.txt), line 2, column 4", summary)
+        self.assertIn("'“' → '\"'", summary)
+
+    def test_epub_normalization_locations_are_owner_visible(self):
+        artifact = PreparedContentArtifact(
+            "Book",
+            (
+                PreparedContentChild(
+                    order=0,
+                    kind="txt",
+                    name="chapter-001.txt",
+                    path="root\\Book\\chapter-001.txt",
+                    payload_sha256=hashlib.sha256(b"prepared").hexdigest(),
+                    payload_bytes=8,
+                    payload_path="prepared/chapter-001.txt",
+                ),
+            ),
+        )
+        occurrence = {
+            "source": "OEBPS/chapter.xhtml",
+            "coordinate_basis": "extracted chapter text",
+            "line": 2,
+            "column": 7,
+            "from": "“",
+            "to": '"',
+        }
+        prepared = SimpleNamespace(
+            artifact=artifact,
+            source_path=Path("book.epub"),
+            source_format="epub",
+            normalization_events=1,
+            unsupported_features=(),
+            preview_children=lambda **_kwargs: (
+                {
+                    "name": "chapter-001.txt",
+                    "kind": "txt",
+                    "text": 'Hello "world"',
+                    "truncated": False,
+                    "normalization_occurrences": [occurrence],
+                },
+            ),
+        )
+        result = SimpleNamespace(artifact=artifact, prepared=prepared)
+        preparation = format_library_preparation_summary(result)
+        preview = format_library_preview_summary(result)
+        self.assertIn("extracted chapter text", preparation)
+        self.assertIn("chapter-001.txt (EPUB OEBPS/chapter.xhtml), line 2, column 7", preparation)
+        self.assertIn("chapter-001.txt (EPUB OEBPS/chapter.xhtml), line 2, column 7", preview)
+
     def test_invalid_persistent_claim_store_keeps_ui_safety_owner_closed(self):
         paths = application_paths(
             home=Path("/test-home"), platform="darwin", os_name="posix", environ={}
@@ -100,6 +201,17 @@ class DesktopTtkMessageTests(unittest.TestCase):
         source = inspect.getsource(launch_ttk_desktop)
         self.assertIn("_initial_device_home_status()", source)
 
+    def test_backup_file_change_changes_review_revision(self):
+        with TemporaryDirectory() as temporary:
+            backup = Path(temporary)
+            blob = backup / "model.bin"
+            blob.write_bytes(b"first backup")
+            first = _backup_review_filesystem_revision(backup)
+            blob.write_bytes(b"replacement backup with changed size")
+            second = _backup_review_filesystem_revision(backup)
+
+        self.assertNotEqual(first, second)
+
     def test_early_transfer_eligibility_names_exact_supported_shapes(self):
         self.assertIn("TXT → BMP → TXT", format_early_transfer_eligibility_summary())
         self.assertIn("TXT → BMP → TXT → TXT", format_early_transfer_eligibility_summary())
@@ -124,16 +236,16 @@ class DesktopTtkMessageTests(unittest.TestCase):
             (("txt", "bmp", "txt", "txt"), "TXT → BMP → TXT → TXT"),
         ):
             summary = format_early_transfer_eligibility_summary(artifact(kinds))
-            self.assertIn(f"{display_shape} matches an exact verified VNW-V15 shape", summary)
-            self.assertIn("Fresh device evidence", summary)
+            self.assertIn(f"{display_shape} is transferable for the reviewed VNW-V15 shape", summary)
+            self.assertIn("Fresh device checks", summary)
         self.assertIn(
-            "currently unsupported for transfer",
+            "not yet supported for transfer",
             format_early_transfer_eligibility_summary(artifact(("txt", "txt"))),
         )
 
     def test_device_home_is_first_tab_and_uses_shared_read_only_inspection(self):
         source = inspect.getsource(launch_ttk_desktop)
-        self.assertLess(source.index('notebook.add(device_tab, text="Device")'), source.index('notebook.add(library_tab, text="Library")'))
+        self.assertLess(source.index('notebook.add(device_tab, text="Device")'), source.index('notebook.add(library_tab, text="Content")'))
         self.assertIn('text="Back Up Now"', source)
         self.assertIn('text="Technical Details…"', source)
         self.assertIn("device_home_service.inspect()", source)
@@ -149,8 +261,9 @@ class DesktopTtkMessageTests(unittest.TestCase):
             next_action=ReadinessAction.REVIEW,
         )
         summary = format_library_readiness_summary(state)
-        self.assertIn("READY TO TRANSFER", summary)
-        self.assertIn("Send to InfoCarry: disabled", summary)
+        self.assertIn("NOT CURRENTLY READY FOR TRANSFER", summary)
+        self.assertIn("Viewing this review does not authorize or start a transfer", summary)
+        self.assertIn("Device-changing operations during this review: 0", summary)
         for secret in ("candidate_sha", "transaction_sha", "claim", "seal", "profile_id", "milestone"):
             self.assertNotIn(secret, summary.lower())
 
@@ -160,7 +273,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
             action_allowed=False,
             next_action=ReadinessAction.RECONNECT,
         )
-        self.assertIn("NOT READY TO TRANSFER", format_library_readiness_summary(blocked))
+        self.assertIn("NOT CURRENTLY READY FOR TRANSFER", format_library_readiness_summary(blocked))
 
     def test_prepare_and_preview_use_the_same_canonical_artifact(self):
         child = PreparedContentChild(
@@ -176,12 +289,82 @@ class DesktopTtkMessageTests(unittest.TestCase):
         result = SimpleNamespace(artifact=artifact)
         prepare = format_library_preparation_summary(result)
         preview = format_library_preview_summary(result)
-        self.assertIn("PREPARE COMPLETE", prepare)
+        self.assertIn("PREPARED SUCCESSFULLY — ready to preview", prepare)
         self.assertIn("PREVIEW", preview)
         self.assertIn("root\\Book\\chapter.txt", preview)
         self.assertIn("same current prepared content", preview)
         self.assertNotIn("sha-256", prepare.lower())
         self.assertNotIn("sha-256", preview.lower())
+
+    def test_owner_transfer_review_shows_order_checks_and_no_authorization(self):
+        artifact = PreparedContentArtifact(
+            "Book",
+            (
+                PreparedContentChild(
+                    order=0,
+                    kind="txt",
+                    name="start.txt",
+                    path="root\\Book\\start.txt",
+                    payload_sha256="0" * 64,
+                    payload_bytes=12,
+                    payload_path="prepared/start.txt",
+                ),
+                PreparedContentChild(
+                    order=1,
+                    kind="bmp",
+                    name="page.bmp",
+                    path="root\\Book\\page.bmp",
+                    payload_sha256="1" * 64,
+                    payload_bytes=20,
+                    payload_path="prepared/page.bmp",
+                ),
+                PreparedContentChild(
+                    order=2,
+                    kind="txt",
+                    name="end.txt",
+                    path="root\\Book\\end.txt",
+                    payload_sha256="2" * 64,
+                    payload_bytes=8,
+                    payload_path="prepared/end.txt",
+                ),
+            ),
+        )
+        report = {
+            "baseline": {"available": True},
+            "items": [
+                {
+                    "item_id": "internal-item-id",
+                    "source": {"filename": "book.txt"},
+                    "prepared_artifact": {
+                        "ordered_children": [
+                            {"kind": child.kind, "name": child.name} for child in artifact.children
+                        ],
+                        "prepared_payload_bytes": artifact.aggregate_size,
+                    },
+                    "destination": {"paths": ["root\\Book"]},
+                    "conflicts": [],
+                    "reasons": [],
+                }
+            ],
+            "totals": {"prepared_payload_bytes": artifact.aggregate_size},
+            "capacity": {"status": "not_evaluated_without_verified_backup"},
+            "eligibility": {"queue_ready": False},
+        }
+        summary = format_library_transfer_review_summary(
+            report,
+            artifacts={"internal-item-id": artifact},
+            device_snapshot=SimpleNamespace(
+                heading="Device is connected", state="connected", capacity_bytes=1_000
+            ),
+            backup_created_at="2026-09-20T01:00:00Z",
+        )
+        self.assertIn("TXT → BMP → TXT is transferable for the reviewed VNW-V15 shape", summary)
+        self.assertIn("TXT start.txt, BMP page.bmp, TXT end.txt", summary)
+        self.assertIn("integrity-checked for this review", summary)
+        self.assertIn("Capacity comparison", summary)
+        self.assertIn("does not authorize or start", summary)
+        self.assertIn("no device change occurred", summary)
+        self.assertNotIn("internal-item-id", summary)
 
     def test_host_only_terminal_state_is_truthful(self):
         summary = format_library_host_only_terminal_state()
@@ -200,6 +383,9 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "Technical Details",
             "Send to InfoCarry",
             "library_selection_matches",
+            "library_review_context_revision",
+            "library_transfer_review_revision(library_item_revision(item))",
+            "_backup_review_filesystem_revision(model.state.backup_directory)",
             "all_library_revision",
             "store=False",
             "adopt_prepared_operation",

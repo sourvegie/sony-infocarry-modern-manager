@@ -2,6 +2,32 @@
 
 Date: 2026-09-20
 
+## P18-036 — Everyday content preparation and transfer review UX
+
+P18-036 is the R2 host-only Content journey update on
+`task/P18-036-everyday-content-transfer-review`, based exactly on
+`a13bdecc8381b7d8414b0361203445f96536df11`. Add, prepare/preview, arrange,
+and transfer review now have a clear owner-facing sequence. Only the exact
+reviewed VNW-V15 TXT → BMP → TXT and TXT → BMP → TXT → TXT shapes are
+identified as transferable; preparation and preview remain available for
+other valid arrangements, with no capability or guarded-transfer behavior
+change.
+
+The portable Python 3.12 suite passes (933 tests, 3 intentional skips);
+`compileall`, `git diff --check`, and the local arm64 app build/signature check
+pass. Fresh CI passed the macOS and Windows offline suites and both package
+workflows, including hosted macOS LaunchServices and Windows packaged smokes.
+The content journey now shows source-specific normalization locations for EPUB
+and prepared-package imports, and clears transfer review when a source changes.
+PR #63 is open against `main`; its analysis record binds package evidence to
+the runtime/code head before the following documentation-only evidence update.
+The earlier local LaunchServices attempt could not open the app from
+`/private/tmp`, and a direct smoke launch stopped during local Tk/AppKit
+registration before writing a report. Owner Finder/visual validation remains
+pending. No physical-device access or device-changing operation occurred. PM
+acceptance remains pending; see the
+[P18-036 analysis record](analysis/phase-18-p18-036-everyday-content-transfer-review-20260920.md).
+
 ## P18-035 — macOS first-class owner app and read-only Device Home
 
 P18-035 is in progress on `task/P18-035-macos-owner-app-device-home`, based

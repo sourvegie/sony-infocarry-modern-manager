@@ -103,9 +103,15 @@ class ContentWorkspaceTests(unittest.TestCase):
         self.assertEqual(first.source_kind, ContentSourceKind.TXT)
         self.assertEqual(first.preview.artifact, first.artifact)
         self.assertEqual(first.preview.text_excerpt, source_text)
+        self.assertEqual(first.preview.prepared_text_excerpt, 'A "quoted" line - with an ellipsis...\r\n')
         self.assertEqual(first.preparation_metadata["newline_policy"], "crlf")
         self.assertTrue(first.preview.normalization_substitutions)
         self.assertTrue(first.preview.warnings)
+        self.assertEqual(
+            first.preview.normalization_occurrences,
+            ((1, 3, "“", '"'), (1, 10, "”", '"'), (1, 17, "—", "-"), (1, 35, "…", "...")),
+        )
+        self.assertEqual(len(first.preparation_metadata["normalization_occurrences"]), 4)
 
     def test_bmp_is_deterministic_and_payload_mutation_changes_identity(self):
         source = self.root / "page.bmp"
@@ -114,6 +120,7 @@ class ContentWorkspaceTests(unittest.TestCase):
         second = self.workspace.prepare(source)
         self.assertEqual(first.artifact.artifact_identity, second.artifact.artifact_identity)
         self.assertEqual(first.artifact.children[0].kind, "bmp")
+        self.assertEqual(first.preview.prepared_bitmap_payload, source.read_bytes())
         mutated = bytearray(source.read_bytes())
         mutated[-1] = 1
         source.write_bytes(mutated)
@@ -182,9 +189,21 @@ class ContentWorkspaceTests(unittest.TestCase):
 
     def test_strict_unsupported_character_is_typed(self):
         source = self.root / "unsupported.txt"
-        source.write_text("not representable 😀", encoding="utf-8")
-        with self.assertRaises(ContentWorkspaceError):
+        source.write_text("first line\nunsupported 😀", encoding="utf-8")
+        with self.assertRaisesRegex(ContentWorkspaceError, r"U\+1F600 at line 2, column 13"):
             self.workspace.prepare(source)
+
+    def test_saved_text_preview_rechecks_canonical_payload(self):
+        source = self.root / "story.txt"
+        source.write_text("first", encoding="utf-8")
+        prepared = self.workspace.prepare(source)
+        source.write_text("changed", encoding="utf-8")
+        with self.assertRaisesRegex(ContentWorkspaceError, "no longer matches the canonical artifact"):
+            self.workspace.preview_existing_artifact(
+                source,
+                prepared.artifact,
+                metadata=prepared.preparation_metadata,
+            )
 
     def test_epub_is_supported_but_remains_outside_the_live_profile(self):
         source = self.root / "book.epub"
@@ -194,13 +213,19 @@ class ContentWorkspaceTests(unittest.TestCase):
         self.assertEqual(result.source_path, source.resolve())
         self.assertFalse(result.report()["safety"]["sender_called"])
 
+    def test_epub_cp932_failure_keeps_character_location(self):
+        source = self.root / "unsupported.epub"
+        write_epub(source, chapter="A 😀")
+        with self.assertRaisesRegex(EpubPackageError, r"U\+1F600 at line 2, column 3"):
+            self.workspace.prepare(source)
+
     def test_prepared_package_uses_existing_canonical_adapter(self):
         first = self.root / "first.txt"
         page = self.root / "page.bmp"
         last = self.root / "last.txt"
-        first.write_text("first", encoding="utf-8")
+        first.write_text("“first”…", encoding="utf-8")
         page.write_bytes(make_profile_bmp())
-        last.write_text("last", encoding="utf-8")
+        last.write_text("last ‘two’", encoding="utf-8")
         package = build_prepared_media_package(
             ((first, "one.txt"), (page, "page.bmp"), (last, "two.txt")), "Book"
         )
@@ -213,6 +238,20 @@ class ContentWorkspaceTests(unittest.TestCase):
             package.to_prepared_content_artifact().artifact_identity,
         )
         self.assertEqual(result.artifact.children[0].order, 0)
+        self.assertEqual(result.preview.prepared_bitmap_payload, make_profile_bmp())
+        self.assertEqual(
+            result.preview.normalization_details,
+            (
+                ("one.txt", "0001_first.txt", 1, 1, "“", '"'),
+                ("one.txt", "0001_first.txt", 1, 7, "”", '"'),
+                ("one.txt", "0001_first.txt", 1, 8, "…", "..."),
+                ("two.txt", "0003_last.txt", 1, 6, "‘", "'"),
+                ("two.txt", "0003_last.txt", 1, 10, "’", "'"),
+            ),
+        )
+        details = result.preview.to_dict()["normalization_details"]
+        self.assertEqual(details[0]["child"], "one.txt")
+        self.assertEqual(details[-1]["source"], "0003_last.txt")
 
     def test_prepared_folder_uses_existing_hierarchy_adapter(self):
         folder = self.root / "Folder"
@@ -262,7 +301,7 @@ class ContentWorkspaceTests(unittest.TestCase):
 
     def test_epub_uses_title_spine_text_and_safe_bmp_projection(self):
         source = self.root / "book.epub"
-        write_epub(source, chapter="Hello 日本語", include_image=True)
+        write_epub(source, chapter="Hello “日本語”…", include_image=True)
 
         result = self.workspace.prepare_epub(source)
 
@@ -273,7 +312,41 @@ class ContentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(
             result.payloads[0].payload,
-            b"Heading\r\nHello \x93\xfa\x96{\x8c\xea\r\npage image",
+            b'Heading\r\nHello "\x93\xfa\x96{\x8c\xea"...\r\npage image',
+        )
+        normalized = result.preview_children()[0]["normalization_occurrences"]
+        self.assertEqual(
+            normalized,
+            [
+                {
+                    "source": "OEBPS/chapter.xhtml",
+                    "coordinate_basis": "extracted chapter text",
+                    "line": 2,
+                    "column": 7,
+                    "from": "“",
+                    "to": '"',
+                },
+                {
+                    "source": "OEBPS/chapter.xhtml",
+                    "coordinate_basis": "extracted chapter text",
+                    "line": 2,
+                    "column": 11,
+                    "from": "”",
+                    "to": '"',
+                },
+                {
+                    "source": "OEBPS/chapter.xhtml",
+                    "coordinate_basis": "extracted chapter text",
+                    "line": 2,
+                    "column": 12,
+                    "from": "…",
+                    "to": "...",
+                },
+            ],
+        )
+        self.assertEqual(
+            result.report()["preview"]["children"][0]["normalization_occurrences"],
+            normalized,
         )
         self.assertEqual(result.transfer_shape.classification, "plausible_future_vnw_v15_direct_leaf")
         self.assertTrue(result.normalization_occurred)

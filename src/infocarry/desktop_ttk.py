@@ -8,11 +8,13 @@ import json
 import os
 import queue
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import threading
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
+from .bitmap import BitmapFormatError, decode_monochrome_bmp
 from .backup import BackupClient, RawBackupArchive
 from .backup_format import BackupFormatError
 from .backup_history import (
@@ -42,12 +44,14 @@ from .offline_conversion import (
     load_utf8_text_document,
 )
 from .library import (
+    NODE_FILE,
     NODE_FOLDER,
     NODE_PREPARED_PACKAGE,
     LibraryCatalog,
     LibraryCatalogError,
     LibraryError,
 )
+from .content_workspace import ContentWorkspaceSettings
 from .library_prepare import LibraryPreparationError
 from .library_workflow import LibraryWorkflowService
 from .prepared_content import PreparedContentArtifact, PreparedContentError
@@ -182,6 +186,69 @@ def _replacement_backup_destination(parent: Path, label: str) -> Path:
         candidate = parent.expanduser().resolve() / f"InfoCarry-write-{label}-{stamp}-{suffix}"
         suffix += 1
     return candidate
+
+
+def _backup_review_filesystem_revision(directory: Optional[Path]) -> tuple[Any, ...]:
+    """Capture a cheap disk-state token so an edited backup stales its review.
+
+    The complete backup is cryptographically verified by the review worker and
+    again by the guarded execution path. This lightweight token only lets the
+    UI notice ordinary file replacement or edits without hashing a large
+    backup on Tk's event thread.
+    """
+
+    if directory is None:
+        return ()
+    root = Path(directory).expanduser()
+    try:
+        resolved = root.resolve()
+        entries = []
+        for entry in sorted(resolved.iterdir(), key=lambda value: value.name):
+            info = entry.lstat()
+            entries.append(
+                (
+                    entry.name,
+                    info.st_mode,
+                    info.st_dev,
+                    info.st_ino,
+                    info.st_size,
+                    info.st_mtime_ns,
+                )
+            )
+        return str(resolved), tuple(entries)
+    except OSError as exc:
+        return str(root), "unavailable", type(exc).__name__, exc.errno
+
+
+def _source_review_filesystem_revision(source: Optional[Path]) -> tuple[Any, ...]:
+    """Capture cheap file metadata so an open review stales after source edits."""
+
+    if source is None:
+        return ()
+    path = Path(source).expanduser()
+
+    def signature(info: os.stat_result) -> tuple[int, ...]:
+        return (
+            info.st_mode,
+            info.st_dev,
+            info.st_ino,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+
+    try:
+        link_info = path.lstat()
+        link_signature = signature(link_info)
+        if stat.S_ISLNK(link_info.st_mode):
+            try:
+                target_info = path.stat()
+            except OSError as exc:
+                return str(path), "symlink", link_signature, "target-unavailable", type(exc).__name__, exc.errno
+            return str(path), "symlink", link_signature, signature(target_info)
+        return str(path), signature(link_info)
+    except OSError as exc:
+        return str(path), "unavailable", type(exc).__name__, exc.errno
 
 
 def _conversion_destination(parent: Path, source: Path) -> Path:
@@ -702,18 +769,28 @@ def format_library_readiness_summary(value: Any) -> str:
     if not isinstance(paths, list):
         raise ValueError("readiness destination paths are malformed")
 
-    heading = {
-        "blocked": "NOT READY TO TRANSFER — review required; no device change occurred",
-        "needs_review": "READY TO TRANSFER — review required; no device change occurred",
-        "ready": "READY TO TRANSFER — review only; no device change occurred",
-    }[state.state]
+    eligibility = report.get("eligibility", {})
+    shape_eligible = (
+        isinstance(eligibility, dict)
+        and eligibility.get("host_profile_eligible") is True
+    )
+    heading = (
+        "MATCHES A REVIEWED TRANSFER SHAPE"
+        if shape_eligible
+        else "NOT CURRENTLY READY FOR TRANSFER"
+    )
+    owner_status = (
+        "Ready for guarded transfer after fresh device checks"
+        if shape_eligible
+        else state.message
+    )
     lines = [
         heading,
         "",
         "Status",
-        f"  {state.message}",
+        f"  {owner_status}",
         f"  Next step: {_readiness_action_label(state.next_action)}",
-        "  Send to InfoCarry: disabled until every current safety check passes",
+        "  Viewing this review does not authorize or start a transfer",
         "",
         "Prepared content",
         f"  Destination: {package.get('folder_path') or 'not prepared'}",
@@ -738,6 +815,7 @@ def format_library_readiness_summary(value: Any) -> str:
             f"  Destination check: {'blocked — destination already exists' if conflict else 'not reported as conflicting'}",
             f"  Current capacity check: {capacity.get('status', 'not evaluated')}",
             "  Device-changing operations during this review: 0",
+            "  Review complete; no device change occurred.",
             "  Technical details: available on request",
         )
     )
@@ -759,32 +837,49 @@ def format_library_preparation_summary(result: Any) -> str:
         raise ValueError("prepared content artifact is missing")
     eligibility = format_early_transfer_eligibility_summary(artifact)
     children = getattr(artifact, "children", ())
+    prepared = getattr(result, "prepared", None)
+    preview = getattr(prepared, "preview", None)
+    source_path = getattr(prepared, "source_path", None) or getattr(preview, "source_path", None)
+    source_name = getattr(source_path, "name", None) or "Imported content"
+    source_kind = getattr(getattr(preview, "source_kind", None), "value", None)
+    if source_kind is None:
+        source_kind = getattr(prepared, "source_format", None)
+    source_kind_label = {
+        "txt": "TXT text",
+        "bmp": "BMP image",
+        "epub": "EPUB book",
+        "prepared_package": "Prepared package",
+        "prepared_folder": "Prepared folder",
+    }.get(source_kind, str(source_kind or "content").upper())
+    metadata = getattr(prepared, "preparation_metadata", {})
+    page_count = metadata.get("page_count") if isinstance(metadata, Mapping) else None
     lines = [
-        "PREPARE COMPLETE — content is ready for preview",
+        "PREPARED SUCCESSFULLY — ready to preview",
         "",
+        f"From: {source_name} ({source_kind_label})",
+        f"Title: {artifact.root_name}",
         f"Destination: {artifact.root_path}",
-        f"Items: {len(children)}",
-        f"Prepared size: {artifact.aggregate_size} bytes",
+        f"Prepared items: {len(children)}" + (f"; text pages: {page_count}" if isinstance(page_count, int) else ""),
+        f"Total prepared size: {artifact.aggregate_size:,} bytes",
         "Order:",
     ]
     for child in children:
         lines.append(
             f"  {child.order + 1}. {child.kind.upper()} {child.name} — {child.payload_bytes} bytes"
         )
-    workspace_preview = getattr(getattr(result, "prepared", None), "preview", None)
-    if workspace_preview is not None and getattr(workspace_preview, "normalization_substitutions", ()):
-        lines.extend(
-            (
-                "",
-                "Needs attention",
-                "Some characters were normalized for target text compatibility; review the substitutions before sending.",
-            )
-        )
+    if preview is not None:
+        lines.extend(_normalization_notice_lines(preview))
+        for warning in getattr(preview, "warnings", ()):
+            lines.extend(("", f"Note: {warning}"))
+    lines.extend(_prepared_epub_normalization_lines(prepared))
+    unsupported_features = getattr(prepared, "unsupported_features", ())
+    if unsupported_features:
+        lines.extend(("", f"EPUB conversion notes: {len(unsupported_features)} item(s) were not converted."))
     lines.extend(
         (
             "",
             eligibility,
-            "Host-only preparation completed; no device change occurred.",
+            "Preparation is separate from transfer eligibility; nothing was sent.",
         )
     )
     return "\n".join(lines)
@@ -797,10 +892,9 @@ def format_early_transfer_eligibility_summary(
 
     if artifact is None:
         return (
-            "Transfer eligibility: only direct VNW-V15 TXT → BMP → TXT and "
-            "TXT → BMP → TXT → TXT shapes match verified transfer patterns. "
-            "Other content can still be prepared and previewed, but transfer is "
-            "currently unsupported for those shapes."
+            "Transfer patterns: VNW-V15 TXT → BMP → TXT and TXT → BMP → TXT → TXT "
+            "are currently supported shapes. Prepare first to check the exact order; "
+            "other valid content can still be prepared and previewed."
         )
     assessment = assess_transfer_shape(artifact)
     if assessment.classification == EXACT_VERIFIED_LIVE_PROFILE:
@@ -811,14 +905,75 @@ def format_early_transfer_eligibility_summary(
         else:
             raise ValueError("verified transfer shape has an unknown ordered child sequence")
         return (
-            f"Transfer eligibility: {shape} matches an exact verified VNW-V15 "
-            "shape. Fresh device evidence and separate operation authorization "
+            f"Transfer pattern: {shape} is transferable for the reviewed VNW-V15 "
+            "shape. Fresh device checks and separate operation authorization "
             "are still required before any future transfer."
         )
     return (
-        "Transfer eligibility: this prepared shape is currently unsupported for "
-        "transfer. Preparation and preview remain available."
+        "Prepared successfully — this arrangement is not yet supported for transfer. "
+        "Preparation and preview remain available."
     )
+
+
+def _normalization_notice_lines(preview: Any, *, limit: int = 12) -> list[str]:
+    substitutions = tuple(getattr(preview, "normalization_substitutions", ()) or ())
+    details = tuple(getattr(preview, "normalization_details", ()) or ())
+    if not substitutions and not details:
+        return []
+    occurrences = tuple(getattr(preview, "normalization_occurrences", ()) or ())
+    total = len(occurrences) + len(details)
+    lines = [
+        "",
+        f"Text changes: {total or len(substitutions)} character(s) used deterministic safe substitutions.",
+    ]
+    for line, column, source, replacement in occurrences[:limit]:
+        lines.append(f"  Line {line}, column {column}: {source!r} → {replacement!r}")
+    remaining = max(0, limit - len(occurrences))
+    for child, source_reference, line, column, source, replacement in details[:remaining]:
+        lines.append(
+            f"  {child} (source {source_reference}), line {line}, column {column}: "
+            f"{source!r} → {replacement!r}"
+        )
+    if total > limit:
+        lines.append(
+            f"  {total - limit} more location(s) are available in Technical Details."
+        )
+    lines.append("Characters without a clean CP932 representation stop preparation; they are never replaced automatically.")
+    return lines
+
+
+def _prepared_epub_normalization_lines(prepared: Any, *, limit: int = 12) -> list[str]:
+    preview_children = getattr(prepared, "preview_children", None)
+    if not callable(preview_children):
+        return []
+    try:
+        children = preview_children(max_text_characters=1200)
+    except (TypeError, ValueError):
+        return []
+    details = [
+        (child.get("name", "Text item"), item)
+        for child in children
+        if child.get("kind") == "txt"
+        for item in child.get("normalization_occurrences", ())
+    ]
+    if not details:
+        return []
+    lines = [
+        "",
+        f"Text changes: {len(details)} character(s) used deterministic safe substitutions.",
+        "Locations refer to extracted chapter text before CP932 normalization.",
+    ]
+    for child_name, detail in details[:limit]:
+        lines.append(
+            f"  {child_name} (EPUB {detail.get('source', 'chapter')}), "
+            f"line {detail.get('line')}, column {detail.get('column')}: "
+            f"{detail.get('from')!r} → {detail.get('to')!r}"
+        )
+    if len(details) > limit:
+        lines.append(
+            f"  {len(details) - limit} more location(s) are available in Technical Details."
+        )
+    return lines
 
 
 def format_library_preview_summary(preview: Any) -> str:
@@ -834,41 +989,80 @@ def format_library_preview_summary(preview: Any) -> str:
     title = getattr(artifact, "root_name", None)
     if not isinstance(title, str) or not title:
         title = str(getattr(artifact, "root_path", "content")).rsplit("\\", 1)[-1]
+    source_path = getattr(getattr(preview, "prepared", None), "source_path", None)
+    source_name = getattr(source_path, "name", None) or "Imported content"
+    workspace_preview = getattr(getattr(preview, "prepared", None), "preview", None)
+    source_kind = getattr(getattr(workspace_preview, "source_kind", None), "value", None)
+    prepared = getattr(preview, "prepared", None)
+    if source_kind is None:
+        source_kind = getattr(prepared, "source_format", None)
+    source_kind_label = {
+        "txt": "TXT text",
+        "bmp": "BMP image",
+        "epub": "EPUB conversion",
+        "prepared_package": "Prepared package",
+        "prepared_folder": "Prepared folder",
+    }.get(source_kind, str(source_kind or "content").upper())
     lines = [
-        "PREVIEW — current prepared content; no device change occurred",
+        "PREVIEW — prepared output",
         "",
+        f"From: {source_name} ({source_kind_label})",
         f"Title: {title}",
         f"Destination: {artifact.root_path}",
         f"Items: {len(artifact.children)}",
-        f"Approximate prepared size: {artifact.aggregate_size:,} bytes",
+        f"Total prepared size: {artifact.aggregate_size:,} bytes",
         "Ordered contents:",
     ]
     for child in artifact.children:
         lines.append(
             f"  {child.order + 1}. {child.kind.upper()} {child.path} — {child.payload_bytes} bytes"
         )
-    workspace_preview = getattr(getattr(preview, "prepared", None), "preview", None)
     if workspace_preview is not None:
-        if getattr(workspace_preview, "text_excerpt", None):
-            lines.extend(("", "Readable preview", workspace_preview.text_excerpt))
-        if getattr(workspace_preview, "rendered_details", ()):
-            lines.extend(("", "Content details", *workspace_preview.rendered_details))
-        substitutions = getattr(workspace_preview, "normalization_substitutions", ())
-        if substitutions:
+        prepared_text = getattr(workspace_preview, "prepared_text_excerpt", None)
+        if prepared_text:
             lines.extend(
                 (
                     "",
-                    "Needs attention",
-                    "Some characters were normalized for target text compatibility; review the substitutions before sending.",
+                    "Prepared text preview (CP932 / CRLF)",
+                    prepared_text,
+                    "InfoCarry's device-native text rendering may differ from this preview.",
                 )
+            )
+        elif getattr(workspace_preview, "text_excerpt", None):
+            lines.extend(("", "Text preview", workspace_preview.text_excerpt))
+        if getattr(workspace_preview, "rendered_details", ()):
+            lines.extend(("", "Content details", *workspace_preview.rendered_details))
+        lines.extend(_normalization_notice_lines(workspace_preview))
+    preview_children = getattr(prepared, "preview_children", None)
+    if callable(preview_children):
+        converted = preview_children(max_text_characters=1200)
+        if converted:
+            lines.extend(("", "Converted EPUB output"))
+            for child in converted[:2]:
+                if child.get("kind") == "txt":
+                    lines.extend((f"{child.get('name', 'Text item')}", str(child.get("text", ""))))
+                    if child.get("truncated"):
+                        lines.append("Preview shortened; the prepared item contains more text.")
+                elif child.get("kind") == "bmp":
+                    lines.append(f"{child.get('name', 'Image')}: validated 237 × 320, 1-bit BMP")
+            if len(converted) > 2:
+                lines.append(f"{len(converted) - 2} additional prepared item(s) are listed above.")
+            lines.extend(_prepared_epub_normalization_lines(prepared))
+        if getattr(prepared, "normalization_events", 0):
+            lines.append(
+                f"\nCP932 safe normalization occurred in {prepared.normalization_events} converted text item(s)."
+            )
+        unsupported = getattr(prepared, "unsupported_features", ())
+        if unsupported:
+            lines.append(
+                f"\nEPUB conversion note: {len(unsupported)} source feature(s) were not converted."
             )
     lines.extend(
         (
             "",
-            f"Total prepared size: {artifact.aggregate_size} bytes",
             "This preview and Prepare use the same current prepared content.",
             eligibility,
-            "Host-only preview; no device change occurred.",
+            "Previewing does not authorize or start a transfer.",
         )
     )
     return "\n".join(lines)
@@ -884,6 +1078,18 @@ def format_library_selection_summary(item: Any) -> str:
         target = f"root\\{item.target_folder_name}"
         if getattr(item, "target_child_name", None):
             target += f"\\{item.target_child_name}"
+    prepared_artifact = None
+    raw_artifact = getattr(item, "prepared_artifact", None)
+    if isinstance(raw_artifact, dict):
+        try:
+            prepared_artifact = PreparedContentArtifact.from_dict(raw_artifact)
+        except PreparedContentError:
+            prepared_artifact = None
+    eligibility = (
+        format_early_transfer_eligibility_summary(prepared_artifact)
+        if prepared_artifact is not None
+        else "Transfer pattern: Prepare first to check this content's exact arrangement."
+    )
     return "\n".join(
         (
             "CONTENT SELECTED",
@@ -893,13 +1099,21 @@ def format_library_selection_summary(item: Any) -> str:
             f"State: {_library_display_state(item)}",
             f"Source size: {item.source_size_bytes:,} bytes",
             f"Destination: {target}",
+            eligibility,
             "Choose Preview or Prepare to continue.",
         )
     )
 
 
-def format_library_transfer_review_summary(report: Dict[str, Any]) -> str:
-    """Render queue review in product language, hiding implementation fields."""
+def format_library_transfer_review_summary(
+    report: Dict[str, Any],
+    *,
+    artifacts: Optional[Mapping[str, PreparedContentArtifact]] = None,
+    device_snapshot: Optional[DeviceHomeSnapshot] = None,
+    backup_created_at: Optional[str] = None,
+    readiness: Optional[LibraryTransferReadiness] = None,
+) -> str:
+    """Render one owner-facing review without implying authorization."""
 
     if not isinstance(report, dict):
         raise ValueError("Library transfer review must be a mapping")
@@ -907,10 +1121,24 @@ def format_library_transfer_review_summary(report: Dict[str, Any]) -> str:
     if not isinstance(items, list):
         raise ValueError("Library transfer review items are malformed")
     lines = [
-        "REVIEW TRANSFER — host-only review; no device change occurred",
+        "REVIEW TRANSFER",
         "",
-        f"Selected content: {len(items)} item(s)",
-        "Send to InfoCarry: disabled until the exact supported profile and fresh checks are complete",
+        "This review describes the current prepared content. It does not authorize or start a transfer.",
+        "",
+        "Device",
+        (
+            f"  Last checked: {device_snapshot.heading}"
+            if device_snapshot is not None
+            else "  Connection has not been checked yet; refresh Device for the latest status."
+        ),
+        "",
+        "Backup",
+        (
+            f"  Complete backup from {backup_created_at or 'an earlier time'} was integrity-checked for this review."
+            if report.get("baseline", {}).get("available") is True
+            else "  No complete backup was verified for this review."
+        ),
+        "  A fresh complete backup and current device checks are still required before any guarded transfer.",
         "",
         "Content and order",
     ]
@@ -935,16 +1163,80 @@ def format_library_transfer_review_summary(report: Dict[str, Any]) -> str:
         lines.append(
             f"     Prepared size: {prepared.get('prepared_payload_bytes', 'not evaluated')} bytes"
         )
+        artifact = (artifacts or {}).get(str(item.get("item_id", "")))
+        if artifact is None and isinstance(prepared.get("canonical"), dict):
+            try:
+                artifact = PreparedContentArtifact.from_dict(prepared["canonical"])
+            except PreparedContentError:
+                artifact = None
+        if artifact is not None:
+            lines.append(
+                "     "
+                + format_early_transfer_eligibility_summary(artifact)
+            )
+        elif item.get("reasons"):
+            lines.append(
+                "     Transfer pattern: not currently supported for transfer; "
+                "preparation and preview remain available."
+            )
+        if prepared.get("kind") == "epub_prepared_content":
+            lines.append(
+                "     EPUB conversion can succeed even when its prepared arrangement is not supported for transfer."
+            )
+        for warning in item.get("warnings", ()) if isinstance(item.get("warnings", ()), list) else ():
+            if isinstance(warning, str):
+                lines.append(f"     Note: {warning}")
+    totals = report.get("totals", {})
+    if not isinstance(totals, dict):
+        totals = {}
+    capacity = report.get("capacity", {})
+    if not isinstance(capacity, dict):
+        capacity = {}
+    device_capacity = (
+        device_snapshot.capacity_bytes
+        if device_snapshot is not None and device_snapshot.state == "connected"
+        else None
+    )
+    prepared_total = totals.get("prepared_payload_bytes")
+    capacity_line = (
+        f"  Latest reported VNW-V15 total capacity: {device_capacity:,} bytes."
+        if isinstance(device_capacity, int)
+        else "  Capacity has not been checked for the current device session."
+    )
+    content_size_line = (
+        f"  Prepared payload total: {prepared_total:,} bytes; exact device model growth is not known from this review."
+        if isinstance(prepared_total, int)
+        else "  Prepared payload total is not available."
+    )
     lines.extend(
         (
             "",
             "Review outcome",
-            f"  Destination: {'blocked — already exists' if any(item.get('conflicts') for item in items if isinstance(item, dict)) else 'not reported as conflicting'}",
-            f"  Capacity: {report.get('capacity', {}).get('status', 'not evaluated')}",
-            "  Device operation: not started",
-            "  Technical details: available on request",
+            f"  Destination: {'one or more targets conflict with the reviewed backup' if any(item.get('conflicts') for item in items if isinstance(item, dict)) else 'no conflict was reported in the reviewed backup'}",
+            content_size_line,
+            capacity_line,
+            f"  Capacity comparison: {capacity.get('status', 'not evaluated')}; metadata growth is not included.",
+            (
+                "  Transfer status: Ready for guarded transfer after fresh device checks."
+                if readiness is not None and readiness.host_profile_eligible
+                else (
+                    "  Transfer status: this arrangement is not currently supported for transfer."
+                    if readiness is not None
+                    else "  Transfer status: see the shape assessment for each prepared item."
+                )
+            ),
+            "  No authorization was created and no device change occurred.",
+            "  Technical details are available on request.",
         )
     )
+    if report.get("eligibility", {}).get("queue_ready") is not True:
+        lines.extend(("", "Still needed"))
+        if report.get("baseline", {}).get("available") is not True:
+            lines.append("  Verify a complete backup before any future guarded transfer.")
+        if capacity.get("status") in {"unknown", "not_evaluated_without_verified_backup"}:
+            lines.append("  Check capacity with the current VNW-V15 device session.")
+        if any(item.get("conflicts") for item in items if isinstance(item, dict)):
+            lines.append("  Choose a destination that does not already exist on the device.")
     return "\n".join(lines)
 
 
@@ -952,6 +1244,20 @@ def format_library_operation_failure(error: BaseException, *, artifact_identity:
     """Render a typed, actionable worker failure for the normal UI."""
 
     state = readiness_state_from_error(error, artifact_identity=artifact_identity)
+    detail = str(error)
+    marker = "text contains characters unsupported by CP932:"
+    if marker in detail:
+        diagnostic = detail.split(marker, 1)[1].strip().rstrip(")")
+        return "\n".join(
+            (
+                "PREPARATION STOPPED — some text cannot be represented safely",
+                "",
+                "These characters were not replaced. Edit the source and prepare it again.",
+                diagnostic,
+                "",
+                "No device change occurred.",
+            )
+        )
     return "\n".join(
         (
             "ACTION NEEDED — the operation did not complete",
@@ -1364,7 +1670,7 @@ def launch_ttk_desktop(
     ebook_renderer_tab = ttk.Frame(notebook, padding=12)
     settings_tab = ttk.Frame(notebook, padding=12)
     notebook.add(device_tab, text="Device")
-    notebook.add(library_tab, text="Library")
+    notebook.add(library_tab, text="Content")
     notebook.add(text_converter_tab, text="Text Converter")
     notebook.add(ebook_renderer_tab, text="Ebook Renderer")
     notebook.add(settings_tab, text="Settings & Help")
@@ -1374,8 +1680,8 @@ def launch_ttk_desktop(
             f"Library unavailable: {library_catalog_error}"
             if library_catalog_error
             else (
-                "Import TXT/BMP files or a folder hierarchy. External drag-and-drop "
-                "is unavailable without the optional TkDND adapter; no device operation occurs."
+                "Add TXT, BMP/image, EPUB, a prepared package, or a folder. "
+                "Prepare and preview before reviewing a transfer."
             )
         )
     )
@@ -1390,7 +1696,7 @@ def launch_ttk_desktop(
     library_operation_token: Any = None
     ttk.Label(
         library_tab,
-        text="Local Library",
+        text="Add and prepare content",
         font=("TkDefaultFont", 14, "bold"),
     ).pack(anchor="w", pady=(0, 4))
     library_transfer_eligibility_label = ttk.Label(
@@ -1403,15 +1709,19 @@ def launch_ttk_desktop(
     library_toolbar = ttk.Frame(library_tab)
     library_toolbar.pack(fill="x", pady=(0, 8))
     library_toolbar.columnconfigure(1, weight=1)
-    library_import_group = ttk.LabelFrame(library_toolbar, text="Add content / arrange")
+    library_import_group = ttk.LabelFrame(library_toolbar, text="Add Content")
     library_import_group.grid(row=0, column=0, sticky="w")
-    library_review_group = ttk.LabelFrame(library_toolbar, text="Preview / Prepare")
+    library_review_group = ttk.LabelFrame(library_toolbar, text="Prepare and Preview")
     library_review_group.grid(row=1, column=0, sticky="w", pady=(4, 0))
+    library_arrange_group = ttk.LabelFrame(library_toolbar, text="Arrange")
+    library_arrange_group.grid(row=2, column=0, sticky="w", pady=(4, 0))
+    library_transfer_review_group = ttk.LabelFrame(library_toolbar, text="Review Transfer")
+    library_transfer_review_group.grid(row=3, column=0, sticky="w", pady=(4, 0))
     library_experimental_group = ttk.LabelFrame(
-        library_toolbar, text="Ready to transfer"
+        library_toolbar, text="Guarded transfer"
     )
     library_experimental_group.grid(
-        row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0)
+        row=4, column=0, columnspan=2, sticky="ew", pady=(4, 0)
     )
     library_experimental_group.columnconfigure(3, weight=1)
     library_import_button = ttk.Button(library_import_group, text="Add content…")
@@ -1419,10 +1729,13 @@ def launch_ttk_desktop(
         library_import_group, text="Add folder…"
     )
     library_move_up_button = ttk.Button(
-        library_import_group, text="Move up", state="disabled"
+        library_arrange_group, text="Move up", state="disabled"
     )
     library_move_down_button = ttk.Button(
-        library_import_group, text="Move down", state="disabled"
+        library_arrange_group, text="Move down", state="disabled"
+    )
+    library_rename_button = ttk.Button(
+        library_arrange_group, text="Change destination…", state="disabled"
     )
     library_package_import_button = ttk.Button(
         library_import_group, text="Add prepared package…"
@@ -1437,19 +1750,14 @@ def launch_ttk_desktop(
         library_review_group, text="Preview", state="disabled"
     )
     library_selected_queue_button = ttk.Button(
-        library_review_group, text="Review transfer…", state="disabled"
+        library_transfer_review_group, text="Review transfer…", state="disabled"
     )
     library_all_queue_button = ttk.Button(
-        library_review_group, text="Review all ready…", state="disabled"
-    )
-    library_experimental_button = ttk.Button(
-        library_experimental_group,
-        text="Review transfer…",
-        state="disabled",
+        library_transfer_review_group, text="Review all prepared…", state="disabled"
     )
     library_live_preflight_button = ttk.Button(
         library_experimental_group,
-        text="Check device readiness…",
+        text="Refresh device checks…",
         state="disabled",
         takefocus=False,
     )
@@ -1461,48 +1769,46 @@ def launch_ttk_desktop(
     )
     # Compatibility note for the pre-P18-027 label: text="Transfer once".
     library_cancel_button = ttk.Button(
-        library_review_group, text="Cancel", state="disabled", takefocus=False
+        library_transfer_review_group, text="Cancel", state="disabled", takefocus=False
     )
     for button in (
         library_import_button,
         library_folder_import_button,
-        library_move_up_button,
-        library_move_down_button,
         library_package_import_button,
         library_remove_button,
     ):
         button.pack(side="left", padx=3, pady=3)
+    for button in (library_prepare_button, library_preview_button):
+        button.pack(side="left", padx=3, pady=3)
+    for button in (library_move_up_button, library_move_down_button, library_rename_button):
+        button.pack(side="left", padx=3, pady=3)
     for button in (
-        library_prepare_button,
-        library_preview_button,
         library_selected_queue_button,
         library_all_queue_button,
         library_cancel_button,
     ):
         button.pack(side="left", padx=3, pady=3)
-    library_experimental_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
-    library_live_preflight_button.grid(row=0, column=1, sticky="w", padx=3, pady=3)
-    library_transfer_once_button.grid(row=0, column=2, sticky="w", padx=3, pady=3)
+    library_live_preflight_button.grid(row=0, column=0, sticky="w", padx=3, pady=3)
+    library_transfer_once_button.grid(row=0, column=1, sticky="w", padx=3, pady=3)
     ttk.Label(
         library_experimental_group,
-        text="Sending stays disabled until the exact supported profile and fresh safety checks pass.",
+        text="A review does not authorize or send. Fresh backup, device checks, and separate approval are required.",
         foreground="#6b4f00",
         anchor="w",
     ).grid(row=0, column=3, sticky="ew", padx=(8, 8), pady=3)
     library_safety_notice = ttk.Label(
         library_toolbar,
         text=(
-            "External file/folder drag-and-drop is unavailable without TkDND; use the "
-            "chooser buttons. Add content, preview it, prepare it, then review the "
-            "current transfer. Sending is separately guarded and unsupported content "
-            "remains unavailable."
+            "Add TXT, BMP/image, EPUB, or prepared content. Arrange the order, then "
+            "prepare and preview the output. Valid content can remain unavailable "
+            "for transfer when its shape is not supported."
         ),
         foreground="#6b4f00",
         anchor="w",
         justify="left",
         wraplength=900,
     )
-    library_safety_notice.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+    library_safety_notice.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(5, 0))
 
     library_status_frame = ttk.Frame(library_tab)
     library_status_frame.pack(side="bottom", fill="x", pady=(8, 0))
@@ -1570,8 +1876,9 @@ def launch_ttk_desktop(
     library_tree_scroll.grid(row=0, column=1, sticky="ns")
     library_tree_horizontal_scroll.grid(row=1, column=0, sticky="ew")
     library_detail_frame.columnconfigure(0, weight=1)
-    library_detail_frame.rowconfigure(2, weight=1)
-    library_detail_heading = ttk.Label(library_detail_frame, text="Library selection")
+    library_detail_frame.rowconfigure(2, weight=0)
+    library_detail_frame.rowconfigure(3, weight=1)
+    library_detail_heading = ttk.Label(library_detail_frame, text="Content selection")
     library_detail_heading.grid(row=0, column=0, sticky="w")
     library_technical_details_button = ttk.Button(
         library_detail_frame,
@@ -1588,11 +1895,15 @@ def launch_ttk_desktop(
     )
     library_detail_label.grid(row=1, column=0, sticky="ew", pady=(2, 10))
     library_report_frame = ttk.Frame(library_detail_frame)
-    library_report_frame.grid(row=2, column=0, sticky="nsew")
+    library_report_frame.grid(row=3, column=0, sticky="nsew")
     library_report_frame.columnconfigure(0, weight=1)
-    library_report_frame.rowconfigure(0, weight=1)
+    library_report_frame.rowconfigure(1, weight=1)
+    library_bitmap_preview_label = ttk.Label(
+        library_detail_frame, anchor="center", justify="center"
+    )
+    library_preview_image: Optional[Any] = None
     library_report = tk.Text(
-        library_report_frame, height=20, width=48, wrap="none", undo=False
+        library_report_frame, height=20, width=48, wrap="word", undo=False
     )
     library_report_vertical_scroll = ttk.Scrollbar(
         library_report_frame, orient="vertical", command=library_report.yview
@@ -1604,9 +1915,9 @@ def launch_ttk_desktop(
         yscrollcommand=library_report_vertical_scroll.set,
         xscrollcommand=library_report_horizontal_scroll.set,
     )
-    library_report.grid(row=0, column=0, sticky="nsew")
-    library_report_vertical_scroll.grid(row=0, column=1, sticky="ns")
-    library_report_horizontal_scroll.grid(row=1, column=0, sticky="ew")
+    library_report.grid(row=1, column=0, sticky="nsew")
+    library_report_vertical_scroll.grid(row=1, column=1, sticky="ns")
+    library_report_horizontal_scroll.grid(row=2, column=0, sticky="ew")
     library_report.configure(state="disabled")
 
     def update_library_responsive_labels(_event: Any = None) -> None:
@@ -1723,6 +2034,7 @@ def launch_ttk_desktop(
             device_home_heading_var.set(snapshot.heading)
             device_home_message_var.set(snapshot.message)
             device_technical_details = snapshot.technical_details
+            invalidate_library_transfer_review_if_stale()
         baseline = loaded_backup_summary
         device_capacity_var.set(
             format_capacity_summary(
@@ -1761,6 +2073,7 @@ def launch_ttk_desktop(
             if loaded_backup_summary is not None
             else "No backup loaded"
         )
+        invalidate_library_transfer_review_if_stale()
 
     def show_technical_details_action() -> None:
         details = device_technical_details or "No USB session details are available yet."
@@ -1932,7 +2245,7 @@ def launch_ttk_desktop(
         f"Runtime: {runtime.description}\n"
         "Supported device: Sony InfoCarry VNW-V15 (VID 054c, PID 001e)\n"
         "Device Manager writes are limited to the guarded existing-TXT workflow.\n"
-        "The exact proven Library TXT/BMP/TXT package is Experimental: the normal UI can reach a guarded one-shot review only after a fresh separately authorized VNW-V15 preflight; this build has no physical ttk validation.\n"
+        "The exact reviewed VNW-V15 TXT/BMP/TXT and TXT/BMP/TXT/TXT shapes can enter a guarded transfer flow only after fresh device checks and separate operation approval. Other arrangements remain unavailable for transfer.\n"
         "Unsupported package shapes remain unavailable; recovery is unresolved and automatic write retry is never used.\n"
         "Text Converter and Ebook Renderer are offline-only in the current product scope.\n\n"
         "Recovery: preserve any before/after backup, do not retry a started write, "
@@ -1960,10 +2273,15 @@ def launch_ttk_desktop(
             values.extend(
                 (
                     value.item_id,
+                    value.source_path,
+                    _source_review_filesystem_revision(value.source_path),
+                    value.source_filename,
                     value.source_sha256,
                     value.source_status,
                     value.state,
                     value.preparation_state,
+                    value.parent_id,
+                    value.sibling_order,
                     value.target_folder_name,
                     value.target_child_name,
                     value.prepared_manifest_sha256,
@@ -1974,6 +2292,28 @@ def launch_ttk_desktop(
                     ),
                 )
             )
+            package = getattr(value, "package", None)
+            if package is not None:
+                package_root = Path(value.source_path).expanduser()
+                package_paths = [getattr(package, "manifest_path", None)]
+                for child in getattr(package, "children", ()):
+                    if not isinstance(child, Mapping):
+                        continue
+                    package_paths.extend(
+                        (child.get("package_path"), child.get("prepared_path"))
+                    )
+                for relative_path in package_paths:
+                    if not isinstance(relative_path, str):
+                        continue
+                    relative = Path(relative_path)
+                    if not relative.is_absolute() and ".." in relative.parts:
+                        continue
+                    candidate = relative if relative.is_absolute() else package_root / relative
+                    try:
+                        candidate.resolve().relative_to(package_root.resolve())
+                    except (OSError, ValueError):
+                        continue
+                    values.append(_source_review_filesystem_revision(candidate))
             for child in library_catalog.children(value.item_id):
                 visit(child)
 
@@ -1997,7 +2337,53 @@ def launch_ttk_desktop(
             tuple(library_item_revision(item) for item in library_catalog.items),
         )
 
+    def library_review_context_revision() -> tuple[Any, ...]:
+        snapshot = device_home_snapshot
+        backup_summaries = tuple(
+            (
+                str(summary.directory),
+                summary.created_at_utc,
+                summary.model_bytes,
+                summary.blob_sha256,
+            )
+            if summary is not None
+            else None
+            for summary in (latest_backup_summary, loaded_backup_summary)
+        )
+        return (
+            (
+                snapshot.state,
+                snapshot.heading,
+                snapshot.capacity_bytes,
+                snapshot.technical_details,
+            )
+            if snapshot is not None
+            else None,
+            str(model.state.backup_directory or ""),
+            backup_summaries,
+            _backup_review_filesystem_revision(model.state.backup_directory),
+            latest_backup_error,
+        )
+
+    def library_transfer_review_revision(
+        selection_revision: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        return (
+            "transfer-review",
+            selection_revision,
+            library_review_context_revision(),
+        )
+
     def library_selection_matches(revision: Any) -> bool:
+        if (
+            isinstance(revision, tuple)
+            and len(revision) == 3
+            and revision[0] == "transfer-review"
+        ):
+            return (
+                library_selection_matches(revision[1])
+                and library_review_context_revision() == revision[2]
+            )
         if (
             isinstance(revision, tuple)
             and len(revision) == 2
@@ -2016,6 +2402,50 @@ def launch_ttk_desktop(
         return revision is not None and (
             current == revision or current == (revision,)
         )
+
+    def invalidate_library_transfer_review_if_stale() -> None:
+        nonlocal library_current_plan_report, library_current_readiness
+        nonlocal library_prepared_operation, library_current_revision
+        nonlocal library_technical_details_open
+        revision = library_current_revision
+        if (
+            isinstance(revision, tuple)
+            and len(revision) == 3
+            and revision[0] == "transfer-review"
+            and not library_selection_matches(revision)
+        ):
+            invalidated = library_operation_controller.invalidate()
+            library_current_plan_report = None
+            library_current_readiness = None
+            library_prepared_operation = None
+            library_current_revision = None
+            library_technical_details_open = False
+            library_technical_details_button.configure(
+                text="Technical Details", state="disabled"
+            )
+            if invalidated:
+                restore_device_manager_controls()
+            selected = selected_library_item()
+            if selected is not None:
+                _set_readonly_text(
+                    library_report,
+                    format_library_selection_summary(selected)
+                    + "\n\nThe previous review is no longer current. If a source file changed, "
+                    "prepare the content again before reviewing transfer.",
+                )
+            library_status_var.set(
+                "Content, Device Home, or backup details changed; review transfer again for current information"
+            )
+
+    def process_library_review_freshness() -> None:
+        """Invalidate a displayed review when its source or context changes."""
+
+        if not root.winfo_exists():
+            return
+        if not library_operation_controller.busy:
+            invalidate_library_transfer_review_if_stale()
+        if root.winfo_exists():
+            root.after(1000, process_library_review_freshness)
 
     def restore_device_manager_controls() -> None:
         """Restore Device Manager controls after a Library operation ends."""
@@ -2046,12 +2476,12 @@ def launch_ttk_desktop(
                 library_package_import_button,
                 library_move_up_button,
                 library_move_down_button,
+                library_rename_button,
                 library_remove_button,
                 library_prepare_button,
                 library_preview_button,
                 library_selected_queue_button,
                 library_all_queue_button,
-                library_experimental_button,
                 library_live_preflight_button,
                 library_transfer_once_button,
                 library_cancel_button,
@@ -2170,6 +2600,7 @@ def launch_ttk_desktop(
         nonlocal library_current_plan_report, library_current_readiness
         nonlocal library_prepared_operation, library_current_preview
         nonlocal library_current_revision, library_technical_details_open
+        clear_library_bitmap_preview()
         invalidated = library_operation_controller.invalidate()
         library_current_plan_report = None
         library_current_readiness = None
@@ -2216,19 +2647,18 @@ def launch_ttk_desktop(
             library_package_import_button.configure(state="disabled")
             library_move_up_button.configure(state="disabled")
             library_move_down_button.configure(state="disabled")
+            library_rename_button.configure(state="disabled")
             library_remove_button.configure(state="disabled")
             library_prepare_button.configure(state="disabled")
             library_preview_button.configure(state="disabled")
             library_selected_queue_button.configure(state="disabled")
             library_all_queue_button.configure(state="disabled")
-            library_experimental_button.configure(state="disabled")
             library_live_preflight_button.configure(state="disabled")
             library_transfer_once_button.configure(state="disabled")
             return
         library_import_button.configure(state="normal")
         library_folder_import_button.configure(state="normal")
         library_package_import_button.configure(state="normal")
-        library_experimental_button.configure(state="disabled")
         library_live_preflight_button.configure(state="disabled")
         library_transfer_once_button.configure(state="disabled")
 
@@ -2321,7 +2751,56 @@ def launch_ttk_desktop(
                     result[item.item_id] = PreparedContentArtifact.from_dict(value)
                 except PreparedContentError:
                     continue
+            elif getattr(item, "package", None) is not None:
+                try:
+                    result[item.item_id] = PreparedContentArtifact.from_legacy_children(
+                        root_name=item.package.folder_name,
+                        children=item.package.children,
+                    )
+                except (AttributeError, PreparedContentError):
+                    continue
         return result
+
+    def clear_library_bitmap_preview() -> None:
+        nonlocal library_preview_image
+        library_preview_image = None
+        library_bitmap_preview_label.configure(image="", text="")
+        library_bitmap_preview_label.grid_remove()
+
+    def show_library_bitmap_preview(result: Any) -> None:
+        """Show an exact prepared BMP payload using the existing safe decoder."""
+
+        nonlocal library_preview_image
+        prepared = getattr(result, "prepared", None)
+        workspace_preview = getattr(prepared, "preview", None)
+        payload = getattr(workspace_preview, "prepared_bitmap_payload", None)
+        if payload is None:
+            payload = next(
+                (
+                    child.payload
+                    for child in getattr(prepared, "payloads", ())
+                    if getattr(child, "kind", None) == "bmp"
+                ),
+                None,
+            )
+        if not isinstance(payload, bytes):
+            clear_library_bitmap_preview()
+            return
+        try:
+            bitmap = decode_monochrome_bmp(payload)
+            photo = tk.PhotoImage(width=bitmap.width, height=bitmap.height)
+            for row_index, row_data in enumerate(bitmap.photo_rows):
+                photo.put(row_data, to=(0, row_index))
+        except (BitmapFormatError, tk.TclError):
+            clear_library_bitmap_preview()
+            return
+        library_preview_image = photo
+        library_bitmap_preview_label.configure(
+            image=photo,
+            text=f"Prepared bitmap preview — {bitmap.width} × {bitmap.height}, 1-bit",
+            compound="top",
+        )
+        library_bitmap_preview_label.grid(row=2, column=0, sticky="n", pady=(0, 8))
 
     def show_library_selection(_event: Any = None) -> None:
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
@@ -2357,6 +2836,16 @@ def launch_ttk_desktop(
                 else "disabled"
             )
         )
+        library_rename_button.configure(
+            state=(
+                "normal"
+                if enabled
+                and item.node_kind == NODE_FILE
+                and item.package is None
+                and item.supported
+                else "disabled"
+            )
+        )
         library_prepare_button.configure(state="normal" if hierarchy_enabled else "disabled")
         library_preview_button.configure(state="normal" if hierarchy_enabled else "disabled")
         library_selected_queue_button.configure(
@@ -2364,13 +2853,6 @@ def launch_ttk_desktop(
         )
         library_all_queue_button.configure(
             state="normal" if prepared_items_available else "disabled"
-        )
-        library_experimental_button.configure(
-            state=(
-                "normal"
-                if enabled and (item.package is not None or item.prepared_artifact is not None)
-                else "disabled"
-            )
         )
         current_item_id = item.item_id if item is not None else None
         prepared_item_id = (
@@ -2396,6 +2878,7 @@ def launch_ttk_desktop(
             library_current_preview = None
             library_current_revision = None
             library_technical_details_open = False
+            clear_library_bitmap_preview()
             library_operation_progress.stop()
             library_operation_activity_var.set("")
             library_cancel_button.configure(state="disabled")
@@ -2410,12 +2893,12 @@ def launch_ttk_desktop(
                 library_package_import_button,
                 library_move_up_button,
                 library_move_down_button,
+                library_rename_button,
                 library_remove_button,
                 library_prepare_button,
                 library_preview_button,
                 library_selected_queue_button,
                 library_all_queue_button,
-                library_experimental_button,
                 library_live_preflight_button,
                 library_transfer_once_button,
             ):
@@ -2443,6 +2926,7 @@ def launch_ttk_desktop(
             library_transfer_once_button.configure(state="disabled")
             library_technical_details_button.configure(state="disabled")
         if item is None:
+            clear_library_bitmap_preview()
             library_detail_var.set("Select a Library item")
             _set_readonly_text(library_report, "")
             library_technical_details_button.configure(
@@ -2461,7 +2945,7 @@ def launch_ttk_desktop(
             f"{item.source_filename}\n\n"
             f"Content state: {_library_display_state(item)}\n"
             f"Content type: {_library_display_type(item)}\n"
-            f"Sibling order: {item.sibling_order}\n"
+            f"Order: {item.sibling_order + 1}\n"
             f"Source: {item.source_path}\n"
             f"Source size: {item.source_size_bytes:,} bytes\n"
             f"Target: {target}"
@@ -2597,10 +3081,76 @@ def launch_ttk_desktop(
                 raise ValueError("Library move direction is invalid")
             refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
-                f"Moved {item.source_filename} {direction} within its siblings; no device access"
+                f"Order updated for {item.source_filename}; prepare and preview again before transfer review"
             )
         except (LibraryError, ValueError) as exc:
             library_status_var.set(f"Move blocked: {exc}")
+
+    def library_rename_destination_action() -> None:
+        if library_catalog is None or library_workflow is None:
+            return
+        item = selected_library_item()
+        if (
+            item is None
+            or item.node_kind != "file"
+            or item.package is not None
+            or not item.supported
+        ):
+            library_status_var.set(
+                "Change destination is available for supported TXT, BMP, and EPUB files."
+            )
+            return
+        current_name = item.target_folder_name or Path(item.source_filename).stem
+        chosen = simpledialog.askstring(
+            "Change destination",
+            "Destination folder name on the InfoCarry:",
+            initialvalue=current_name,
+            parent=root,
+        )
+        if chosen is None:
+            return
+        chosen = chosen.strip()
+        if not chosen:
+            messagebox.showerror(
+                "Change destination", "Enter a destination folder name.", parent=root
+            )
+            return
+        try:
+            settings = ContentWorkspaceSettings(root_name=chosen)
+        except ValueError as exc:
+            messagebox.showerror("Change destination", str(exc), parent=root)
+            return
+        revision = library_item_revision(item)
+        clear_library_review_for_input_change()
+        library_current_revision = revision
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> Any:
+            if cancelled.is_set():
+                raise LibraryPreparationError(
+                    "content preparation was cancelled before it started"
+                )
+            progress_callback("Preparing the updated destination")
+            return library_workflow.prepare_preview(
+                item.item_id,
+                settings=settings,
+                cancel_event=cancelled,
+                progress=progress_callback,
+            )
+
+        def success(result: Any) -> None:
+            nonlocal library_current_preview, library_current_revision
+            library_current_preview = result
+            library_current_revision = library_item_revision(
+                library_catalog.get(item.item_id)
+            )
+            _set_readonly_text(library_report, format_library_preparation_summary(result))
+            library_status_var.set(
+                "Destination changed and content prepared again; review the new preview before transfer review"
+            )
+
+        start_library_operation(
+            "Arrange destination", revision, work, success, validate_revision=False
+        )
 
     def library_prepare_action() -> None:
         nonlocal library_current_preview, library_current_revision
@@ -2629,15 +3179,17 @@ def launch_ttk_desktop(
         def success(result: Any) -> None:
             nonlocal library_current_preview, library_current_revision
             library_current_preview = result
-            library_current_revision = revision
+            library_current_revision = library_item_revision(
+                library_catalog.get(item.item_id)
+            )
             # Detailed compatibility renderer remains available only from
             # Technical Details: format_library_preparation_audit.
             _set_readonly_text(library_report, format_library_preparation_summary(result))
             library_status_var.set(
-                f"Prepared {item.source_filename}; choose Preview to inspect the current order"
+                f"Prepared {item.source_filename}; review its preview, then review transfer"
             )
 
-        start_library_operation("Prepare", revision, work, success)
+        start_library_operation("Prepare", revision, work, success, validate_revision=False)
 
     def library_preview_action() -> None:
         nonlocal library_current_preview, library_current_revision
@@ -2666,13 +3218,18 @@ def launch_ttk_desktop(
         def success(result: Any) -> None:
             nonlocal library_current_preview, library_current_revision
             library_current_preview = result
-            library_current_revision = revision
+            library_current_revision = library_item_revision(
+                library_catalog.get(item.item_id)
+            )
             # The older detailed renderer is diagnostic-only:
             # format_library_device_tree_preview.
             _set_readonly_text(library_report, format_library_preview_summary(result))
+            show_library_bitmap_preview(result)
             library_status_var.set("Preview ready; it uses the same current prepared content as Prepare")
 
-        start_library_operation("Preview", revision, work, success)
+        start_library_operation(
+            "Preview", revision, work, success, validate_revision=False
+        )
 
     def library_transfer_review_action(selection_mode: str) -> None:
         """Render an offline queue review; this handler has no USB path."""
@@ -2699,10 +3256,15 @@ def launch_ttk_desktop(
             if len(selected_items) == 1
             else None
         )
-        revision = (
+        selection_revision = (
             all_library_revision()
             if selection_mode == SELECTION_ALL_READY
             else selected_library_selection_revision()
+        )
+        revision = library_transfer_review_revision(selection_revision)
+        review_artifacts = canonical_artifacts_for(
+            selected_for_plan,
+            current_item_id=current_selected_item_id,
         )
         clear_library_review_for_input_change()
         library_current_revision = revision
@@ -2729,30 +3291,33 @@ def launch_ttk_desktop(
                 selected_item_ids=selected_item_ids,
                 selection_mode=selection_mode,
                 backup=backup,
-                canonical_artifacts=canonical_artifacts_for(
-                    selected_for_plan,
-                    current_item_id=current_selected_item_id,
-                ),
+                canonical_artifacts=review_artifacts,
             )
             progress_callback("Transfer review ready")
-            return plan
+            return plan, None if backup is None else backup.created_at_utc
 
-        def success(plan: Any) -> None:
+        def success(value: Any) -> None:
             nonlocal library_current_plan_report, library_current_revision
+            plan, backup_created_at = value
             library_current_plan_report = plan.to_dict()
             library_current_revision = revision
             _set_readonly_text(
                 library_report,
-                format_library_transfer_review_summary(library_current_plan_report),
+                format_library_transfer_review_summary(
+                    library_current_plan_report,
+                    artifacts=review_artifacts,
+                    device_snapshot=device_home_snapshot,
+                    backup_created_at=backup_created_at,
+                ),
             )
             library_status_var.set(
-                "Transfer review ready; sending remains disabled until the exact current checks pass"
+                "Transfer review complete; no authorization or device change occurred"
             )
 
         start_library_operation("Review transfer", revision, work, success)
 
-    def library_experimental_review_action() -> None:
-        """Show reusable Experimental readiness without a live action."""
+    def library_single_transfer_review_action() -> None:
+        """Show one prepared item's supported shape and review requirements."""
 
         nonlocal library_current_plan_report, library_current_readiness
         nonlocal library_prepared_operation, library_current_revision
@@ -2761,12 +3326,11 @@ def launch_ttk_desktop(
             return
         selected_items = selected_library_items()
         if len(selected_items) != 1:
-            library_status_var.set(
-                "Experimental review requires exactly one Library item; no device access"
-            )
+            library_status_var.set("Review one prepared item at a time, or review all prepared items.")
             return
         item = selected_items[0]
-        revision = library_item_revision(item)
+        revision = library_transfer_review_revision(library_item_revision(item))
+        review_artifacts = canonical_artifacts_for((item,), current_item_id=item.item_id)
         clear_library_review_for_input_change()
         library_current_revision = revision
 
@@ -2785,30 +3349,38 @@ def launch_ttk_desktop(
                     backup = None
             if cancelled.is_set():
                 raise LibraryTransferReadinessError("transfer readiness review was cancelled")
-            canonical_artifacts = canonical_artifacts_for((item,))
             plan = build_library_transfer_queue_plan(
                 library_catalog,
                 selected_item_ids=[item.item_id],
                 selection_mode=SELECTION_SELECTED,
                 backup=backup,
-                canonical_artifacts=canonical_artifacts,
+                canonical_artifacts=review_artifacts,
             )
             plan_report = plan.to_dict()
             review = library_execution_facade.review_readiness(plan_report)
             progress_callback("Transfer readiness ready")
-            return plan_report, review
+            return plan_report, review, None if backup is None else backup.created_at_utc
 
         def success(value: Any) -> None:
             nonlocal library_current_plan_report, library_current_readiness
             nonlocal library_prepared_operation, library_current_revision
-            plan_report, review = value
+            plan_report, review, backup_created_at = value
             library_current_plan_report = plan_report
             library_current_readiness = review
             library_prepared_operation = None
             library_current_revision = revision
-            _set_readonly_text(library_report, format_library_readiness_summary(review))
+            _set_readonly_text(
+                library_report,
+                format_library_transfer_review_summary(
+                    plan_report,
+                    artifacts=review_artifacts,
+                    device_snapshot=device_home_snapshot,
+                    backup_created_at=backup_created_at,
+                    readiness=review,
+                ),
+            )
             library_status_var.set(
-                "Ready to transfer review displayed; current device checks are still required before sending"
+                "Transfer review complete; no authorization or device change occurred"
             )
             library_live_preflight_button.configure(
                 state=(
@@ -2819,7 +3391,14 @@ def launch_ttk_desktop(
                 )
             )
 
-        start_library_operation("Ready to transfer", revision, work, success)
+        start_library_operation("Review transfer", revision, work, success)
+
+    def library_primary_transfer_review_action() -> None:
+        selected = selected_library_items()
+        if len(selected) == 1:
+            library_single_transfer_review_action()
+        elif selected:
+            library_transfer_review_action(SELECTION_SELECTED)
 
     def library_live_preflight_action() -> None:
         """Refresh read-only evidence through the product facade only."""
@@ -2842,7 +3421,7 @@ def launch_ttk_desktop(
         if item is None:
             return
         plan_report = library_current_plan_report
-        revision = library_item_revision(item)
+        revision = library_transfer_review_revision(library_item_revision(item))
         clear_library_review_for_input_change()
         library_current_revision = revision
         operation_root = (
@@ -2958,16 +3537,16 @@ def launch_ttk_desktop(
     library_package_import_button.configure(command=library_package_import_action)
     library_move_up_button.configure(command=lambda: library_move_action("up"))
     library_move_down_button.configure(command=lambda: library_move_action("down"))
+    library_rename_button.configure(command=library_rename_destination_action)
     library_remove_button.configure(command=library_remove_action)
     library_prepare_button.configure(command=library_prepare_action)
     library_preview_button.configure(command=library_preview_action)
     library_selected_queue_button.configure(
-        command=lambda: library_transfer_review_action(SELECTION_SELECTED)
+        command=library_primary_transfer_review_action
     )
     library_all_queue_button.configure(
         command=lambda: library_transfer_review_action(SELECTION_ALL_READY)
     )
-    library_experimental_button.configure(command=library_experimental_review_action)
     library_live_preflight_button.configure(command=library_live_preflight_action)
     library_transfer_once_button.configure(command=library_transfer_once_action)
     library_cancel_button.configure(command=library_cancel_action)
@@ -3065,12 +3644,12 @@ def launch_ttk_desktop(
                 library_package_import_button,
                 library_move_up_button,
                 library_move_down_button,
+                library_rename_button,
                 library_remove_button,
                 library_prepare_button,
                 library_preview_button,
                 library_selected_queue_button,
                 library_all_queue_button,
-                library_experimental_button,
                 library_live_preflight_button,
                 library_transfer_once_button,
             ):
@@ -3675,6 +4254,7 @@ def launch_ttk_desktop(
     root.protocol("WM_DELETE_WINDOW", close_action)
     root.after(100, process_backup_events)
     root.after(50, process_library_callbacks)
+    root.after(1000, process_library_review_freshness)
     root.mainloop()
 
 
