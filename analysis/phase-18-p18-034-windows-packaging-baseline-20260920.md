@@ -12,12 +12,16 @@ protocol, sender, authorization, capability, or device-operation path. The
 target is a Windows x64 one-folder application with the obvious launcher
 `InfoCarry Manager.exe`. Tk 9 remains mandatory. No physical device is used.
 
-The implementation is published in PR #61, still open and unmerged. At the
-previous checkpoint, exact head `048c9490241b78c5db612e79f8b6cb462fb492ad`
-passed Windows package/runtime smoke and uploaded an artifact. Independent
-review then found three P2 corrections (counter instrumentation, this record's
-status, and whitespace); those corrections are being applied and must pass
-the exact-head rerun before PM acceptance.
+The implementation is published in PR #61, still open and unmerged. Exact
+head `fde9e407d6418e5bcd1d90e39418be67d74c553a` passed Windows
+package/runtime smoke and the Python 3.12 offline suite on macOS and Windows.
+The three P2 findings from review of the preceding code checkpoint were
+corrected: smoke counters are measured with active enumeration/sender guards,
+the isolated SQLite handle is explicitly closed, and this record's whitespace
+was cleaned. A fresh review of `fde9e40` found one P2 stale-status wording in
+this record and no P0/P1 findings; this update closes that documentation
+finding. The only change after the tested code checkpoint is this
+documentation correction; no executable or packaging code changed.
 
 The first PR-triggered Windows package run, [35489216721](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489216721),
 stopped before build because `actions/setup-python` did not have Python
@@ -106,27 +110,25 @@ in this milestone.
 
 ## CI, package artifact, and review
 
-Windows package workflow run [35489474071](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489474071)
-passed at the previous head `048c9490241b78c5db612e79f8b6cb462fb492ad`.
-The artifact `InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9` is 19,312,976
-bytes, SHA-256
-`18a3958973a5dc55f87b4c84b164c35697df7907ab7a30e2195e9465030b4985`, and is
-retained until 2026-10-20. Its report records Python 3.15.0rc2 x64, Tkinter
-9.0, Tcl/Tk runtime patchlevel 9.0.4, `init.tcl` found through Tcl's zipfs
-resource path, no `python`/`python3` on PATH, successful PyUSB/libusb loading,
-the normal Manager window opened and closed, guarded Send disabled, all host
-content/profile checks passing, and all operation counters at zero. This
-artifact belongs to the previous head; the reviewed corrections require a
-new exact-head package run and artifact.
+Windows package workflow run [35489870486](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489870486)
+passed on `fde9e407d6418e5bcd1d90e39418be67d74c553a`. It published artifact
+`InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9` (artifact ID `10598951090`,
+19,311,017 bytes, SHA-256
+`257b212a71907e833239dda2e47f4ad2762d8aa507ab48da5e3141ecdbd04656`),
+retained until 2026-10-20. The report confirms Python 3.15.0rc2 AMD64,
+Tkinter 9.0 and Tcl/Tk 9.0.4, `init.tcl` found through Tcl zipfs, no
+`python`/`python3` on `PATH`, successful PyUSB/libusb 1.3.1/1.0.30.0 load,
+normal Manager window open/close, disabled Send, and passing content/profile
+checks. Enumeration, sender, real `0x101b`, claims, marker, and installation
+lock counters are all zero.
 
-Offline tests run [35489474080](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489474080)
-passed on macOS. Its Windows job found one test cleanup error: a read-only
-SQLite connection remained open while `TemporaryDirectory` removed the file
-(`WinError 32`). The connection is now explicitly closed; an exact-head rerun
-is pending. Independent review of the previous head found three P2 findings
-and no P0/P1 findings; counter instrumentation, record freshness, and
-whitespace cleanup are in progress, with a fresh exact-head re-review
-required. PR #61 remains open and unmerged for PM acceptance.
+Offline tests run [35489870404](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489870404)
+passed on both macOS and Windows. Each ran 891 tests: macOS reported 5
+documented skips; Windows reported 6 platform/evidence-dependent skips. The
+earlier Windows `WinError 32` test-cleanup failure was fixed by explicitly
+closing the SQLite connection and did not recur. PR #61 remains open and
+unmerged for PM acceptance. These CI results cover code checkpoint `fde9e40`;
+the later status/analysis correction is documentation-only.
 
 Manual validation still recommended after PM acceptance: launch the extracted
 folder on a clean supported Windows x64 machine, check scaling and file

@@ -2,6 +2,24 @@
 
 Date: 2026-09-20
 
+## P18-034 — Windows packaging & deployment baseline (host-only)
+
+P18-034 establishes a reproducible Windows x64 one-folder build of the
+existing ttk Manager with CPython 3.15.0rc2 and bundled Tcl/Tk 9.0.4. The
+exact-shape capability behavior and disabled Send path are unchanged. The
+packaged CI smoke passed without Python on `PATH`; the full Python 3.12 suite
+passed on both macOS and Windows (891 tests per platform). Fresh review
+corrections are recorded in the
+[P18-034 analysis record](analysis/phase-18-p18-034-windows-packaging-baseline-20260920.md).
+
+PR #61 is open and unmerged. Its Windows package artifact is
+`InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9`; the current analysis record
+contains its digest and CI IDs. Native ARM64 remains
+`BLOCKED_BY_RUNTIME_OR_DEPENDENCY` because the pinned `libusb-package` release
+has no ARM64 wheel/source distribution. No device enumeration or physical
+operation occurred. PM acceptance remains outstanding, along with a Python
+3.15 final-runtime rebuild and clean-machine Windows visual checks.
+
 ## P18-033 — Verified VNW-V15 four-leaf capability codification (host-only)
 
 P18-033 is the R2 host-only capability promotion on
