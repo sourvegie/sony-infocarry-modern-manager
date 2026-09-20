@@ -1,9 +1,9 @@
 # P18-034 — Windows Packaging & Deployment Baseline
 
-Date: 2026-09-20  
-Risk: R2, host/deployment only  
-Canonical base: `dc3f840657a113b107891d4f9b619c5903edf73e`  
-Branch: `task/P18-034-windows-packaging-baseline`
+- Date: 2026-09-20
+- Risk: R2, host/deployment only
+- Canonical base: `dc3f840657a113b107891d4f9b619c5903edf73e`
+- Branch: `task/P18-034-windows-packaging-baseline`
 
 ## Scope and outcome
 
@@ -12,9 +12,12 @@ protocol, sender, authorization, capability, or device-operation path. The
 target is a Windows x64 one-folder application with the obvious launcher
 `InfoCarry Manager.exe`. Tk 9 remains mandatory. No physical device is used.
 
-The implementation is published in PR #61, still open and unmerged.
-Windows build/runtime validation and independent review remain in progress;
-no Windows package is yet claimed as built or verified.
+The implementation is published in PR #61, still open and unmerged. At the
+previous checkpoint, exact head `048c9490241b78c5db612e79f8b6cb462fb492ad`
+passed Windows package/runtime smoke and uploaded an artifact. Independent
+review then found three P2 corrections (counter instrumentation, this record's
+status, and whitespace); those corrections are being applied and must pass
+the exact-head rerun before PM acceptance.
 
 The first PR-triggered Windows package run, [35489216721](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489216721),
 stopped before build because `actions/setup-python` did not have Python
@@ -26,7 +29,7 @@ that exact runtime and Tk 9 check passed and PyInstaller produced the onedir
 package. The smoke step did not complete: PowerShell received no
 `$LASTEXITCODE` from the GUI-subsystem executable. The workflow now launches
 it with `Start-Process -Wait -PassThru` and checks the returned process exit
-code. Runtime smoke and artifact upload are pending that correction.
+code. The subsequent Windows package run passed, as recorded below.
 
 ## Packaging decision
 
@@ -103,13 +106,27 @@ in this milestone.
 
 ## CI, package artifact, and review
 
-Pending final publication. The new `Windows package` workflow will build the
-x64 onedir folder on a Windows runner, run the frozen smoke with Python absent
-from `PATH`, archive the folder, and upload the artifact for 30 days. The
-existing offline workflow covers the Python 3.12 suite on macOS and Windows.
-Record the workflow run IDs, artifact name, PR number, exact reviewed commit,
-and review outcome here after publication. The PR must remain open and
-unmerged for PM acceptance.
+Windows package workflow run [35489474071](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489474071)
+passed at the previous head `048c9490241b78c5db612e79f8b6cb462fb492ad`.
+The artifact `InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9` is 19,312,976
+bytes, SHA-256
+`18a3958973a5dc55f87b4c84b164c35697df7907ab7a30e2195e9465030b4985`, and is
+retained until 2026-10-20. Its report records Python 3.15.0rc2 x64, Tkinter
+9.0, Tcl/Tk runtime patchlevel 9.0.4, `init.tcl` found through Tcl's zipfs
+resource path, no `python`/`python3` on PATH, successful PyUSB/libusb loading,
+the normal Manager window opened and closed, guarded Send disabled, all host
+content/profile checks passing, and all operation counters at zero. This
+artifact belongs to the previous head; the reviewed corrections require a
+new exact-head package run and artifact.
+
+Offline tests run [35489474080](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489474080)
+passed on macOS. Its Windows job found one test cleanup error: a read-only
+SQLite connection remained open while `TemporaryDirectory` removed the file
+(`WinError 32`). The connection is now explicitly closed; an exact-head rerun
+is pending. Independent review of the previous head found three P2 findings
+and no P0/P1 findings; counter instrumentation, record freshness, and
+whitespace cleanup are in progress, with a fresh exact-head re-review
+required. PR #61 remains open and unmerged for PM acceptance.
 
 Manual validation still recommended after PM acceptance: launch the extracted
 folder on a clean supported Windows x64 machine, check scaling and file

@@ -219,11 +219,6 @@ def _run_host_workflow_checks() -> dict[str, Any]:
             },
             "unsupported_shape_blocked": unsupported,
             "vnw_v10_transfer_capable": VNW_V10_PROFILE.transfer_capable,
-            "device_enumeration_calls": 0,
-            "sender_calls": 0,
-            "claims_consumed": 0,
-            "sender_marker_mutations": 0,
-            "installation_lock_mutations": 0,
         }
 
 
@@ -242,13 +237,16 @@ def _read_safety_counters(state_root: Path) -> dict[str, int]:
     sender_markers = 0
     if claim_store.exists():
         database_uri = claim_store.as_uri() + "?mode=ro"
-        with sqlite3.connect(database_uri, uri=True) as connection:
+        connection = sqlite3.connect(database_uri, uri=True)
+        try:
             claims_consumed = int(
                 connection.execute("SELECT COUNT(*) FROM execution_claims").fetchone()[0]
             )
             sender_markers = int(
                 connection.execute("SELECT COUNT(*) FROM sender_in_flight").fetchone()[0]
             )
+        finally:
+            connection.close()
     return {
         "claims_consumed": claims_consumed,
         "sender_marker_rows": sender_markers,
@@ -346,10 +344,7 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             "libusb_package_version": version("libusb-package"),
             "bundled_library": str(dll_path),
             "native_backend_loaded": True,
-            "device_enumeration_calls": 0,
         }
-
-        report["checks"]["host_content"] = _run_host_workflow_checks()
 
         from infocarry.write_safety_boundary import _application_state_root
 
@@ -361,26 +356,24 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             raise RuntimeError("packaged smoke requires a fresh temporary application-data profile")
         isolation_counters = {"device_enumeration_calls": 0, "sender_calls": 0}
         import usb.core
+        from infocarry.write_protocol import AuthorizedWriteSender
 
         original_usb_find = usb.core.find
+        original_sender = AuthorizedWriteSender.send
+        original_tk = tkinter.Tk
 
         def forbid_device_enumeration(*_args: Any, **_kwargs: Any) -> Any:
             isolation_counters["device_enumeration_calls"] += 1
             raise RuntimeError("device enumeration is forbidden in the packaged host-only smoke")
 
-        usb.core.find = forbid_device_enumeration
-        from infocarry.write_protocol import AuthorizedWriteSender
-
-        original_sender = AuthorizedWriteSender.send
-
         def forbid_sender(*_args: Any, **_kwargs: Any) -> Any:
             isolation_counters["sender_calls"] += 1
             raise RuntimeError("the sender is forbidden in the packaged host-only smoke")
 
+        usb.core.find = forbid_device_enumeration
         AuthorizedWriteSender.send = forbid_sender
 
         window_state: dict[str, Any] = {}
-        original_tk = tkinter.Tk
 
         def managed_smoke_window(*args: Any, **kwargs: Any) -> Any:
             root = original_tk(*args, **kwargs)
@@ -426,8 +419,9 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             root.after(600, inspect_and_close)
             return root
 
-        tkinter.Tk = managed_smoke_window
         try:
+            report["checks"]["host_content"] = _run_host_workflow_checks()
+            tkinter.Tk = managed_smoke_window
             from infocarry.desktop_ttk import launch_ttk_desktop
 
             launch_ttk_desktop()

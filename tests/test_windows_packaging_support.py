@@ -1,8 +1,12 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+import usb.core
 
 from infocarry.execution_claim_store import PersistentExecutionClaimStore
+from infocarry.write_protocol import AuthorizedWriteSender
 from scripts.windows_manager_entry import (
     _read_safety_counters,
     _run_host_workflow_checks,
@@ -40,13 +44,19 @@ class WindowsPackagingSupportTests(unittest.TestCase):
         self.assertFalse(unsupported["transfer_enabled"])
         self.assertFalse(report["vnw_v10_transfer_capable"])
 
-    def test_host_workflow_does_not_enter_a_device_or_write_path(self):
-        report = _run_host_workflow_checks()
-        self.assertEqual(report["device_enumeration_calls"], 0)
-        self.assertEqual(report["sender_calls"], 0)
-        self.assertEqual(report["claims_consumed"], 0)
-        self.assertEqual(report["sender_marker_mutations"], 0)
-        self.assertEqual(report["installation_lock_mutations"], 0)
+    def test_host_workflow_guards_against_device_enumeration_and_sender(self):
+        with patch(
+            "usb.core.find",
+            side_effect=AssertionError("host workflow attempted USB enumeration"),
+        ), patch.object(
+            AuthorizedWriteSender,
+            "send",
+            side_effect=AssertionError("host workflow attempted to call the sender"),
+        ):
+            report = _run_host_workflow_checks()
+
+        self.assertNotIn("device_enumeration_calls", report)
+        self.assertNotIn("sender_calls", report)
 
     def test_fresh_packaged_profile_reports_zero_persistent_write_activity(self):
         with TemporaryDirectory(prefix="infocarry-windows-safety-smoke-") as temporary:
