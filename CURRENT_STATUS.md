@@ -15,11 +15,15 @@ change.
 
 The final portable Python 3.12 suite passes (930 tests, 3 intentional skips);
 `compileall`, `git diff --check`, and the local arm64 app build/signature check
-pass. Local LaunchServices could not open the app from `/private/tmp`, and a
-direct smoke launch stopped during local Tk/AppKit registration before writing
-a report. Hosted package CI and fresh exact-head review are pending. Owner
-Finder/visual validation remains pending. No physical-device access or
-device-changing operation occurred. PM acceptance remains pending; see the
+pass. PR #63 is open against `main`. Its implementation/package evidence head
+passed the macOS and Windows offline suites and both package workflows,
+including hosted macOS LaunchServices and Windows packaged smokes. This
+documentation-only follow-up does not change the runtime or package source.
+Fresh exact-head review of the final PR head is pending. Local LaunchServices
+could not open the app from `/private/tmp`, and a direct smoke launch stopped
+during local Tk/AppKit registration before writing a report. Owner Finder/visual
+validation remains pending. No physical-device access or device-changing
+operation occurred. PM acceptance remains pending; see the
 [P18-036 analysis record](analysis/phase-18-p18-036-everyday-content-transfer-review-20260920.md).
 
 ## P18-035 — macOS first-class owner app and read-only Device Home
