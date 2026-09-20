@@ -14,15 +14,17 @@ or recovery behavior.
 | One root-level TXT creation | Clean native add capture and one-folder package evidence | Exact one-record construction and no-retry guarded workflow | One constrained modern root TXT add/read-back smoke | Experimental/narrow only; not a general Library transfer | Arbitrary names, state, and package shapes | Separate operation-specific review and approval for the proven shape |
 | Constrained root-level TXT deletion | Native deletion-effect evidence | Narrow surviving-state/delete candidate and verifier | One constrained modern root TXT deletion/read-back smoke | Not exposed as a normal destructive action | Recovery, generalized delete, and overwrite semantics | Preserve read-only diagnosis; no general delete exposure |
 | Ordered four-TXT package | P15-001 native ordered four-child capture | Exact ordered multi-child candidate and fake workflow | P15-003 exact four-TXT smoke/read-back | Not enabled by the P18 mixed-package product path | General child counts, profiles, and package combinations | Keep as historical constrained evidence |
-| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; P18-025 physically validated the exact reviewed VNW-V15 UI/adapter/canonical lifecycle for `IC_P18_LIBRARY_20260913_03`: one logical sender, one real `0x101b`, retries `0`, exact `0x0000`, complete post-backup, independent `readback_verified`, and preserved auxiliary/shared state | Experimental/narrow only; the normal Library path is physically verified for this exact reviewed VNW-V15 package/profile when fresh evidence and separate owner authorization are supplied; default UI state remains authorization-gated and no generalized live transfer is enabled | No blocker for this exact recorded proof; interrupted-write recovery, other shapes, broader targets, and VNW-V10 remain unavailable | Preserve the exact guarded path and require fresh operation-specific evidence and owner authorization for any future run; do not enable V10 or broader shapes |
+| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; P18-025 physically validated the exact reviewed VNW-V15 UI/adapter/canonical lifecycle for `IC_P18_LIBRARY_20260913_03`: one logical sender, one real `0x101b`, retries `0`, exact `0x0000`, complete post-backup, independent `readback_verified`, and preserved auxiliary/shared state | Reviewed narrow shape; normal readiness and the shared guarded path accept this exact reviewed VNW-V15 shape when fresh evidence and separate owner authorization are supplied; default UI state remains authorization-gated and no generalized live transfer is enabled | No blocker for this exact recorded proof; interrupted-write recovery, other shapes, broader targets, and VNW-V10 remain unavailable | Preserve the exact guarded path and require fresh operation-specific evidence and owner authorization for any future run; do not enable V10 or broader shapes |
+| Flat TXT → BMP → TXT → TXT Library package | P18-030 deterministic direct-content preparation; P18-032 physically validated the exact VNW-V15 shape and shared auxiliary-state policy in the preserved evidence namespace | `verified-vnw-v15-four-leaf-direct-v1`, exact ordered four-child profile, generic multi-package candidate/authorization/workflow/read-back seams, fresh-backup/capacity/conflict gates, and typed operation binding | P18-032 exact proof: one reviewed disposable VNW-V15 root, one logical sender, one real `0x101b`, retries `0`, explicit `0x0000`, complete post-write backup, independent `readback_verified`, exact four-leaf target, and preserved shared/unrelated state; physical counters for P18-033 remain zero | Physically verified narrow shape; normal readiness accepts the exact order and the generic guarded path remains available when fresh evidence and separate owner authorization are supplied; default UI/CLI action remains authorization-gated and no generalized live transfer is enabled | Interrupted-write recovery, broader targets, other shapes, destructive semantics, and VNW-V10 remain unavailable | Preserve the exact guarded path and require fresh operation-specific evidence and owner authorization for any future run; do not enable arbitrary four-leaf permutations or broader counts |
 | Other flat TXT/BMP combinations, nesting outside the host/offline profile, multiple packages, or batch | No sufficiently specific native evidence | Preparation may remain reviewable only where an exact profile accepts it | Not proven for transfer | Unavailable / preview-only with a precise reason | Missing exact evidence and safety model; no automatic grouping | Obtain a separately scoped evidence and review task |
 | Restore, synchronization, recovery, or alternate modes | Not established for this product boundary | No enabled candidate or execution path | Unproven | Unavailable | Physical recovery and broader state semantics | Read-only diagnosis and evidence work only |
 
 ## Exposure policy
 
 Only a row with an exact reviewed shape and complete safety gates may be
-labeled **Experimental**. The P18-001 product integration is limited to the
-flat TXT → BMP → TXT Library row and keeps unsupported items preview-only.
+labeled **Experimental**. The P18 product integration covers only the exact
+flat TXT → BMP → TXT and TXT → BMP → TXT → TXT Library rows and keeps
+unsupported items preview-only.
 Library selection identifies the logical change; the protocol still sends a
 complete candidate library image. Every future operation requires a fresh
 complete backup, immediate revalidation, exact operation-specific confirmation,
@@ -119,15 +121,15 @@ authorization, sender, or write path exists.
 
 ## P18-016 normal product readiness exposure
 
-The normal ttk Library workflow now exposes a host-only Experimental readiness
-review for exactly one explicitly selected prepared root package with exactly
-three direct children in authoritative TXT → BMP → TXT order. It shows the
-destination, prepared sizes and hashes, verified-baseline conflict information,
-lower-bound capacity information when available, and the fresh evidence still
-required for any future operation. A visible `Transfer once` affordance remains
-disabled and has no normal-UI callback. This is a product explanation of the
-reviewed VNW-V15 profile, not reusable authorization and not generalized live
-transfer capability; VNW-V10 remains uncharacterized.
+The normal ttk Library workflow now exposes a host-only reviewed-shape
+readiness review for exactly one explicitly selected prepared root package with
+authoritative TXT → BMP → TXT or TXT → BMP → TXT → TXT direct children. It
+shows the destination, prepared sizes and hashes, verified-baseline conflict
+information, lower-bound capacity information when available, and the fresh
+evidence still required for any future operation. A visible `Transfer once`
+affordance remains disabled and has no normal-UI callback. This is a product
+explanation of the reviewed VNW-V15 profiles, not reusable authorization and
+not generalized live transfer capability; VNW-V10 remains uncharacterized.
 
 ## P18-017 host execution integration
 

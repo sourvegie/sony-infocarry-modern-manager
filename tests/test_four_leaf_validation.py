@@ -27,10 +27,14 @@ from infocarry.four_leaf_validation import (
     validate_four_leaf_artifact,
     verify_four_leaf_readback,
 )
-from infocarry.prepared_content import PreparedContentArtifact
+from infocarry.prepared_content import (
+    EMPTY_SHA256,
+    PreparedContentArtifact,
+    PreparedContentChild,
+)
 from infocarry.library_transfer_readiness import build_library_transfer_readiness
 from infocarry.transfer_shape import (
-    PLAUSIBLE_FUTURE_DIRECT_LEAF_V15,
+    EXACT_VERIFIED_LIVE_PROFILE,
     assess_transfer_shape,
 )
 
@@ -130,7 +134,7 @@ class FourLeafValidationTests(unittest.TestCase):
         )
         self.assertEqual(
             artifact.artifact_identity,
-            "4b1aecada00bed36f1c053385453f75028bfebda6488b2fcbf471409f431c7f8",
+            "e680bbca1b7791d2f9133b9a6f8d7e6dd1cf449915b7519b4869b8c1a903b1cc",
         )
 
     def test_artifact_identity_changes_for_fourth_payload_reorder_and_root(self):
@@ -166,22 +170,23 @@ class FourLeafValidationTests(unittest.TestCase):
         )
         self.assertNotEqual(artifact.artifact_identity, root_changed.artifact_identity)
 
-    def test_transfer_shape_marks_four_leaf_as_future_only(self):
+    def test_transfer_shape_marks_four_leaf_as_physically_verified(self):
         _fixture, temporary, _root, _package, artifact, *_ = self._case()
         self.addCleanup(temporary.cleanup)
         assessment = assess_transfer_shape(artifact)
-        self.assertEqual(assessment.classification, PLAUSIBLE_FUTURE_DIRECT_LEAF_V15)
-        self.assertTrue(assessment.requires_capability_validation)
+        self.assertEqual(assessment.classification, EXACT_VERIFIED_LIVE_PROFILE)
+        self.assertFalse(assessment.requires_capability_validation)
         self.assertFalse(assessment.to_dict()["candidate_constructed"])
         self.assertFalse(assessment.to_dict()["authorization_created"])
 
-    def test_normal_readiness_blocks_four_leaf_but_three_leaf_remains_eligible(self):
+    def test_normal_readiness_accepts_four_leaf_and_three_leaf(self):
         _fixture, temporary, _root, package, artifact, *_ = self._case()
         self.addCleanup(temporary.cleanup)
         four = build_library_transfer_readiness(_readiness_plan(artifact))
-        self.assertTrue(four.blocked)
-        self.assertFalse(four.host_profile_eligible)
-        self.assertIn("exactly three direct children", " ".join(four.to_dict()["eligibility"]["reasons"]))
+        self.assertFalse(four.blocked)
+        self.assertTrue(four.host_profile_eligible)
+        self.assertEqual(four.to_dict()["profile"]["id"], FOUR_LEAF_VALIDATION_PROFILE_ID)
+        self.assertEqual(four.to_dict()["profile"]["exact_child_count"], 4)
 
         three_artifact = PreparedContentArtifact.from_media_package(
             type("PackageView", (), {"items": package.items[:3], "folder_name": package.folder_name})()
@@ -189,6 +194,81 @@ class FourLeafValidationTests(unittest.TestCase):
         three = build_library_transfer_readiness(_readiness_plan(three_artifact))
         self.assertFalse(three.blocked)
         self.assertTrue(three.host_profile_eligible)
+
+    def test_normal_readiness_rejects_reordered_five_nested_and_other_four_leaf_shapes(self):
+        _fixture, temporary, _root, _package, artifact, *_ = self._case()
+        self.addCleanup(temporary.cleanup)
+
+        reordered_children = tuple(
+            replace(child, order=index)
+            for index, child in enumerate(
+                (artifact.children[0], artifact.children[2], artifact.children[1], artifact.children[3])
+            )
+        )
+        reordered = PreparedContentArtifact(artifact.root_name, reordered_children)
+
+        fifth = replace(
+            artifact.children[3],
+            order=4,
+            name="05-fifth.txt",
+            path=f"{artifact.root_path}\\05-fifth.txt",
+        )
+        five = PreparedContentArtifact(artifact.root_name, (*artifact.children, fifth))
+
+        nested_folder = PreparedContentChild(
+            order=3,
+            kind="folder",
+            name="Nested",
+            path=f"{artifact.root_path}\\Nested",
+            payload_sha256=EMPTY_SHA256,
+            payload_bytes=0,
+        )
+        nested = replace(
+            artifact.children[3],
+            order=4,
+            path=f"{artifact.root_path}\\Nested\\04-extra.txt",
+        )
+        nested_artifact = PreparedContentArtifact(
+            artifact.root_name, (*artifact.children[:3], nested_folder, nested)
+        )
+
+        other_kinds = tuple(
+            replace(child, kind="bmp") if index == 3 else child
+            for index, child in enumerate(artifact.children)
+        )
+        other_shape = PreparedContentArtifact(artifact.root_name, other_kinds)
+
+        for label, value in {
+            "reordered": reordered,
+            "five": five,
+            "nested": nested_artifact,
+            "other four-leaf order": other_shape,
+        }.items():
+            with self.subTest(label=label):
+                readiness = build_library_transfer_readiness(_readiness_plan(value))
+                self.assertTrue(readiness.blocked)
+                self.assertFalse(readiness.host_profile_eligible)
+
+    def test_promoted_profile_reports_supported_shape_but_keeps_host_write_boundary(self):
+        profile = four_leaf_validation_profile()
+        self.assertEqual(profile.document["status"], "physically_verified_live_supported")
+        self.assertTrue(profile.document["operation"]["execution_allowed"])
+        self.assertTrue(profile.document["exposure"]["live_supported"])
+        self.assertFalse(profile.live_enabled)
+
+    def test_normal_four_leaf_sender_and_readback_use_shared_generic_seams(self):
+        import infocarry.prepared_library_package_bridge as bridge
+        import infocarry.prepared_library_package_live_adapter as adapter
+
+        bridge_source = inspect.getsource(bridge)
+        adapter_source = inspect.getsource(adapter)
+        self.assertIn("build_prepared_multi_package_candidate", bridge_source)
+        self.assertIn("authorize_prepared_multi_package", bridge_source)
+        self.assertIn("verify_prepared_multi_package_readback", adapter_source)
+        for source in (bridge_source, adapter_source):
+            self.assertNotIn("build_four_leaf_validation_candidate", source)
+            self.assertNotIn("verify_four_leaf_readback", source)
+            self.assertNotIn("FourLeafValidationReadback", source)
 
     def test_exact_profile_accepts_only_four_leaf_order(self):
         profile = four_leaf_validation_profile()

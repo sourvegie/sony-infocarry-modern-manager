@@ -4,7 +4,6 @@ from infocarry.offline_conversion import monochrome_bmp_bytes
 from infocarry.prepared_content import EMPTY_SHA256, PreparedContentArtifact, PreparedContentChild
 from infocarry.transfer_shape import (
     EXACT_VERIFIED_LIVE_PROFILE,
-    PLAUSIBLE_FUTURE_DIRECT_LEAF_V15,
     UNMAPPABLE_UNSUPPORTED_SHAPE,
     assess_transfer_shape,
 )
@@ -38,10 +37,10 @@ class TransferShapeTests(unittest.TestCase):
         self.assertEqual(result.classification, EXACT_VERIFIED_LIVE_PROFILE)
         self.assertFalse(result.requires_capability_validation)
 
-    def test_other_flat_leaf_shapes_are_future_only(self):
+    def test_four_leaf_shape_matches_second_physically_verified_profile(self):
         result = assess_transfer_shape(_artifact(("txt", "bmp", "txt", "txt")))
-        self.assertEqual(result.classification, PLAUSIBLE_FUTURE_DIRECT_LEAF_V15)
-        self.assertTrue(result.requires_capability_validation)
+        self.assertEqual(result.classification, EXACT_VERIFIED_LIVE_PROFILE)
+        self.assertFalse(result.requires_capability_validation)
 
     def test_nested_shapes_are_unmappable(self):
         folder = PreparedContentChild(

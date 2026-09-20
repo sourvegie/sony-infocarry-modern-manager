@@ -1,6 +1,41 @@
 # Current Project Status
 
-Date: 2026-09-19
+Date: 2026-09-20
+
+## P18-033 — Verified VNW-V15 four-leaf capability codification (host-only)
+
+P18-033 is the R2 host-only capability promotion on
+`task/P18-033-v15-four-leaf-capability-codification`, based exactly on
+`a57a1ec2bbe3bfcfef5633d58136aeb48ff443a4`. It codifies the exact physically
+verified VNW-V15 direct-leaf shape `TXT → BMP → TXT → TXT` from the preserved
+P18-032 evidence namespace
+`/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-032-v15-four-leaf-physical-validation-20260920-75FHwI`.
+The built-in profile is now
+`verified-vnw-v15-four-leaf-direct-v1` with profile SHA-256
+`74159694d370665a0055030c6091f564293af1a7e97a4ac5af35280bc21e5a39` and
+status `physically_verified_live_supported`.
+
+Normal readiness accepts both exact reviewed direct-leaf orders
+`TXT → BMP → TXT` and `TXT → BMP → TXT → TXT`; reordered four-leaf shapes,
+five leaves, arbitrary permutations, nesting, overwrite/conflict targets, and
+VNW-V10 remain blocked. The four-leaf path uses the existing generic candidate,
+authorization, guarded workflow, sender, and independent read-back seams; the
+historical validation helper remains only as a compatibility adapter. The
+profile records support, but the host foundation still keeps `live_enabled`
+false and the normal Transfer action disabled until fresh operation-specific
+evidence and owner approval are supplied.
+
+This task has performed no USB or device-changing operation. Physical
+counters are strictly zero: USB/device operations 0, sender calls 0, real
+`0x101b` 0, claims consumed 0, sender-marker mutations 0, and
+installation-wide-lock mutations 0. Focused P18-033 and P18-025→P18-032
+regressions are green; the full portable suite is 883 tests with 880 passed
+and 3 documented skips. Exact-head independent R2 review passed with
+`P0=0, P1=0, P2=0`; PR #60 is open and unmerged against `main`; GitHub
+`Offline tests` run `35456901297` passed on both macOS and Windows. PM
+acceptance is the remaining gate.
+The durable record is the
+[P18-033 analysis record](analysis/phase-18-p18-033-v15-four-leaf-capability-codification-20260920.md).
 
 ## P18-032 — VNW-V15 four-leaf auxiliary-state policy closure (host-only)
 

@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
 from .capability_profile import (
-    FOUR_LEAF_VALIDATION_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
 )
 from .capacity_evidence import NativeCapacityResponse
@@ -432,6 +431,29 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 "no separately authorized fresh operation is configured"
             )
+        report_profile = readiness.report.get("profile", {})
+        if (
+            not isinstance(report_profile, Mapping)
+            or report_profile.get("id") != binding.profile_id
+        ):
+            raise LibraryTransferExecutionError(
+                "the selected package shape differs from the current operation profile"
+            )
+        if not readiness.host_profile_eligible:
+            eligibility = readiness.report.get("eligibility", {})
+            reasons = (
+                eligibility.get("reasons", [])
+                if isinstance(eligibility, Mapping)
+                else []
+            )
+            detail = (
+                reasons[0]
+                if reasons and isinstance(reasons[0], str)
+                else "reviewed readiness is blocked"
+            )
+            raise LibraryTransferExecutionError(
+                f"the selected package is not ready for the current operation: {detail}"
+            )
         package = readiness.report.get("package", {})
         folder_path = package.get("folder_path") if isinstance(package, Mapping) else None
         expected_path = f"root\\{binding.target_folder_name}"
@@ -444,43 +466,6 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 "the current operation target already exists; no replacement target is selected"
             )
-        if not readiness.host_profile_eligible:
-            if binding.profile_id != FOUR_LEAF_VALIDATION_PROFILE_ID:
-                raise LibraryTransferExecutionError(
-                    "the selected package is outside the exact VNW-V15 host profile"
-                )
-            profile = guarded_execution_profile(binding.profile_id)
-            package = readiness.report.get("package", {})
-            destination_paths = (
-                package.get("paths") if isinstance(package, Mapping) else None
-            )
-            expected_paths = [
-                f"root\\{binding.target_folder_name}",
-                *[
-                    f"root\\{binding.target_folder_name}\\{name}"
-                    for name in profile.child_names
-                ],
-            ]
-            ordered_children = (
-                package.get("ordered_children")
-                if isinstance(package, Mapping)
-                else None
-            )
-            if destination_paths != expected_paths or not isinstance(
-                ordered_children, list
-            ) or len(ordered_children) != len(profile.child_kinds):
-                raise LibraryTransferExecutionError(
-                    "the selected package is outside the exact four-leaf validation profile"
-                )
-            for child, kind, name in zip(
-                ordered_children, profile.child_kinds, profile.child_names
-            ):
-                if not isinstance(child, Mapping) or (
-                    child.get("kind"), child.get("name")
-                ) != (kind, name):
-                    raise LibraryTransferExecutionError(
-                        "the selected package is outside the exact four-leaf validation profile"
-                    )
 
     def refresh_live_preflight(
         self,
@@ -695,14 +680,13 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 "the Library plan changed after review; obtain a new fresh preflight"
             )
-        if binding.profile_id != FOUR_LEAF_VALIDATION_PROFILE_ID:
-            try:
-                validate_library_transfer_readiness(prepared.readiness.report)
-            except LibraryTransferReadinessError as exc:
-                self._prepared_operation = None
-                raise LibraryTransferExecutionError(
-                    f"readiness review integrity failed: {exc}"
-                ) from exc
+        try:
+            validate_library_transfer_readiness(prepared.readiness.report)
+        except LibraryTransferReadinessError as exc:
+            self._prepared_operation = None
+            raise LibraryTransferExecutionError(
+                f"readiness review integrity failed: {exc}"
+            ) from exc
         if runner_overrides.get("retry") or runner_overrides.get("automatic_retry"):
             self._prepared_operation = None
             raise LibraryTransferExecutionError("automatic retry is not supported")

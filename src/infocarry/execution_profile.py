@@ -1,9 +1,9 @@
 """Exact profiles accepted by the guarded live execution boundary.
 
-The normal product profile remains the reviewed TXT/BMP/TXT operation.  The
-four-leaf profile is an explicit operation-specific validation shape; keeping
-the two descriptors here prevents the live runner from accidentally inheriting
-the broader host-side 1--8 child envelope.
+The descriptors remain narrow exact shapes so the guarded runner cannot
+inherit the broader host-side 1--8 child envelope.  Both descriptors are
+normal reviewed VNW-V15 shapes; operation identity and fresh safety evidence
+remain transaction-specific at the caller boundary.
 """
 
 from __future__ import annotations
@@ -12,14 +12,9 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .capability_profile import (
-    FOUR_LEAF_VALIDATION_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
+    VNW_V15_FOUR_LEAF_PROFILE_ID,
     capability_profile_by_id,
-)
-from .four_leaf_validation import (
-    FOUR_LEAF_CHILD_KINDS,
-    FOUR_LEAF_CHILD_NAMES,
-    FOUR_LEAF_VALIDATION_TARGET,
 )
 
 
@@ -28,6 +23,13 @@ FRESH_CHILD_NAMES = (
     "01-introduction.txt",
     "02-page-01.bmp",
     "03-ending.txt",
+)
+FOUR_LEAF_CHILD_KINDS = ("txt", "bmp", "txt", "txt")
+FOUR_LEAF_CHILD_NAMES = (
+    "01-introduction.txt",
+    "02-page-01.bmp",
+    "03-ending.txt",
+    "04-extra.txt",
 )
 
 
@@ -62,12 +64,12 @@ _PROFILES = {
         child_kinds=FRESH_CHILD_KINDS,
         child_names=FRESH_CHILD_NAMES,
     ),
-    FOUR_LEAF_VALIDATION_PROFILE_ID: GuardedExecutionProfile(
-        profile_id=FOUR_LEAF_VALIDATION_PROFILE_ID,
+    VNW_V15_FOUR_LEAF_PROFILE_ID: GuardedExecutionProfile(
+        profile_id=VNW_V15_FOUR_LEAF_PROFILE_ID,
         child_kinds=tuple(FOUR_LEAF_CHILD_KINDS),
         child_names=tuple(FOUR_LEAF_CHILD_NAMES),
-        exact_target=FOUR_LEAF_VALIDATION_TARGET,
-        operation_specific=True,
+        exact_target=None,
+        operation_specific=False,
     ),
 }
 
@@ -88,7 +90,7 @@ def is_guarded_execution_profile(profile_id: str) -> bool:
 __all__ = [
     "FRESH_CHILD_KINDS",
     "FRESH_CHILD_NAMES",
-    "FOUR_LEAF_VALIDATION_PROFILE_ID",
+    "VNW_V15_FOUR_LEAF_PROFILE_ID",
     "GuardedExecutionProfile",
     "guarded_execution_profile",
     "is_guarded_execution_profile",

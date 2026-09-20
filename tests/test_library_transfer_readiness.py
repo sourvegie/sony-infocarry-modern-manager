@@ -395,7 +395,7 @@ class LibraryTransferReadinessTests(unittest.TestCase):
             build_library_transfer_readiness(_plan(baseline=True)).to_dict()
         )
         for text in (
-            "Experimental profile eligible — live transfer not enabled in this build",
+            "Verified VNW-V15 shape eligible — guarded live transfer requires fresh evidence",
             "Root destination: root\\Book",
             "TXT 01-introduction.txt",
             "BMP 02-page-01.bmp",
@@ -407,6 +407,8 @@ class LibraryTransferReadinessTests(unittest.TestCase):
             self.assertIn(text, summary)
         self.assertNotIn("APPROVE", summary)
         self.assertNotIn("ADD IC_", summary)
+        self.assertNotIn("validation-only", summary.casefold())
+        self.assertNotIn("validation only", summary.casefold())
 
     def test_normal_ttk_surface_has_no_live_sender_route(self):
         source = inspect.getsource(launch_ttk_desktop)

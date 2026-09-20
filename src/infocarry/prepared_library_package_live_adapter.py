@@ -9,7 +9,7 @@ capacity, backup, and write boundary; host tests inject fakes only.
 The historical default operation is the P17-004 profile: one explicitly
 imported Library package, destination ``IC_P18_LIBRARY_20260907_01``, and
 ordered TXT/BMP/TXT children.  A typed fresh operation binding may also be
-provided by the product facade for the separately reviewed validation target.
+provided by the product facade for another separately reviewed exact shape.
 The adapter is a future execution boundary,
 not a product transfer API and not a claim of physical compatibility.
 """
@@ -34,7 +34,6 @@ from .backup_state_identity import (
 )
 from .capacity_evidence import NativeCapacityResponse
 from .capability_profile import (
-    FOUR_LEAF_VALIDATION_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
 )
 from .execution_profile import guarded_execution_profile
@@ -76,10 +75,6 @@ from .prepared_multi_package_gate import (
 from .prepared_package_multi_verify import (
     PreparedMultiPackageReadback,
     verify_prepared_multi_package_readback,
-)
-from .four_leaf_validation import (
-    FourLeafValidationReadback,
-    verify_four_leaf_readback,
 )
 from .protocol import TransferCancelledError
 from .write_gate import (
@@ -229,25 +224,9 @@ def _verify_profile_readback(
     completion: Any,
     now: Optional[datetime],
     max_age_seconds: Optional[float],
-) -> PreparedMultiPackageReadback | FourLeafValidationReadback:
-    """Use the shared verifier, with the four-leaf profile's exact wrapper."""
+) -> PreparedMultiPackageReadback:
+    """Use the canonical ordered-package readback verifier for every shape."""
 
-    profile_id = _profile_id_from_candidate(candidate)
-    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
-        try:
-            return verify_four_leaf_readback(
-                candidate.core,
-                post_directory,
-                completion=completion,
-                now=now,
-                max_age_seconds=max_age_seconds,
-            )
-        except Exception as exc:
-            raise PreparedLibraryPackageLiveAdapterError(
-                f"four-leaf read-back verification failed: {exc}",
-                stage="post_operation_readback",
-                state="failed",
-            ) from exc
     return verify_prepared_multi_package_readback(
         candidate.core,
         post_directory,
@@ -939,15 +918,6 @@ def _validate_result_audit(
         "details",
         "automatic_retry",
     }
-    if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
-        verification_required.update(
-            {
-                "validation_profile_id",
-                "validation_profile_sha256",
-                "validation_artifact_identity",
-                "execution_enabled",
-            }
-        )
     if not isinstance(verification, Mapping) or set(verification) != verification_required or (
         verification.get("format") != "infocarry-ordered-package-readback-v1"
         or verification.get("state") != "readback_verified"
@@ -969,17 +939,6 @@ def _validate_result_audit(
         or not _backup_report_matches(
             after_backup,
             verification.get("after_backup"),
-        )
-        or (
-            profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID
-            and (
-                verification.get("validation_profile_id") != profile_id
-                or verification.get("validation_profile_sha256")
-                != preflight.candidate.library_binding.get("profile_sha256")
-                or verification.get("validation_artifact_identity")
-                != preflight.candidate.library_binding.get("artifact_identity")
-                or verification.get("execution_enabled") is not False
-            )
         )
     ):
         raise PreparedLibraryPackageLiveAdapterError(
@@ -1364,7 +1323,7 @@ def load_prepared_library_package_live_preflight(
         ) from exc
     if operation_binding is None and profile_id != INITIAL_EXPERIMENTAL_PROFILE_ID:
         raise PreparedLibraryPackageLiveAdapterError(
-            "typed operation binding is required for an operation-specific sealed preflight",
+            "typed operation binding is required for a non-default exact-shape sealed preflight",
             stage="preflight_load",
             state="failed",
             audit={"operation_sequence": []},
@@ -1754,7 +1713,7 @@ def _resolve_prepared_library_package_operation_bundle(
             raise ValueError("capacity response differs from the sealed bundle")
         if binding.get("profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID) != INITIAL_EXPERIMENTAL_PROFILE_ID and bundle.operation_id is None:
             raise OperationBundleError(
-                "operation-specific operation bundles require a typed operation id"
+                "non-default exact-shape operation bundles require a typed operation id"
             )
         preflight = load_prepared_library_package_live_preflight(
             report_path,
@@ -1814,7 +1773,7 @@ class PreparedLibraryPackageLiveResult:
     before_backup: VerifiedBackup
     after_backup: VerifiedBackup
     completion: int
-    verification: PreparedMultiPackageReadback | FourLeafValidationReadback
+    verification: PreparedMultiPackageReadback
     audit: Mapping[str, Any]
 
 
@@ -1859,7 +1818,7 @@ class PreparedLibraryPackageLiveWrapperResult:
     """
 
     runner_result: PreparedLibraryPackageLiveResult
-    verification: PreparedMultiPackageReadback | FourLeafValidationReadback
+    verification: PreparedMultiPackageReadback
     audit: Mapping[str, Any]
 
     @property
@@ -1999,16 +1958,9 @@ def reconcile_prepared_library_package_live_result(
         fail("runner before backup does not match sealed preflight state", "post_backup")
     if before_identity != candidate_identity:
         fail("runner before backup does not match candidate backup state", "post_backup")
-    if not isinstance(
-        result.verification,
-        (PreparedMultiPackageReadback, FourLeafValidationReadback),
-    ):
+    if not isinstance(result.verification, PreparedMultiPackageReadback):
         fail("runner read-back result is malformed", "readback")
-    runner_verification = (
-        result.verification.verification
-        if isinstance(result.verification, FourLeafValidationReadback)
-        else result.verification
-    )
+    runner_verification = result.verification
     if (
         not result.verification.success
         or type(runner_verification.completion) is not int
@@ -2055,16 +2007,8 @@ def reconcile_prepared_library_package_live_result(
         "post_backup_verified": True,
         "independent_readback_verified": True,
         "verification": {
-            "shared_path_count": (
-                independent.verification.shared_path_count
-                if isinstance(independent, FourLeafValidationReadback)
-                else independent.shared_path_count
-            ),
-            "details": dict(
-                independent.verification.details
-                if isinstance(independent, FourLeafValidationReadback)
-                else independent.details
-            ),
+            "shared_path_count": independent.shared_path_count,
+            "details": dict(independent.details),
             "automatic_retry": False,
         },
         "automatic_retry_allowed": False,
@@ -3058,15 +3002,6 @@ def write_prepared_library_package_evidence_manifest(
         "details",
         "automatic_retry",
     ]
-    if _profile_id_from_candidate(preflight.candidate) == FOUR_LEAF_VALIDATION_PROFILE_ID:
-        verification_keys.extend(
-            [
-                "validation_profile_id",
-                "validation_profile_sha256",
-                "validation_artifact_identity",
-                "execution_enabled",
-            ]
-        )
     for key in verification_keys:
         if actual_verification.get(key) != expected_verification.get(key):
             raise PreparedLibraryPackageLiveAdapterError(
