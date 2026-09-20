@@ -1,18 +1,29 @@
 import errno
+import hashlib
 import inspect
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from infocarry.backup_format import BackupFormatError
+from infocarry.app_paths import application_paths
 from infocarry.desktop_ttk import (
     LIBRARY_DEFAULT_GEOMETRY,
     LIBRARY_DETAIL_MIN_WIDTH,
     LIBRARY_LIST_MIN_WIDTH,
     LIBRARY_MINIMUM_GEOMETRY,
+    _application_safety_notice,
+    _application_write_safety_status,
+    _initial_device_home_status,
     _library_package_shape,
+    _persistent_safety_unavailable_message,
     format_library_device_tree_preview,
     format_library_preparation_audit,
     format_library_transfer_plan,
+    format_early_transfer_eligibility_summary,
+    _try_create_application_write_safety_owner,
     format_experimental_library_transfer_review,
     format_library_host_only_terminal_state,
     format_library_preparation_summary,
@@ -29,9 +40,107 @@ from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.library_transfer_execution import LibraryTransferExecutionError
 from infocarry.library_transfer_readiness import ReadinessAction, ReadinessState
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
+from infocarry.execution_claim_store import ExecutionClaimStoreError
+from infocarry.prepared_content import EMPTY_SHA256, PreparedContentArtifact, PreparedContentChild
+from infocarry.write_safety_boundary import create_default_application_write_safety_owner
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_invalid_persistent_claim_store_keeps_ui_safety_owner_closed(self):
+        paths = application_paths(
+            home=Path("/test-home"), platform="darwin", os_name="posix", environ={}
+        )
+        with patch(
+            "infocarry.desktop_ttk.create_default_application_write_safety_owner",
+            side_effect=ExecutionClaimStoreError("existing execution claim store is corrupt"),
+        ):
+            owner, explanation = _try_create_application_write_safety_owner(paths)
+
+        self.assertIsNone(owner)
+        self.assertEqual(explanation, "existing execution claim store is corrupt")
+        self.assertEqual(_application_safety_notice(owner, explanation), explanation)
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("_try_create_application_write_safety_owner", source)
+        safety_message_source = inspect.getsource(_persistent_safety_unavailable_message)
+        self.assertIn("Read-only Device Home remains available", safety_message_source)
+        self.assertIn("Device-changing actions are disabled", safety_message_source)
+        self.assertIn("textvariable=safety_state_var", source)
+        self.assertIn("safety_state_label.grid(row=5, column=0", source)
+        self.assertIn("safety_state_var.set(_persistent_safety_unavailable_message(detail))", source)
+        self.assertIn("initial_safety_detail = _application_safety_notice(", source)
+
+    def test_active_global_lock_has_visible_actionable_read_only_message(self):
+        with TemporaryDirectory(prefix="infocarry-ui-lock-") as temporary:
+            paths = application_paths(
+                home=Path(temporary), platform="darwin", os_name="posix", environ={}
+            )
+            owner = create_default_application_write_safety_owner(paths=paths)
+            owner.indeterminate_write_lock.record_indeterminate(
+                reason="fixture unresolved outcome",
+                evidence_root="fixture-evidence",
+                model_key=owner.device_model_profile.lock_key,
+                incident_id="incident-active",
+                attempt_id="attempt-active",
+            )
+            available, detail = _application_write_safety_status(owner)
+            self.assertFalse(available)
+            self.assertIsNotNone(detail)
+            startup_detail = _application_safety_notice(owner, None)
+            self.assertEqual(startup_detail, detail)
+            message = _persistent_safety_unavailable_message(startup_detail or "")
+            self.assertIn("Read-only Device Home remains available", message)
+            self.assertIn("globally locked", message)
+            self.assertIn("Do not remove or recreate the safety files", message)
+
+    def test_device_home_startup_does_not_claim_disconnected_before_inspection(self):
+        heading, message = _initial_device_home_status()
+
+        self.assertEqual(heading, "Device status not checked")
+        self.assertIn("Refresh Device Home to check", message)
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("_initial_device_home_status()", source)
+
+    def test_early_transfer_eligibility_names_exact_supported_shapes(self):
+        self.assertIn("TXT → BMP → TXT", format_early_transfer_eligibility_summary())
+        self.assertIn("TXT → BMP → TXT → TXT", format_early_transfer_eligibility_summary())
+
+        def artifact(kinds):
+            children = tuple(
+                PreparedContentChild(
+                    order=index,
+                    kind=kind,
+                    name=f"child-{index}.{kind}",
+                    path=f"root\\Book\\child-{index}.{kind}",
+                    payload_sha256=EMPTY_SHA256 if kind == "folder" else "0" * 64,
+                    payload_bytes=0,
+                    payload_path=None if kind == "folder" else f"prepared/{index}",
+                )
+                for index, kind in enumerate(kinds)
+            )
+            return PreparedContentArtifact("Book", children)
+
+        for kinds, display_shape in (
+            (("txt", "bmp", "txt"), "TXT → BMP → TXT"),
+            (("txt", "bmp", "txt", "txt"), "TXT → BMP → TXT → TXT"),
+        ):
+            summary = format_early_transfer_eligibility_summary(artifact(kinds))
+            self.assertIn(f"{display_shape} matches an exact verified VNW-V15 shape", summary)
+            self.assertIn("Fresh device evidence", summary)
+        self.assertIn(
+            "currently unsupported for transfer",
+            format_early_transfer_eligibility_summary(artifact(("txt", "txt"))),
+        )
+
+    def test_device_home_is_first_tab_and_uses_shared_read_only_inspection(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertLess(source.index('notebook.add(device_tab, text="Device")'), source.index('notebook.add(library_tab, text="Library")'))
+        self.assertIn('text="Back Up Now"', source)
+        self.assertIn('text="Technical Details…"', source)
+        self.assertIn("device_home_service.inspect()", source)
+        self.assertIn("remember_complete_backup(application_data_paths, destination)", source)
+        self.assertIn("device_home_frame.bind(\"<Configure>\"", source)
+        self.assertIn("Backup ≠ Restore: backups are read-only snapshots; Restore is unavailable.", source)
+
     def test_normal_library_formatters_hide_technical_identities(self):
         state = ReadinessState(
             state="needs_review",
@@ -54,18 +163,16 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("NOT READY TO TRANSFER", format_library_readiness_summary(blocked))
 
     def test_prepare_and_preview_use_the_same_canonical_artifact(self):
-        child = SimpleNamespace(
+        child = PreparedContentChild(
             order=0,
             kind="txt",
             name="chapter.txt",
             path="root\\Book\\chapter.txt",
+            payload_sha256=hashlib.sha256(b"prepared txt").hexdigest(),
             payload_bytes=12,
+            payload_path="prepared/Book/chapter.txt",
         )
-        artifact = SimpleNamespace(
-            root_path="root\\Book",
-            children=(child,),
-            aggregate_size=12,
-        )
+        artifact = PreparedContentArtifact("Book", (child,))
         result = SimpleNamespace(artifact=artifact)
         prepare = format_library_preparation_summary(result)
         preview = format_library_preview_summary(result)
@@ -73,8 +180,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("PREVIEW", preview)
         self.assertIn("root\\Book\\chapter.txt", preview)
         self.assertIn("same current prepared content", preview)
-        self.assertNotIn("sha", prepare.lower())
-        self.assertNotIn("sha", preview.lower())
+        self.assertNotIn("sha-256", prepare.lower())
+        self.assertNotIn("sha-256", preview.lower())
 
     def test_host_only_terminal_state_is_truthful(self):
         summary = format_library_host_only_terminal_state()

@@ -68,3 +68,4 @@ dist/
 *.egg-info/
 *.spec
 !packaging/windows/InfoCarry-Manager.spec
+!packaging/macos/InfoCarry-Manager.spec

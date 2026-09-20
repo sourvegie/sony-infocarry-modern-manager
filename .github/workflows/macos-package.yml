@@ -1,0 +1,93 @@
+name: macOS package
+
+on:
+  push:
+    branches: [task/P18-035-macos-owner-app-device-home]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-arm64:
+    name: Apple Silicon onedir app (Tk 9)
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install official Python 3.14.7 runtime with Tcl/Tk 9
+        shell: bash
+        run: |
+          installer="$RUNNER_TEMP/python-3.14.7-macos11.pkg"
+          url="https://www.python.org/ftp/python/3.14.7/python-3.14.7-macos11.pkg"
+          expected_sha256="70c5239ad2d62925d2947e46921d0ddd3d35be3d2f0a2d50db33da507dbcb419"
+          /usr/bin/curl --fail --location --silent --show-error "$url" --output "$installer"
+          actual_sha256="$(/usr/bin/shasum -a 256 "$installer" | /usr/bin/awk '{print $1}')"
+          if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+            echo "Official Python installer SHA-256 mismatch: $actual_sha256" >&2
+            exit 1
+          fi
+          sudo /usr/sbin/installer -pkg "$installer" -target /
+          echo "/Library/Frameworks/Python.framework/Versions/3.14/bin" >> "$GITHUB_PATH"
+
+      - name: Verify arm64 build interpreter and Tcl/Tk
+        shell: bash
+        run: |
+          python3.14 -c 'import platform,sys,tkinter; print("Python:", sys.version); print("Architecture:", platform.machine()); print("Tcl/Tk:", tkinter.TkVersion); assert platform.machine() == "arm64"; assert tkinter.TkVersion >= 9.0'
+          python3.14 -m venv .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Build the pinned onedir application
+        shell: bash
+        run: ./scripts/build_macos_package.sh
+
+      - name: Run frozen app through LaunchServices from Japanese working directory
+        shell: bash
+        run: |
+          smoke_root="$RUNNER_TEMP/InfoCarry macOS Finder Smoke"
+          working_directory="$smoke_root/作業 フォルダー"
+          mkdir -p "$working_directory"
+          app="$GITHUB_WORKSPACE/dist/InfoCarry Manager.app"
+          report="$smoke_root/RUNTIME-SMOKE.json"
+          (
+            cd "$working_directory"
+            /usr/bin/open -W -n "$app" --args --runtime-smoke "$report"
+          )
+          /usr/bin/python3 - "$report" <<'PY'
+          import json
+          import pathlib
+          import sys
+          report = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if report.get("status") != "passed":
+              raise SystemExit("packaged runtime smoke did not pass")
+          PY
+          cp "$report" "dist/RUNTIME-SMOKE-CI.json"
+          /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"
+          cat "dist/InfoCarry Manager.app/Contents/Resources/BUILD-INFO.json"
+
+      - name: Archive the distributable application
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/InfoCarry-Manager-macos-arm64-py3.14.7-tk9.zip"
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "dist/InfoCarry Manager.app" "$archive"
+          echo "Package archive: $archive"
+
+      - name: Publish the macOS arm64 package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InfoCarry-Manager-macos-arm64-py3.14.7-tk9
+          path: |
+            ${{ runner.temp }}/InfoCarry-Manager-macos-arm64-py3.14.7-tk9.zip
+            dist/RUNTIME-SMOKE-CI.json
+          if-no-files-found: error
+          retention-days: 30

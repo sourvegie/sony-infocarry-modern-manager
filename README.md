@@ -156,6 +156,57 @@ The step-by-step desktop workflow and recovery guidance are in
 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md). The v0.1 manual smoke-test evidence
 is recorded in [`analysis/phase-9-usability-check.md`](analysis/phase-9-usability-check.md).
 
+### macOS Apple Silicon packaged desktop app
+
+P18-035 adds an onedir PyInstaller application bundle for Apple Silicon. Build
+on an arm64 Mac with CPython 3.12 or newer and Tcl/Tk 9 or newer:
+
+```sh
+python3.14 -m venv .venv
+PYTHON="$PWD/.venv/bin/python" ./scripts/build_macos_package.sh
+```
+
+Use a CPython 3.12+ build interpreter that already supplies Tcl/Tk 9. The
+script installs pinned packaging requirements into that interpreter, checks the
+runtime and architecture, and builds `dist/InfoCarry Manager.app`. The bundle
+contains the selected CPython runtime, Tcl/Tk, PyUSB, the user-mode libusb
+library, license files, and build metadata. The finished app does not need an
+activated environment, Python on `PATH`, or Homebrew. `--skip-install` can be
+passed when the selected environment already has the pinned requirements.
+GitHub Actions builds with the official stable Python 3.14.7 macOS installer;
+`BUILD-INFO.json` records the actual runtime and package layout for each build.
+
+Local packages receive an ad-hoc code signature so the bundle has an
+integrity signature without requiring a paid Apple Developer account. They
+are not Developer ID signed or notarized. Gatekeeper may show a warning or
+block a downloaded copy; keep Gatekeeper enabled and use only a package whose
+source you trust. Public distribution would require Developer ID signing,
+hardened runtime configuration, Apple notarization, and a stapled ticket.
+
+macOS data stays at the pre-existing
+`~/Library/Application Support/SonyInfoCarryModernManager/` root so a new app
+cannot sidestep old safety state. It contains the `execution-claims.sqlite3`
+database (including sender-start markers), the
+`indeterminate-write-lock.json`, the `library.json` catalog, app-managed
+`Backups/`, `Evidence/`, `Prepared Content/Source Metadata/`, and disposable
+`Cache/Previews/`. `Backups/latest-complete.json` is only a pointer to a
+backup that is revalidated when opened; a saved backup never substitutes for
+fresh write evidence. There is no automatic safety-state migration. If the
+legacy claims database is missing from an existing support directory, or
+safety files appear in a proposed alternate InfoCarry root, device-changing
+actions fail closed while read-only functions remain available.
+
+The default Device tab gives a calm disconnected/connected state, queries
+capacity only for the reviewed VNW-V15, shows a loaded complete-backup baseline
+without calling it free space, and offers `Back Up Now`, `Show in Finder`, and
+selected-content export. Backup means a read-only snapshot; Restore is
+unavailable. Technical USB details remain behind `Technical Details`.
+Automated smoke checks the frozen app from a Finder-like environment, Tk 9,
+bundled resources and libusb, Japanese paths, clean shutdown, and zero
+enumeration/sender/safety mutations. Retina rendering, normal resizing,
+keyboard/focus behavior, and native open/save dialogs still need owner visual
+checks. See the [P18-035 analysis record](analysis/phase-18-p18-035-macos-owner-app-device-home-20260920.md).
+
 ### Windows x64 packaged desktop build
 
 The Windows deployment baseline is a PyInstaller one-folder distribution of

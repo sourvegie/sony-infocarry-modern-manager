@@ -48,8 +48,8 @@ class WindowsUsbBackendTests(unittest.TestCase):
 
         find.assert_not_called()
 
-    def test_non_windows_keeps_pyusb_platform_default(self):
-        with patch("infocarry.usb_access.sys.platform", "darwin"), patch(
+    def test_linux_keeps_pyusb_platform_default(self):
+        with patch("infocarry.usb_access.sys.platform", "linux"), patch(
             "infocarry.usb_access._windows_libusb_backend"
         ) as windows_backend, patch("usb.core.find", return_value=()) as find:
             self.assertEqual(find_devices(), [])
