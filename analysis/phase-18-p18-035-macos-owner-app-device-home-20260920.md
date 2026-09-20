@@ -5,11 +5,11 @@ Branch: `task/P18-035-macos-owner-app-device-home`
 Canonical base: `3b6697eac01b6c35d588d163325bedb99ddf76ff`
 Risk: R2 product/runtime work; R3-quality review required for persistent
 write-safety path changes.
-State: PR #62 is open against the exact canonical base. The published head
-`47b2dde` contains the final first-launch status correction. It passes local
-validation; offline run 189, macOS package run 6, Windows package run 13, and
-fresh exact-head review are pending, as is PM acceptance. Its parent head
-`dd1e49a` passed all three CI workflows, including LaunchServices smoke.
+State: PR #62 is open against the exact canonical base. The final code commit
+is `47b2dde`; record cleanup is `6672f68`. Offline run 190 passed on macOS and
+Windows, macOS package run 8 and Windows package run 14 passed, and independent
+exact-head review approved `6672f68` with no actionable findings. PM acceptance
+remains pending.
 
 ## Packaging method and runtime
 
@@ -102,14 +102,17 @@ was ignored by Git, and the Windows packaged smoke referenced a removed
 private path helper and the old window title. The spec is now explicitly
 tracked; the smoke uses the shared path abstraction and current product title.
 The macOS build metadata also now reports the actual Resources and Frameworks
-locations. The prior published head's offline run 188, macOS package run 4,
-and Windows package run 12 all passed. The macOS LaunchServices open from a
-Japanese working directory and the Windows packaged runtime smoke both
-passed. A later review found that the UI initially claimed disconnection
-before checking and left an active safety-lock notice blank until a guarded
-action was attempted. The current local correction shows an unchecked device
-status and initializes the visible safety notice at launch. Commit `47b2dde`
-is now published; its CI rerun and fresh exact-head review are pending.
+locations. The macOS package run 8 and Windows package run 14 passed on commit
+`6672f68`. The macOS LaunchServices open from a Japanese working directory and
+the Windows packaged runtime smoke both passed. The macOS artifact
+`InfoCarry-Manager-macos-arm64-py3.14.7-tk9` has SHA-256
+`f474473d100dc42410bc49974f5eff87e87f2472a9075d8822a1b837cea90992`; the
+Windows artifact `InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9` has SHA-256
+`42acf642789b1fd4d530ab1464ce00441011dc75147ebe6e818ec4e8c2be149b`. A later
+review found that the UI initially claimed disconnection before checking and
+left an active safety-lock notice blank until a guarded action was attempted.
+Commit `47b2dde` corrects both states. Exact-head review then approved
+`6672f68` with no actionable findings.
 
 The local LaunchServices smoke could not launch the bundle from the isolated
 `/private/tmp` worktree: `open` returned `kLSNoExecutableErr`, and local
@@ -127,6 +130,4 @@ Mac, Retina and normal scaling, resizing, keyboard/focus behavior, native
 open/save dialogs, long Japanese paths, and useful error dialogs. No
 read-only physical VNW-V15 inspection was performed.
 
-The next gate is publication against the exact canonical base, passing macOS
-and Windows CI, a fresh independent exact-head review of the safety path and
-package, and PM acceptance. Do not merge before that acceptance.
+The remaining gate is PM acceptance. Do not merge before that acceptance.
