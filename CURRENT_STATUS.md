@@ -2,6 +2,27 @@
 
 Date: 2026-09-20
 
+## P18-035 — macOS first-class owner app and read-only Device Home
+
+P18-035 is in progress on `task/P18-035-macos-owner-app-device-home`, based
+exactly on `3b6697eac01b6c35d588d163325bedb99ddf76ff`. The task adds an
+Apple Silicon onedir `.app`, bundled CPython/Tcl-Tk/PyUSB/libusb, a first-tab
+read-only Device Home, complete-backup history/actions, explicit capacity and
+transfer-shape wording, and a centralized path abstraction. The historical
+macOS application-support directory remains authoritative for claims,
+sender-start state, and the installation-wide lock; no state migration or
+device capability expansion occurred.
+
+Local arm64 packaging and strict ad-hoc signature verification pass. The
+focused P18-035 suite is 60/60; the full portable suite is 922 passed with 3
+intentional skips; `compileall` and `git diff --check` pass. Local
+LaunchServices cannot index the app from its isolated `/private/tmp` worktree,
+so the Finder-equivalent open result is pending the macOS CI workflow. Windows
+backend tests passed locally, while macOS/Windows CI, fresh exact-head R3-quality
+review of the safety paths, publication, and PM acceptance remain pending. No
+physical device access or device-changing operation occurred. See the
+[P18-035 analysis record](analysis/phase-18-p18-035-macos-owner-app-device-home-20260920.md).
+
 ## P18-034 — Windows packaging & deployment baseline (host-only)
 
 P18-034 establishes a reproducible Windows x64 one-folder build of the

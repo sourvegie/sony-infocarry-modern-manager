@@ -13,7 +13,6 @@ import json
 import os
 import re
 import shutil
-import sys
 import tempfile
 import uuid
 from dataclasses import dataclass, field, replace
@@ -23,6 +22,7 @@ from typing import Any, Iterable, Optional
 
 from .prepared_package import PreparedPackageError, _validate_component
 from .prepared_content import PreparedContentArtifact, PreparedContentError
+from .app_paths import application_paths
 
 
 LIBRARY_FORMAT = "infocarry-library-v1"
@@ -213,16 +213,7 @@ def _validate_sha256(value: Any, label: str) -> str:
 
 def default_catalog_path() -> Path:
     """Return the per-user catalog path, outside the source checkout."""
-
-    if sys.platform == "darwin":
-        root = Path.home() / "Library" / "Application Support"
-    elif os.name == "nt":
-        root = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    else:
-        root = Path(
-            os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")
-        )
-    return root / "SonyInfoCarryModernManager" / "library.json"
+    return application_paths().library_catalog
 
 
 def _stable_item_id(source_path: Path) -> str:

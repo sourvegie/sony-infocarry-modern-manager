@@ -5,15 +5,31 @@ from __future__ import annotations
 from datetime import datetime
 import errno
 import json
+import os
 import queue
 from pathlib import Path
+import subprocess
+import sys
 import threading
 from typing import Any, Dict, Optional, Sequence, Tuple
 
 from .backup import BackupClient, RawBackupArchive
 from .backup_format import BackupFormatError
+from .backup_history import (
+    BackupHistoryError,
+    BackupSnapshotSummary,
+    latest_complete_backup,
+    remember_complete_backup,
+    summarize_complete_backup,
+)
 from .capture import CaptureError
 from .desktop import DesktopWorkflowError, DesktopWorkflowModel
+from .app_paths import application_paths
+from .device_home import (
+    DeviceHomeService,
+    DeviceHomeSnapshot,
+    format_capacity_summary,
+)
 from .guarded_workflow import (
     ExistingTextReplacementResult,
     ExistingTextReplacementWorkflow,
@@ -35,6 +51,12 @@ from .library import (
 from .library_prepare import LibraryPreparationError
 from .library_workflow import LibraryWorkflowService
 from .prepared_content import PreparedContentArtifact, PreparedContentError
+from .transfer_shape import (
+    EXACT_VERIFIED_LIVE_PROFILE,
+    FOUR_LEAF_VERIFIED_CHILD_KINDS,
+    CURRENT_VERIFIED_CHILD_KINDS,
+    assess_transfer_shape,
+)
 from .library_transfer_plan import (
     LibraryTransferPlanError,
     SELECTION_ALL_READY,
@@ -735,6 +757,7 @@ def format_library_preparation_summary(result: Any) -> str:
         artifact = getattr(prepared, "artifact", None)
     if artifact is None:
         raise ValueError("prepared content artifact is missing")
+    eligibility = format_early_transfer_eligibility_summary(artifact)
     children = getattr(artifact, "children", ())
     lines = [
         "PREPARE COMPLETE — content is ready for preview",
@@ -757,8 +780,45 @@ def format_library_preparation_summary(result: Any) -> str:
                 "Some characters were normalized for target text compatibility; review the substitutions before sending.",
             )
         )
-    lines.extend(("", "Host-only preparation completed; no device change occurred."))
+    lines.extend(
+        (
+            "",
+            eligibility,
+            "Host-only preparation completed; no device change occurred.",
+        )
+    )
     return "\n".join(lines)
+
+
+def format_early_transfer_eligibility_summary(
+    artifact: Optional[PreparedContentArtifact] = None,
+) -> str:
+    """Explain exact verified VNW-V15 shapes before or after preparation."""
+
+    if artifact is None:
+        return (
+            "Transfer eligibility: only direct VNW-V15 TXT → BMP → TXT and "
+            "TXT → BMP → TXT → TXT shapes match verified transfer patterns. "
+            "Other content can still be prepared and previewed, but transfer is "
+            "currently unsupported for those shapes."
+        )
+    assessment = assess_transfer_shape(artifact)
+    if assessment.classification == EXACT_VERIFIED_LIVE_PROFILE:
+        if assessment.ordered_kinds == CURRENT_VERIFIED_CHILD_KINDS:
+            shape = "TXT → BMP → TXT"
+        elif assessment.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
+            shape = "TXT → BMP → TXT → TXT"
+        else:
+            raise ValueError("verified transfer shape has an unknown ordered child sequence")
+        return (
+            f"Transfer eligibility: {shape} matches an exact verified VNW-V15 "
+            "shape. Fresh device evidence and separate operation authorization "
+            "are still required before any future transfer."
+        )
+    return (
+        "Transfer eligibility: this prepared shape is currently unsupported for "
+        "transfer. Preparation and preview remain available."
+    )
 
 
 def format_library_preview_summary(preview: Any) -> str:
@@ -770,6 +830,7 @@ def format_library_preview_summary(preview: Any) -> str:
         artifact = getattr(prepared, "artifact", None)
     if artifact is None:
         raise ValueError("preview does not carry a canonical prepared artifact")
+    eligibility = format_early_transfer_eligibility_summary(artifact)
     title = getattr(artifact, "root_name", None)
     if not isinstance(title, str) or not title:
         title = str(getattr(artifact, "root_path", "content")).rsplit("\\", 1)[-1]
@@ -806,6 +867,7 @@ def format_library_preview_summary(preview: Any) -> str:
             "",
             f"Total prepared size: {artifact.aggregate_size} bytes",
             "This preview and Prepare use the same current prepared content.",
+            eligibility,
             "Host-only preview; no device change occurred.",
         )
     )
@@ -1112,19 +1174,33 @@ def launch_ttk_desktop(
     except ImportError as exc:  # pragma: no cover - guarded by runtime check
         raise DesktopRuntimeError("Tkinter is not available in this Python installation") from exc
 
-    from .usb_access import DeviceAccessError, describe_device, find_devices
-
     root = tk.Tk()
-    root.title("Sony InfoCarry Manager")
+    root.title("InfoCarry Manager")
     root.geometry(f"{LIBRARY_DEFAULT_GEOMETRY[0]}x{LIBRARY_DEFAULT_GEOMETRY[1]}")
     root.minsize(*LIBRARY_MINIMUM_GEOMETRY)
     model = DesktopWorkflowModel()
+    application_data_paths = application_paths()
+    device_home_service = DeviceHomeService()
+    latest_backup_summary: Optional[BackupSnapshotSummary] = None
+    loaded_backup_summary: Optional[BackupSnapshotSummary] = None
+    latest_backup_error: Optional[str] = None
+    try:
+        latest_backup_summary = latest_complete_backup(application_data_paths)
+        if latest_backup_summary is not None:
+            model.load_backup(latest_backup_summary.directory)
+            loaded_backup_summary = latest_backup_summary
+    except (BackupHistoryError, DesktopWorkflowError) as exc:
+        latest_backup_error = str(exc)
+        latest_backup_summary = None
+        loaded_backup_summary = None
     library_execution_facade = execution_facade or LibraryTransferExecutionFacade()
     replacement_safety_owner: Optional[PersistentWriteSafetyOwner]
     configured_runtime = library_execution_facade.runtime
     if configured_runtime is None:
         try:
-            replacement_safety_owner = create_default_application_write_safety_owner()
+            replacement_safety_owner = create_default_application_write_safety_owner(
+                paths=application_data_paths
+            )
         except (WriteSafetyBoundaryError, OSError, ValueError) as exc:
             replacement_safety_owner = None
             replacement_safety_configuration_error = str(exc)
@@ -1177,6 +1253,35 @@ def launch_ttk_desktop(
 
     status_var = tk.StringVar(value=f"Ready — {runtime.description}; device writes disabled")
     backup_var = tk.StringVar(value="No backup loaded")
+    device_home_heading_var = tk.StringVar(value="Device disconnected")
+    device_home_message_var = tk.StringVar(
+        value="Connect a Sony InfoCarry VNW-V15, then refresh Device Home."
+    )
+    device_capacity_var = tk.StringVar(
+        value=format_capacity_summary(
+            total_model_bytes=None,
+            baseline_model_bytes=(
+                loaded_backup_summary.model_bytes if loaded_backup_summary else None
+            ),
+            backup_timestamp=(
+                loaded_backup_summary.created_at_utc if loaded_backup_summary else None
+            ),
+        )
+    )
+    device_snapshot_var = tk.StringVar(
+        value=(
+            f"Latest complete backup: {latest_backup_summary.created_at_utc} — "
+            f"{latest_backup_summary.directory}"
+            if latest_backup_summary is not None
+            else (
+                f"Latest complete backup could not be verified: {latest_backup_error}"
+                if latest_backup_error
+                else "No complete backup has been saved here yet."
+            )
+        )
+    )
+    device_home_snapshot: Optional[DeviceHomeSnapshot] = None
+    device_technical_details = ""
     details_var = tk.StringVar(value="Select a file or folder")
     tree_items: Dict[str, int] = {}
 
@@ -1198,8 +1303,8 @@ def launch_ttk_desktop(
     text_converter_tab = ttk.Frame(notebook, padding=12)
     ebook_renderer_tab = ttk.Frame(notebook, padding=12)
     settings_tab = ttk.Frame(notebook, padding=12)
+    notebook.add(device_tab, text="Device")
     notebook.add(library_tab, text="Library")
-    notebook.add(device_tab, text="Device Manager")
     notebook.add(text_converter_tab, text="Text Converter")
     notebook.add(ebook_renderer_tab, text="Ebook Renderer")
     notebook.add(settings_tab, text="Settings & Help")
@@ -1228,6 +1333,13 @@ def launch_ttk_desktop(
         text="Local Library",
         font=("TkDefaultFont", 14, "bold"),
     ).pack(anchor="w", pady=(0, 4))
+    library_transfer_eligibility_label = ttk.Label(
+        library_tab,
+        text=format_early_transfer_eligibility_summary(),
+        justify="left",
+        wraplength=900,
+    )
+    library_transfer_eligibility_label.pack(anchor="w", fill="x", pady=(0, 8))
     library_toolbar = ttk.Frame(library_tab)
     library_toolbar.pack(fill="x", pady=(0, 8))
     library_toolbar.columnconfigure(1, weight=1)
@@ -1468,15 +1580,151 @@ def launch_ttk_desktop(
     library_content.bind("<Configure>", keep_library_sash_in_bounds)
     library_content.bind("<ButtonRelease-1>", keep_library_sash_in_bounds)
 
+    device_home_frame = ttk.LabelFrame(device_tab, text="Device Home", padding=10)
+    device_home_frame.pack(fill="x", padx=10, pady=(10, 6))
+    device_home_frame.columnconfigure(0, weight=1)
+    device_home_heading = ttk.Label(
+        device_home_frame,
+        textvariable=device_home_heading_var,
+        font=("TkDefaultFont", 13, "bold"),
+    )
+    device_home_heading.grid(row=0, column=0, sticky="w")
+    device_home_message = ttk.Label(
+        device_home_frame,
+        textvariable=device_home_message_var,
+        wraplength=850,
+        justify="left",
+    )
+    device_home_message.grid(row=1, column=0, sticky="ew", pady=(2, 6))
+    device_capacity_label = ttk.Label(
+        device_home_frame,
+        textvariable=device_capacity_var,
+        wraplength=850,
+        justify="left",
+    )
+    device_capacity_label.grid(row=2, column=0, sticky="ew", pady=(0, 6))
+    device_snapshot_label = ttk.Label(
+        device_home_frame,
+        textvariable=device_snapshot_var,
+        wraplength=850,
+        justify="left",
+    )
+    device_snapshot_label.grid(row=3, column=0, sticky="ew")
+    backup_semantics_label = ttk.Label(
+        device_home_frame,
+        text="Backup ≠ Restore: backups are read-only snapshots; Restore is unavailable.",
+        foreground="#555555",
+        wraplength=850,
+        justify="left",
+    )
+    backup_semantics_label.grid(row=4, column=0, sticky="ew", pady=(6, 0))
+    device_home_actions = ttk.Frame(device_home_frame)
+    device_home_actions.grid(row=0, column=1, rowspan=5, sticky="ne", padx=(12, 0))
+    technical_details_button = ttk.Button(device_home_actions, text="Technical Details…")
+    technical_details_button.pack(anchor="e", pady=(0, 4))
+    show_backup_button = ttk.Button(
+        device_home_actions,
+        text="Show in Finder" if sys.platform == "darwin" else "Show backup location",
+        state="disabled",
+    )
+    show_backup_button.pack(anchor="e")
+
+    def update_device_home_responsive_labels(_event: Any = None) -> None:
+        available_width = max(
+            320,
+            device_home_frame.winfo_width()
+            - device_home_actions.winfo_width()
+            - 48,
+        )
+        for label in (
+            device_home_message,
+            device_capacity_label,
+            device_snapshot_label,
+            backup_semantics_label,
+        ):
+            label.configure(wraplength=available_width)
+
+    device_home_frame.bind("<Configure>", update_device_home_responsive_labels)
+
+    def update_device_home_display(
+        snapshot: Optional[DeviceHomeSnapshot] = None,
+    ) -> None:
+        nonlocal device_home_snapshot, device_technical_details
+        if snapshot is not None:
+            device_home_snapshot = snapshot
+            device_home_heading_var.set(snapshot.heading)
+            device_home_message_var.set(snapshot.message)
+            device_technical_details = snapshot.technical_details
+        baseline = loaded_backup_summary
+        device_capacity_var.set(
+            format_capacity_summary(
+                total_model_bytes=(
+                    device_home_snapshot.capacity_bytes
+                    if device_home_snapshot is not None
+                    and device_home_snapshot.state == "connected"
+                    else None
+                ),
+                baseline_model_bytes=(baseline.model_bytes if baseline else None),
+                backup_timestamp=(baseline.created_at_utc if baseline else None),
+            )
+        )
+        if latest_backup_summary is not None:
+            device_snapshot_var.set(
+                f"Latest complete backup: {latest_backup_summary.created_at_utc} — "
+                f"{latest_backup_summary.directory}"
+            )
+        elif latest_backup_error:
+            device_snapshot_var.set(
+                f"Latest complete backup could not be verified: {latest_backup_error}"
+            )
+        elif loaded_backup_summary is not None:
+            device_snapshot_var.set(
+                "Loaded complete backup (outside app-managed history): "
+                f"{loaded_backup_summary.created_at_utc} — {loaded_backup_summary.directory}"
+            )
+        else:
+            device_snapshot_var.set("No complete backup has been saved here yet.")
+        selected_backup = latest_backup_summary or loaded_backup_summary
+        show_backup_button.configure(
+            state="normal" if selected_backup is not None else "disabled"
+        )
+        backup_var.set(
+            f"Backup: {loaded_backup_summary.directory.name}"
+            if loaded_backup_summary is not None
+            else "No backup loaded"
+        )
+
+    def show_technical_details_action() -> None:
+        details = device_technical_details or "No USB session details are available yet."
+        messagebox.showinfo("Technical Details", details, parent=root)
+
+    def show_backup_location_action() -> None:
+        summary = latest_backup_summary or loaded_backup_summary
+        if summary is None:
+            return
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["/usr/bin/open", "-R", str(summary.directory)])
+            elif os.name == "nt":
+                os.startfile(str(summary.directory.parent))  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["xdg-open", str(summary.directory.parent)])
+        except OSError as exc:
+            messagebox.showerror(
+                "Show backup location",
+                f"The backup is saved at:\n{summary.directory}\n\n{exc}",
+                parent=root,
+            )
+
     toolbar = ttk.Frame(device_tab, padding=(10, 10, 10, 6))
     toolbar.pack(fill="x")
-    ttk.Label(toolbar, text="Sony InfoCarry", font=("TkDefaultFont", 14, "bold")).pack(
+    ttk.Label(toolbar, text="Device snapshot", font=("TkDefaultFont", 14, "bold")).pack(
         side="left", padx=(0, 16)
     )
-    check_button = ttk.Button(toolbar, text="Check device")
-    backup_button = ttk.Button(toolbar, text="New backup…")
+    check_button = ttk.Button(toolbar, text="Refresh device")
+    backup_button = ttk.Button(toolbar, text="Back Up Now")
     open_button = ttk.Button(toolbar, text="Open backup…")
-    export_button = ttk.Button(toolbar, text="Download selected…", state="disabled")
+    export_button = ttk.Button(toolbar, text="Export selected…", state="disabled")
     replacement_button = ttk.Button(
         toolbar, text="Preview replacement…", state="disabled"
     )
@@ -2876,40 +3124,41 @@ def launch_ttk_desktop(
 
     def check_device_action() -> None:
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
-            status_var.set(
-                "Another manager operation is in progress; device inspection remains disabled"
-            )
+            device_home_message_var.set("Another operation is in progress. Refresh when it finishes.")
             return
 
-        def work(cancelled: threading.Event, progress_callback: Any) -> str:
+        device_home_message_var.set("Checking the connected Sony device with a read-only query…")
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> DeviceHomeSnapshot:
             if cancelled.is_set():
-                raise DeviceAccessError("device inspection was cancelled")
-            progress_callback("Checking connected device")
-            devices = find_devices()
+                return DeviceHomeSnapshot(
+                    state="cancelled",
+                    heading="Device check cancelled",
+                    message="No query was sent. Refresh Device Home when ready.",
+                )
+            progress_callback("Reading Device Home status")
             if cancelled.is_set():
-                raise DeviceAccessError("device inspection was cancelled")
-            if not devices:
-                return "No Sony InfoCarry detected; device writes disabled"
-            if len(devices) > 1:
-                return f"{len(devices)} matching devices detected; connect only one"
-            device = describe_device(devices[0])
-            location = ""
-            if device.bus is not None and device.address is not None:
-                location = f" on bus {device.bus}, address {device.address}"
-            return (
-                f"Sony InfoCarry {device.vendor_id:04x}:{device.product_id:04x} detected{location}; "
-                "device writes disabled"
-            )
+                return DeviceHomeSnapshot(
+                    state="cancelled",
+                    heading="Device check cancelled",
+                    message="No query was sent. Refresh Device Home when ready.",
+                )
+            return device_home_service.inspect()
+
+        def success(snapshot: DeviceHomeSnapshot) -> None:
+            update_device_home_display(snapshot)
+            status_var.set(snapshot.message)
 
         start_library_operation(
-            "Check device readiness",
+            "Refresh Device Home",
             (),
             work,
-            lambda message: status_var.set(message),
+            success,
             validate_revision=False,
         )
 
     def load_backup_action() -> None:
+        nonlocal loaded_backup_summary, latest_backup_summary, latest_backup_error
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
             status_var.set(
                 "Another manager operation is in progress; Device Manager remains disabled"
@@ -2924,11 +3173,23 @@ def launch_ttk_desktop(
             )
             return
         try:
-            model.load_backup(Path(selected))
+            selected_directory = Path(selected).expanduser().resolve()
+            summary = summarize_complete_backup(selected_directory)
+            model.load_backup(selected_directory)
+            loaded_backup_summary = summary
+            try:
+                selected_directory.relative_to(application_data_paths.backup_root.resolve())
+            except ValueError:
+                pass
+            else:
+                latest_backup_summary = remember_complete_backup(
+                    application_data_paths, selected_directory
+                )
+                latest_backup_error = None
             refresh_tree()
-            backup_var.set(f"Backup: {Path(selected).name}")
+            update_device_home_display()
             status_var.set(model.state.status)
-        except DesktopWorkflowError as exc:
+        except (DesktopWorkflowError, BackupHistoryError, OSError, ValueError) as exc:
             messagebox.showerror("Open backup", friendly_error_message(exc), parent=root)
 
     def export_action() -> None:
@@ -3161,7 +3422,7 @@ def launch_ttk_desktop(
         worker.start()
 
     def process_backup_events() -> None:
-        nonlocal worker
+        nonlocal worker, latest_backup_summary, loaded_backup_summary, latest_backup_error
         try:
             while True:
                 kind, value = events.get_nowait()
@@ -3173,10 +3434,26 @@ def launch_ttk_desktop(
                     worker = None
                     set_busy(False)
                     progress.configure(value=8)
-                    model.load_backup(value)
+                    destination, summary, history_error = value
+                    model.load_backup(destination)
+                    latest_backup_summary = summary
+                    loaded_backup_summary = summary
+                    latest_backup_error = history_error
                     refresh_tree()
-                    backup_var.set(f"Backup: {Path(value).name}")
-                    status_var.set(f"Verified backup created at {value}; device writes disabled")
+                    update_device_home_display()
+                    status_var.set(
+                        f"Complete read-only backup saved at {destination}; device writes disabled"
+                    )
+                    messagebox.showinfo(
+                        "Backup complete",
+                        f"Completed: {summary.created_at_utc}\n\nLocation:\n{destination}\n\n"
+                        + (
+                            f"The backup is verified and can be opened, but its latest-backup reference could not be saved:\n{history_error}"
+                            if history_error
+                            else "The backup is verified and ready to browse."
+                        ),
+                        parent=root,
+                    )
                 elif kind == "error":
                     worker = None
                     set_busy(False)
@@ -3245,15 +3522,21 @@ def launch_ttk_desktop(
             return
         if worker is not None and worker.is_alive():
             return
-        parent = filedialog.askdirectory(title="Choose parent folder for new backup", parent=root)
-        if not parent:
-            return
         if library_operation_controller.busy:
             status_var.set(
                 "A Library operation is in progress; Device Manager backup remains disabled"
             )
             return
-        destination = _backup_destination(Path(parent))
+        try:
+            application_data_paths.backup_root.mkdir(parents=True, exist_ok=True)
+            destination = _backup_destination(application_data_paths.backup_root)
+        except OSError as exc:
+            messagebox.showerror(
+                "Back Up Now",
+                f"InfoCarry could not prepare its backup folder:\n{application_data_paths.backup_root}\n\n{exc}",
+                parent=root,
+            )
+            return
         cancel_event.clear()
         set_busy(True)
         status_var.set(f"Starting read-only backup at {destination}")
@@ -3263,6 +3546,7 @@ def launch_ttk_desktop(
 
         def run_backup() -> None:
             archive = None
+            backup_completed = False
             try:
                 archive = RawBackupArchive.create(destination)
                 from .transport import InfoCarrySession
@@ -3273,9 +3557,16 @@ def launch_ttk_desktop(
                         cancelled=cancel_event.is_set,
                         progress=progress_callback,
                     )
-                events.put(("done", destination))
+                backup_completed = True
+                summary = summarize_complete_backup(destination)
+                history_error = None
+                try:
+                    remember_complete_backup(application_data_paths, destination)
+                except BackupHistoryError as exc:
+                    history_error = str(exc)
+                events.put(("done", (destination, summary, history_error)))
             except BaseException as exc:
-                if archive is not None:
+                if archive is not None and not backup_completed:
                     try:
                         archive.mark_incomplete(exc)
                     except Exception:
@@ -3306,8 +3597,13 @@ def launch_ttk_desktop(
     backup_button.configure(command=backup_action)
     open_button.configure(command=load_backup_action)
     export_button.configure(command=export_action)
+    technical_details_button.configure(command=show_technical_details_action)
+    show_backup_button.configure(command=show_backup_location_action)
     replacement_button.configure(command=replacement_preview_action)
     write_button.configure(command=replacement_write_action)
+    if loaded_backup_summary is not None:
+        refresh_tree()
+    update_device_home_display()
     root.protocol("WM_DELETE_WINDOW", close_action)
     root.after(100, process_backup_events)
     root.after(50, process_library_callbacks)

@@ -8,12 +8,11 @@ every reachable device-changing operation.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-import sys
-from typing import Mapping
+from typing import Mapping, Optional
 from uuid import uuid4
 
+from .app_paths import ApplicationPaths, application_paths
 from .device_model_profile import DeviceModelProfile, VNW_V15_PROFILE
 from .execution_claim_store import (
     ExecutionClaimRecord,
@@ -215,28 +214,74 @@ class PersistentWriteSafetyOwner:
         return record
 
 
-def _application_state_root() -> Path:
-    """Return the platform's installation/application state location."""
+def _path_exists_without_hiding_access_errors(path: Path) -> bool:
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise WriteSafetyBoundaryError(
+            f"cannot inspect persistent write-safety state at {path}: {exc}"
+        ) from exc
+    return True
 
-    if os.name == "nt":
-        base = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support"
-    else:
-        base = Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local" / "state"))
-    return (base / "SonyInfoCarryModernManager").expanduser().resolve()
+
+def _assert_legacy_safety_state_is_authoritative(paths: ApplicationPaths) -> None:
+    """Refuse a new empty store when historical or alternate state may exist.
+
+    The pre-package manager already stores claims and the sender marker in the
+    legacy SQLite file, and stores the global lock in a sibling JSON file.  We
+    keep those exact paths.  If a proposed new-root store exists too, no path
+    is selected automatically because choosing the apparently clear one could
+    hide an unresolved write from another installation.
+    """
+
+    alternate_files = []
+    for root in paths.alternate_safety_roots:
+        for name in (
+            "execution-claims.sqlite3",
+            "indeterminate-write-lock.json",
+        ):
+            candidate = root / name
+            if _path_exists_without_hiding_access_errors(candidate):
+                alternate_files.append(candidate)
+    if alternate_files:
+        found = ", ".join(str(path) for path in alternate_files)
+        raise WriteSafetyBoundaryError(
+            "persistent write-safety state exists in a proposed alternate "
+            "InfoCarry location. No store was selected or migrated. Keep "
+            "device-changing actions disabled and reconcile the listed state "
+            "with the established SonyInfoCarryModernManager store: "
+            + found
+        )
+
+    root_exists = _path_exists_without_hiding_access_errors(paths.safety_root)
+    database_exists = _path_exists_without_hiding_access_errors(
+        paths.execution_claims_database
+    )
+    if root_exists and not database_exists:
+        raise WriteSafetyBoundaryError(
+            "the established application-support directory exists, but its "
+            "execution-claims database is missing. An empty safety store was "
+            "not created. Read-only device functions remain available; restore "
+            "or review the original state before enabling any device-changing "
+            "action."
+        )
 
 
-def create_default_application_write_safety_owner() -> PersistentWriteSafetyOwner:
-    """Create the single default owner used by the desktop product path."""
+def create_default_application_write_safety_owner(
+    *, paths: Optional[ApplicationPaths] = None
+) -> PersistentWriteSafetyOwner:
+    """Create the one default owner without relocating historical safety state."""
 
-    root = _application_state_root()
+    selected_paths = paths if paths is not None else application_paths()
+    _assert_legacy_safety_state_is_authoritative(selected_paths)
     return PersistentWriteSafetyOwner(
         execution_claim_store=PersistentExecutionClaimStore(
-            root / "execution-claims.sqlite3"
+            selected_paths.execution_claims_database
         ),
         indeterminate_write_lock=PersistentIndeterminateWriteLock(
-            root / "indeterminate-write-lock.json"
+            selected_paths.indeterminate_write_lock
         ),
     )
 

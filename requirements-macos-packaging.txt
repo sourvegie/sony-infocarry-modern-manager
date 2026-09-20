@@ -1,0 +1,10 @@
+# Runtime and build dependencies for the Apple Silicon onedir application.
+# Tk 9 is supplied by the chosen CPython build interpreter, not by pip.
+PyUSB==1.3.1
+libusb-package==1.0.30.0
+setuptools==84.0.0
+altgraph==0.17.5
+macholib==1.16.4
+packaging==26.3
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.7

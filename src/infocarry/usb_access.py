@@ -30,43 +30,58 @@ class DetectedDevice:
     product_id: int
 
 
-def _windows_libusb_backend() -> Any:
-    """Load the pinned, application-bundled libusb backend on Windows.
+def _packaged_libusb_backend(*, required: bool) -> Any:
+    """Load a bundled libusb backend when the frozen app supplies it.
 
     PyUSB is a Python wrapper and does not itself supply the native libusb
-    library.  The Windows desktop distribution includes ``libusb-package``;
-    pass its explicit library locator so discovery does not depend on a
-    machine-wide DLL search path.  This selects only the existing read-only
-    access backend and does not install or replace a USB device driver.
+    library. Packaged Windows and macOS apps include ``libusb-package``; pass
+    its explicit locator so discovery does not depend on PATH, Homebrew, or a
+    machine-wide native-library search path. Source installs may use PyUSB's
+    established macOS default backend when the package is absent. This selects
+    only the existing read-only access backend and does not install or replace
+    a USB device driver.
     """
 
     try:
         import libusb_package
         import usb.backend.libusb1
     except ImportError as exc:
-        raise DeviceAccessError(
-            "Windows USB access requires the packaged libusb 1.0 runtime"
-        ) from exc
+        if not required:
+            return None
+        raise DeviceAccessError("USB access requires the packaged libusb 1.0 runtime") from exc
     try:
         backend = usb.backend.libusb1.get_backend(
             find_library=libusb_package.find_library
         )
     except (OSError, usb.core.USBError) as exc:
         raise DeviceAccessError(
-            f"the packaged Windows libusb 1.0 runtime could not be loaded: {exc}"
+            f"the packaged libusb 1.0 runtime could not be loaded: {exc}"
         ) from exc
     if backend is None:
         raise DeviceAccessError(
-            "the packaged Windows libusb 1.0 runtime could not be located"
+            "the packaged libusb 1.0 runtime could not be located"
         )
     return backend
 
 
+def _windows_libusb_backend() -> Any:
+    """Compatibility helper for the pinned Windows package backend."""
+
+    return _packaged_libusb_backend(required=True)
+
+
+def _platform_backend() -> Any:
+    if sys.platform == "win32":
+        return _packaged_libusb_backend(required=True)
+    if sys.platform == "darwin":
+        return _packaged_libusb_backend(required=False)
+    return None
+
+
 def find_devices() -> List[Any]:
-    # Keep non-Windows discovery on PyUSB's established platform-default
-    # backend.  Windows uses the explicitly collected DLL from libusb-package
-    # instead of relying on ambient PATH/system installation state.
-    backend = _windows_libusb_backend() if sys.platform == "win32" else None
+    """Find the exact reviewed VNW-V15 VID/PID with the platform backend."""
+
+    backend = _platform_backend()
     try:
         arguments = {
             "find_all": True,
@@ -75,6 +90,23 @@ def find_devices() -> List[Any]:
         }
         if backend is not None:
             arguments["backend"] = backend
+        return list(usb.core.find(**arguments))
+    except usb.core.USBError as exc:
+        raise DeviceAccessError(f"USB enumeration failed: {exc}") from exc
+
+
+def find_sony_devices() -> List[Any]:
+    """Enumerate Sony VID devices for unsupported-device home-state UX.
+
+    This is standard USB identity discovery only. Callers must require the
+    reviewed VNW-V15 VID/PID before opening a session or querying 0x0019.
+    """
+
+    arguments = {"find_all": True, "idVendor": SONY_VENDOR_ID}
+    backend = _platform_backend()
+    if backend is not None:
+        arguments["backend"] = backend
+    try:
         return list(usb.core.find(**arguments))
     except usb.core.USBError as exc:
         raise DeviceAccessError(f"USB enumeration failed: {exc}") from exc

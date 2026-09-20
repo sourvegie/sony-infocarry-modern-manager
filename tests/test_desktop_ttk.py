@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import inspect
 import unittest
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from infocarry.desktop_ttk import (
     format_library_device_tree_preview,
     format_library_preparation_audit,
     format_library_transfer_plan,
+    format_early_transfer_eligibility_summary,
     format_experimental_library_transfer_review,
     format_library_host_only_terminal_state,
     format_library_preparation_summary,
@@ -29,9 +31,51 @@ from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.library_transfer_execution import LibraryTransferExecutionError
 from infocarry.library_transfer_readiness import ReadinessAction, ReadinessState
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
+from infocarry.prepared_content import EMPTY_SHA256, PreparedContentArtifact, PreparedContentChild
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_early_transfer_eligibility_names_exact_supported_shapes(self):
+        self.assertIn("TXT → BMP → TXT", format_early_transfer_eligibility_summary())
+        self.assertIn("TXT → BMP → TXT → TXT", format_early_transfer_eligibility_summary())
+
+        def artifact(kinds):
+            children = tuple(
+                PreparedContentChild(
+                    order=index,
+                    kind=kind,
+                    name=f"child-{index}.{kind}",
+                    path=f"root\\Book\\child-{index}.{kind}",
+                    payload_sha256=EMPTY_SHA256 if kind == "folder" else "0" * 64,
+                    payload_bytes=0,
+                    payload_path=None if kind == "folder" else f"prepared/{index}",
+                )
+                for index, kind in enumerate(kinds)
+            )
+            return PreparedContentArtifact("Book", children)
+
+        for kinds, display_shape in (
+            (("txt", "bmp", "txt"), "TXT → BMP → TXT"),
+            (("txt", "bmp", "txt", "txt"), "TXT → BMP → TXT → TXT"),
+        ):
+            summary = format_early_transfer_eligibility_summary(artifact(kinds))
+            self.assertIn(f"{display_shape} matches an exact verified VNW-V15 shape", summary)
+            self.assertIn("Fresh device evidence", summary)
+        self.assertIn(
+            "currently unsupported for transfer",
+            format_early_transfer_eligibility_summary(artifact(("txt", "txt"))),
+        )
+
+    def test_device_home_is_first_tab_and_uses_shared_read_only_inspection(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertLess(source.index('notebook.add(device_tab, text="Device")'), source.index('notebook.add(library_tab, text="Library")'))
+        self.assertIn('text="Back Up Now"', source)
+        self.assertIn('text="Technical Details…"', source)
+        self.assertIn("device_home_service.inspect()", source)
+        self.assertIn("remember_complete_backup(application_data_paths, destination)", source)
+        self.assertIn("device_home_frame.bind(\"<Configure>\"", source)
+        self.assertIn("Backup ≠ Restore: backups are read-only snapshots; Restore is unavailable.", source)
+
     def test_normal_library_formatters_hide_technical_identities(self):
         state = ReadinessState(
             state="needs_review",
@@ -54,18 +98,16 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("NOT READY TO TRANSFER", format_library_readiness_summary(blocked))
 
     def test_prepare_and_preview_use_the_same_canonical_artifact(self):
-        child = SimpleNamespace(
+        child = PreparedContentChild(
             order=0,
             kind="txt",
             name="chapter.txt",
             path="root\\Book\\chapter.txt",
+            payload_sha256=hashlib.sha256(b"prepared txt").hexdigest(),
             payload_bytes=12,
+            payload_path="prepared/Book/chapter.txt",
         )
-        artifact = SimpleNamespace(
-            root_path="root\\Book",
-            children=(child,),
-            aggregate_size=12,
-        )
+        artifact = PreparedContentArtifact("Book", (child,))
         result = SimpleNamespace(artifact=artifact)
         prepare = format_library_preparation_summary(result)
         preview = format_library_preview_summary(result)
@@ -73,8 +115,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("PREVIEW", preview)
         self.assertIn("root\\Book\\chapter.txt", preview)
         self.assertIn("same current prepared content", preview)
-        self.assertNotIn("sha", prepare.lower())
-        self.assertNotIn("sha", preview.lower())
+        self.assertNotIn("sha-256", prepare.lower())
+        self.assertNotIn("sha-256", preview.lower())
 
     def test_host_only_terminal_state_is_truthful(self):
         summary = format_library_host_only_terminal_state()
