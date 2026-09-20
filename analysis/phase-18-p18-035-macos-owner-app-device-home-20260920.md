@@ -5,11 +5,11 @@ Branch: `task/P18-035-macos-owner-app-device-home`
 Canonical base: `3b6697eac01b6c35d588d163325bedb99ddf76ff`
 Risk: R2 product/runtime work; R3-quality review required for persistent
 write-safety path changes.
-State: PR #62 is open against the exact canonical base. The final code commit
-is `47b2dde`; record cleanup is `6672f68`. Offline run 190 passed on macOS and
-Windows, macOS package run 8 and Windows package run 14 passed, and independent
-exact-head review approved `6672f68` with no actionable findings. PM acceptance
-remains pending.
+State: PR #62 is open against the exact canonical base. The accepted
+runtime/code/package evidence head is
+`f78e4e25ffed3b1a76a21c3f974bcddfded9c3a0`. This follow-up commit corrects the
+evidence record only; the recorded package artifacts remain bound to that
+runtime head and were not rebuilt. PM acceptance remains pending.
 
 ## Packaging method and runtime
 
@@ -101,27 +101,36 @@ The first PR CI attempt identified two packaging regressions: the macOS spec
 was ignored by Git, and the Windows packaged smoke referenced a removed
 private path helper and the old window title. The spec is now explicitly
 tracked; the smoke uses the shared path abstraction and current product title.
-The macOS build metadata also now reports the actual Resources and Frameworks
-locations. The macOS package run 8 and Windows package run 14 passed on commit
-`6672f68`. The macOS LaunchServices open from a Japanese working directory and
-the Windows packaged runtime smoke both passed. The macOS artifact
-`InfoCarry-Manager-macos-arm64-py3.14.7-tk9` has SHA-256
-`f474473d100dc42410bc49974f5eff87e87f2472a9075d8822a1b837cea90992`; the
-Windows artifact `InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9` has SHA-256
-`42acf642789b1fd4d530ab1464ce00441011dc75147ebe6e818ec4e8c2be149b`. A later
-review found that the UI initially claimed disconnection before checking and
-left an active safety-lock notice blank until a guarded action was attempted.
-Commit `47b2dde` corrects both states. Exact-head review then approved
-`6672f68` with no actionable findings.
+The macOS build metadata also reports the actual Resources and Frameworks
+locations. A later review found that the UI initially claimed disconnection
+before checking and left an active safety-lock notice blank until a guarded
+action was attempted. Commit `47b2dde` corrects both states.
+
+Final published evidence is tied to runtime/code/package head
+`f78e4e25ffed3b1a76a21c3f974bcddfded9c3a0`:
+
+| Workflow | GitHub run | Result |
+| --- | ---: | --- |
+| Offline tests, run 191 | `35499183530` | macOS and Windows jobs passed |
+| Apple Silicon onedir app (Tk 9), run 10 | `35499183542` | Passed, including LaunchServices smoke |
+| Windows package regression, run 15 | `35499183531` | Passed, including packaged smoke without Python on `PATH` |
+
+The macOS artifact is `InfoCarry-Manager-macos-arm64-py3.14.7-tk9` (artifact
+ID `10601259920`, 16,913,456 bytes), SHA-256
+`2acb9ed5de5d57837104671f240ec1d6b84af7ae4bf073f7b0bf1ec2ef9e87b5`. The
+Windows artifact is `InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9` (artifact
+ID `10600753763`, 19,334,799 bytes), SHA-256
+`a1abf1709f3e3b754d1e9be31c89d9b96c0545607505320921f0765a852174f1`.
 
 The local LaunchServices smoke could not launch the bundle from the isolated
 `/private/tmp` worktree: `open` returned `kLSNoExecutableErr`, and local
 LaunchServices had no indexed entry for this temporary bundle path. The bundle
 itself has a valid plist, matching `CFBundleExecutable` and executable names,
-arm64 Mach-O, and a valid code signature. The published-head macOS workflow
-successfully opened the bundle through LaunchServices from a Japanese working
-directory and validated the frozen-runtime report. No runtime smoke report
-was produced by the failed local open.
+arm64 Mach-O, and a valid code signature. The GitHub macOS workflow on the
+recorded runtime head successfully opened the bundle through LaunchServices
+from a Japanese working directory and validated the frozen-runtime report.
+No runtime smoke report was produced by the failed local open. Owner-machine
+Finder and visual validation remain pending.
 
 Windows backend and packaging sources remain in place. The full suite passed
 the Windows backend tests locally, and the published head's Windows Actions
