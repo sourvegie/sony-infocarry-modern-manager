@@ -1,14 +1,15 @@
 # P18-035 — macOS first-class owner app and read-only Device Home
 
-Date: 2026-09-20  
-Branch: `task/P18-035-macos-owner-app-device-home`  
-Canonical base: `3b6697eac01b6c35d588d163325bedb99ddf76ff`  
+Date: 2026-09-20
+Branch: `task/P18-035-macos-owner-app-device-home`
+Canonical base: `3b6697eac01b6c35d588d163325bedb99ddf76ff`
 Risk: R2 product/runtime work; R3-quality review required for persistent
-write-safety path changes.  
+write-safety path changes.
 State: PR #62 is open against the exact canonical base. The published head
-`dd1e49a` passed offline, Windows, and macOS CI, including the macOS
-LaunchServices smoke. A final first-launch status correction is validated
-locally and awaits publication, fresh CI, exact-head review, and PM acceptance.
+`47b2dde` contains the final first-launch status correction. It passes local
+validation; offline run 189, macOS package run 6, Windows package run 13, and
+fresh exact-head review are pending, as is PM acceptance. Its parent head
+`dd1e49a` passed all three CI workflows, including LaunchServices smoke.
 
 ## Packaging method and runtime
 
@@ -101,14 +102,14 @@ was ignored by Git, and the Windows packaged smoke referenced a removed
 private path helper and the old window title. The spec is now explicitly
 tracked; the smoke uses the shared path abstraction and current product title.
 The macOS build metadata also now reports the actual Resources and Frameworks
-locations. The published head's offline run 188, macOS package run 4, and
-Windows package run 12 all passed. The macOS LaunchServices open from a
+locations. The prior published head's offline run 188, macOS package run 4,
+and Windows package run 12 all passed. The macOS LaunchServices open from a
 Japanese working directory and the Windows packaged runtime smoke both
 passed. A later review found that the UI initially claimed disconnection
 before checking and left an active safety-lock notice blank until a guarded
 action was attempted. The current local correction shows an unchecked device
-status and initializes the visible safety notice at launch. It still needs a
-published-head CI rerun and fresh exact-head review.
+status and initializes the visible safety notice at launch. Commit `47b2dde`
+is now published; its CI rerun and fresh exact-head review are pending.
 
 The local LaunchServices smoke could not launch the bundle from the isolated
 `/private/tmp` worktree: `open` returned `kLSNoExecutableErr`, and local

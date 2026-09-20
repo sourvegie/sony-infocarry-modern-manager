@@ -17,10 +17,10 @@ Local arm64 packaging and strict ad-hoc signature verification pass. The
 focused safety, desktop, and packaging suite is 40/40; the full portable suite
 is 926 passed with 3 intentional skips; `compileall` and `git diff --check`
 pass. The local arm64 package build and strict ad-hoc signature verification
-pass. The prior published head's offline, macOS, and Windows CI runs all
-passed, including the macOS LaunchServices smoke; the latest startup-status
-correction is awaiting publication and a fresh CI run. The PR is open, and
-fresh exact-head R3-quality review and PM acceptance remain pending. Local
+pass. The final startup-status correction is published at `47b2dde`; offline,
+macOS, and Windows CI are rerunning on this head, and fresh exact-head
+R3-quality review and PM acceptance remain pending. The prior head's macOS
+LaunchServices smoke and Windows package smoke passed. Local
 LaunchServices cannot index the app from its isolated `/private/tmp` worktree.
 No physical device access or device-changing operation occurred. See the
 [P18-035 analysis record](analysis/phase-18-p18-035-macos-owner-app-device-home-20260920.md).
