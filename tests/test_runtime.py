@@ -19,7 +19,7 @@ class DesktopRuntimeTests(unittest.TestCase):
 
     def test_old_python_has_clear_recovery_message(self):
         with patch("infocarry.runtime.sys.version_info", (3, 9, 6)):
-            with self.assertRaisesRegex(DesktopRuntimeError, "Python 3.12/Tk 9"):
+            with self.assertRaisesRegex(DesktopRuntimeError, "Python 3.12 or newer"):
                 check_desktop_runtime()
 
     def test_old_tk_has_clear_recovery_message(self):

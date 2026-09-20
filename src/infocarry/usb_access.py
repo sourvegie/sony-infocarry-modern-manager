@@ -1,6 +1,7 @@
 """Read-only standard USB access for the Sony InfoCarry."""
 
 from dataclasses import dataclass
+import sys
 from typing import Any, List, Optional, Tuple
 
 import usb.core
@@ -29,15 +30,52 @@ class DetectedDevice:
     product_id: int
 
 
-def find_devices() -> List[Any]:
+def _windows_libusb_backend() -> Any:
+    """Load the pinned, application-bundled libusb backend on Windows.
+
+    PyUSB is a Python wrapper and does not itself supply the native libusb
+    library.  The Windows desktop distribution includes ``libusb-package``;
+    pass its explicit library locator so discovery does not depend on a
+    machine-wide DLL search path.  This selects only the existing read-only
+    access backend and does not install or replace a USB device driver.
+    """
+
     try:
-        return list(
-            usb.core.find(
-                find_all=True,
-                idVendor=SONY_VENDOR_ID,
-                idProduct=INFOCARRY_PRODUCT_ID,
-            )
+        import libusb_package
+        import usb.backend.libusb1
+    except ImportError as exc:
+        raise DeviceAccessError(
+            "Windows USB access requires the packaged libusb 1.0 runtime"
+        ) from exc
+    try:
+        backend = usb.backend.libusb1.get_backend(
+            find_library=libusb_package.find_library
         )
+    except (OSError, usb.core.USBError) as exc:
+        raise DeviceAccessError(
+            f"the packaged Windows libusb 1.0 runtime could not be loaded: {exc}"
+        ) from exc
+    if backend is None:
+        raise DeviceAccessError(
+            "the packaged Windows libusb 1.0 runtime could not be located"
+        )
+    return backend
+
+
+def find_devices() -> List[Any]:
+    # Keep non-Windows discovery on PyUSB's established platform-default
+    # backend.  Windows uses the explicitly collected DLL from libusb-package
+    # instead of relying on ambient PATH/system installation state.
+    backend = _windows_libusb_backend() if sys.platform == "win32" else None
+    try:
+        arguments = {
+            "find_all": True,
+            "idVendor": SONY_VENDOR_ID,
+            "idProduct": INFOCARRY_PRODUCT_ID,
+        }
+        if backend is not None:
+            arguments["backend"] = backend
+        return list(usb.core.find(**arguments))
     except usb.core.USBError as exc:
         raise DeviceAccessError(f"USB enumeration failed: {exc}") from exc
 

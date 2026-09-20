@@ -156,7 +156,40 @@ The step-by-step desktop workflow and recovery guidance are in
 [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md). The v0.1 manual smoke-test evidence
 is recorded in [`analysis/phase-9-usability-check.md`](analysis/phase-9-usability-check.md).
 
-Tk is loaded only for this command; the window has no device-write control.
+### Windows x64 packaged desktop build
+
+The Windows deployment baseline is a PyInstaller one-folder distribution of
+the same ttk manager. It bundles CPython 3.15.0rc2 x64, its Tcl/Tk 9 runtime,
+the application, PyUSB, and the pinned user-mode libusb runtime. The release
+candidate is used because the supported Python 3.12 Windows runtime supplies
+Tk 8.6, below the product's Tk 9 requirement. This is a preview-runtime
+baseline, not a stable end-user release; rebuild and rerun the package smoke
+when Python 3.15.0 final is available.
+
+Install the official Python 3.15.0rc2 64-bit Windows distribution, then from
+the repository root run:
+
+```powershell
+py -3.15 -m venv .venv-windows
+.\.venv-windows\Scripts\Activate.ps1
+.\scripts\build_windows_package.ps1
+```
+
+The script checks the exact Python/Tk/architecture, installs the pinned
+packaging dependencies from `requirements-windows-packaging.txt`, runs
+`pip check`, and builds `dist\InfoCarry Manager\InfoCarry Manager.exe`.
+Distribute the entire `dist\InfoCarry Manager` folder (including `_internal`,
+`LICENSE`, and `THIRD_PARTY_NOTICES.txt`), not the executable by itself. The
+packaged application does not require a separate Python installation. The
+libusb DLL is bundled and loaded through the explicit PyUSB backend; this does
+not install a device driver or establish compatibility with a particular
+Sony/WinUSB driver. Driver deployment, signing/installer work, and physical
+device validation remain separate tasks. See the
+[P18-034 packaging record](analysis/phase-18-p18-034-windows-packaging-baseline-20260920.md)
+for CI, smoke, and ARM64 status.
+
+Tk is loaded only for this command. Packaging adds no new write path; all
+existing device-changing actions retain their existing safety gates.
 The conversion project at `${INFOCARRY_TOOLKIT_ROOT}` is
 read-only and is not installed alongside this package. The staged integration
 architecture for its future Text Converter and Ebook Renderer tabs is in
