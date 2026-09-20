@@ -346,9 +346,9 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             "native_backend_loaded": True,
         }
 
-        from infocarry.write_safety_boundary import _application_state_root
+        from infocarry.app_paths import application_paths
 
-        state_root = _application_state_root()
+        state_root = application_paths().safety_root
         profile_root = Path(os.environ["APPDATA"]).expanduser().resolve()
         if not state_root.is_relative_to(profile_root):
             raise RuntimeError("packaged smoke safety state is outside its temporary APPDATA profile")
@@ -383,7 +383,7 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
                 try:
                     root.update_idletasks()
                     window_state["title"] = root.title()
-                    if window_state["title"] != "Sony InfoCarry Manager":
+                    if window_state["title"] != "InfoCarry Manager":
                         raise RuntimeError("normal manager window title was not initialized")
                     controls = _inspect_widgets(root)
                     send_buttons = [
@@ -431,7 +431,7 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             usb.core.find = original_usb_find
         if window_state.get("error"):
             raise RuntimeError(window_state["error"])
-        if window_state.get("title") != "Sony InfoCarry Manager":
+        if window_state.get("title") != "InfoCarry Manager":
             raise RuntimeError("main manager window was not observed")
         if window_state.get("send_control") != "disabled":
             raise RuntimeError("guarded transfer control was not confirmed disabled")

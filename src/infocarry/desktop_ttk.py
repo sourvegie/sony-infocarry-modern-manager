@@ -24,7 +24,7 @@ from .backup_history import (
 )
 from .capture import CaptureError
 from .desktop import DesktopWorkflowError, DesktopWorkflowModel
-from .app_paths import application_paths
+from .app_paths import ApplicationPaths, application_paths
 from .device_home import (
     DeviceHomeService,
     DeviceHomeSnapshot,
@@ -76,7 +76,7 @@ from .library_transfer_execution import (
     LibraryTransferExecutionFacade,
     PreparedLibraryTransferOperation,
 )
-from .execution_claim_store import PersistentExecutionClaimStore
+from .execution_claim_store import ExecutionClaimStoreError, PersistentExecutionClaimStore
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
 from .operation_controller import (
     OperationBusyError,
@@ -1162,6 +1162,45 @@ def format_prepared_package_readiness_preview(report: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _try_create_application_write_safety_owner(
+    paths: ApplicationPaths,
+) -> tuple[Optional[PersistentWriteSafetyOwner], Optional[str]]:
+    """Keep the UI read-only when historical persistent safety state is invalid."""
+
+    try:
+        return create_default_application_write_safety_owner(paths=paths), None
+    except (
+        WriteSafetyBoundaryError,
+        ExecutionClaimStoreError,
+        OSError,
+        ValueError,
+    ) as exc:
+        return None, str(exc)
+
+
+def _application_write_safety_status(
+    owner: Optional[PersistentWriteSafetyOwner],
+) -> tuple[bool, Optional[str]]:
+    """Report whether the shared persistent state permits a guarded action."""
+
+    if owner is None:
+        return False, None
+    try:
+        owner.assert_execution_boundary_available()
+    except Exception as exc:
+        return False, str(exc)
+    return True, None
+
+
+def _persistent_safety_unavailable_message(detail: str) -> str:
+    return (
+        "Read-only Device Home remains available. Device-changing actions are disabled "
+        "because existing write-safety state could not be verified. Do not remove or "
+        "recreate the safety files. Review the state with project support.\n\n"
+        f"Details: {detail}"
+    )
+
+
 def launch_ttk_desktop(
     execution_facade: Optional[LibraryTransferExecutionFacade] = None,
 ) -> None:
@@ -1197,15 +1236,10 @@ def launch_ttk_desktop(
     replacement_safety_owner: Optional[PersistentWriteSafetyOwner]
     configured_runtime = library_execution_facade.runtime
     if configured_runtime is None:
-        try:
-            replacement_safety_owner = create_default_application_write_safety_owner(
-                paths=application_data_paths
-            )
-        except (WriteSafetyBoundaryError, OSError, ValueError) as exc:
-            replacement_safety_owner = None
-            replacement_safety_configuration_error = str(exc)
-        else:
-            replacement_safety_configuration_error = None
+        (
+            replacement_safety_owner,
+            replacement_safety_configuration_error,
+        ) = _try_create_application_write_safety_owner(application_data_paths)
     elif (
         isinstance(configured_runtime.execution_claim_store, PersistentExecutionClaimStore)
         and isinstance(
@@ -1257,6 +1291,13 @@ def launch_ttk_desktop(
     device_home_message_var = tk.StringVar(
         value="Connect a Sony InfoCarry VNW-V15, then refresh Device Home."
     )
+    safety_state_var = tk.StringVar(
+        value=(
+            _persistent_safety_unavailable_message(replacement_safety_configuration_error)
+            if replacement_safety_configuration_error
+            else ""
+        )
+    )
     device_capacity_var = tk.StringVar(
         value=format_capacity_summary(
             total_model_bytes=None,
@@ -1288,13 +1329,12 @@ def launch_ttk_desktop(
     def replacement_write_safety_available() -> bool:
         """Keep the replacement affordance closed when shared state is unsafe."""
 
-        if replacement_safety_owner is None:
-            return False
-        try:
-            replacement_safety_owner.assert_execution_boundary_available()
-        except Exception:
-            return False
-        return True
+        available, detail = _application_write_safety_status(replacement_safety_owner)
+        if detail:
+            safety_state_var.set(_persistent_safety_unavailable_message(detail))
+        elif available and replacement_safety_configuration_error is None:
+            safety_state_var.set("")
+        return available
 
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True, padx=8, pady=(8, 0))
@@ -1618,8 +1658,15 @@ def launch_ttk_desktop(
         justify="left",
     )
     backup_semantics_label.grid(row=4, column=0, sticky="ew", pady=(6, 0))
+    safety_state_label = ttk.Label(
+        device_home_frame,
+        textvariable=safety_state_var,
+        wraplength=850,
+        justify="left",
+    )
+    safety_state_label.grid(row=5, column=0, sticky="ew", pady=(6, 0))
     device_home_actions = ttk.Frame(device_home_frame)
-    device_home_actions.grid(row=0, column=1, rowspan=5, sticky="ne", padx=(12, 0))
+    device_home_actions.grid(row=0, column=1, rowspan=6, sticky="ne", padx=(12, 0))
     technical_details_button = ttk.Button(device_home_actions, text="Technical Details…")
     technical_details_button.pack(anchor="e", pady=(0, 4))
     show_backup_button = ttk.Button(
@@ -1641,6 +1688,7 @@ def launch_ttk_desktop(
             device_capacity_label,
             device_snapshot_label,
             backup_semantics_label,
+            safety_state_label,
         ):
             label.configure(wraplength=available_width)
 

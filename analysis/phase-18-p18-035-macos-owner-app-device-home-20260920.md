@@ -5,16 +5,18 @@ Branch: `task/P18-035-macos-owner-app-device-home`
 Canonical base: `3b6697eac01b6c35d588d163325bedb99ddf76ff`  
 Risk: R2 product/runtime work; R3-quality review required for persistent
 write-safety path changes.  
-State: local implementation and validation complete; publication, CI,
-independent exact-head review, and PM acceptance remain pending.
+State: PR #62 is open against the exact canonical base. Local implementation
+and validation pass; corrected-head CI, independent exact-head review, and PM
+acceptance remain pending.
 
 ## Packaging method and runtime
 
 The build uses PyInstaller 6.22.3 to create an Apple Silicon arm64 onedir
 bundle at `dist/InfoCarry Manager.app`. The main executable is
 `Contents/MacOS/InfoCarryManager`; the visible app name remains
-`InfoCarry Manager`. PyInstaller places Python, Tcl/Tk, and collected
-dependencies in the bundle's framework/resource layout. The spec bundles
+`InfoCarry Manager`. PyInstaller places native libraries in
+`Contents/Frameworks` and bundled data and Tcl/Tk scripts in
+`Contents/Resources`. The spec bundles
 PyUSB 1.3.1, `libusb-package` 1.0.30.0 and its `libusb-1.0.dylib`, plus the
 project license and a third-party notices file. No Homebrew or activated
 virtual environment is needed to run the packaged app.
@@ -82,14 +84,20 @@ This is descriptive preparation UX only; no write capability was added.
 
 Local host validation:
 
-- Focused macOS packaging, Windows backend, runtime, paths/safety, Device Home,
-  backup history, and desktop tests: 60 passed.
-- Full portable Python 3.12 suite: 922 passed, 3 existing intentional skips.
+- Focused paths/safety, desktop, and Windows packaging tests: 39 passed.
+- Full portable Python 3.12 suite: 925 passed, 3 existing intentional skips.
 - `compileall` and `git diff --check`: passed.
 - Local arm64 onedir package build and strict ad-hoc signature verification:
   passed.
 - Host-side Device Home tests use fake/read-only transport; no physical USB
   enumeration or device operation was performed.
+
+The first PR CI attempt identified two packaging regressions: the macOS spec
+was ignored by Git, and the Windows packaged smoke referenced a removed
+private path helper and the old window title. The spec is now explicitly
+tracked; the smoke uses the shared path abstraction and current product title.
+The macOS build metadata also now reports the actual Resources and Frameworks
+locations. Corrected-head CI is pending.
 
 The local LaunchServices smoke could not launch the bundle from the isolated
 `/private/tmp` worktree: `open` returned `kLSNoExecutableErr`, and local

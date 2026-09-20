@@ -14,13 +14,17 @@ sender-start state, and the installation-wide lock; no state migration or
 device capability expansion occurred.
 
 Local arm64 packaging and strict ad-hoc signature verification pass. The
-focused P18-035 suite is 60/60; the full portable suite is 922 passed with 3
-intentional skips; `compileall` and `git diff --check` pass. Local
+focused safety, desktop, and packaging suite is 39/39; the full portable suite
+is 925 passed with 3 intentional skips; `compileall` and `git diff --check`
+pass. The first PR CI attempt found a missing tracked macOS spec and stale
+Windows packaged-smoke references; both were corrected, and CI is rerunning
+on the corrected commit. Local
 LaunchServices cannot index the app from its isolated `/private/tmp` worktree,
 so the Finder-equivalent open result is pending the macOS CI workflow. Windows
-backend tests passed locally, while macOS/Windows CI, fresh exact-head R3-quality
-review of the safety paths, publication, and PM acceptance remain pending. No
-physical device access or device-changing operation occurred. See the
+backend tests passed locally. The PR is open; corrected-head macOS/Windows CI
+and fresh exact-head R3-quality review of the safety paths remain pending, as
+does PM acceptance. No physical device access or device-changing operation
+occurred. See the
 [P18-035 analysis record](analysis/phase-18-p18-035-macos-owner-app-device-home-20260920.md).
 
 ## P18-034 — Windows packaging & deployment baseline (host-only)

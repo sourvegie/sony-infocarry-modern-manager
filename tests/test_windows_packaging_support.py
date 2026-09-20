@@ -14,6 +14,14 @@ from scripts.windows_manager_entry import (
 
 
 class WindowsPackagingSupportTests(unittest.TestCase):
+    def test_packaged_smoke_uses_shared_paths_and_current_manager_title(self):
+        entry = Path(__file__).parents[1] / "scripts" / "windows_manager_entry.py"
+        source = entry.read_text(encoding="utf-8")
+
+        self.assertIn("from infocarry.app_paths import application_paths", source)
+        self.assertNotIn("_application_state_root", source)
+        self.assertIn('window_state["title"] != "InfoCarry Manager"', source)
+
     def test_packaged_host_workflow_covers_content_and_keeps_exact_profiles(self):
         report = _run_host_workflow_checks()
 

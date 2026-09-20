@@ -2,19 +2,26 @@ import errno
 import hashlib
 import inspect
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from infocarry.backup_format import BackupFormatError
+from infocarry.app_paths import application_paths
 from infocarry.desktop_ttk import (
     LIBRARY_DEFAULT_GEOMETRY,
     LIBRARY_DETAIL_MIN_WIDTH,
     LIBRARY_LIST_MIN_WIDTH,
     LIBRARY_MINIMUM_GEOMETRY,
+    _application_write_safety_status,
     _library_package_shape,
+    _persistent_safety_unavailable_message,
     format_library_device_tree_preview,
     format_library_preparation_audit,
     format_library_transfer_plan,
     format_early_transfer_eligibility_summary,
+    _try_create_application_write_safety_owner,
     format_experimental_library_transfer_review,
     format_library_host_only_terminal_state,
     format_library_preparation_summary,
@@ -31,10 +38,56 @@ from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.library_transfer_execution import LibraryTransferExecutionError
 from infocarry.library_transfer_readiness import ReadinessAction, ReadinessState
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
+from infocarry.execution_claim_store import ExecutionClaimStoreError
 from infocarry.prepared_content import EMPTY_SHA256, PreparedContentArtifact, PreparedContentChild
+from infocarry.write_safety_boundary import create_default_application_write_safety_owner
 
 
 class DesktopTtkMessageTests(unittest.TestCase):
+    def test_invalid_persistent_claim_store_keeps_ui_safety_owner_closed(self):
+        paths = application_paths(
+            home=Path("/test-home"), platform="darwin", os_name="posix", environ={}
+        )
+        with patch(
+            "infocarry.desktop_ttk.create_default_application_write_safety_owner",
+            side_effect=ExecutionClaimStoreError("existing execution claim store is corrupt"),
+        ):
+            owner, explanation = _try_create_application_write_safety_owner(paths)
+
+        self.assertIsNone(owner)
+        self.assertEqual(explanation, "existing execution claim store is corrupt")
+        source = inspect.getsource(launch_ttk_desktop)
+        self.assertIn("_try_create_application_write_safety_owner", source)
+        safety_message_source = inspect.getsource(_persistent_safety_unavailable_message)
+        self.assertIn("Read-only Device Home remains available", safety_message_source)
+        self.assertIn("Device-changing actions are disabled", safety_message_source)
+        self.assertIn("textvariable=safety_state_var", source)
+        self.assertIn("safety_state_label.grid(row=5, column=0", source)
+        self.assertIn("safety_state_var.set(_persistent_safety_unavailable_message(detail))", source)
+
+    def test_active_global_lock_has_visible_actionable_read_only_message(self):
+        with TemporaryDirectory(prefix="infocarry-ui-lock-") as temporary:
+            paths = application_paths(
+                home=Path(temporary), platform="darwin", os_name="posix", environ={}
+            )
+            owner = create_default_application_write_safety_owner(paths=paths)
+            owner.indeterminate_write_lock.record_indeterminate(
+                reason="fixture unresolved outcome",
+                evidence_root="fixture-evidence",
+                model_key=owner.device_model_profile.lock_key,
+                incident_id="incident-active",
+                attempt_id="attempt-active",
+            )
+
+            available, detail = _application_write_safety_status(owner)
+
+        self.assertFalse(available)
+        self.assertIsNotNone(detail)
+        message = _persistent_safety_unavailable_message(detail or "")
+        self.assertIn("Read-only Device Home remains available", message)
+        self.assertIn("globally locked", message)
+        self.assertIn("Do not remove or recreate the safety files", message)
+
     def test_early_transfer_eligibility_names_exact_supported_shapes(self):
         self.assertIn("TXT → BMP → TXT", format_early_transfer_eligibility_summary())
         self.assertIn("TXT → BMP → TXT → TXT", format_early_transfer_eligibility_summary())

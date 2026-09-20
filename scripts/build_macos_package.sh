@@ -77,7 +77,7 @@ if library is None or not Path(library).is_file():
 
 info = {
     "artifact": app.name,
-    "package_layout": "onedir macOS application bundle (Contents/MacOS + Contents/Frameworks)",
+    "package_layout": "onedir macOS app bundle (Contents/MacOS, Contents/Frameworks, Contents/Resources)",
     "architecture": platform.machine(),
     "python_version": platform.python_version(),
     "python_implementation": platform.python_implementation(),
@@ -87,7 +87,8 @@ info = {
     "libusb_package_version": version("libusb-package"),
     "bundled_libusb_library": Path(library).name,
     "source_entry_point": "scripts/macos_manager_entry.py",
-    "resource_root": "Contents/Frameworks/_internal",
+    "resource_root": "Contents/Resources",
+    "native_library_root": "Contents/Frameworks",
     "bundle_identifier": "com.sourvegie.infocarry-manager",
     "signing": "PyInstaller local ad-hoc code signature; no Developer ID or notarization",
     "notarized": False,
