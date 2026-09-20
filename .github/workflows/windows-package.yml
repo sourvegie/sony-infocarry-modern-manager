@@ -24,11 +24,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up pinned Python/Tk runtime
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.15.0rc2"
-          architecture: x64
+      - name: Install official Python 3.15.0rc2 x64 runtime
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "python-3.15.0rc2-amd64.exe"
+          $installerUrl = "https://www.python.org/ftp/python/3.15.0/python-3.15.0rc2-amd64.exe"
+          $expectedSha256 = "a74bf15b3184ea885d39b4eb9b6fc4ac0a696d7bb605d879c024af4433fa72da"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installer
+          $actualSha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Official Python installer SHA-256 mismatch: $actualSha256"
+          }
+          $installDirectory = Join-Path $env:RUNNER_TEMP "python-3.15.0rc2-x64"
+          $process = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList @(
+            "/quiet",
+            "InstallAllUsers=0",
+            "TargetDir=$installDirectory",
+            "PrependPath=0",
+            "Include_launcher=0",
+            "Include_test=0",
+            "Include_tcltk=1",
+            "Include_pip=1",
+            "Shortcuts=0"
+          )
+          if ($process.ExitCode -ne 0) {
+            throw "Python installer failed with exit code $($process.ExitCode)."
+          }
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value (Join-Path $installDirectory "Scripts")
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value $installDirectory
 
       - name: Verify build interpreter and Tcl/Tk
         shell: pwsh

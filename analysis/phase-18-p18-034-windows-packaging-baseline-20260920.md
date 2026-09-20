@@ -12,10 +12,16 @@ protocol, sender, authorization, capability, or device-operation path. The
 target is a Windows x64 one-folder application with the obvious launcher
 `InfoCarry Manager.exe`. Tk 9 remains mandatory. No physical device is used.
 
-Implementation and local validation are in progress. Windows build, packaged
-runtime smoke, CI, independent review, and publication results will be recorded
-here after they complete. Until then, no Windows package is claimed as built
-or verified.
+The implementation is published in PR #61, still open and unmerged.
+Windows build/runtime validation and independent review remain in progress;
+no Windows package is yet claimed as built or verified.
+
+The first PR-triggered Windows package run, [35489216721](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489216721),
+stopped before build because `actions/setup-python` did not have Python
+3.15.0rc2 for Windows Server 2025 in its distribution manifest. No build or
+smoke step ran. The workflow now downloads the official Python.org x64
+installer and verifies its published SHA-256 before installation, preserving
+the exact runtime requirement rather than selecting another interpreter.
 
 ## Packaging decision
 
@@ -109,6 +115,9 @@ interaction. CI proves only its runner's build and host-only smoke.
 
 - Python 3.15.0rc2 Windows installers, ARM64 Experimental label, and release
   status: [Python.org release page](https://www.python.org/downloads/release/python-3150rc2/).
+- Python's documented quiet installer options include `TargetDir`,
+  `Include_tcltk`, and `Include_pip`:
+  [Python on Windows](https://docs.python.org/3.14/using/windows.html).
 - Python 3.15 Tkinter documentation states that official Python binary
   releases bundle Tcl/Tk 9.0:
   [Python 3.15 `tkinter` documentation](https://docs.python.org/3.15/library/tkinter.html).
