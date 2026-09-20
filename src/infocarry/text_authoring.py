@@ -130,6 +130,39 @@ def _normalize_cp932_safe_characters(text: str) -> tuple[str, tuple[tuple[str, s
     return "".join(normalized), tuple(substitutions)
 
 
+def _unsupported_character_locations(text: str) -> tuple[tuple[int, int, str], ...]:
+    """Locate characters that have no deterministic CP932 representation.
+
+    This slower per-character pass runs only after strict encoding fails, so
+    ordinary preparation keeps the single-pass encoder cost. Coordinates are
+    one-based and refer to the original UTF-8 source text.
+    """
+
+    locations: list[tuple[int, int, str]] = []
+    line = 1
+    column = 1
+    previous_was_cr = False
+    for character in text:
+        replacement = CP932_SAFE_SUBSTITUTIONS.get(character, character)
+        try:
+            replacement.encode(TEXT_ENCODING, errors="strict")
+        except UnicodeEncodeError:
+            locations.append((line, column, character))
+        if character == "\r":
+            line += 1
+            column = 1
+            previous_was_cr = True
+        elif character == "\n":
+            if not previous_was_cr:
+                line += 1
+            column = 1
+            previous_was_cr = False
+        else:
+            column += 1
+            previous_was_cr = False
+    return tuple(locations)
+
+
 def encode_cp932_text(text: str) -> EncodedText:
     """Normalize newlines to CRLF and encode text with strict CP932.
 
@@ -146,10 +179,21 @@ def encode_cp932_text(text: str) -> EncodedText:
     try:
         payload = normalized.encode(TEXT_ENCODING, errors="strict")
     except UnicodeEncodeError as exc:
-        offending = normalized[exc.start : exc.end]
-        codepoints = ", ".join(f"U+{ord(char):04X}" for char in offending)
+        locations = _unsupported_character_locations(text)
+        if locations:
+            samples = "; ".join(
+                f"U+{ord(character):04X} at line {line}, column {column}"
+                for line, column, character in locations[:8]
+            )
+            remaining = len(locations) - min(len(locations), 8)
+            suffix = f"; and {remaining} more" if remaining else ""
+            detail = f"{len(locations)} unrepresentable character(s): {samples}{suffix}"
+        else:
+            offending = normalized[exc.start : exc.end]
+            codepoints = ", ".join(f"U+{ord(char):04X}" for char in offending)
+            detail = f"{codepoints} (source location unavailable)"
         raise TextAuthoringError(
-            f"text contains characters unsupported by CP932 ({codepoints})"
+            f"text contains characters unsupported by CP932: {detail}"
         ) from exc
     return EncodedText(text, normalized, payload, substitutions)
 

@@ -9,7 +9,7 @@ model and has no device, sender, or authorization dependencies.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
 from pathlib import Path
@@ -27,7 +27,11 @@ from .prepared_media_package import (
     validate_bmp_payload,
 )
 from .prepared_package import PreparedPackageError, build_prepared_text_package
-from .text_authoring import CP932_NORMALIZATION_POLICY
+from .text_authoring import (
+    CP932_NORMALIZATION_POLICY,
+    CP932_SAFE_SUBSTITUTIONS,
+    encode_cp932_text,
+)
 from .epub_support import (
     CONTENT_WORKSPACE_FORMAT,
     DEFAULT_EPUB_LIMITS,
@@ -112,9 +116,12 @@ class ContentWorkspacePreview:
     source_kind: ContentSourceKind
     title: str
     text_excerpt: Optional[str] = None
+    prepared_text_excerpt: Optional[str] = None
     rendered_details: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
     normalization_substitutions: tuple[tuple[str, str], ...] = ()
+    normalization_occurrences: tuple[tuple[int, int, str, str], ...] = ()
+    prepared_bitmap_payload: Optional[bytes] = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.artifact, PreparedContentArtifact):
@@ -125,6 +132,14 @@ class ContentWorkspacePreview:
             raise ContentWorkspaceError("workspace preview source kind is malformed")
         if not isinstance(self.title, str) or not self.title:
             raise ContentWorkspaceError("workspace preview title is required")
+        if self.prepared_text_excerpt is not None and not isinstance(
+            self.prepared_text_excerpt, str
+        ):
+            raise ContentWorkspaceError("prepared text preview is malformed")
+        if self.prepared_bitmap_payload is not None and not isinstance(
+            self.prepared_bitmap_payload, bytes
+        ):
+            raise ContentWorkspaceError("prepared bitmap preview is malformed")
 
     @property
     def artifact_identity(self) -> str:
@@ -169,11 +184,21 @@ class ContentWorkspacePreview:
                 for child in self.artifact.children
             ],
             "text_excerpt": self.text_excerpt,
+            "prepared_text_excerpt": self.prepared_text_excerpt,
             "rendered_details": list(self.rendered_details),
             "warnings": list(self.warnings),
             "normalization_substitutions": [
                 {"from": source, "to": replacement}
                 for source, replacement in self.normalization_substitutions
+            ],
+            "normalization_occurrences": [
+                {
+                    "line": line,
+                    "column": column,
+                    "from": source,
+                    "to": replacement,
+                }
+                for line, column, source, replacement in self.normalization_occurrences
             ],
             "preparation_valid": self.preparation_valid,
             "device_accessed": False,
@@ -229,6 +254,34 @@ Progress = Callable[[str, Optional[int], Optional[int]], None]
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _normalization_occurrences(
+    text: str,
+) -> tuple[tuple[int, int, str, str], ...]:
+    """Return one-based locations for each deterministic safe substitution."""
+
+    occurrences: list[tuple[int, int, str, str]] = []
+    line = 1
+    column = 1
+    previous_was_cr = False
+    for character in text:
+        replacement = CP932_SAFE_SUBSTITUTIONS.get(character)
+        if replacement is not None:
+            occurrences.append((line, column, character, replacement))
+        if character == "\r":
+            line += 1
+            column = 1
+            previous_was_cr = True
+        elif character == "\n":
+            if not previous_was_cr:
+                line += 1
+            column = 1
+            previous_was_cr = False
+        else:
+            column += 1
+            previous_was_cr = False
+    return tuple(occurrences)
 
 
 def _check_cancel(cancel_event: Any, label: str) -> None:
@@ -388,11 +441,32 @@ class ContentWorkspace:
             else ()
         )
         text_excerpt: Optional[str] = None
+        prepared_text_excerpt: Optional[str] = None
+        prepared_bitmap_payload: Optional[bytes] = None
         if kind is ContentSourceKind.TXT:
             try:
-                text_excerpt = path.read_text(encoding="utf-8")[:4000]
+                source_text = path.read_bytes().decode("utf-8", errors="strict")
+                text_excerpt = source_text[:4000]
+                authored = encode_cp932_text(source_text)
+                if (
+                    len(artifact.children) != 1
+                    or artifact.children[0].kind != "txt"
+                    or _sha256(authored.payload) != artifact.children[0].payload_sha256
+                ):
+                    raise ContentWorkspaceError(
+                        "prepared text no longer matches the canonical artifact"
+                    )
+                prepared_text_excerpt = authored.normalized_text[:4000]
             except (OSError, UnicodeDecodeError) as exc:
                 raise ContentWorkspaceError(f"cannot read preview text: {exc}") from exc
+        elif kind is ContentSourceKind.BMP:
+            try:
+                prepared_bitmap_payload = path.read_bytes()
+                validate_bmp_payload(prepared_bitmap_payload)
+            except (OSError, PreparedMediaPackageError) as exc:
+                raise ContentWorkspaceError(f"cannot read prepared bitmap preview: {exc}") from exc
+            if not artifact.children or _sha256(prepared_bitmap_payload) != artifact.children[0].payload_sha256:
+                raise ContentWorkspaceError("prepared bitmap no longer matches the canonical artifact")
         rendered_details: list[str] = []
         if kind is ContentSourceKind.BMP and artifact.children:
             child = artifact.children[0]
@@ -413,9 +487,16 @@ class ContentWorkspace:
             source_kind=kind,
             title=artifact.root_name,
             text_excerpt=text_excerpt,
+            prepared_text_excerpt=prepared_text_excerpt,
             rendered_details=tuple(rendered_details),
             warnings=warnings,
             normalization_substitutions=tuple(substitutions),
+            normalization_occurrences=(
+                _normalization_occurrences(source_text)
+                if kind is ContentSourceKind.TXT
+                else ()
+            ),
+            prepared_bitmap_payload=prepared_bitmap_payload,
         )
         return ContentWorkspaceResult(
             artifact=artifact,
@@ -483,6 +564,7 @@ class ContentWorkspace:
             settings=settings,
         )
         substitutions = tuple(document.authored.substitutions)
+        occurrences = _normalization_occurrences(document.original_text)
         warnings = (
             (
                 "Some characters were normalized for CP932 compatibility; "
@@ -497,12 +579,14 @@ class ContentWorkspace:
             source_kind=ContentSourceKind.TXT,
             title=artifact.root_name,
             text_excerpt=document.original_text[:4000],
+            prepared_text_excerpt=document.authored.normalized_text[:4000],
             rendered_details=(
                 f"{document.page_count} logical page(s) on the "
                 f"{settings.page_layout.width_px} × {settings.page_layout.height_px} rendering canvas",
             ),
             warnings=warnings,
             normalization_substitutions=substitutions,
+            normalization_occurrences=occurrences,
         )
         metadata = {
             "source_sha256": _sha256(path.read_bytes()),
@@ -513,6 +597,10 @@ class ContentWorkspace:
             "normalization_substitutions": [
                 {"from": source, "to": replacement}
                 for source, replacement in substitutions
+            ],
+            "normalization_occurrences": [
+                {"line": line, "column": column, "from": source, "to": replacement}
+                for line, column, source, replacement in occurrences
             ],
             "page_count": document.page_count,
             "rendering_canvas": {
@@ -552,6 +640,7 @@ class ContentWorkspace:
                 f"{details['width']} × {details['height']} pixels; "
                 f"{details['bits_per_pixel']}-bit uncompressed BMP",
             ),
+            prepared_bitmap_payload=payload,
         )
         metadata = {
             "source_sha256": _sha256(payload),
@@ -582,6 +671,14 @@ class ContentWorkspace:
             artifact = imported.package.to_prepared_content_artifact()
         except (OSError, PreparedMediaPackageError, PreparedContentError) as exc:
             raise ContentWorkspaceError(str(exc)) from exc
+        first_bitmap = next(
+            (
+                child.source_bytes
+                for child in imported.package.items
+                if getattr(child, "kind", None) == "bmp"
+            ),
+            None,
+        )
         preview = ContentWorkspacePreview(
             artifact=artifact,
             source_path=path,
@@ -591,6 +688,7 @@ class ContentWorkspace:
                 "237 × 320 1-bit BMP page" if child.kind == "bmp" else "CP932 text child"
                 for child in artifact.children
             ),
+            prepared_bitmap_payload=first_bitmap,
         )
         metadata = {
             "package_manifest_sha256": imported.manifest_sha256,

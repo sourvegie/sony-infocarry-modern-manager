@@ -536,7 +536,9 @@ def prepare_epub(source: Path, *, root_name: Optional[str] = None, limits: EpubL
         try:
             authored = encode_cp932_text(text)
         except TextAuthoringError as exc:
-            raise EpubPackageError(f"EPUB chapter cannot be represented by CP932: {resource}") from exc
+            raise EpubPackageError(
+                f"EPUB chapter cannot be represented by CP932 ({resource}): {exc}"
+            ) from exc
         payloads.append(_payload(name, "txt", authored.payload, package.files[resource], resource, normalized=authored.original_text != authored.normalized_text))
         normalized_children += 1
         normalization_events += int(authored.original_text != authored.normalized_text)
