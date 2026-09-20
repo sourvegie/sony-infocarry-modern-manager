@@ -24,7 +24,7 @@ import zipfile
 
 from .prepared_content import PreparedContentArtifact, PreparedContentChild, PreparedContentError
 from .prepared_media_package import PreparedMediaPackageError, validate_bmp_payload
-from .text_authoring import TextAuthoringError, encode_cp932_text
+from .text_authoring import TextAuthoringError, encode_cp932_text, normalization_occurrences
 from .transfer_shape import TransferShapeAssessment, assess_transfer_shape
 
 
@@ -93,6 +93,7 @@ class PreparedContentPayload:
     source_bytes: int
     source_reference: str
     normalized: bool = False
+    normalization_occurrences: tuple[tuple[int, int, str, str], ...] = ()
 
     @property
     def payload_sha256(self) -> str:
@@ -168,6 +169,18 @@ class PreparedContentResult:
                     text = "[text preview unavailable]"
                 value["text"] = text[:max_text_characters]
                 value["truncated"] = len(text) > max_text_characters
+                value["normalization_occurrences"] = [
+                    {
+                        "source": payload.source_reference,
+                        "coordinate_basis": "extracted chapter text",
+                        "line": line,
+                        "column": column,
+                        "from": source,
+                        "to": replacement,
+                    }
+                    for line, column, source, replacement
+                    in payload.normalization_occurrences
+                ]
             else:
                 value["image"] = {
                     "width": 237,
@@ -501,8 +514,26 @@ def _root_name(value: str) -> str:
     return value.strip()
 
 
-def _payload(name: str, kind: str, payload: bytes, source: bytes, reference: str, *, normalized: bool = False) -> PreparedContentPayload:
-    return PreparedContentPayload(name, kind, payload, _sha256(source), len(source), reference, normalized)
+def _payload(
+    name: str,
+    kind: str,
+    payload: bytes,
+    source: bytes,
+    reference: str,
+    *,
+    normalized: bool = False,
+    normalization_occurrences: tuple[tuple[int, int, str, str], ...] = (),
+) -> PreparedContentPayload:
+    return PreparedContentPayload(
+        name,
+        kind,
+        payload,
+        _sha256(source),
+        len(source),
+        reference,
+        normalized,
+        normalization_occurrences,
+    )
 
 
 def inspect_epub(source: Path, *, limits: EpubLimits = DEFAULT_EPUB_LIMITS) -> EpubInspection:
@@ -539,7 +570,17 @@ def prepare_epub(source: Path, *, root_name: Optional[str] = None, limits: EpubL
             raise EpubPackageError(
                 f"EPUB chapter cannot be represented by CP932 ({resource}): {exc}"
             ) from exc
-        payloads.append(_payload(name, "txt", authored.payload, package.files[resource], resource, normalized=authored.original_text != authored.normalized_text))
+        payloads.append(
+            _payload(
+                name,
+                "txt",
+                authored.payload,
+                package.files[resource],
+                resource,
+                normalized=authored.original_text != authored.normalized_text,
+                normalization_occurrences=normalization_occurrences(text),
+            )
+        )
         normalized_children += 1
         normalization_events += int(authored.original_text != authored.normalized_text)
         for image_index, (href, _alt) in enumerate(image_refs, 1):

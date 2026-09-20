@@ -8,6 +8,7 @@ import json
 import os
 import queue
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import threading
@@ -217,6 +218,37 @@ def _backup_review_filesystem_revision(directory: Optional[Path]) -> tuple[Any, 
         return str(resolved), tuple(entries)
     except OSError as exc:
         return str(root), "unavailable", type(exc).__name__, exc.errno
+
+
+def _source_review_filesystem_revision(source: Optional[Path]) -> tuple[Any, ...]:
+    """Capture cheap file metadata so an open review stales after source edits."""
+
+    if source is None:
+        return ()
+    path = Path(source).expanduser()
+
+    def signature(info: os.stat_result) -> tuple[int, ...]:
+        return (
+            info.st_mode,
+            info.st_dev,
+            info.st_ino,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+
+    try:
+        link_info = path.lstat()
+        link_signature = signature(link_info)
+        if stat.S_ISLNK(link_info.st_mode):
+            try:
+                target_info = path.stat()
+            except OSError as exc:
+                return str(path), "symlink", link_signature, "target-unavailable", type(exc).__name__, exc.errno
+            return str(path), "symlink", link_signature, signature(target_info)
+        return str(path), signature(link_info)
+    except OSError as exc:
+        return str(path), "unavailable", type(exc).__name__, exc.errno
 
 
 def _conversion_destination(parent: Path, source: Path) -> Path:
@@ -839,6 +871,7 @@ def format_library_preparation_summary(result: Any) -> str:
         lines.extend(_normalization_notice_lines(preview))
         for warning in getattr(preview, "warnings", ()):
             lines.extend(("", f"Note: {warning}"))
+    lines.extend(_prepared_epub_normalization_lines(prepared))
     unsupported_features = getattr(prepared, "unsupported_features", ())
     if unsupported_features:
         lines.extend(("", f"EPUB conversion notes: {len(unsupported_features)} item(s) were not converted."))
@@ -884,20 +917,62 @@ def format_early_transfer_eligibility_summary(
 
 def _normalization_notice_lines(preview: Any, *, limit: int = 12) -> list[str]:
     substitutions = tuple(getattr(preview, "normalization_substitutions", ()) or ())
-    if not substitutions:
+    details = tuple(getattr(preview, "normalization_details", ()) or ())
+    if not substitutions and not details:
         return []
     occurrences = tuple(getattr(preview, "normalization_occurrences", ()) or ())
+    total = len(occurrences) + len(details)
     lines = [
         "",
-        f"Text changes: {len(substitutions)} character(s) used deterministic safe substitutions.",
+        f"Text changes: {total or len(substitutions)} character(s) used deterministic safe substitutions.",
     ]
     for line, column, source, replacement in occurrences[:limit]:
         lines.append(f"  Line {line}, column {column}: {source!r} → {replacement!r}")
-    if len(occurrences) > limit:
+    remaining = max(0, limit - len(occurrences))
+    for child, source_reference, line, column, source, replacement in details[:remaining]:
         lines.append(
-            f"  {len(occurrences) - limit} more location(s) are available in Technical Details."
+            f"  {child} (source {source_reference}), line {line}, column {column}: "
+            f"{source!r} → {replacement!r}"
+        )
+    if total > limit:
+        lines.append(
+            f"  {total - limit} more location(s) are available in Technical Details."
         )
     lines.append("Characters without a clean CP932 representation stop preparation; they are never replaced automatically.")
+    return lines
+
+
+def _prepared_epub_normalization_lines(prepared: Any, *, limit: int = 12) -> list[str]:
+    preview_children = getattr(prepared, "preview_children", None)
+    if not callable(preview_children):
+        return []
+    try:
+        children = preview_children(max_text_characters=1200)
+    except (TypeError, ValueError):
+        return []
+    details = [
+        (child.get("name", "Text item"), item)
+        for child in children
+        if child.get("kind") == "txt"
+        for item in child.get("normalization_occurrences", ())
+    ]
+    if not details:
+        return []
+    lines = [
+        "",
+        f"Text changes: {len(details)} character(s) used deterministic safe substitutions.",
+        "Locations refer to extracted chapter text before CP932 normalization.",
+    ]
+    for child_name, detail in details[:limit]:
+        lines.append(
+            f"  {child_name} (EPUB {detail.get('source', 'chapter')}), "
+            f"line {detail.get('line')}, column {detail.get('column')}: "
+            f"{detail.get('from')!r} → {detail.get('to')!r}"
+        )
+    if len(details) > limit:
+        lines.append(
+            f"  {len(details) - limit} more location(s) are available in Technical Details."
+        )
     return lines
 
 
@@ -972,6 +1047,7 @@ def format_library_preview_summary(preview: Any) -> str:
                     lines.append(f"{child.get('name', 'Image')}: validated 237 × 320, 1-bit BMP")
             if len(converted) > 2:
                 lines.append(f"{len(converted) - 2} additional prepared item(s) are listed above.")
+            lines.extend(_prepared_epub_normalization_lines(prepared))
         if getattr(prepared, "normalization_events", 0):
             lines.append(
                 f"\nCP932 safe normalization occurred in {prepared.normalization_events} converted text item(s)."
@@ -2198,6 +2274,7 @@ def launch_ttk_desktop(
                 (
                     value.item_id,
                     value.source_path,
+                    _source_review_filesystem_revision(value.source_path),
                     value.source_filename,
                     value.source_sha256,
                     value.source_status,
@@ -2215,6 +2292,28 @@ def launch_ttk_desktop(
                     ),
                 )
             )
+            package = getattr(value, "package", None)
+            if package is not None:
+                package_root = Path(value.source_path).expanduser()
+                package_paths = [getattr(package, "manifest_path", None)]
+                for child in getattr(package, "children", ()):
+                    if not isinstance(child, Mapping):
+                        continue
+                    package_paths.extend(
+                        (child.get("package_path"), child.get("prepared_path"))
+                    )
+                for relative_path in package_paths:
+                    if not isinstance(relative_path, str):
+                        continue
+                    relative = Path(relative_path)
+                    if not relative.is_absolute() and ".." in relative.parts:
+                        continue
+                    candidate = relative if relative.is_absolute() else package_root / relative
+                    try:
+                        candidate.resolve().relative_to(package_root.resolve())
+                    except (OSError, ValueError):
+                        continue
+                    values.append(_source_review_filesystem_revision(candidate))
             for child in library_catalog.children(value.item_id):
                 visit(child)
 
@@ -2329,11 +2428,24 @@ def launch_ttk_desktop(
             selected = selected_library_item()
             if selected is not None:
                 _set_readonly_text(
-                    library_report, format_library_selection_summary(selected)
+                    library_report,
+                    format_library_selection_summary(selected)
+                    + "\n\nThe previous review is no longer current. If a source file changed, "
+                    "prepare the content again before reviewing transfer.",
                 )
             library_status_var.set(
-                "Device or backup details changed; review transfer again for current information"
+                "Content, Device Home, or backup details changed; review transfer again for current information"
             )
+
+    def process_library_review_freshness() -> None:
+        """Invalidate a displayed review when its source or context changes."""
+
+        if not root.winfo_exists():
+            return
+        if not library_operation_controller.busy:
+            invalidate_library_transfer_review_if_stale()
+        if root.winfo_exists():
+            root.after(1000, process_library_review_freshness)
 
     def restore_device_manager_controls() -> None:
         """Restore Device Manager controls after a Library operation ends."""
@@ -4142,6 +4254,7 @@ def launch_ttk_desktop(
     root.protocol("WM_DELETE_WINDOW", close_action)
     root.after(100, process_backup_events)
     root.after(50, process_library_callbacks)
+    root.after(1000, process_library_review_freshness)
     root.mainloop()
 
 

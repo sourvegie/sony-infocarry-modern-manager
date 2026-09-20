@@ -29,8 +29,8 @@ from .prepared_media_package import (
 from .prepared_package import PreparedPackageError, build_prepared_text_package
 from .text_authoring import (
     CP932_NORMALIZATION_POLICY,
-    CP932_SAFE_SUBSTITUTIONS,
     encode_cp932_text,
+    normalization_occurrences,
 )
 from .epub_support import (
     CONTENT_WORKSPACE_FORMAT,
@@ -121,6 +121,7 @@ class ContentWorkspacePreview:
     warnings: tuple[str, ...] = ()
     normalization_substitutions: tuple[tuple[str, str], ...] = ()
     normalization_occurrences: tuple[tuple[int, int, str, str], ...] = ()
+    normalization_details: tuple[tuple[str, str, int, int, str, str], ...] = ()
     prepared_bitmap_payload: Optional[bytes] = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -200,6 +201,18 @@ class ContentWorkspacePreview:
                 }
                 for line, column, source, replacement in self.normalization_occurrences
             ],
+            "normalization_details": [
+                {
+                    "child": child,
+                    "source": source_reference,
+                    "line": line,
+                    "column": column,
+                    "from": source,
+                    "to": replacement,
+                }
+                for child, source_reference, line, column, source, replacement
+                in self.normalization_details
+            ],
             "preparation_valid": self.preparation_valid,
             "device_accessed": False,
             "device_change": "none",
@@ -254,34 +267,6 @@ Progress = Callable[[str, Optional[int], Optional[int]], None]
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def _normalization_occurrences(
-    text: str,
-) -> tuple[tuple[int, int, str, str], ...]:
-    """Return one-based locations for each deterministic safe substitution."""
-
-    occurrences: list[tuple[int, int, str, str]] = []
-    line = 1
-    column = 1
-    previous_was_cr = False
-    for character in text:
-        replacement = CP932_SAFE_SUBSTITUTIONS.get(character)
-        if replacement is not None:
-            occurrences.append((line, column, character, replacement))
-        if character == "\r":
-            line += 1
-            column = 1
-            previous_was_cr = True
-        elif character == "\n":
-            if not previous_was_cr:
-                line += 1
-            column = 1
-            previous_was_cr = False
-        else:
-            column += 1
-            previous_was_cr = False
-    return tuple(occurrences)
 
 
 def _check_cancel(cancel_event: Any, label: str) -> None:
@@ -492,7 +477,7 @@ class ContentWorkspace:
             warnings=warnings,
             normalization_substitutions=tuple(substitutions),
             normalization_occurrences=(
-                _normalization_occurrences(source_text)
+                normalization_occurrences(source_text)
                 if kind is ContentSourceKind.TXT
                 else ()
             ),
@@ -564,7 +549,7 @@ class ContentWorkspace:
             settings=settings,
         )
         substitutions = tuple(document.authored.substitutions)
-        occurrences = _normalization_occurrences(document.original_text)
+        occurrences = normalization_occurrences(document.original_text)
         warnings = (
             (
                 "Some characters were normalized for CP932 compatibility; "
@@ -687,6 +672,26 @@ class ContentWorkspace:
             rendered_details=tuple(
                 "237 × 320 1-bit BMP page" if child.kind == "bmp" else "CP932 text child"
                 for child in artifact.children
+            ),
+            normalization_substitutions=tuple(
+                substitution
+                for item in imported.package.items
+                if getattr(item, "kind", None) == "txt"
+                for substitution in item.authored.substitutions
+            ),
+            normalization_details=tuple(
+                (
+                    item.name,
+                    item.source_path.name,
+                    line,
+                    column,
+                    source,
+                    replacement,
+                )
+                for item in imported.package.items
+                if getattr(item, "kind", None) == "txt"
+                for line, column, source, replacement
+                in normalization_occurrences(item.source_text)
             ),
             prepared_bitmap_payload=first_bitmap,
         )

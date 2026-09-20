@@ -130,6 +130,32 @@ def _normalize_cp932_safe_characters(text: str) -> tuple[str, tuple[tuple[str, s
     return "".join(normalized), tuple(substitutions)
 
 
+def normalization_occurrences(text: str) -> tuple[tuple[int, int, str, str], ...]:
+    """Return one-based source positions for deterministic CP932 substitutions."""
+
+    occurrences: list[tuple[int, int, str, str]] = []
+    line = 1
+    column = 1
+    previous_was_cr = False
+    for character in text:
+        replacement = CP932_SAFE_SUBSTITUTIONS.get(character)
+        if replacement is not None:
+            occurrences.append((line, column, character, replacement))
+        if character == "\r":
+            line += 1
+            column = 1
+            previous_was_cr = True
+        elif character == "\n":
+            if not previous_was_cr:
+                line += 1
+            column = 1
+            previous_was_cr = False
+        else:
+            column += 1
+            previous_was_cr = False
+    return tuple(occurrences)
+
+
 def _unsupported_character_locations(text: str) -> tuple[tuple[int, int, str], ...]:
     """Locate characters that have no deterministic CP932 representation.
 

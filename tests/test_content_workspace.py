@@ -223,9 +223,9 @@ class ContentWorkspaceTests(unittest.TestCase):
         first = self.root / "first.txt"
         page = self.root / "page.bmp"
         last = self.root / "last.txt"
-        first.write_text("first", encoding="utf-8")
+        first.write_text("“first”…", encoding="utf-8")
         page.write_bytes(make_profile_bmp())
-        last.write_text("last", encoding="utf-8")
+        last.write_text("last ‘two’", encoding="utf-8")
         package = build_prepared_media_package(
             ((first, "one.txt"), (page, "page.bmp"), (last, "two.txt")), "Book"
         )
@@ -239,6 +239,19 @@ class ContentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(result.artifact.children[0].order, 0)
         self.assertEqual(result.preview.prepared_bitmap_payload, make_profile_bmp())
+        self.assertEqual(
+            result.preview.normalization_details,
+            (
+                ("one.txt", "0001_first.txt", 1, 1, "“", '"'),
+                ("one.txt", "0001_first.txt", 1, 7, "”", '"'),
+                ("one.txt", "0001_first.txt", 1, 8, "…", "..."),
+                ("two.txt", "0003_last.txt", 1, 6, "‘", "'"),
+                ("two.txt", "0003_last.txt", 1, 10, "’", "'"),
+            ),
+        )
+        details = result.preview.to_dict()["normalization_details"]
+        self.assertEqual(details[0]["child"], "one.txt")
+        self.assertEqual(details[-1]["source"], "0003_last.txt")
 
     def test_prepared_folder_uses_existing_hierarchy_adapter(self):
         folder = self.root / "Folder"
@@ -288,7 +301,7 @@ class ContentWorkspaceTests(unittest.TestCase):
 
     def test_epub_uses_title_spine_text_and_safe_bmp_projection(self):
         source = self.root / "book.epub"
-        write_epub(source, chapter="Hello 日本語", include_image=True)
+        write_epub(source, chapter="Hello “日本語”…", include_image=True)
 
         result = self.workspace.prepare_epub(source)
 
@@ -299,7 +312,41 @@ class ContentWorkspaceTests(unittest.TestCase):
         )
         self.assertEqual(
             result.payloads[0].payload,
-            b"Heading\r\nHello \x93\xfa\x96{\x8c\xea\r\npage image",
+            b'Heading\r\nHello "\x93\xfa\x96{\x8c\xea"...\r\npage image',
+        )
+        normalized = result.preview_children()[0]["normalization_occurrences"]
+        self.assertEqual(
+            normalized,
+            [
+                {
+                    "source": "OEBPS/chapter.xhtml",
+                    "coordinate_basis": "extracted chapter text",
+                    "line": 2,
+                    "column": 7,
+                    "from": "“",
+                    "to": '"',
+                },
+                {
+                    "source": "OEBPS/chapter.xhtml",
+                    "coordinate_basis": "extracted chapter text",
+                    "line": 2,
+                    "column": 11,
+                    "from": "”",
+                    "to": '"',
+                },
+                {
+                    "source": "OEBPS/chapter.xhtml",
+                    "coordinate_basis": "extracted chapter text",
+                    "line": 2,
+                    "column": 12,
+                    "from": "…",
+                    "to": "...",
+                },
+            ],
+        )
+        self.assertEqual(
+            result.report()["preview"]["children"][0]["normalization_occurrences"],
+            normalized,
         )
         self.assertEqual(result.transfer_shape.classification, "plausible_future_vnw_v15_direct_leaf")
         self.assertTrue(result.normalization_occurred)
