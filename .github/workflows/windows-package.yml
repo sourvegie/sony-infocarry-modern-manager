@@ -1,0 +1,78 @@
+name: Windows package
+
+on:
+  push:
+    branches: [task/P18-034-windows-packaging-baseline]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-x64:
+    name: Windows x64 onedir package (Tk 9)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pinned Python/Tk runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.15.0rc2"
+          architecture: x64
+
+      - name: Verify build interpreter and Tcl/Tk
+        shell: pwsh
+        run: |
+          python -c "import platform,sys,tkinter; print('Python:', sys.version); print('Architecture:', platform.machine()); print('Tcl/Tk binding:', tkinter.TkVersion); assert platform.machine().casefold() in {'amd64','x86_64'}; assert tkinter.TkVersion >= 9.0"
+
+      - name: Build the pinned onedir package
+        shell: pwsh
+        run: ./scripts/build_windows_package.ps1
+
+      - name: Run frozen-runtime and application smoke without Python on PATH
+        shell: pwsh
+        run: |
+          $smokeRoot = Join-Path $env:RUNNER_TEMP "infocarry-windows-package-smoke"
+          $profile = Join-Path $smokeRoot "profile"
+          New-Item -ItemType Directory -Force -Path $smokeRoot, $profile | Out-Null
+          $env:APPDATA = Join-Path $profile "Roaming"
+          $env:LOCALAPPDATA = Join-Path $profile "Local"
+          $env:USERPROFILE = $profile
+          New-Item -ItemType Directory -Force -Path $env:APPDATA, $env:LOCALAPPDATA | Out-Null
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $launcher = Join-Path (Resolve-Path "dist/InfoCarry Manager").Path "InfoCarry Manager.exe"
+          $report = Join-Path $smokeRoot "RUNTIME-SMOKE.json"
+          & $launcher --runtime-smoke $report
+          if ($LASTEXITCODE -ne 0) {
+            if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report }
+            throw "Packaged runtime smoke failed with exit code $LASTEXITCODE."
+          }
+          $smoke = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+          if ($smoke.status -ne "passed") { throw "Packaged runtime smoke did not pass." }
+          Copy-Item -LiteralPath $report -Destination "dist/InfoCarry Manager/RUNTIME-SMOKE-CI.json"
+          Get-Content -LiteralPath $report
+
+      - name: Archive the distributable folder
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9.zip"
+          Compress-Archive -Path "dist/InfoCarry Manager" -DestinationPath $archive -CompressionLevel Optimal
+          Write-Output "Package archive: $archive"
+
+      - name: Publish the Windows x64 package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9
+          path: ${{ runner.temp }}/InfoCarry-Manager-windows-x64-py3.15.0rc2-tk9.zip
+          if-no-files-found: error
+          retention-days: 30

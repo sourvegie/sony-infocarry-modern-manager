@@ -56,8 +56,9 @@ def check_desktop_runtime() -> DesktopRuntime:
         raise DesktopRuntimeError(
             "The InfoCarry desktop requires Python 3.12 or newer. "
             f"This process is using Python {python_version[0]}.{python_version[1]}."
-            f"{python_version[2]}. Use the project Python 3.12/Tk 9 runtime; "
-            "the macOS system Python 3.9/Tk 8.5 is unsupported."
+            f"{python_version[2]}. Use a supported Python 3.12+ environment "
+            "with Tcl/Tk 9.0 or newer; the macOS system Python 3.9/Tk 8.5 "
+            "is unsupported."
         )
 
     try:
@@ -66,15 +67,15 @@ def check_desktop_runtime() -> DesktopRuntime:
         tk_version = _parse_version(tkinter.TkVersion)
     except ImportError as exc:
         raise DesktopRuntimeError(
-            "Tkinter is not installed. Install the project Python 3.12.13 "
-            "distribution that bundles Tcl/Tk 9.0."
+            "Tkinter is not installed. Use a supported Python 3.12+ distribution "
+            "that bundles Tcl/Tk 9.0 or newer."
         ) from exc
     if tk_version < MIN_TK:
         raise DesktopRuntimeError(
             f"The InfoCarry desktop requires Tcl/Tk {MIN_TK[0]}.{MIN_TK[1]} or newer; "
             f"this process found Tcl/Tk {tk_version[0]}.{tk_version[1]}. "
             "The macOS system Tk 8.5 is unsupported. Use the project Python "
-            "3.12/Tk 9 runtime."
+            "runtime with Tcl/Tk 9.0 or newer."
         )
     return DesktopRuntime(python_version, tk_version)
 
