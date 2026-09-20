@@ -75,10 +75,13 @@ jobs:
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           $launcher = Join-Path (Resolve-Path "dist/InfoCarry Manager").Path "InfoCarry Manager.exe"
           $report = Join-Path $smokeRoot "RUNTIME-SMOKE.json"
-          & $launcher --runtime-smoke $report
-          if ($LASTEXITCODE -ne 0) {
+          $smokeProcess = Start-Process -FilePath $launcher -Wait -PassThru -ArgumentList @(
+            "--runtime-smoke",
+            $report
+          )
+          if ($smokeProcess.ExitCode -ne 0) {
             if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report }
-            throw "Packaged runtime smoke failed with exit code $LASTEXITCODE."
+            throw "Packaged runtime smoke failed with exit code $($smokeProcess.ExitCode)."
           }
           $smoke = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
           if ($smoke.status -ne "passed") { throw "Packaged runtime smoke did not pass." }

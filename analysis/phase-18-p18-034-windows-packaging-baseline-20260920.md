@@ -19,9 +19,14 @@ no Windows package is yet claimed as built or verified.
 The first PR-triggered Windows package run, [35489216721](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489216721),
 stopped before build because `actions/setup-python` did not have Python
 3.15.0rc2 for Windows Server 2025 in its distribution manifest. No build or
-smoke step ran. The workflow now downloads the official Python.org x64
-installer and verifies its published SHA-256 before installation, preserving
-the exact runtime requirement rather than selecting another interpreter.
+smoke step ran. The workflow was changed to download the official Python.org
+x64 installer and verify its published SHA-256 before installation. In run
+[35489363904](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35489363904),
+that exact runtime and Tk 9 check passed and PyInstaller produced the onedir
+package. The smoke step did not complete: PowerShell received no
+`$LASTEXITCODE` from the GUI-subsystem executable. The workflow now launches
+it with `Start-Process -Wait -PassThru` and checks the returned process exit
+code. Runtime smoke and artifact upload are pending that correction.
 
 ## Packaging decision
 
