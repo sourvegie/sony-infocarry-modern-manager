@@ -1,6 +1,12 @@
 # Current Project Status
 
-Date: 2026-09-20
+Date: 2026-09-21
+
+## Product direction after P18-036
+
+The current product direction and near-term sequence are recorded in
+[PRODUCT_VISION.md](PRODUCT_VISION.md) and [ROADMAP.md](ROADMAP.md). The
+decision rationale is in the [dated analysis record](analysis/phase-18-post-p18-036-product-direction-20260921.md). This documentation update does not change a capability or authorize a device operation.
 
 ## P18-036 — Everyday content preparation and transfer review UX
 

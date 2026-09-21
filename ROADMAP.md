@@ -3,63 +3,84 @@
 This is the forward-looking delivery plan. Detailed milestone history remains
 in `analysis/` and in the archived roadmap through P18-001A.
 
-The Astra architecture/product review is an advisory input whose project
-decisions are recorded in
-[`analysis/phase-18-astra-architecture-product-review-disposition-20260912.md`](analysis/phase-18-astra-architecture-product-review-disposition-20260912.md).
-P18-020 and the subsequent P18-025 physical proof are complete on canonical
-`main`. The P18-025 proof remains a narrow, separately authorized VNW-V15
-operation; it does not authorize new hardware use or expand a capability row.
-P18-026 is now the canonical prepared-content foundation, P18-027 productized
-the normal manager, and P18-028 connects Add Content/conversion to that
-canonical workflow as a host-only step.
+The post-P18-036 product direction is a simple Manager for the Local Library
+and the connected InfoCarry Device Library. Current operation status remains
+in [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). This sequence sets product
+priority; it does not authorize a device operation or expand a capability.
 
-## Current sequence
+## Near-term sequence
 
-0. **P18-028 — Add Content & Conversion Workspace:** connect supported TXT,
-   prepared BMP, prepared-folder, and prepared-package inputs to one
-   deterministic `PreparedContentArtifact` through Add content → Preview →
-   Prepare → Review transfer. EPUB remains deferred until a complete tested
-   extraction/rendering path exists; no live capability changes belong here.
+1. **Focused UI/UX review.** Review the current Manager around the Local
+   Library ↔ Device Library mental model. Walk through adding files and folders,
+   selecting content, transfer, verified completion, and immediate device-tree
+   refresh. Review the corresponding selected deletion and refresh flow, backup
+   access, capacity visibility, and understandable failure states. Keep
+   technical evidence available without making it the ordinary workflow. Use
+   the review to focus subsequent changes.
 
-1. **P18-027 — Normal manager workflow productization:** complete the
-   host-only `Add content → Preview → Prepare → Review transfer → Send to
-   InfoCarry → Verified` flow using the canonical prepared-content artifact,
-   typed readiness explanations, Technical Details diagnostics, and one
-   background controller. No physical write or capability expansion belongs
-   in this step.
-2. **Next separately approved physical work:** if approved after the P18-027
-   host exit gate, repeat only the exact verified VNW-V15 TXT → BMP → TXT
-   operation with fresh target, evidence, and owner authorization. No earlier
-   approval carries forward.
-3. **Library-integrated ebook preparation and Windows packaging
-   investigation:** extend the offline conversion pipeline and test clean
-   packaged Windows environments, including Tk, libusb, x64, and ARM
-   assumptions. Do not relax runtime requirements or advertise compatibility
-   before those tests pass.
-4. **Later separately gated capability work:** prioritize only evidence-backed
-   selective deletion and other exact shapes; keep restore, synchronization,
-   interruption recovery, and broad format expansion outside the live product.
+2. **General library model and direct TXT/BMP transfer.** Build the reusable
+   library and operation model around folders and typed TXT/BMP items. Make
+   direct transfer of supported TXT and BMP content the first practical
+   everyday path. Validate bounded structural rules across representative
+   collections and edge cases instead of defining general validity as a set of
+   exact leaf-order permutations. Keep each device operation behind its
+   existing evidence, capability, authorization, backup, and verification
+   gates.
 
-The repository should gradually remove milestone-specific production
-identities as generic validated operation data becomes available. Historical
-P18 identifiers remain useful in evidence and regression fixtures. SQLite/JSON
-storage consolidation is explicitly deferred; first keep one safety-state
-owner over the existing persistence boundary.
+3. **Realistic nested hierarchy.** Support browsing and selecting content in
+   nested folders, and carry the structure through preparation and transfer
+   review. Validate at a realistic scale of roughly 30–50 folders and many
+   TXT/BMP items. Treat those figures as a planning and test target, not as a
+   hard product limit. Document any limit only when an evidenced device,
+   format, protocol, or resource constraint requires it.
 
-## Model boundary
+4. **Guarded deletion.** Deliver selected file and folder deletion as a core
+   Manager workflow. Require an operation-specific reviewed scope, fresh
+   device state, the existing verified-backup and explicit-confirmation
+   controls, bounded execution, and independent verification of the removal
+   and unaffected content. Refresh the Device Library immediately after
+   verified completion. Do not infer deletion from transfer or synchronization.
 
-VNW-V15 remains the only verified model and the only model associated with the
-current transfer profile. VNW-V10 is a declared product target, but its next
-step is a separately reviewed read-only characterization: identify USB
-descriptors, use only independently established safe read commands, and
-validate its complete baseline/capacity semantics before any profile work.
-Do not reuse V15 protocol or format assumptions. The indeterminate-write
-control remains one installation-wide persistent lock across all sessions and
-models because no stable physical-unit identity is proven.
+5. **InfoCarry Toolkit integration.** Integrate the important Toolkit snapshot
+   `97042a9` after the core Manager workflow is useful. Bring supported
+   conversion into Local Library preparation and review instead of investing
+   first in heavy polish of the separate Text Converter and Ebook Renderer
+   experiences. Treat conversion and Toolkit evidence as preparation inputs;
+   integration does not enable new device operations.
 
-## Later, separately scoped work
+## Permanent safety and model boundaries
 
-Deletion remains a separate delete/re-add lifecycle. Restore, synchronization,
-interruption recovery, firmware/service modes, arbitrary package shapes,
-nested content, batch operations, and broad format expansion require their own
-evidence and review. Backup is a preserved diagnostic/recovery aid, not undo.
+Preserve the existing write-safety invariants throughout this roadmap:
+
+- the capability matrix remains the authority for current device operations;
+- model-specific rules remain explicit: VNW-V15 is verified, and VNW-V10
+  remains uncharacterized and does not inherit V15 capabilities;
+- every device change uses a fresh target and readiness review, including
+  current conflicts and capacity evidence;
+- create and verify the required full backup before a write;
+- require operation-specific authorization and explicit confirmation;
+- retain bounded execution, single-use durable claims, proof-bound
+  sender-marker resolution, and the installation-wide indeterminate-write
+  lock;
+- keep write operations labeled Experimental while commit atomicity and
+  interrupted-write recovery remain unproven;
+- never automatically retry an indeterminate operation after device-changing
+  execution starts; use read-only diagnosis;
+- report verified success only after the exact native integer result `0x0000`,
+  a complete post-write backup, independent read-back, a durable terminal
+  result, and sender-marker resolution; and
+- explain when the physical protocol changes a complete candidate library
+  image even though the user's logical selection is smaller.
+
+A broader structural model is not a capability promotion. Each device operation
+still requires the evidence and reviews applicable to its model and scope.
+Restore, synchronization, unmatched-content deletion, firmware/service modes,
+and interrupted-write recovery remain separately gated work. Do not test
+interrupted-write recovery on the owner's only valuable device.
+
+## Later work
+
+After the near-term sequence, prioritize only product work that advances
+everyday file management while preserving the safety boundary. Keep broad
+format expansion, Windows compatibility claims, storage migrations, and
+additional destructive operations behind their own evidence and review.
