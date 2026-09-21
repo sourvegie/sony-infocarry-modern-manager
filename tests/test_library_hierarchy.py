@@ -95,6 +95,40 @@ class HierarchicalLibraryTests(unittest.TestCase):
 
         self.assertEqual([item.source_filename for item in catalog.roots], ["second.txt", "first.txt"])
 
+    def test_move_to_persists_explicit_sibling_order_without_touching_sources(self):
+        sources = [self.root / f"chapter-{index}.txt" for index in range(4)]
+        for index, source in enumerate(sources):
+            source.write_text(f"chapter {index}\n", encoding="utf-8")
+        original_bytes = {source: source.read_bytes() for source in sources}
+        catalog = LibraryCatalog(self.catalog_path)
+        imported = catalog.import_files(sources)
+
+        moved = catalog.move_to(imported[3].item_id, 1)
+        reloaded = LibraryCatalog(self.catalog_path)
+
+        self.assertEqual(moved.sibling_order, 1)
+        self.assertEqual(
+            [item.source_filename for item in reloaded.roots],
+            ["chapter-0.txt", "chapter-3.txt", "chapter-1.txt", "chapter-2.txt"],
+        )
+        self.assertEqual(
+            {source: source.read_bytes() for source in sources}, original_bytes
+        )
+
+    def test_move_to_rejects_invalid_index_and_preserves_catalog(self):
+        first = self.root / "first.txt"
+        second = self.root / "second.txt"
+        first.write_text("first", encoding="utf-8")
+        second.write_text("second", encoding="utf-8")
+        catalog = LibraryCatalog(self.catalog_path)
+        imported = catalog.import_files((first, second))
+        before = catalog.path.read_bytes()
+
+        for invalid in (-1, 2, True, 1.5):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                catalog.move_to(imported[0].item_id, invalid)
+            self.assertEqual(catalog.path.read_bytes(), before)
+
     def test_subtree_remove_is_catalog_only(self):
         book = self._book()
         catalog = LibraryCatalog(self.catalog_path)
@@ -107,6 +141,42 @@ class HierarchicalLibraryTests(unittest.TestCase):
         self.assertEqual(catalog.items, ())
         self.assertTrue((book / "Section" / "page.bmp").is_file())
         self.assertTrue((book / "a-first.txt").is_file())
+
+    def test_remove_many_prunes_selected_subtrees_and_keeps_all_sources(self):
+        book = self._book()
+        extra = self.root / "extra.txt"
+        extra.write_text("extra", encoding="utf-8")
+        catalog = LibraryCatalog(self.catalog_path)
+        root = catalog.import_folder(book)
+        extra_item = catalog.import_file(extra)
+        source_paths = [Path(item.source_path) for item in catalog.items]
+        before = {path: path.read_bytes() for path in source_paths if path.is_file()}
+        nested_file = next(
+            item for item in catalog.items if item.source_filename == "page.bmp"
+        )
+
+        self.assertTrue(catalog.remove_many((root.item_id, nested_file.item_id, extra_item.item_id)))
+        reloaded = LibraryCatalog(self.catalog_path)
+
+        self.assertEqual(reloaded.items, ())
+        self.assertEqual(
+            {path: path.read_bytes() for path in before}, before
+        )
+
+    def test_remove_many_validates_every_selection_before_mutating(self):
+        first = self.root / "one.txt"
+        second = self.root / "two.txt"
+        first.write_text("one", encoding="utf-8")
+        second.write_text("two", encoding="utf-8")
+        catalog = LibraryCatalog(self.catalog_path)
+        imported = catalog.import_files((first, second))
+        before = catalog.path.read_bytes()
+
+        with self.assertRaises(ValueError):
+            catalog.remove_many((imported[0].item_id, "missing"))
+
+        self.assertEqual(catalog.path.read_bytes(), before)
+        self.assertEqual(len(catalog.items), 2)
 
     def test_v1_catalog_migrates_in_serialized_order_on_first_mutation(self):
         one = self.root / "one.txt"

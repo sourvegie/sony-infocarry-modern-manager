@@ -225,11 +225,42 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
                         raise RuntimeError("normal manager window title was not initialized")
                     if int(root.winfo_width()) <= 1 or int(root.winfo_height()) <= 1:
                         raise RuntimeError("normal manager window has no usable dimensions")
-                    window_state["tab_count"] = len(
-                        [widget for widget in _inspect_widgets(root) if str(widget.winfo_class()) == "TNotebook"]
-                    )
-                    if window_state["tab_count"] != 1:
-                        raise RuntimeError("normal manager notebook was not created")
+                    controls = _inspect_widgets(root)
+                    panes = [
+                        widget
+                        for widget in controls
+                        if str(widget.winfo_class()) == "TPanedwindow"
+                        and len(widget.panes()) == 2
+                    ]
+                    headings = {
+                        str(widget.cget("text"))
+                        for widget in controls
+                        if str(widget.winfo_class()).endswith("Label")
+                    }
+                    transfer_buttons = [
+                        widget
+                        for widget in controls
+                        if str(widget.winfo_class()).endswith("Button")
+                        and widget.cget("text") == "Transfer →"
+                    ]
+                    guarded_send_buttons = [
+                        widget
+                        for widget in controls
+                        if str(widget.winfo_class()).endswith("Button")
+                        and widget.cget("text") == "Send to InfoCarry"
+                    ]
+                    if not panes or not {"LOCAL LIBRARY", "DEVICE LIBRARY"}.issubset(headings):
+                        raise RuntimeError("normal manager side-by-side library workspace was not created")
+                    if not transfer_buttons:
+                        raise RuntimeError("host-only library transfer action was not created")
+                    if not guarded_send_buttons or any(
+                        str(button.cget("state")) != "disabled"
+                        for button in guarded_send_buttons
+                    ):
+                        raise RuntimeError("legacy live-send control was not kept disabled")
+                    window_state["workspace"] = "local_and_device_library"
+                    window_state["host_only_transfer"] = "created"
+                    window_state["guarded_send_control"] = "disabled"
                     window_state["opened"] = True
                 except BaseException as exc:
                     window_state["error"] = f"{type(exc).__name__}: {exc}"

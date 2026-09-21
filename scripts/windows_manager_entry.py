@@ -386,17 +386,41 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
                     if window_state["title"] != "InfoCarry Manager":
                         raise RuntimeError("normal manager window title was not initialized")
                     controls = _inspect_widgets(root)
-                    send_buttons = [
+                    panes = [
+                        control
+                        for control in controls
+                        if str(control.winfo_class()) == "TPanedwindow"
+                        and len(control.panes()) == 2
+                    ]
+                    headings = {
+                        str(control.cget("text"))
+                        for control in controls
+                        if str(control.winfo_class()).endswith("Label")
+                    }
+                    transfer_buttons = [
+                        control
+                        for control in controls
+                        if str(control.winfo_class()).endswith("Button")
+                        and control.cget("text") == "Transfer →"
+                    ]
+                    guarded_send_buttons = [
                         control
                         for control in controls
                         if str(control.winfo_class()).endswith("Button")
                         and control.cget("text") == "Send to InfoCarry"
                     ]
-                    if not send_buttons:
-                        raise RuntimeError("normal manager transfer control was not created")
-                    if any(str(button.cget("state")) != "disabled" for button in send_buttons):
-                        raise RuntimeError("normal manager transfer control was not disabled")
-                    window_state["send_control"] = "disabled"
+                    if not panes or not {"LOCAL LIBRARY", "DEVICE LIBRARY"}.issubset(headings):
+                        raise RuntimeError("normal manager side-by-side library workspace was not created")
+                    if not transfer_buttons:
+                        raise RuntimeError("host-only library transfer action was not created")
+                    if not guarded_send_buttons or any(
+                        str(button.cget("state")) != "disabled"
+                        for button in guarded_send_buttons
+                    ):
+                        raise RuntimeError("legacy live-send control was not kept disabled")
+                    window_state["workspace"] = "local_and_device_library"
+                    window_state["host_only_transfer"] = "created"
+                    window_state["guarded_send_control"] = "disabled"
                 except BaseException as exc:
                     window_state["error"] = f"{type(exc).__name__}: {exc}"
                 finally:
@@ -433,11 +457,13 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             raise RuntimeError(window_state["error"])
         if window_state.get("title") != "InfoCarry Manager":
             raise RuntimeError("main manager window was not observed")
-        if window_state.get("send_control") != "disabled":
+        if window_state.get("guarded_send_control") != "disabled":
             raise RuntimeError("guarded transfer control was not confirmed disabled")
         report["checks"]["main_manager_window"] = {
             "title": window_state["title"],
             "opened": True,
+            "workspace": window_state["workspace"],
+            "host_only_transfer": window_state["host_only_transfer"],
             "guarded_send_control": "disabled",
             "closed_cleanly": True,
         }

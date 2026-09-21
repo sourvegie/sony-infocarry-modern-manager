@@ -51,6 +51,18 @@ from .library import (
     LibraryCatalogError,
     LibraryError,
 )
+from .device_library_semantics import (
+    AuxiliaryStateSnapshot,
+    DeviceLibraryNode,
+    DeviceLibrarySemanticError,
+    DeviceLibrarySnapshot,
+)
+from .library_device_transfer import (
+    CapacityEvidence,
+    LibraryDeviceTransferPlan,
+    LibraryDeviceTransferPlanError,
+    build_library_device_transfer_plan,
+)
 from .content_workspace import ContentWorkspaceSettings
 from .library_prepare import LibraryPreparationError
 from .library_workflow import LibraryWorkflowService
@@ -101,8 +113,8 @@ from .write_safety_boundary import (
 # The Library review is designed for an ordinary non-maximized macOS window.
 # Keep this geometry explicit so visual checks and future layout changes share
 # one documented boundary.
-LIBRARY_MINIMUM_GEOMETRY = (980, 680)
-LIBRARY_DEFAULT_GEOMETRY = (1120, 760)
+LIBRARY_MINIMUM_GEOMETRY = (1080, 680)
+LIBRARY_DEFAULT_GEOMETRY = (1320, 800)
 LIBRARY_LIST_MIN_WIDTH = 360
 LIBRARY_DETAIL_MIN_WIDTH = 440
 
@@ -151,6 +163,82 @@ def _library_display_state(item: Any) -> str:
     if getattr(item, "state", None) == "blocked":
         return "Needs attention"
     return "Needs preparation"
+
+
+def _device_library_snapshot_from_inventory(
+    inventory: Mapping[str, Any],
+) -> DeviceLibrarySnapshot:
+    """Adapt an ordered backup inventory to the host-only logical tree model.
+
+    The inventory's depth-first record order is derived from stored device
+    child tables.  Auxiliary references are intentionally unresolved here;
+    this snapshot supports conflict planning, not a claim that a later live
+    operation would preserve all unknown device state.
+    """
+
+    records = inventory.get("records")
+    if not isinstance(records, (tuple, list)) or not records:
+        raise DeviceLibrarySemanticError("a complete device-library inventory is required")
+    nodes: list[DeviceLibraryNode] = []
+    next_sibling: dict[Tuple[str, ...], int] = {}
+    for record in records:
+        if not isinstance(record, Mapping):
+            raise DeviceLibrarySemanticError("device inventory contains a malformed record")
+        raw_path = record.get("path")
+        kind = record.get("kind")
+        if not isinstance(raw_path, str) or not raw_path:
+            raise DeviceLibrarySemanticError("device inventory path is missing")
+        path = tuple(raw_path.split("\\"))
+        if not path or path[0] != "root" or any(not part for part in path):
+            raise DeviceLibrarySemanticError("device inventory path is not rooted at InfoCarry root")
+        if kind not in {"directory", "file"}:
+            raise DeviceLibrarySemanticError(
+                "device inventory contains an unresolved item; transfer planning is blocked"
+            )
+        if kind == "file":
+            extension = record.get("extension")
+            if isinstance(extension, str) and extension:
+                path = path[:-1] + (f"{path[-1]}.{extension.lower()}",)
+            file_type = extension.lower() if isinstance(extension, str) and extension else "unknown"
+            payload_sha256 = record.get("payload_sha256")
+            payload_size_bytes = record.get("payload_bytes")
+        else:
+            file_type = None
+            payload_sha256 = None
+            payload_size_bytes = None
+        if path == ("root",):
+            if kind != "directory":
+                raise DeviceLibrarySemanticError("device root must be a directory")
+            sibling_order = 0
+        else:
+            parent = path[:-1]
+            sibling_order = next_sibling.get(parent, 0)
+            next_sibling[parent] = sibling_order + 1
+        nodes.append(
+            DeviceLibraryNode(
+                path=path,
+                kind=kind,
+                sibling_order=sibling_order,
+                file_type=file_type,
+                payload_sha256=payload_sha256,
+                payload_size_bytes=payload_size_bytes,
+                system=(path == ("root",)),
+            )
+        )
+    return DeviceLibrarySnapshot(
+        tuple(nodes),
+        AuxiliaryStateSnapshot(resolved=False),
+    )
+
+
+def _device_path_label(path: Tuple[str, ...]) -> str:
+    """Render a logical device path without exposing internal path tokens."""
+
+    if path and path[0] == "root":
+        parts = path[1:]
+    else:
+        parts = path
+    return "/" + "/".join(parts)
 
 
 def _backup_destination(parent: Path) -> Path:
@@ -1069,38 +1157,20 @@ def format_library_preview_summary(preview: Any) -> str:
 
 
 def format_library_selection_summary(item: Any) -> str:
-    """Render the selected content without exposing catalog implementation data."""
+    """Render concise Local Library details without exposing catalog internals."""
 
     if item is None:
         return "Select content to continue."
-    target = "not prepared"
-    if getattr(item, "target_folder_name", None):
-        target = f"root\\{item.target_folder_name}"
-        if getattr(item, "target_child_name", None):
-            target += f"\\{item.target_child_name}"
-    prepared_artifact = None
-    raw_artifact = getattr(item, "prepared_artifact", None)
-    if isinstance(raw_artifact, dict):
-        try:
-            prepared_artifact = PreparedContentArtifact.from_dict(raw_artifact)
-        except PreparedContentError:
-            prepared_artifact = None
-    eligibility = (
-        format_early_transfer_eligibility_summary(prepared_artifact)
-        if prepared_artifact is not None
-        else "Transfer pattern: Prepare first to check this content's exact arrangement."
-    )
     return "\n".join(
         (
-            "CONTENT SELECTED",
+            "LOCAL LIBRARY ITEM",
             "",
             f"Name: {item.source_filename}",
             f"Type: {_library_display_type(item)}",
-            f"State: {_library_display_state(item)}",
-            f"Source size: {item.source_size_bytes:,} bytes",
-            f"Destination: {target}",
-            eligibility,
-            "Choose Preview or Prepare to continue.",
+            f"Size: {item.source_size_bytes:,} bytes",
+            f"Status: {_library_display_state(item)}",
+            "Original source remains in its current location.",
+            "Transfer planning checks current source files, destination and conflicts.",
         )
     )
 
@@ -1662,31 +1732,32 @@ def launch_ttk_desktop(
             safety_state_var.set("")
         return available
 
-    notebook = ttk.Notebook(root)
-    notebook.pack(fill="both", expand=True, padx=8, pady=(8, 0))
-    library_tab = ttk.Frame(notebook, padding=10)
-    device_tab = ttk.Frame(notebook)
-    text_converter_tab = ttk.Frame(notebook, padding=12)
-    ebook_renderer_tab = ttk.Frame(notebook, padding=12)
-    settings_tab = ttk.Frame(notebook, padding=12)
-    notebook.add(device_tab, text="Device")
-    notebook.add(library_tab, text="Content")
-    notebook.add(text_converter_tab, text="Text Converter")
-    notebook.add(ebook_renderer_tab, text="Ebook Renderer")
-    notebook.add(settings_tab, text="Settings & Help")
+    workspace = ttk.Panedwindow(root, orient="horizontal")
+    workspace.pack(fill="both", expand=True, padx=8, pady=(8, 0))
+    library_tab = ttk.Frame(workspace, padding=10)
+    device_tab = ttk.Frame(workspace, padding=8)
+    workspace.add(library_tab, weight=1)
+    workspace.add(device_tab, weight=1)
+    # Retain the utility implementations as internal code, but do not expose
+    # their old workflows as primary Manager navigation.
+    text_converter_tab = ttk.Frame(root, padding=12)
+    ebook_renderer_tab = ttk.Frame(root, padding=12)
+    settings_tab = ttk.Frame(root, padding=12)
 
     library_status_var = tk.StringVar(
         value=(
             f"Library unavailable: {library_catalog_error}"
             if library_catalog_error
-            else (
-                "Add TXT, BMP/image, EPUB, a prepared package, or a folder. "
-                "Prepare and preview before reviewing a transfer."
-            )
+            else "Add files or folders, choose a Device Library destination, then select Transfer."
         )
     )
     library_detail_var = tk.StringVar(value="Select a Library item")
     library_tree_items: Dict[str, str] = {}
+    library_drag_state: dict[str, Any] = {
+        "source": None,
+        "start_y": 0,
+        "moved": False,
+    }
     library_current_plan_report: Optional[Dict[str, Any]] = None
     library_current_readiness: Any = None
     library_prepared_operation: Optional[PreparedLibraryTransferOperation] = None
@@ -1696,7 +1767,7 @@ def launch_ttk_desktop(
     library_operation_token: Any = None
     ttk.Label(
         library_tab,
-        text="Add and prepare content",
+        text="LOCAL LIBRARY",
         font=("TkDefaultFont", 14, "bold"),
     ).pack(anchor="w", pady=(0, 4))
     library_transfer_eligibility_label = ttk.Label(
@@ -1810,6 +1881,48 @@ def launch_ttk_desktop(
     )
     library_safety_notice.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(5, 0))
 
+    library_primary_toolbar = ttk.Frame(library_tab)
+    library_primary_toolbar.pack(fill="x", pady=(0, 8), before=library_toolbar)
+    library_add_button = ttk.Menubutton(library_primary_toolbar, text="+ Add")
+    library_add_menu = tk.Menu(library_add_button, tearoff=False)
+    library_add_menu.add_command(
+        label="Add Files…", command=lambda: library_import_action()
+    )
+    library_add_menu.add_command(
+        label="Add Folder…", command=lambda: library_folder_import_action()
+    )
+    library_add_button.configure(menu=library_add_menu)
+    library_add_button.pack(side="left", padx=(0, 6))
+    library_search_var = tk.StringVar(value="")
+    ttk.Label(library_primary_toolbar, text="Search").pack(side="left")
+    library_search_entry = ttk.Entry(
+        library_primary_toolbar, textvariable=library_search_var, width=18
+    )
+    library_search_entry.pack(side="left", fill="x", expand=True, padx=(4, 8))
+    library_remove_selection_button = ttk.Button(
+        library_primary_toolbar, text="Remove", state="disabled"
+    )
+    library_remove_selection_button.pack(side="left", padx=2)
+    library_reorder_up_button = ttk.Button(
+        library_primary_toolbar, text="▲", width=3, state="disabled"
+    )
+    library_reorder_down_button = ttk.Button(
+        library_primary_toolbar, text="▼", width=3, state="disabled"
+    )
+    library_reorder_up_button.pack(side="left", padx=(6, 1))
+    library_reorder_down_button.pack(side="left", padx=(1, 2))
+    library_details_visible = False
+    library_details_toggle_button = ttk.Button(
+        library_primary_toolbar, text="Details", state="disabled"
+    )
+    library_details_toggle_button.pack(side="left", padx=(6, 2))
+    library_technical_details_action_button = ttk.Button(
+        library_primary_toolbar, text="Technical", state="disabled"
+    )
+    library_technical_details_action_button.pack(side="left", padx=2)
+    library_transfer_eligibility_label.pack_forget()
+    library_toolbar.pack_forget()
+
     library_status_frame = ttk.Frame(library_tab)
     library_status_frame.pack(side="bottom", fill="x", pady=(8, 0))
     library_status_label = ttk.Label(
@@ -1830,6 +1943,21 @@ def launch_ttk_desktop(
         textvariable=library_operation_activity_var,
         anchor="w",
     ).pack(side="left", fill="x", expand=True, pady=(5, 0))
+
+    library_selection_summary_var = tk.StringVar(value="0 items selected")
+    library_destination_summary_var = tk.StringVar(value="Destination: root")
+    transfer_footer = ttk.Frame(root, padding=(10, 6))
+    transfer_footer.pack(side="bottom", fill="x", padx=8, pady=(0, 6))
+    ttk.Label(
+        transfer_footer, textvariable=library_selection_summary_var, anchor="w"
+    ).pack(side="left", padx=(0, 16))
+    ttk.Label(
+        transfer_footer, textvariable=library_destination_summary_var, anchor="w"
+    ).pack(side="left", fill="x", expand=True)
+    library_transfer_button = ttk.Button(
+        transfer_footer, text="Transfer →", state="disabled"
+    )
+    library_transfer_button.pack(side="right", padx=(12, 0))
 
     library_content = ttk.Panedwindow(library_tab, orient="horizontal")
     library_content.pack(fill="both", expand=True)
@@ -1871,6 +1999,7 @@ def launch_ttk_desktop(
     library_tree.configure(
         yscrollcommand=library_tree_scroll.set,
         xscrollcommand=library_tree_horizontal_scroll.set,
+        displaycolumns=("type", "size"),
     )
     library_tree.grid(row=0, column=0, sticky="nsew")
     library_tree_scroll.grid(row=0, column=1, sticky="ns")
@@ -1919,6 +2048,7 @@ def launch_ttk_desktop(
     library_report_vertical_scroll.grid(row=1, column=1, sticky="ns")
     library_report_horizontal_scroll.grid(row=2, column=0, sticky="ew")
     library_report.configure(state="disabled")
+    library_content.forget(library_detail_frame)
 
     def update_library_responsive_labels(_event: Any = None) -> None:
         """Keep safety and status text readable as the window is resized."""
@@ -1950,6 +2080,19 @@ def launch_ttk_desktop(
     library_tab.bind("<Configure>", update_library_responsive_labels)
     library_content.bind("<Configure>", keep_library_sash_in_bounds)
     library_content.bind("<ButtonRelease-1>", keep_library_sash_in_bounds)
+
+    def show_library_inspector(show: Optional[bool] = None) -> None:
+        nonlocal library_details_visible
+        desired = not library_details_visible if show is None else bool(show)
+        if desired == library_details_visible:
+            return
+        if desired:
+            library_content.add(library_detail_frame, weight=2)
+            library_details_toggle_button.configure(text="Hide Details")
+        else:
+            library_content.forget(library_detail_frame)
+            library_details_toggle_button.configure(text="Details")
+        library_details_visible = desired
 
     device_home_frame = ttk.LabelFrame(device_tab, text="Device Home", padding=10)
     device_home_frame.pack(fill="x", padx=10, pady=(10, 6))
@@ -2024,6 +2167,7 @@ def launch_ttk_desktop(
             label.configure(wraplength=available_width)
 
     device_home_frame.bind("<Configure>", update_device_home_responsive_labels)
+    device_home_frame.pack_forget()
 
     def update_device_home_display(
         snapshot: Optional[DeviceHomeSnapshot] = None,
@@ -2097,13 +2241,13 @@ def launch_ttk_desktop(
                 parent=root,
             )
 
-    toolbar = ttk.Frame(device_tab, padding=(10, 10, 10, 6))
+    toolbar = ttk.Frame(device_tab, padding=(2, 2, 2, 6))
     toolbar.pack(fill="x")
-    ttk.Label(toolbar, text="Device snapshot", font=("TkDefaultFont", 14, "bold")).pack(
-        side="left", padx=(0, 16)
+    ttk.Label(toolbar, text="DEVICE LIBRARY", font=("TkDefaultFont", 13, "bold")).pack(
+        side="left", padx=(0, 8)
     )
-    check_button = ttk.Button(toolbar, text="Refresh device")
-    backup_button = ttk.Button(toolbar, text="Back Up Now")
+    check_button = ttk.Button(toolbar, text="Refresh")
+    backup_button = ttk.Button(toolbar, text="Back Up")
     open_button = ttk.Button(toolbar, text="Open backup…")
     export_button = ttk.Button(toolbar, text="Export selected…", state="disabled")
     replacement_button = ttk.Button(
@@ -2112,18 +2256,60 @@ def launch_ttk_desktop(
     write_button = ttk.Button(
         toolbar, text="Replace selected text…", state="disabled"
     )
-    for button in (
-        check_button,
-        backup_button,
-        open_button,
-        export_button,
-        replacement_button,
-        write_button,
-    ):
+    for button in (check_button, backup_button):
         button.pack(side="left", padx=3)
+    device_more_button = ttk.Menubutton(toolbar, text="More")
+    device_more_menu = tk.Menu(device_more_button, tearoff=False)
+    device_more_menu.add_command(
+        label="Open Backup…", command=lambda: open_button.invoke()
+    )
+    device_more_menu.add_command(
+        label="Export Selected…", command=lambda: export_button.invoke()
+    )
+    device_more_menu.add_separator()
+    device_more_menu.add_command(
+        label="View Backup Location…", command=lambda: show_backup_location_action()
+    )
+    device_more_menu.add_command(
+        label="Technical Details…", command=lambda: show_technical_details_action()
+    )
+    device_more_button.configure(menu=device_more_menu)
+    device_more_button.pack(side="left", padx=3)
+    device_details_visible = False
+    device_details_button = ttk.Button(toolbar, text="Details")
+    device_details_button.pack(side="left", padx=3)
+    device_delete_button = ttk.Button(toolbar, text="Delete", state="disabled")
+    device_delete_button.pack(side="left", padx=3)
     ttk.Label(toolbar, textvariable=backup_var, anchor="e").pack(
         side="right", fill="x", expand=True, padx=(12, 0)
     )
+
+    device_overview = ttk.Frame(device_tab, padding=(2, 0, 2, 5))
+    device_overview.pack(fill="x")
+    ttk.Label(
+        device_overview, textvariable=device_home_heading_var, anchor="w"
+    ).pack(side="left", fill="x", expand=True)
+    ttk.Label(
+        device_overview,
+        textvariable=device_capacity_var,
+        anchor="e",
+        justify="right",
+    ).pack(side="right", padx=(8, 0))
+    device_delete_status_var = tk.StringVar(
+        value="Delete is not enabled for this selection."
+    )
+    ttk.Label(
+        device_tab, textvariable=device_delete_status_var, anchor="w"
+    ).pack(fill="x", padx=4, pady=(0, 4))
+
+    device_search_bar = ttk.Frame(device_tab, padding=(2, 0, 2, 5))
+    device_search_bar.pack(fill="x")
+    ttk.Label(device_search_bar, text="Search").pack(side="left")
+    device_search_var = tk.StringVar(value="")
+    device_search_entry = ttk.Entry(
+        device_search_bar, textvariable=device_search_var, width=22
+    )
+    device_search_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
 
     content = ttk.Panedwindow(device_tab, orient="horizontal")
     content.pack(fill="both", expand=True, padx=10, pady=(0, 8))
@@ -2132,7 +2318,7 @@ def launch_ttk_desktop(
     content.add(browser_frame, weight=3)
     content.add(detail_frame, weight=2)
 
-    ttk.Label(browser_frame, text="InfoCarry contents").pack(anchor="w", pady=(0, 5))
+    ttk.Label(browser_frame, text="Name / Type / Size").pack(anchor="w", pady=(0, 5))
     tree_container = ttk.Frame(browser_frame)
     tree_container.pack(fill="both", expand=True)
     tree = ttk.Treeview(
@@ -2150,9 +2336,19 @@ def launch_ttk_desktop(
     tree.column("size", minwidth=80, width=100, stretch=False, anchor="e")
     tree.column("state", minwidth=80, width=90, stretch=False)
     tree_scroll = ttk.Scrollbar(tree_container, orient="vertical", command=tree.yview)
-    tree.configure(yscrollcommand=tree_scroll.set)
-    tree.pack(side="left", fill="both", expand=True)
-    tree_scroll.pack(side="right", fill="y")
+    tree_horizontal_scroll = ttk.Scrollbar(
+        tree_container, orient="horizontal", command=tree.xview
+    )
+    tree.configure(
+        yscrollcommand=tree_scroll.set,
+        xscrollcommand=tree_horizontal_scroll.set,
+        displaycolumns=("kind", "size"),
+    )
+    tree_container.columnconfigure(0, weight=1)
+    tree_container.rowconfigure(0, weight=1)
+    tree.grid(row=0, column=0, sticky="nsew")
+    tree_scroll.grid(row=0, column=1, sticky="ns")
+    tree_horizontal_scroll.grid(row=1, column=0, sticky="ew")
 
     ttk.Label(detail_frame, text="Selection").pack(anchor="w")
     ttk.Label(detail_frame, textvariable=details_var, wraplength=360).pack(
@@ -2165,6 +2361,18 @@ def launch_ttk_desktop(
     image_preview.pack_forget()
     preview_image: Optional[Any] = None
     ttk.Label(detail_frame, text="Read-only preview").pack(anchor="w", pady=(8, 0))
+    content.forget(detail_frame)
+
+    def toggle_device_inspector() -> None:
+        nonlocal device_details_visible
+        if device_details_visible:
+            content.forget(detail_frame)
+            device_details_visible = False
+            device_details_button.configure(text="Details")
+        else:
+            content.add(detail_frame, weight=1)
+            device_details_visible = True
+            device_details_button.configure(text="Hide Details")
 
     bottom = ttk.Frame(device_tab, padding=(10, 0, 10, 10))
     bottom.pack(fill="x")
@@ -2360,6 +2568,7 @@ def launch_ttk_desktop(
             if snapshot is not None
             else None,
             str(model.state.backup_directory or ""),
+            selected_device_destination_path(),
             backup_summaries,
             _backup_review_filesystem_revision(model.state.backup_directory),
             latest_backup_error,
@@ -2471,6 +2680,14 @@ def launch_ttk_desktop(
             ):
                 button.configure(state="disabled")
             for button in (
+                library_add_button,
+                library_search_entry,
+                library_remove_selection_button,
+                library_reorder_up_button,
+                library_reorder_down_button,
+                library_details_toggle_button,
+                library_technical_details_action_button,
+                library_transfer_button,
                 library_import_button,
                 library_folder_import_button,
                 library_package_import_button,
@@ -2515,10 +2732,13 @@ def launch_ttk_desktop(
         if library_technical_details_open:
             library_technical_details_open = False
             library_technical_details_button.configure(text="Technical Details")
+            library_technical_details_action_button.configure(text="Technical")
             show_library_selection()
             return
         library_technical_details_open = True
         library_technical_details_button.configure(text="Hide Technical Details")
+        library_technical_details_action_button.configure(text="Hide Technical")
+        show_library_inspector()
         _set_readonly_text(library_report, format_library_technical_details(value))
 
     def start_library_operation(
@@ -2611,6 +2831,9 @@ def launch_ttk_desktop(
         library_technical_details_button.configure(
             text="Technical Details", state="disabled"
         )
+        library_technical_details_action_button.configure(
+            text="Technical", state="disabled"
+        )
         library_operation_progress.stop()
         library_operation_activity_var.set("")
         library_cancel_button.configure(state="disabled")
@@ -2634,6 +2857,7 @@ def launch_ttk_desktop(
         }
         if selected_item_id is not None:
             selected_ids = {selected_item_id}
+        search_text = library_search_var.get().strip().casefold()
         open_ids = {
             item_id
             for tree_item, item_id in library_tree_items.items()
@@ -2642,6 +2866,14 @@ def launch_ttk_desktop(
         library_tree.delete(*library_tree.get_children())
         library_tree_items.clear()
         if library_catalog is None or library_workflow is None:
+            library_add_button.configure(state="disabled")
+            library_search_entry.configure(state="disabled")
+            library_transfer_button.configure(state="disabled")
+            library_remove_selection_button.configure(state="disabled")
+            library_reorder_up_button.configure(state="disabled")
+            library_reorder_down_button.configure(state="disabled")
+            library_details_toggle_button.configure(state="disabled")
+            library_technical_details_action_button.configure(state="disabled")
             library_import_button.configure(state="disabled")
             library_folder_import_button.configure(state="disabled")
             library_package_import_button.configure(state="disabled")
@@ -2655,17 +2887,40 @@ def launch_ttk_desktop(
             library_all_queue_button.configure(state="disabled")
             library_live_preflight_button.configure(state="disabled")
             library_transfer_once_button.configure(state="disabled")
+            library_selection_summary_var.set("Local Library unavailable")
             return
+        library_add_button.configure(state="normal")
+        library_search_entry.configure(state="normal")
         library_import_button.configure(state="normal")
         library_folder_import_button.configure(state="normal")
         library_package_import_button.configure(state="normal")
         library_live_preflight_button.configure(state="disabled")
         library_transfer_once_button.configure(state="disabled")
 
+        ordered_items = library_catalog.items
+        visible_ids: set[str] = set()
+        if search_text:
+            for item in ordered_items:
+                if (
+                    search_text in item.source_filename.casefold()
+                    or search_text in item.source_path.casefold()
+                ):
+                    cursor: Optional[Any] = item
+                    while cursor is not None and cursor.item_id not in visible_ids:
+                        visible_ids.add(cursor.item_id)
+                        cursor = (
+                            None
+                            if cursor.parent_id is None
+                            else library_catalog.get(cursor.parent_id)
+                        )
+        else:
+            visible_ids = {item.item_id for item in ordered_items}
         node_tree_items: dict[str, str] = {}
 
         def insert_nodes(parent_id: Optional[str], parent_tree_item: str) -> None:
             for item in library_catalog.children(parent_id):
+                if item.item_id not in visible_ids:
+                    continue
                 node_type = item.node_kind
                 if item.package is not None and item.target_folder_name:
                     node_type = "Prepared content"
@@ -2679,6 +2934,7 @@ def launch_ttk_desktop(
                     values=(node_type, _library_display_state(item), size, item.source_path),
                     open=(
                         item.item_id in open_ids
+                        or bool(search_text)
                         or (not had_tree_items and item.node_kind == NODE_FOLDER)
                     ),
                 )
@@ -2821,6 +3077,41 @@ def launch_ttk_desktop(
                 for value in library_catalog.items
             )
         )
+        library_remove_selection_button.configure(
+            state="normal" if selected_items else "disabled"
+        )
+        library_details_toggle_button.configure(
+            state="normal" if enabled else "disabled"
+        )
+        library_technical_details_action_button.configure(
+            state="normal" if has_selection else "disabled"
+        )
+        library_transfer_button.configure(
+            state=(
+                "normal"
+                if selected_items and not library_operation_controller.busy
+                else "disabled"
+            )
+        )
+        selected_file_ids: set[str] = set()
+
+        def collect_source_files(value: Any) -> None:
+            if value.node_kind == NODE_FOLDER:
+                for child in library_catalog.children(value.item_id):
+                    collect_source_files(child)
+            else:
+                selected_file_ids.add(value.item_id)
+
+        for selected_item in selected_items:
+            collect_source_files(selected_item)
+        selected_source_bytes = sum(
+            library_catalog.get(item_id).source_size_bytes
+            for item_id in selected_file_ids
+        )
+        library_selection_summary_var.set(
+            f"{len(selected_items)} item(s) selected · "
+            f"{selected_source_bytes:,} B source"
+        )
         library_remove_button.configure(state="normal" if enabled else "disabled")
         library_move_up_button.configure(
             state=(
@@ -2836,6 +3127,25 @@ def launch_ttk_desktop(
                 else "disabled"
             )
         )
+        if item is None or library_catalog is None:
+            library_reorder_up_button.configure(state="disabled")
+            library_reorder_down_button.configure(state="disabled")
+        else:
+            siblings = library_catalog.children(item.parent_id)
+            sibling_index = next(
+                index for index, sibling in enumerate(siblings)
+                if sibling.item_id == item.item_id
+            )
+            library_reorder_up_button.configure(
+                state="normal" if sibling_index > 0 else "disabled"
+            )
+            library_reorder_down_button.configure(
+                state=(
+                    "normal"
+                    if sibling_index + 1 < len(siblings)
+                    else "disabled"
+                )
+            )
         library_rename_button.configure(
             state=(
                 "normal"
@@ -2927,28 +3237,38 @@ def launch_ttk_desktop(
             library_technical_details_button.configure(state="disabled")
         if item is None:
             clear_library_bitmap_preview()
-            library_detail_var.set("Select a Library item")
-            _set_readonly_text(library_report, "")
+            if selected_items:
+                library_detail_var.set(
+                    f"{len(selected_items)} items selected\n"
+                    f"{selected_source_bytes:,} bytes of source files"
+                )
+                _set_readonly_text(
+                    library_report,
+                    "Selected items keep their Library order. Transfer planning "
+                    "will check source freshness, destination conflicts, and the "
+                    "currently available device-transfer shape.",
+                )
+            else:
+                library_detail_var.set("Select files or folders")
+                _set_readonly_text(library_report, "")
             library_technical_details_button.configure(
                 text="Technical Details", state="disabled"
             )
             return
-        target = "not prepared"
-        if item.package is not None and item.target_folder_name:
-            target = (
-                f"root\\{item.target_folder_name}"
-                f" ({len(item.package.children)} ordered children)"
-            )
-        elif item.target_folder_name and item.target_child_name:
-            target = f"root\\{item.target_folder_name}\\{item.target_child_name}"
+        library_path_parts = [item.source_filename]
+        parent_id = item.parent_id
+        while parent_id is not None:
+            parent = library_catalog.get(parent_id)
+            library_path_parts.append(parent.source_filename)
+            parent_id = parent.parent_id
+        library_path = "/".join(reversed(library_path_parts))
         library_detail_var.set(
             f"{item.source_filename}\n\n"
-            f"Content state: {_library_display_state(item)}\n"
-            f"Content type: {_library_display_type(item)}\n"
+            f"Type: {_library_display_type(item)}\n"
+            f"Size: {item.source_size_bytes:,} bytes\n"
+            f"Library path: {library_path}\n"
             f"Order: {item.sibling_order + 1}\n"
-            f"Source: {item.source_path}\n"
-            f"Source size: {item.source_size_bytes:,} bytes\n"
-            f"Target: {target}"
+            "Original source remains in its current location."
         )
         if library_technical_details_open:
             _set_readonly_text(library_report, format_library_technical_details(item))
@@ -2984,8 +3304,7 @@ def launch_ttk_desktop(
             items = library_workflow.import_files(Path(value) for value in selected)
             refresh_library_view(selected_item_id=items[0].item_id)
             library_status_var.set(
-                f"Imported {len(items)} file(s) in chooser order; originals unchanged; "
-                "external drag-and-drop unavailable without TkDND; no device access"
+                f"Added {len(items)} file(s) to Local Library; originals unchanged"
             )
             _set_readonly_text(library_report, format_library_selection_summary(items[0]))
         except (LibraryError, OSError) as exc:
@@ -3007,8 +3326,7 @@ def launch_ttk_desktop(
             item = library_workflow.import_folder(Path(selected))
             refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
-                f"Imported folder hierarchy {item.source_filename} in deterministic recorded order; "
-                "originals unchanged; no device access"
+                f"Added {item.source_filename} and its contents to Local Library; originals unchanged"
             )
         except (LibraryError, OSError) as exc:
             library_status_var.set(f"Folder import blocked: {exc}")
@@ -3039,19 +3357,27 @@ def launch_ttk_desktop(
     def library_remove_action() -> None:
         if library_catalog is None or library_workflow is None:
             return
-        item = selected_library_item()
-        if item is None:
+        selected = selected_library_items()
+        if not selected:
             return
-        def subtree_size(item_id: str) -> int:
-            return 1 + sum(
-                subtree_size(child.item_id) for child in library_catalog.children(item_id)
-            )
-
-        removed_count = subtree_size(item.item_id)
+        removed_ids: set[str] = set()
+        for item in selected:
+            pending = [item.item_id]
+            while pending:
+                current = pending.pop()
+                if current in removed_ids:
+                    continue
+                removed_ids.add(current)
+                pending.extend(
+                    child.item_id for child in library_catalog.children(current)
+                )
+        display_names = ", ".join(item.source_filename for item in selected[:3])
+        if len(selected) > 3:
+            display_names += f", and {len(selected) - 3} more"
         if not messagebox.askyesno(
             "Remove from Library",
             (
-                f"Remove {item.source_filename} and {removed_count - 1} descendant(s) "
+                f"Remove {display_names} ({len(removed_ids)} Library entries) "
                 "from the local Library?\n\nThe original source files will not be "
                 "moved or deleted. The device will not be touched."
             ),
@@ -3059,10 +3385,10 @@ def launch_ttk_desktop(
         ):
             return
         clear_library_review_for_input_change()
-        library_workflow.remove(item.item_id)
+        library_catalog.remove_many(item.item_id for item in selected)
         refresh_library_view()
         library_status_var.set(
-            f"Removed {removed_count} local Library node(s) only; originals and device unchanged"
+            f"Removed {len(removed_ids)} local Library node(s) only; originals and device unchanged"
         )
 
     def library_move_action(direction: str) -> None:
@@ -3081,10 +3407,67 @@ def launch_ttk_desktop(
                 raise ValueError("Library move direction is invalid")
             refresh_library_view(selected_item_id=item.item_id)
             library_status_var.set(
-                f"Order updated for {item.source_filename}; prepare and preview again before transfer review"
+                f"Order updated for {item.source_filename}; source files unchanged"
             )
         except (LibraryError, ValueError) as exc:
             library_status_var.set(f"Move blocked: {exc}")
+
+    def library_drag_press(event: Any) -> None:
+        row = library_tree.identify_row(event.y)
+        selection = tuple(library_tree.selection())
+        library_drag_state.update(
+            {
+                "source": row if row and (row in selection or len(selection) <= 1) else None,
+                "start_y": event.y,
+                "moved": False,
+            }
+        )
+
+    def library_drag_motion(event: Any) -> None:
+        source = library_drag_state.get("source")
+        if source and abs(int(event.y) - int(library_drag_state.get("start_y", 0))) >= 5:
+            library_drag_state["moved"] = True
+
+    def library_drag_release(event: Any) -> None:
+        source_tree_item = library_drag_state.get("source")
+        moved = bool(library_drag_state.get("moved"))
+        library_drag_state.update({"source": None, "moved": False})
+        if not moved or not source_tree_item or library_catalog is None:
+            return
+        target_tree_item = library_tree.identify_row(event.y)
+        source_id = library_tree_items.get(source_tree_item)
+        target_id = library_tree_items.get(target_tree_item)
+        if not source_id or not target_id or source_id == target_id:
+            return
+        try:
+            source = library_catalog.get(source_id)
+            target = library_catalog.get(target_id)
+            if source.parent_id != target.parent_id:
+                library_status_var.set("Items can only be reordered within the same folder")
+                return
+            siblings = list(library_catalog.children(source.parent_id))
+            source_index = next(
+                index for index, item in enumerate(siblings)
+                if item.item_id == source_id
+            )
+            target_index = next(
+                index for index, item in enumerate(siblings)
+                if item.item_id == target_id
+            )
+            bounds = library_tree.bbox(target_tree_item)
+            after_target = bool(bounds and event.y > bounds[1] + bounds[3] / 2)
+            final_index = target_index + (1 if after_target else 0)
+            if source_index < final_index:
+                final_index -= 1
+            final_index = max(0, min(final_index, len(siblings) - 1))
+            clear_library_review_for_input_change()
+            library_catalog.move_to(source_id, final_index)
+            refresh_library_view(selected_item_id=source_id)
+            library_status_var.set(
+                f"Order updated for {source.source_filename}; source files unchanged"
+            )
+        except (LibraryError, ValueError, StopIteration) as exc:
+            library_status_var.set(f"Reorder blocked: {exc}")
 
     def library_rename_destination_action() -> None:
         if library_catalog is None or library_workflow is None:
@@ -3467,6 +3850,124 @@ def launch_ttk_desktop(
 
         start_library_operation("Check device readiness", revision, work, success)
 
+    def library_transfer_action() -> None:
+        """Create and show a host-only plan; this action has no live execution path."""
+
+        if library_catalog is None:
+            library_status_var.set("Local Library is unavailable; no device action was started")
+            return
+        selected = selected_library_items()
+        if not selected:
+            library_status_var.set("Select files or folders in Local Library first")
+            return
+        if not isinstance(model.state.inventory, Mapping):
+            library_status_var.set(
+                "Open a complete Device Library backup before checking destination conflicts"
+            )
+            messagebox.showinfo(
+                "Device Library needed",
+                "A complete Device Library snapshot is needed to check the selected destination and conflicts.\n\n"
+                "Open or create a complete backup, then try Transfer again. No device change occurred.",
+                parent=root,
+            )
+            return
+
+        selected_ids = tuple(item.item_id for item in selected)
+        selected_names = tuple(item.source_filename for item in selected)
+        destination = selected_device_destination_path()
+        if not destination:
+            library_status_var.set(
+                "Select one Device Library folder as the transfer destination"
+            )
+            messagebox.showinfo(
+                "Choose a destination",
+                "Select exactly one destination folder in Device Library, or clear the selection to use the device root.",
+                parent=root,
+            )
+            return
+        selection_revision = selected_library_selection_revision()
+        baseline_digest = model.state.source_blob_sha256
+
+        def work(cancelled: threading.Event, progress_callback: Any) -> LibraryDeviceTransferPlan:
+            if cancelled.is_set():
+                raise LibraryDeviceTransferPlanError("transfer planning was cancelled")
+            progress_callback("Checking source files and destination")
+            snapshot = _device_library_snapshot_from_inventory(
+                model.state.inventory or {}
+            )
+            plan = build_library_device_transfer_plan(
+                library_catalog,
+                selected_ids,
+                destination,
+                snapshot,
+                capacity=CapacityEvidence(),
+            )
+            if cancelled.is_set():
+                raise LibraryDeviceTransferPlanError("transfer planning was cancelled")
+            return plan
+
+        def planned(plan: LibraryDeviceTransferPlan) -> None:
+            current_ids = tuple(
+                item.item_id for item in selected_library_items()
+            )
+            if (
+                current_ids != selected_ids
+                or selected_device_destination_path() != destination
+                or model.state.source_blob_sha256 != baseline_digest
+            ):
+                library_status_var.set(
+                    "Transfer plan discarded because the selection, destination, or Device Library changed"
+                )
+                return
+            shown_names = ", ".join(selected_names[:4])
+            if len(selected_names) > 4:
+                shown_names += f", and {len(selected_names) - 4} more"
+            file_count = sum(node.kind == "file" for node in plan.nodes)
+            folder_count = sum(node.kind == "directory" for node in plan.nodes)
+            destination_label = _device_path_label(plan.destination_path)
+            backup_label = (
+                loaded_backup_summary.created_at_utc
+                if loaded_backup_summary is not None
+                else "no complete backup loaded"
+            )
+            details = (
+                f"Destination: {destination_label}\n"
+                f"Selected: {len(selected_ids)} item(s) — {shown_names}\n"
+                f"Contents: {file_count} file(s), {folder_count} folder(s)\n"
+                f"Selected payload: {plan.source_payload_bytes:,} bytes\n"
+                "Conflicts: none in the loaded Device Library snapshot\n"
+                "Candidate growth and capacity: unknown; no candidate was built\n"
+                f"Backup: {backup_label}; this is not a fresh pre-operation backup\n"
+                "Readiness: not evaluated by this offline plan\n"
+                "Physical transfer: not attempted or authorized\n"
+                "Device auxiliary state: unresolved; this plan does not claim live verification"
+            )
+            preview_paths = plan.expected_delta.added_paths
+            preview_lines = []
+            for path in preview_paths[:12]:
+                relative_parts = path[len(plan.destination_path) :]
+                depth = max(0, len(relative_parts) - 1)
+                preview_lines.append(f"  {'  ' * depth}{relative_parts[-1]}")
+            if len(preview_paths) > len(preview_lines):
+                preview_lines.append(
+                    f"  … {len(preview_paths) - len(preview_lines)} more item(s)"
+                )
+            details += "\n\nExpected additions:\n" + (
+                "\n".join(preview_lines) if preview_lines else "  None"
+            )
+            library_status_var.set(
+                "Offline transfer plan ready; no device change or authorization occurred"
+            )
+            messagebox.showinfo("Offline transfer plan", details, parent=root)
+
+        start_library_operation(
+            "Checking transfer plan",
+            selection_revision,
+            work,
+            planned,
+            validate_revision=False,
+        )
+
     def library_transfer_once_action() -> None:
         """Confirm and run one prepared operation through the facade."""
 
@@ -3671,7 +4172,38 @@ def launch_ttk_desktop(
         if busy:
             progress.configure(value=0)
 
+    def selected_device_destination_path() -> Tuple[str, ...]:
+        rows_by_offset = {row.record_offset: row for row in model.rows()}
+        selected_offsets = [
+            tree_items[item_id]
+            for item_id in tree.selection()
+            if item_id in tree_items
+        ]
+        if not selected_offsets:
+            return ("root",)
+        if len(selected_offsets) != 1:
+            return ()
+        row = rows_by_offset.get(selected_offsets[0])
+        if row is None:
+            return ()
+        path = tuple(part for part in row.path.split("\\") if part)
+        if row.kind == "directory":
+            return path or ("root",)
+        return path[:-1] or ("root",)
+
+    def update_transfer_footer() -> None:
+        destination_path = selected_device_destination_path()
+        library_destination_summary_var.set(
+            "Destination: "
+            + (_device_path_label(destination_path) if destination_path else "select one folder")
+        )
+
     def refresh_tree() -> None:
+        selected_offsets = {
+            tree_items[item_id]
+            for item_id in tree.selection()
+            if item_id in tree_items
+        }
         tree.delete(*tree.get_children())
         tree_items.clear()
         # ``model.rows()`` follows each directory's stored child table order,
@@ -3679,9 +4211,21 @@ def launch_ttk_desktop(
         # sort by display name here.
         rows = model.rows()
         rows_by_path = {tuple(row.path.split("\\")): row for row in rows}
+        search_text = device_search_var.get().strip().casefold()
+        visible_paths: set[Tuple[str, ...]] = set()
+        if search_text:
+            for row in rows:
+                if search_text in row.display_name.casefold() or search_text in row.path.casefold():
+                    parts = tuple(row.path.split("\\"))
+                    visible_paths.update(parts[:depth] for depth in range(1, len(parts) + 1))
+        else:
+            visible_paths = set(rows_by_path)
         path_items: Dict[Tuple[str, ...], str] = {}
+        offset_items: Dict[int, str] = {}
         for row in rows:
             parts = tuple(row.path.split("\\"))
+            if parts not in visible_paths:
+                continue
             parent_item = ""
             for depth in range(1, len(parts) + 1):
                 prefix = parts[:depth]
@@ -3689,27 +4233,48 @@ def launch_ttk_desktop(
                     parent_item = path_items[prefix]
                     continue
                 current = rows_by_path.get(prefix)
-                if current is None:
+                if current is None or prefix not in visible_paths:
                     continue
                 size = "" if current.payload_bytes is None else f"{current.payload_bytes:,} B"
                 item = tree.insert(
                     parent_item,
                     "end",
-                    text=prefix[-1],
+                    text=(current.display_name if current.kind == "file" else prefix[-1]),
                     values=(current.kind, size, current.read_state or ""),
-                    open=(current.kind == "directory" and depth <= 1),
+                    open=(
+                        current.kind == "directory"
+                        and (depth <= 1 or bool(search_text))
+                    ),
                 )
                 path_items[prefix] = item
                 tree_items[item] = current.record_offset
+                offset_items[current.record_offset] = item
                 parent_item = item
+        visible_selection = [
+            offset_items[offset]
+            for offset in selected_offsets
+            if offset in offset_items
+        ]
+        if visible_selection:
+            tree.selection_set(visible_selection)
+            tree.focus(visible_selection[0])
         export_button.configure(state="disabled")
         replacement_button.configure(state="disabled")
         write_button.configure(state="disabled")
+        update_transfer_footer()
+        show_selection()
 
     def show_selection(_event: Any = None) -> None:
         nonlocal preview_image
+        update_transfer_footer()
+        invalidate_library_transfer_review_if_stale()
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         export_button.configure(state="normal" if selected and worker is None else "disabled")
+        device_delete_status_var.set(
+            "Delete is not enabled for this selection."
+            if selected
+            else "Select device files or folders; Delete is currently unavailable."
+        )
         if not selected:
             replacement_button.configure(state="disabled")
             write_button.configure(state="disabled")
@@ -3722,7 +4287,7 @@ def launch_ttk_desktop(
         if len(selected) > 1:
             replacement_button.configure(state="disabled")
             write_button.configure(state="disabled")
-            details_var.set(f"{len(selected)} items selected\nDevice writes disabled")
+            details_var.set(f"{len(selected)} items selected\nDelete is not enabled for this selection")
             image_preview.pack_forget()
             preview.pack(fill="both", expand=True)
             _set_readonly_text(preview, "Multiple items selected. Choose Download selected… to export them.")
@@ -3738,10 +4303,11 @@ def launch_ttk_desktop(
             )
         )
         size = "directory" if row.payload_bytes is None else f"{row.payload_bytes:,} bytes"
+        device_path_parts = tuple(row.path.split("\\"))
         details_var.set(
             f"{row.display_name}\n\nType: {row.kind}\nSize: {size}\n"
-            f"Record: 0x{row.record_offset:08x}\nState: {row.read_state or 'n/a'}\n"
-            f"SHA-256: {row.payload_sha256 or 'n/a'}"
+            f"Path: {_device_path_label(device_path_parts)}\n"
+            "Delete is not enabled for this selection."
         )
         if row.kind == "file" and row.extension.lower() == "txt":
             image_preview.pack_forget()
@@ -4240,6 +4806,7 @@ def launch_ttk_desktop(
         root.destroy()
 
     tree.bind("<<TreeviewSelect>>", show_selection)
+    device_search_entry.bind("<KeyRelease>", lambda _event: refresh_tree())
     check_button.configure(command=check_device_action)
     backup_button.configure(command=backup_action)
     open_button.configure(command=load_backup_action)
@@ -4248,6 +4815,87 @@ def launch_ttk_desktop(
     show_backup_button.configure(command=show_backup_location_action)
     replacement_button.configure(command=replacement_preview_action)
     write_button.configure(command=replacement_write_action)
+    library_search_entry.bind("<KeyRelease>", lambda _event: refresh_library_view())
+    library_tree.bind("<ButtonPress-1>", library_drag_press, add="+")
+    library_tree.bind("<B1-Motion>", library_drag_motion, add="+")
+    library_tree.bind("<ButtonRelease-1>", library_drag_release, add="+")
+    library_remove_selection_button.configure(command=library_remove_action)
+    library_reorder_up_button.configure(command=lambda: library_move_action("up"))
+    library_reorder_down_button.configure(command=lambda: library_move_action("down"))
+    library_details_toggle_button.configure(command=show_library_inspector)
+    library_technical_details_action_button.configure(
+        command=library_technical_details_action
+    )
+    device_details_button.configure(command=toggle_device_inspector)
+    library_transfer_button.configure(command=library_transfer_action)
+
+    def show_help_action() -> None:
+        messagebox.showinfo(
+            "InfoCarry Manager Help",
+            "Local Library references your existing files; Remove only removes a Library entry.\n\n"
+            "Select local files or folders, choose a destination folder in Device Library, "
+            "then choose Transfer. Existing items are never overwritten. A transfer may be "
+            "planned offline even when that selection is not enabled for device transfer.\n\n"
+            "Back Up saves a read-only snapshot. Backup is not Restore, and Restore is unavailable. "
+            "Delete is not enabled for general selections yet.",
+            parent=root,
+        )
+
+    def show_settings_action() -> None:
+        messagebox.showinfo(
+            "Settings",
+            f"Runtime: {runtime.description}\n\n"
+            "The Local Library catalog is stored in the Manager's per-user application data.\n"
+            "Device-changing actions remain behind the existing VNW-V15 safety checks.\n"
+            "Restore and general-purpose deletion are unavailable.",
+            parent=root,
+        )
+
+    menu_bar = tk.Menu(root)
+    file_menu = tk.Menu(menu_bar, tearoff=False)
+    file_menu.add_command(label="Add Files…", command=library_import_action)
+    file_menu.add_command(label="Add Folder…", command=library_folder_import_action)
+    file_menu.add_separator()
+    file_menu.add_command(label="Settings…", command=show_settings_action)
+    file_menu.add_separator()
+    file_menu.add_command(label="Quit", command=close_action)
+    menu_bar.add_cascade(label="File", menu=file_menu)
+
+    device_menu = tk.Menu(menu_bar, tearoff=False)
+    device_menu.add_command(label="Refresh", command=check_device_action)
+    device_menu.add_command(label="Back Up…", command=backup_action)
+    device_menu.add_command(label="Open Backup…", command=load_backup_action)
+    device_menu.add_command(
+        label="View Backup Location…", command=show_backup_location_action
+    )
+    device_menu.add_command(label="Export Selected…", command=export_action)
+    device_menu.add_separator()
+    device_menu.add_command(label="Delete…", state="disabled")
+    menu_bar.add_cascade(label="Device", menu=device_menu)
+
+    view_menu = tk.Menu(menu_bar, tearoff=False)
+    view_menu.add_command(
+        label="Local Library Details", command=show_library_inspector
+    )
+    view_menu.add_command(label="Device Library Details", command=toggle_device_inspector)
+    view_menu.add_command(
+        label="Technical Details…", command=show_technical_details_action
+    )
+    menu_bar.add_cascade(label="View", menu=view_menu)
+
+    help_menu = tk.Menu(menu_bar, tearoff=False)
+    help_menu.add_command(label="InfoCarry Manager Help…", command=show_help_action)
+    help_menu.add_command(
+        label="About InfoCarry Manager…",
+        command=lambda: messagebox.showinfo(
+            "About InfoCarry Manager",
+            "Sony InfoCarry Manager\nA read-first local and device library manager.",
+            parent=root,
+        ),
+    )
+    menu_bar.add_cascade(label="Help", menu=help_menu)
+    root.configure(menu=menu_bar)
+
     if loaded_backup_summary is not None:
         refresh_tree()
     update_device_home_display()

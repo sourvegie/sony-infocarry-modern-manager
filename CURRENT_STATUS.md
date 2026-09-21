@@ -2,6 +2,39 @@
 
 Date: 2026-09-21
 
+## P18-037 — Local Library ↔ Device Library Manager foundation
+
+P18-037 implements the side-by-side Local Library and Device Library workspace
+on `task/P18-037-library-device-manager`, from canonical base
+`dfeeb4604b25b77a61c99ff9e0677ed69aa7c8ca`. The Local Library remains a
+persistent catalog of references to user files; nested import, search,
+multi-selection, persisted sibling ordering, remove-without-deleting-sources,
+and compact Details are part of the redesigned window. The generic ordered
+TXT/BMP tree and destination planner preserve selected subtrees, validate
+source freshness and encoded components, and fail closed on conflicts. Its
+offline scale fixture contains 61 directories and 150 mixed leaves. A separate
+host-only delete-closure/expected-delta model rejects unsafe or unresolved
+selections.
+
+The new primary Transfer action only displays an offline plan from a complete
+Device Library backup: it constructs no candidate or transaction, does not
+evaluate live eligibility, authorize, or send. The existing exact VNW-V15
+three- and four-leaf guarded service paths and capability rows are unchanged,
+but the redesigned pane does not expose them. Generalized live transfer,
+nested live transfer, arbitrary deletion, and Restore remain unavailable.
+This boundary and the candidate-construction evidence gap are documented in
+the [P18-037 analysis record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
+
+Focused library/UI/live-regression tests pass (135); the portable Python 3.12
+suite passes (963 tests, 3 documented skips); `py_compile` and
+`git diff --check` pass. The local arm64 macOS app bundle builds and signs;
+its isolated LaunchServices smoke opened/closed the redesigned window with
+zero USB enumeration or sender calls. A startup visual check was performed;
+broader owner interaction checks remain pending. Windows packaging/CI,
+independent exact-head R2 review, and PR publication are pending. No physical
+device access or device-changing operation occurred. This is not a capability
+promotion.
+
 ## Product direction after P18-036
 
 The current product direction and near-term sequence are recorded in

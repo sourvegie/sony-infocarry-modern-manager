@@ -243,15 +243,21 @@ class DesktopTtkMessageTests(unittest.TestCase):
             format_early_transfer_eligibility_summary(artifact(("txt", "txt"))),
         )
 
-    def test_device_home_is_first_tab_and_uses_shared_read_only_inspection(self):
+    def test_local_and_device_libraries_share_the_primary_workspace(self):
         source = inspect.getsource(launch_ttk_desktop)
-        self.assertLess(source.index('notebook.add(device_tab, text="Device")'), source.index('notebook.add(library_tab, text="Content")'))
-        self.assertIn('text="Back Up Now"', source)
+        self.assertIn('workspace = ttk.Panedwindow(root, orient="horizontal")', source)
+        self.assertIn("workspace.add(library_tab, weight=1)", source)
+        self.assertIn("workspace.add(device_tab, weight=1)", source)
+        self.assertNotIn("notebook.add(", source)
+        self.assertIn('text="LOCAL LIBRARY"', source)
+        self.assertIn('text="DEVICE LIBRARY"', source)
+        self.assertIn('text="Back Up"', source)
         self.assertIn('text="Technical Details…"', source)
         self.assertIn("device_home_service.inspect()", source)
         self.assertIn("remember_complete_backup(application_data_paths, destination)", source)
         self.assertIn("device_home_frame.bind(\"<Configure>\"", source)
         self.assertIn("Backup ≠ Restore: backups are read-only snapshots; Restore is unavailable.", source)
+        self.assertIn('text="Delete", state="disabled"', source)
 
     def test_normal_library_formatters_hide_technical_identities(self):
         state = ReadinessState(
@@ -408,7 +414,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertEqual(_library_package_shape(package), "TXT/BMP/TXT")
 
     def test_library_review_geometry_is_explicit_and_usable(self):
-        self.assertEqual(LIBRARY_MINIMUM_GEOMETRY, (980, 680))
+        self.assertEqual(LIBRARY_MINIMUM_GEOMETRY, (1080, 680))
         self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[0], LIBRARY_MINIMUM_GEOMETRY[0])
         self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[1], LIBRARY_MINIMUM_GEOMETRY[1])
         self.assertGreaterEqual(LIBRARY_LIST_MIN_WIDTH, 320)
@@ -419,16 +425,18 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertNotIn("minsize=", source)
         for control in (
             "library_tree_horizontal_scroll",
+            "tree_horizontal_scroll",
             "library_report_horizontal_scroll",
-            "library_safety_notice",
             "library_status_label",
-            "library_experimental_group",
             "keep_library_sash_in_bounds",
             "sashpos",
-            "library_folder_import_button",
-            "library_move_up_button",
-            "library_move_down_button",
-            "library_preview_button",
+            "library_add_menu",
+            "library_search_entry",
+            "library_remove_selection_button",
+            "library_reorder_up_button",
+            "library_reorder_down_button",
+            "library_transfer_button",
+            "library_toolbar.pack_forget()",
         ):
             self.assertIn(control, source)
 
@@ -440,15 +448,37 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "library_workflow.import_files",
             "library_workflow.import_folder",
             "library_catalog.children(parent_id)",
-            "library_workflow.move_up",
-            "library_workflow.move_down",
-            "library_workflow.remove",
+            "library_catalog.move_to",
+            "library_catalog.remove_many",
             "library_workflow.prepare_preview",
             "format_library_device_tree_preview",
-            "unavailable without TkDND",
+            'library_tree.bind("<B1-Motion>"',
         ):
             self.assertIn(contract, source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
+
+    def test_primary_transfer_is_strictly_host_only(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        action_start = source.index("    def library_transfer_action()")
+        action_end = source.index("    def library_transfer_once_action()", action_start)
+        action = source[action_start:action_end]
+        self.assertIn("build_library_device_transfer_plan(", action)
+        self.assertIn("Physical transfer: not attempted or authorized", action)
+        self.assertNotIn("execute_once(", action)
+        self.assertNotIn("refresh_live_preflight(", action)
+        self.assertNotIn("build_candidate", action)
+        self.assertNotIn("sender", action.lower())
+
+    def test_local_remove_only_updates_the_catalog(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        action_start = source.index("    def library_remove_action()")
+        action_end = source.index("    def library_move_action(", action_start)
+        action = source[action_start:action_end]
+        self.assertIn("library_catalog.remove_many(", action)
+        self.assertIn("original source files will not be ", action)
+        self.assertIn("moved or deleted.", action)
+        self.assertNotIn(".unlink(", action)
+        self.assertNotIn("shutil.rmtree(", action)
 
     def test_existing_replacement_confirmation_keeps_simpledialog_imported(self):
         source = inspect.getsource(launch_ttk_desktop)
