@@ -2,312 +2,187 @@
 
 ## Vision
 
-Create a safe, user-friendly modern replacement for the essential functions of
-Sony InfoCarry Manager. A non-technical user should be able to connect an
-InfoCarry, see its contents, download files to the computer, and upload
-supported files without using Windows 2000 or understanding the USB protocol.
+Sony InfoCarry Modern Manager is a simple file and library manager for moving
+supported content between a computer and an InfoCarry. The main workspace
+presents two clear places:
 
-The product is a modern equivalent of the useful Manager workflow, not a
-pixel-for-pixel port. Legacy operations that can erase or replace an entire
-side are redesigned around backup, preview, confirmation, and verification.
+**Local Library ↔ InfoCarry Device**
 
-## Product Principles
+A user should be able to add files and folders, select content, transfer it,
+see verified completion, and immediately see the refreshed device tree. For
+content already on the device, a user should be able to select items, delete
+them through a guarded flow, verify the result, and see the refreshed tree.
 
-1. Protect the user's device and data before adding convenience.
-2. Make read-only recovery useful before exposing any write operation.
-3. Default to selected-file operations; do not expose destructive bulk
-   replacement as a shortcut.
-4. Make every device-changing operation previewable, explicitly authorized,
-   and independently verified by reading the device back.
-5. Preserve original backups and unknown legacy bytes losslessly.
-6. Keep the protocol/conversion core portable even though macOS is the first
-   supported platform.
-7. Describe device-changing operations as experimental while commit atomicity
-   and interrupted-write recovery remain unproven. Never turn an uncertain
-   outcome into an automatic retry.
-8. Distinguish logical selection from physical transfer scope: a selected item
-   is the only intended content change, but the device protocol rewrites a
-   complete candidate library image. Explain that timing is not proportional
-   to the selected file size.
-9. Represent prepared content once across source types and product surfaces.
-   Simplify the user's concepts and workflow without simplifying the safety
-   boundary that protects the device.
-10. Keep technical evidence discoverable but out of the normal owner-facing
-    path. Claims, hashes, seals, and manifests belong in Technical details;
-    normal status should use clear, stable product states.
+Users should not need to understand transfer profiles, prepared-artifact
+identities, protocol commands, claims, hashes, or validation stages to complete
+normal library tasks. Technical evidence remains available when needed, behind
+a clear technical-details view.
 
-## Release Scope
+This describes the intended product workflow. The current operations available
+on each model remain defined by [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md)
+and their evidence and safety gates. This vision does not enable an operation.
 
-### v0.1 — Read-only recovery manager
+## Primary areas
 
-A user can:
+### Local Library
 
-- see whether a supported InfoCarry is connected;
-- create a complete, verified backup;
-- browse the device contents in a familiar folder view;
-- download/export selected files or folders;
-- understand errors and safely retry a failed read.
+The Local Library contains content the user has added to the Manager. It
+should let the user:
 
-No device content can be changed in this release.
+- add individual files and whole folders;
+- browse nested folders in a familiar tree;
+- select one or more files or folders;
+- preview content where useful;
+- remove items from the Manager's local library; and
+- transfer selected content to the connected InfoCarry when that operation is
+  supported and ready.
 
-### v0.2 — Guarded selected upload
+Removing an item from the Local Library only removes its local library entry
+or managed copy according to the documented storage behavior. It does not
+delete device content.
 
-A user can additionally:
+### Device Library
 
-- select an existing supported text file on the device;
-- choose replacement text from the computer;
-- preview conversion, unsupported characters, size, and target path;
-- receive an automatic fresh backup before transfer;
-- explicitly confirm the selected change;
-- see transfer progress and a read-back verification result.
+The Device Library shows the actual current contents of the connected
+InfoCarry. It should let the user:
 
-The first upload scope is deliberately limited to the proven existing-record
-text replacement path. General new-file creation is not implied.
+- refresh and browse the device tree, including nested folders;
+- select one or more files or folders;
+- export selected content where supported;
+- delete selected content through the guarded deletion workflow;
+- create and inspect backups; and
+- see device capacity and connection status.
 
-### v0.3 — Guarded new TXT creation
+After a verified transfer or deletion, the Manager refreshes the Device
+Library automatically. A completion message appears only after the operation's
+independent verification succeeds. If the outcome is uncertain, the Manager
+reports that clearly and provides read-only diagnosis.
 
-A user can additionally:
+### Everyday workflows
 
-- choose a new UTF-8 TXT source on the computer;
-- preview the exact CP932/CRLF output, new device path, ordering/category
-  effects, size, capacity result, and any unsupported characters;
-- receive an automatic fresh verified backup;
-- explicitly authorize creation of one new TXT record;
-- see bounded progress with no automatic retry; and
-- receive a complete read-back result proving the new item and all expected
-  metadata while detecting unrelated changes.
+For adding content:
 
-This release begins only after a genuinely new legacy-created TXT fixture and
-its metadata/sidecar effects are understood. It does not imply folders,
-multi-file books, images, batch transfer, or delete.
+`Add files or folders → Select content → Transfer → Verify completion → Refresh the device tree`
 
-The operation remains explicitly experimental for the limited hobbyist
-audience until interrupted-write recovery is understood. A user may cancel
-normally before transmission begins; after the device-changing request begins,
-a disconnect, timeout, or cancellation is reported as an indeterminate outcome
-requiring read-only diagnosis, never as a guaranteed rollback.
+For managing existing device content:
 
-### v0.4 — Selective remove and prepared-content transfer
+`Select files or folders → Delete → Verify removal → Refresh the device tree`
 
-A user can additionally:
+The normal interface presents clear names, destinations, conflicts, capacity,
+backup state, progress, and completion. The user sees the selected logical
+scope before confirming a device change. Technical identifiers and protocol
+details stay out of the ordinary workflow.
 
-- remove one selected disposable or no-longer-needed supported item through a
-  separately captured and tested delete path;
-- review one explicitly prepared package with a proven exact folder and child
-  shape;
-- transfer one prepared supported item after capacity/conflict review; and
-- verify every created or removed record and all affected sidecars.
+Backup remains a normal safety and read-only function. It is a preserved copy
+and diagnostic aid, not an undo operation.
 
-Delete and multi-file creation have separate evidence and live-test gates.
-Neither is inferred from successful single-TXT creation.
+## Realistic library model
 
-### v0.5 — Local Library and safe staged transfer
+The library model and its validation should serve real collections. A useful
+planning and test target is tens of folders—roughly 30–50—and many TXT and BMP
+items, including nested structures. These figures describe realistic scale;
+they are not product hard limits. Any firm limit must come from demonstrated
+device, format, protocol, or resource constraints and must be documented.
 
-A user can additionally:
+Future validation should establish reusable bounded structural rules for
+folders and typed files. It should cover valid names and paths, supported item
+types, parent-child relationships, uniqueness, nesting, item and folder counts,
+payload sizes, conflicts, capacity, and relevant ordering rules. Tests should
+exercise representative generated structures, boundary cases, and invalid
+structures.
 
-- import supported sources into a persistent local Library by picker or
-  drag-and-drop;
-- prepare and preview supported sources and existing prepared folders/packages
-  through one canonical prepared-content artifact using tested conversion
-  profiles;
-- select one explicitly grouped prepared package for a transfer-readiness
-  review;
-- review destinations, conflicts, prepared sizes, device capacity evidence,
-  additions, and any explicitly requested removals before a future
-  authorization boundary; and
-- execute only operation types already proven by the earlier release gates.
+Exact captured shapes and named examples remain valuable evidence and
+regression fixtures. They establish facts about those cases. They do not define
+the complete future library model through a list of exact leaf permutations.
+Generalizing a structural model does not by itself make any device operation
+eligible; each operation remains behind its applicable capability and safety
+gates.
 
-The accelerated delivery plan keeps selection and physical transfer distinct:
-one selected Library item is one logical package, while the device protocol
-may transfer a complete candidate library image. It never means synchronize,
-delete unmatched device content, restore a side, or reproduce the legacy
-send-all operation. Unsupported, stale, conflicting, nested, multi-package,
-or differently shaped items remain preview-only and cannot be sent.
+## Product principles
 
-For both single-item and future queued operations, selection describes a
-logical Library item; it never means merge or synchronization. The
-authoritative current capability boundary is
-[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md). It records that constrained
-root TXT deletion, ordered four-TXT, flat TXT/BMP/TXT, and the exact P17-018
-Library package have their own limited evidence gates. P18-001 adds an
-Experimental review and guarded integration for exactly the P17-018-proven
-Library shape: one root folder with ordered TXT, BMP, TXT children. P18-016
-exposes that profile's host-only readiness review in the normal ttk Library
-flow; P18-017 adds a product facade for fresh live preflight and the existing
-guarded execution lifecycle. The default normal UI remains disabled until an
-exact, separately authorized fresh VNW-V15 operation has passed the canonical
-gates and transaction-specific confirmation. The code-reachable boundary is
-still only one explicit root package at `IC_P18_LIBRARY_20260910_01` with
-TXT → BMP → TXT children, target absence, no overwrite/delete/merge/nesting/
-batch, one transaction, and no retry. This host integration is not physical
-ttk validation and does not authorize a hardware transaction. A selected item
-is the logical change, while the protocol operation transfers a complete
-candidate library image. P18-019 closes the fresh-capacity propagation gap:
-the typed native `0x0019` response from a reviewed read-only preflight is fed
-back into the same queue-plan/readiness state, which recomputes capacity
-readiness and preserves the evidence binding. Offline or stale capacity values
-do not substitute for that fresh evidence.
+1. Protect user data before adding convenience.
+2. Make browsing, export, and verified backup useful without enabling a write.
+3. Keep transfer and deletion scoped to the user's explicit selection. Do not
+   infer synchronization, merge, send-all, or deletion of unmatched content.
+4. Require a fresh review of target, conflicts, capacity, source state, and
+   applicable device evidence before a device change. Discard stale reviews.
+5. Preserve the existing verified pre-write backup, operation-specific
+   authorization, explicit confirmation, bounded transfer, single-use durable
+   claim, proof-bound sender-marker handling, and installation-wide
+   indeterminate-write controls.
+6. Keep device-changing operations labeled Experimental while physical commit
+   atomicity and interrupted-write recovery remain unproven.
+7. Never automatically retry a device-changing operation after it has started
+   if its completion is missing, ambiguous, interrupted, timed out, cancelled,
+   malformed, or otherwise indeterminate. Require read-only diagnosis under
+   the existing persistent safety lock.
+8. Report verified success only after the exact native integer result `0x0000`,
+   a complete post-write backup, independent read-back of expected and
+   unaffected state, a durable terminal result, and proof-bound sender-marker
+   resolution.
+9. Preserve original backups and unknown legacy bytes losslessly.
+10. Keep current model-specific boundaries. VNW-V15 is the only verified model;
+    VNW-V10 remains uncharacterized and does not inherit V15 behavior.
+11. Explain the difference between the selected logical change and the physical
+    transfer scope. The device protocol may rewrite a complete candidate
+    library image, so operation time is not proportional to selected file size.
+12. Keep protocol, conversion, and library logic portable where practical.
+    Use typed outcomes and stable reason codes; render clear user-facing status
+    from those values.
+13. Keep claims, hashes, seals, artifact identities, and evidence manifests
+    discoverable in technical details without making them normal user concepts.
 
-All supported source types should converge on one prepared-content contract.
-Conversion is Library preparation, not a second transfer application or a
-USB-aware subsystem. P18-029 adds a bounded EPUB 2/3 text-centric source
-through the same host-only workspace:
+A product-direction document, fixture, successful fake transfer, or previous
+narrow live result cannot widen the current capability boundary. The matrix
+and the project's review and authorization process remain authoritative.
 
-`source → normalize/render → preview → prepared artifact → Library → transfer`
+## Toolkit integration
 
-The prepared artifact records its source, conversion profile, deterministic
-outputs, warnings, and provenance once. Transfer-shape analysis distinguishes
-the exact reviewed VNW-V15 TXT → BMP → TXT shape from future direct-leaf
-possibilities and unmappable hierarchy. Transfer eligibility is a capability
-of that artifact and its exact target/profile, not a separate kind of content.
-EPUB preparation does not authorize any new device operation.
+The InfoCarry Toolkit snapshot `97042a9` is an important source for future
+conversion integration. Defer that integration until the core Manager
+workflow is useful for adding, browsing, transferring, verifying, and managing
+everyday TXT and BMP content.
 
-### v1.0 — General content manager
+Before that integration, avoid heavy polish of the separate Text Converter and
+Ebook Renderer experiences. Keep conversion focused on the work needed for
+the Manager's core workflow. The eventual integration should route supported
+conversion through the Manager's Local Library and its ordinary review flow.
+Toolkit integration does not establish device support or expand a capability.
 
-Subject to format evidence and safety tests, a user can:
+## Explicitly deferred
 
-- upload and download all supported text, memo, and image content;
-- create supported new files and folders;
-- rename or delete selected items;
-- perform safe batch operations;
-- restore from a verified backup using a separately tested recovery workflow.
+- restore from backup, until it has its own tested recovery workflow;
+- synchronization, removal of unmatched content, or bulk replacement;
+- general bulk deletion, until its risks and safeguards are separately
+  demonstrated;
+- deliberate interrupted-write testing on the owner's only valuable device;
+- firmware changes, unlocking, service modes, and alternate commands;
+- broad format expansion without evidence for the full preparation and
+  transfer path; and
+- heavy polish of the standalone Text Converter and Ebook Renderer before
+  Toolkit integration.
 
-## Legacy Manager Parity
+Selective deletion is a core product requirement. Its implementation remains
+guarded by the evidence, model, and operation-specific safety gates.
 
-The initial product covers the old Manager's core purpose: connection status,
-receive/backup, browsing, selected download, and selected send. Its destructive
-"send all" and "receive all" behavior is not copied into early releases.
-
-The current parity priority is protocol and package generalization. I.6 has
-completed one narrowly constrained live one-folder/one-TXT package smoke with
-completion `0x0000` and exact independent read-back. Capture 7 proves the
-exact legacy one-folder/one-TXT fixture and supports an offline golden model;
-the separate constrained modern policy is not legacy timestamp equivalence.
-I.7 has completed offline timestamp/fixed-state characterization, one
-separately approved controlled legacy root-TXT add, and a separate isolated
-display-history/Mark-1/Bookmark-1 state experiment on that disposable record.
-The evidence independently observed shared timestamp regeneration for add,
-bounded fixed-state transitions for the three state families, and preserved
-payloads, but did not establish a safe general timestamp or fresh-state rule;
-eligibility still fails closed. I.8 now
-provides an ordered source-bound multiple-TXT logical model with strict
-authoring and no device candidate. I.9 now provides typed offline TXT/BMP
-validation with no device candidate. I.10 now provides a flat manifest-driven
-representative ebook plan that fails closed on nested sections; H.2 deletion
-generalization and preserved-evidence hardening now have a relation-corrected
-offline structural gate with zero unexplained non-timestamp differences after
-timestamp-only normalization. One constrained modern root-level TXT deletion
-smoke has also completed with `0x0000` and exact independent read-back. That
-result is limited to its tested scope; the provisional modern timestamp
-policy, physical recovery risk, generalized deletion, and separate owner
-review requirement remain explicit. J.0–J.3 local Library foundations and
-device-aware planning are complete. P18-002 defines the next conservative
-machine-enforced envelope and host-only application façade; it does not enable
-that envelope for live execution. Capability status belongs in
-[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md), not in repeated milestone
-narratives.
-
-The P18-001 UI surface is deliberately crude and review-only: it reports
-ordered children, sizes, destination/conflicts, fresh-backup and capacity
-requirements, hash-only operation identity, verification requirements, and
-the no-retry policy without exposing authorization or a send control.
-Unsupported combinations, nesting, multiple packages, batch actions,
-generalized deletion, and recovery remain unavailable. Physical opening of
-the exact P17-018 package remains a human acceptance check; interrupted-write
-recovery and broader compatibility remain unresolved.
-
-## Canonical Desktop Workflow
-
-The accelerated product workflow is:
-
-`Select files/folder → Arrange → Prepare → Preview → Review transfer → Back up → Confirm → Transfer once → Read back → Verify`
-
-In the current normal ttk build, `Review transfer` is followed by
-`Refresh live preflight` only when a fresh separately authorized VNW-V15
-operation is injected. The UI then presents the exact operation before
-transaction-specific confirmation; `Transfer once` remains disabled until the
-immutable operation is ready. A future successful path ends only after
-explicit `0x0000`, complete post-write backup, independent read-back, durable
-result evidence, and marker closure. Missing evidence, conflicts, stale state,
-or unsupported shapes remain blocked, and an indeterminate started operation
-offers read-only diagnosis rather than retry.
-
-Package grouping is explicit at selection/preparation time; selecting several
-unrelated Library rows never merges them. The initial machine-enforced profile
-allows one new flat root folder with 1–8 ordered strict TXT or validated 1-bit
-BMP children, but is defined and reviewable only until its exact operation has
-the required evidence and R3 enablement. The main window follows the approved
-three-pane direction: local Library, content/selection workspace, and a
-persistent Device Bay, with a collapsible System Console and optional Geek
-Mode. Host Library capacity and device capacity must always be labeled
-separately. Routine success uses status and console feedback; modal dialogs
-are reserved for ambiguity, destructive risk, or unrecoverable failure.
-
-The owner-facing experience should read as one simple progression:
-
-`Add to Library → Prepare → Preview → Ready to transfer → Transfer in progress → Transferred and verified`
-
-The application should keep claims, hashes, seals, operation identities, and
-evidence manifests behind an optional Technical details view. Readiness and
-outcomes are typed domain values with stable reason codes; user-facing prose is
-rendered from those values rather than parsed back into product decisions.
-Long-running preparation, backup, preflight, and transfer work belongs in one
-background operation controller so the Library and Device Bay remain
-responsive. A future prepared-content path should use generic validated
-operation data; historical P18-specific identities remain evidence and
-compatibility context rather than becoming new production concepts.
-
-## Device-model boundary
-
-The first capability is explicitly bound to the reviewed Sony InfoCarry
-VNW-V15 model profile (`0x054c:0x001e` for the observed USB session). VNW-V10
-is also an intended compatibility target, but is currently
-`UNCHARACTERIZED / READ-ONLY DISCOVERY REQUIRED`; it does not inherit V15's
-USB, protocol, storage, capacity, display, candidate, authorization, or write
-rules. No V10 transfer, delete, restore, or capability-envelope claim is
-available until a separate safe read-only characterization establishes it.
-VID/PID and bus/address are session observations rather than proven
-physical-unit identity. An ambiguous write therefore requires one persistent
-installation-wide fail-safe lock, deliberately over-blocking all models until
-the original incident/attempt is cleared through read-only diagnosis and a
-documented recovery decision.
-
-## Explicitly Deferred
-
-- firmware flashing, unlocking, and alternate or service-mode commands;
-- demo-program repair or special non-consumer content modes;
-- restore, bulk delete, or synchronization until interruption and recovery
-  behavior is separately demonstrated; selective single-item delete follows
-  the active v0.4 evidence gate;
-- deliberate interrupted-write testing on the owner's only valuable unit;
-  such tests require a second or sacrificial VNW-V15 and a separate protocol;
-- literal reproduction of destructive legacy bulk-replacement commands.
-- consolidating SQLite safety state and JSON artifacts until migration and
-  crash-consistency risks are understood; one safety-state owner remains
-  required even while storage formats stay separate;
-- plugin frameworks, a broad GUI rewrite, automatic synchronization, and
-  general sync behavior before the bounded product workflow is proven.
-
-## Distribution Policy
+## Distribution policy
 
 The initial application is a limited-audience hobby project for rare legacy
 hardware. The canonical source checkout and reproducible Python wheel are an
-acceptable v0.1 delivery. Developer ID signing and Apple notarization are not
-required for this release profile and are deferred until the audience broadens
-or a public download is offered. An unsigned or ad-hoc-signed macOS app may be
-added as a convenience without changing the device-safety gates. Any write
-release remains labeled experimental until the recovery gate above is closed;
-distribution convenience must not imply risk-free device mutation.
+acceptable initial delivery. Developer ID signing and Apple notarization are
+not required for this release profile and remain deferred until the audience
+broadens or a public download is offered. An unsigned or ad-hoc-signed macOS
+app may be added as a convenience without changing device-safety gates.
 
 Windows packaging remains an investigation rather than a compatibility claim.
 Clean-install testing must cover the selected Tk runtime, libusb deployment,
-declared Windows x64/ARM environments, and the actual packaged application
-before any requirement is relaxed or a Windows capability is advertised.
+declared Windows x64 and ARM environments, and the packaged application before
+any requirement is relaxed or compatibility is advertised.
 
-## Success Measure
+## Success measure
 
-The project succeeds when an ordinary user in the intended hobbyist audience
-can safely move supported files in both directions using the reproducible
-modern application, with verified backups and clear recovery guidance, while
-the Windows 2000 environment is retained only as historical evidence rather
-than a daily dependency.
+The project succeeds when an ordinary user can manage a realistic Local
+Library and InfoCarry Device Library, move supported files in both directions,
+and manage selected device content with verified results and clear recovery
+guidance. The Windows 2000 environment remains historical evidence rather than
+a daily dependency.

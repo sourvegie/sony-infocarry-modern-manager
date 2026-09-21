@@ -9,7 +9,7 @@ For ordinary engineering work, begin with:
 3. the approved task brief; and
 4. relevant source files and tests.
 
-Load other material only when triggered: `WORKFLOW.md` for risk/review/escalation/hardware/process questions; `CAPABILITY_MATRIX.md` for support or exposure; `RISK_REGISTER.md` for safety, persistence, recovery, or data-loss; `PRODUCT_VISION.md` for product scope/behavior; `ROADMAP.md` for sequencing; and only specifically relevant `analysis/` records for evidence/history. Legacy Oracle, protocol reconstruction, candidate/state construction, recovery, and R3 review must inspect their relevant evidence. Do not broadly scan `analysis/` during ordinary product work. Use `README.md` for supported setup and commands.
+Before any UI or capability design or implementation, read both `PRODUCT_VISION.md` for the product contract and `ROADMAP.md` for sequencing, along with `CAPABILITY_MATRIX.md` for current operation status. For other work, load additional material when triggered: `WORKFLOW.md` for risk/review/escalation/hardware/process questions; `RISK_REGISTER.md` for safety, persistence, recovery, or data-loss; and only specifically relevant `analysis/` records for evidence/history. Legacy Oracle, protocol reconstruction, candidate/state construction, recovery, and R3 review must inspect their relevant evidence. Do not broadly scan `analysis/` during ordinary product work. Use `README.md` for supported setup and commands.
 
 Repository state and canonical documents override remembered conversation history.
 
