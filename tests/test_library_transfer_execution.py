@@ -13,8 +13,20 @@ from unittest.mock import patch
 
 from infocarry.backup_format import parse_backup_blob
 from infocarry.capacity_evidence import NativeCapacityResponse
+from infocarry.capability_profile import (
+    INITIAL_EXPERIMENTAL_PROFILE_ID,
+    VNW_V15_FOUR_LEAF_PROFILE_ID,
+)
 from infocarry.device_info import RawInfoResponse
+from infocarry.device_library_semantics import (
+    DEVICE_ROOT_PATH,
+    DeviceLibraryNode,
+    DeviceLibrarySnapshot,
+)
+from infocarry.desktop_ttk import _exact_live_package_artifact
+from infocarry.execution_profile import FOUR_LEAF_CHILD_NAMES, FRESH_CHILD_NAMES
 from infocarry.library import LibraryCatalog
+from infocarry.library_device_transfer import build_library_device_transfer_plan
 from infocarry.library_transfer_execution import (
     FRESH_AUXILIARY_STATE_POLICY,
     LibraryTransferExecutionError,
@@ -79,6 +91,8 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         auxiliary_state=True,
         after_mode=None,
         target=FRESH_TEST_TARGET,
+        child_kinds=("txt", "bmp", "txt"),
+        profile_id=None,
     ):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
@@ -109,18 +123,23 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             max_age_seconds=None,
         )
 
-        intro = root / "intro.txt"
-        image = root / "page.bmp"
-        ending = root / "ending.txt"
-        intro.write_text("Introduction\n日本語\n", encoding="utf-8")
-        image.write_bytes(make_profile_bmp())
-        ending.write_text("The End\n", encoding="utf-8")
+        child_names = (
+            FRESH_CHILD_NAMES
+            if tuple(child_kinds) == ("txt", "bmp", "txt")
+            else FOUR_LEAF_CHILD_NAMES
+            if tuple(child_kinds) == ("txt", "bmp", "txt", "txt")
+            else tuple(f"{index:02}-page.{kind}" for index, kind in enumerate(child_kinds, 1))
+        )
+        sources = []
+        for index, (kind, name) in enumerate(zip(child_kinds, child_names), start=1):
+            source = root / f"source-{index}.{kind}"
+            if kind == "txt":
+                source.write_text(f"Page {index}\n日本語\n", encoding="utf-8")
+            else:
+                source.write_bytes(make_profile_bmp())
+            sources.append((source, name))
         package = build_prepared_media_package(
-            (
-                (intro, "01-introduction.txt"),
-                (image, "02-page-01.bmp"),
-                (ending, "03-ending.txt"),
-            ),
+            sources,
             target,
         )
         # Exercise the corrected P18-024 representation seam: the physical
@@ -166,6 +185,14 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         binding = LibraryTransferOperationBinding(
             target_folder_name=target,
             owner_approval_phrase=FRESH_OWNER_APPROVAL,
+            profile_id=(
+                profile_id
+                or (
+                    VNW_V15_FOUR_LEAF_PROFILE_ID
+                    if tuple(child_kinds) == ("txt", "bmp", "txt", "txt")
+                    else INITIAL_EXPERIMENTAL_PROFILE_ID
+                )
+            ),
         )
         claim_store = PersistentExecutionClaimStore(
             root / "installation-state" / "execution-claims.sqlite3"
@@ -288,6 +315,141 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertEqual(self._claim_count(setup), 1)
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
         self.assertIsNone(setup["lock"].read())
+
+    def _generic_exact_plan(self, setup):
+        snapshot = DeviceLibrarySnapshot(
+            (DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),)
+        )
+        plan = build_library_device_transfer_plan(
+            setup["catalog"],
+            [setup["item"].item_id],
+            DEVICE_ROOT_PATH,
+            snapshot,
+        )
+        return plan
+
+    def _assert_exact_route_reaches_guarded_preflight(self, setup):
+        self.addCleanup(setup["temporary"].cleanup)
+        self._patch_template_hashes(setup)
+        logical_plan = self._generic_exact_plan(setup)
+        artifact = _exact_live_package_artifact(setup["item"], logical_plan)
+        self.assertIsNotNone(artifact)
+        self.assertFalse(logical_plan.to_dict()["safety"]["candidate_constructed"])
+
+        facade = setup["facade"]
+        review = facade.review_readiness(setup["plan"])
+        self.assertTrue(review.host_profile_eligible)
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertIsNone(setup["lock"].read())
+
+        prepared = facade.refresh_live_preflight(
+            setup["plan"],
+            catalog=setup["catalog"],
+            preflight_report_path=setup["root"] / "operation" / "sealed-preflight.json",
+            bundle_path=setup["root"] / "operation" / "operation-bundle.json",
+        )
+
+        self.assertTrue(prepared.ready)
+        self.assertTrue(facade.transfer_actionable)
+        self.assertIs(facade.runtime.execution_claim_store, setup["claim_store"])
+        self.assertIs(facade.runtime.indeterminate_write_lock, setup["lock"])
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertIsNone(setup["lock"].read())
+
+    def test_exact_three_leaf_ui_mapping_reaches_existing_guarded_preflight_only(self):
+        setup = self._setup()
+        self._assert_exact_route_reaches_guarded_preflight(setup)
+
+    def test_exact_four_leaf_ui_mapping_reaches_existing_guarded_preflight_only(self):
+        setup = self._setup(
+            child_kinds=("txt", "bmp", "txt", "txt"),
+            profile_id=VNW_V15_FOUR_LEAF_PROFILE_ID,
+        )
+        self._assert_exact_route_reaches_guarded_preflight(setup)
+
+    def test_unsupported_package_shapes_remain_host_only(self):
+        for label, kinds in (
+            ("two-leaf", ("txt", "bmp")),
+            ("reordered-four-leaf", ("txt", "txt", "bmp", "txt")),
+            ("five-leaf", ("txt", "bmp", "txt", "txt", "txt")),
+        ):
+            with self.subTest(shape=label):
+                setup = self._setup(child_kinds=kinds)
+                self.addCleanup(setup["temporary"].cleanup)
+                logical_plan = self._generic_exact_plan(setup)
+                self.assertIsNone(
+                    _exact_live_package_artifact(setup["item"], logical_plan)
+                )
+                self.assertFalse(
+                    logical_plan.to_dict()["safety"]["candidate_constructed"]
+                )
+
+    def test_batch_nested_and_non_root_selections_cannot_map_to_live_package(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        snapshot = DeviceLibrarySnapshot(
+            (DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),)
+        )
+        second_source = setup["root"] / "unrelated.txt"
+        second_source.write_text("unrelated\n", encoding="utf-8")
+        second_item = setup["catalog"].import_file(second_source)
+        batch_plan = build_library_device_transfer_plan(
+            setup["catalog"],
+            [setup["item"].item_id, second_item.item_id],
+            DEVICE_ROOT_PATH,
+            snapshot,
+        )
+        self.assertIsNone(_exact_live_package_artifact(setup["item"], batch_plan))
+
+        for kind in ("txt", "bmp"):
+            with self.subTest(single_leaf=kind):
+                source = setup["root"] / f"unprepared.{kind}"
+                if kind == "txt":
+                    source.write_text("unprepared\n", encoding="utf-8")
+                else:
+                    source.write_bytes(make_profile_bmp())
+                leaf = setup["catalog"].import_file(source)
+                single_plan = build_library_device_transfer_plan(
+                    setup["catalog"],
+                    [leaf.item_id],
+                    DEVICE_ROOT_PATH,
+                    snapshot,
+                )
+                self.assertIsNone(_exact_live_package_artifact(leaf, single_plan))
+
+        books = DeviceLibrarySnapshot(
+            (
+                DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),
+                DeviceLibraryNode(("root", "Books"), "directory", 0),
+            )
+        )
+        nested_destination_plan = build_library_device_transfer_plan(
+            setup["catalog"],
+            [setup["item"].item_id],
+            ("root", "Books"),
+            books,
+        )
+        self.assertIsNone(
+            _exact_live_package_artifact(setup["item"], nested_destination_plan)
+        )
+
+        nested_source = setup["root"] / "nested-source"
+        nested_child = nested_source / "Part"
+        nested_child.mkdir(parents=True)
+        (nested_source / "01-introduction.txt").write_text("intro\n", encoding="utf-8")
+        (nested_child / "02-page-01.bmp").write_bytes(make_profile_bmp())
+        (nested_child / "03-ending.txt").write_text("end\n", encoding="utf-8")
+        folder_item = setup["catalog"].import_folder(nested_source)
+        nested_plan = build_library_device_transfer_plan(
+            setup["catalog"],
+            [folder_item.item_id],
+            DEVICE_ROOT_PATH,
+            snapshot,
+        )
+        self.assertIsNone(_exact_live_package_artifact(folder_item, nested_plan))
 
     def test_p18_025_fresh_target_reaches_host_ready_through_normal_facade(self):
         setup = self._setup(target=FRESH_TEST_TARGET)

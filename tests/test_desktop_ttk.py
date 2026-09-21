@@ -457,17 +457,40 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn(contract, source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
 
-    def test_primary_transfer_is_strictly_host_only(self):
+    def test_primary_transfer_routes_only_exact_packages_through_existing_guards(self):
         source = inspect.getsource(launch_ttk_desktop)
         action_start = source.index("    def library_transfer_action()")
         action_end = source.index("    def library_transfer_once_action()", action_start)
         action = source[action_start:action_end]
         self.assertIn("build_library_device_transfer_plan(", action)
-        self.assertIn("Physical transfer: not attempted or authorized", action)
+        self.assertIn("_exact_live_package_artifact(", action)
+        self.assertIn(
+            "library_single_transfer_review_action(continue_to_preflight=True)",
+            action,
+        )
+        self.assertIn("has not yet been enabled for device transfer", action)
+        self.assertIn("this plan does not authorize a device operation", action)
+        self.assertIn("library_toolbar.pack_forget()", source)
         self.assertNotIn("execute_once(", action)
         self.assertNotIn("refresh_live_preflight(", action)
         self.assertNotIn("build_candidate", action)
         self.assertNotIn("sender", action.lower())
+        self.assertNotIn("experimental-flat-root-folder-txt-bmp-v1", action)
+        self.assertNotIn("verified-vnw-v15-four-leaf-direct-v1", action)
+
+    def test_opening_and_selecting_library_content_never_starts_live_services(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        selection_start = source.index("    def show_library_selection(")
+        selection_end = source.index("\n    def ", selection_start + 6)
+        selection = source[selection_start:selection_end]
+        for operation in (
+            "review_readiness(",
+            "refresh_live_preflight(",
+            "execute_once(",
+        ):
+            self.assertNotIn(operation, selection)
+        self.assertIn('library_tree.bind("<<TreeviewSelect>>", show_library_selection)', source)
+        self.assertIn("library_transfer_button.configure(command=library_transfer_action)", source)
 
     def test_local_remove_only_updates_the_catalog(self):
         source = inspect.getsource(launch_ttk_desktop)

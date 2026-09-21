@@ -32,7 +32,12 @@ class _LibraryItem(Protocol):
     detected_format: str
     supported: bool
     state: str
+    preparation_state: str
     source_status: str
+    source_observations: tuple[dict[str, object], ...]
+    observed_source_sha256: Optional[str]
+    observed_source_size_bytes: Optional[int]
+    prepared_manifest_sha256: Optional[str]
     last_validation_error: Optional[str]
     node_kind: str
     parent_id: Optional[str]
@@ -52,6 +57,7 @@ _NODE_FOLDER = "folder"
 _NODE_PREPARED_PACKAGE = "prepared_package"
 _SOURCE_PRESENT = "present"
 _VALID_SOURCE_STATES = frozenset({"imported", "ready"})
+_PREPARATION_PREPARED = "prepared"
 _SUPPORTED_TEXT_FORMAT = "utf-8-txt"
 _SUPPORTED_BITMAP_FORMAT = "validated-237x320-1bit-bmp"
 
@@ -329,6 +335,103 @@ def _check_directory_source(item: _LibraryItem) -> Path:
     return path
 
 
+def _prepared_package_nodes(
+    item: _LibraryItem,
+    destination_path: DevicePath,
+) -> tuple[PlannedLibraryNode, ...]:
+    """Describe one imported package as logical paths after full host revalidation.
+
+    This is still only a product/domain plan.  The package is expanded into
+    its declared root folder and ordered direct children; it is never grouped
+    with other selected items or converted into device bytes here.
+    """
+
+    package_ref = item.package
+    if item.node_kind != _NODE_PREPARED_PACKAGE or package_ref is None:
+        raise LibraryDeviceTransferPlanError(
+            "prepared package reference is missing or inconsistent"
+        )
+    if (
+        not item.supported
+        or item.source_status != _SOURCE_PRESENT
+        or item.state not in _VALID_SOURCE_STATES
+        or item.preparation_state != _PREPARATION_PREPARED
+        or item.last_validation_error is not None
+    ):
+        raise LibraryDeviceTransferPlanError(
+            f"prepared package is stale, blocked, or unsupported: {item.source_filename}"
+        )
+
+    from .prepared_media_package import (
+        PreparedMediaPackageError,
+        load_prepared_media_package,
+    )
+
+    package_root = Path(package_ref.root_path).expanduser().resolve()
+    if (
+        str(package_root) != package_ref.root_path
+        or package_root != Path(item.source_path).expanduser().resolve()
+    ):
+        raise LibraryDeviceTransferPlanError(
+            "prepared package source path differs from its Library reference"
+        )
+    try:
+        imported = load_prepared_media_package(package_root)
+    except (OSError, PreparedMediaPackageError) as exc:
+        raise LibraryDeviceTransferPlanError(
+            f"prepared package could not be revalidated: {exc}"
+        ) from exc
+
+    manifest_size = imported.manifest_path.stat().st_size
+    observations = item.source_observations
+    latest = observations[-1] if observations else None
+    if (
+        str(imported.manifest_path) != package_ref.manifest_path
+        or imported.manifest_sha256 != package_ref.manifest_sha256
+        or imported.manifest_sha256 != item.prepared_manifest_sha256
+        or imported.manifest_sha256 != item.source_sha256
+        or imported.package.folder_name != package_ref.folder_name
+        or imported.package.folder_name != item.source_filename
+        or item.source_size_bytes != manifest_size
+        or item.observed_source_sha256 != imported.manifest_sha256
+        or item.observed_source_size_bytes != manifest_size
+        or tuple(dict(child) for child in imported.children) != package_ref.children
+        or not isinstance(latest, dict)
+        or latest.get("status") != _SOURCE_PRESENT
+        or latest.get("sha256") != imported.manifest_sha256
+        or latest.get("size_bytes") != manifest_size
+    ):
+        raise LibraryDeviceTransferPlanError(
+            "prepared package could not be fully revalidated: its source, manifest, or ordered grouping differs from the Library reference"
+        )
+
+    root_destination = destination_path + (imported.package.folder_name,)
+    nodes = [
+        PlannedLibraryNode(
+            source_item_id=item.item_id,
+            source_path=item.source_path,
+            destination_path=root_destination,
+            kind="directory",
+            sibling_order=0,
+        )
+    ]
+    for index, child in enumerate(imported.package.items):
+        payload = child.source_bytes
+        nodes.append(
+            PlannedLibraryNode(
+                source_item_id=item.item_id,
+                source_path=str(child.source_path),
+                destination_path=root_destination + (child.name,),
+                kind="file",
+                sibling_order=index,
+                file_type=child.kind,
+                source_payload_sha256=_sha256(payload),
+                source_payload_bytes=len(payload),
+            )
+        )
+    return tuple(nodes)
+
+
 def _folder_entry_names(path: Path) -> tuple[str, ...]:
     try:
         entries = tuple(path.iterdir())
@@ -394,8 +497,6 @@ def build_library_device_transfer_plan(
     except (KeyError, ValueError) as exc:
         raise LibraryDeviceTransferPlanError(f"selected Library item is stale or missing: {exc}") from exc
     for index, item in enumerate(selected):
-        if item.node_kind == _NODE_PREPARED_PACKAGE:
-            raise LibraryDeviceTransferPlanError("prepared package references are not generic source leaves")
         if any(
             _is_ancestor(catalog, other.item_id, item.item_id)
             or _is_ancestor(catalog, item.item_id, other.item_id)
@@ -406,6 +507,9 @@ def build_library_device_transfer_plan(
     additions: list[PlannedLibraryNode] = []
 
     def visit(item: _LibraryItem, destination_for_node: DevicePath) -> None:
+        if item.node_kind == _NODE_PREPARED_PACKAGE:
+            additions.extend(_prepared_package_nodes(item, destination_for_node))
+            return
         if item.node_kind == _NODE_FOLDER:
             source_dir = _check_directory_source(item)
             target_dir = destination_for_node + (item.source_filename,)

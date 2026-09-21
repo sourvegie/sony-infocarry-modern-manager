@@ -68,6 +68,7 @@ parallel live pipeline was added.
 - `tests/test_device_library_snapshot.py`
 - `tests/test_device_library_semantics.py`
 - `tests/test_device_library_delete_plan.py`
+- `tests/test_library_transfer_execution.py`
 - `tests/test_desktop_ttk.py`
 - `scripts/macos_manager_entry.py`
 - `scripts/windows_manager_entry.py`
@@ -98,7 +99,36 @@ parallel live pipeline was added.
 
 ## Review and publication
 
-Pending exact-head independent R2 review, PR creation against current
-`main`, and final Windows package workflow evidence. Do not merge
-automatically. Expected disposition after those gates is
-`READY_FOR_HUMAN_TEST`; hardware testing is not requested or authorized.
+## 2026-09-22 continuation — accepted P2 UI reachability finding
+
+The independent P2 finding on PR #65 was accepted: the redesigned primary
+**Transfer →** action had left the already-enabled exact VNW-V15 three-/four-
+leaf guarded routes reachable only through the old engineering controls. The
+user authorized repairing that normal UI reachability in the existing PR, with
+no separate PR and no capability-envelope expansion. Because the route can
+reach final candidate construction and the canonical sender when a separately
+authorized operation is configured, this correction is treated as R3 and
+stops at `READY_FOR_HARDWARE_TEST` after host validation and strong independent
+review.
+
+The logical planner now expands one explicitly imported prepared package only
+after revalidating its source, manifest, ordering, and Library observations.
+The normal primary action first creates the generic offline plan; a strict
+adapter admits only a single root-level package whose ordered TXT/BMP leaves
+and canonical child names match the existing verified three- or four-leaf
+profile. It then invokes the existing readiness, fresh preflight, typed
+confirmation, and one-shot facade callbacks. The default desktop still has no
+runtime or operation binding. Unsupported counts/orders, arbitrary leaves,
+nested/batched selections, conflicts, VNW-V10, deletion, and Restore do not
+enter the guarded path. No second candidate builder, authorization, claim/
+marker/lock owner, sender, or parallel pipeline was added.
+
+Host validation on the current working tree: 972 portable tests passed with 3
+documented skips; focused package bridge/readiness/UI/safety suites passed;
+`py_compile` and `git diff --check` passed. The macOS arm64/Tk 9 app built and
+passed the isolated LaunchServices smoke; the report showed zero device
+enumeration, sender, claim, marker, or installation-lock activity. No physical
+device was accessed. The existing PR #65 remains open; the exact-head review
+and PR CI are pending publication of the corrected head. Do not create another
+PR or merge automatically. Final disposition after R3 review and platform CI
+is `READY_FOR_HARDWARE_TEST`, then stop for a separately approved procedure.

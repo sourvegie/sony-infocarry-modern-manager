@@ -10,6 +10,10 @@ from infocarry.library_device_transfer import (
     LibraryDeviceTransferPlanError,
     build_library_device_transfer_plan,
 )
+from infocarry.prepared_media_package import (
+    build_prepared_media_package,
+    export_prepared_media_package,
+)
 
 
 def make_profile_bmp() -> bytes:
@@ -49,6 +53,105 @@ class LibraryDeviceTransferTests(unittest.TestCase):
 
     def tearDown(self):
         self.temporary.cleanup()
+
+    def _import_package(self, kinds, *, folder_name="Package"):
+        sources = []
+        for index, kind in enumerate(kinds, start=1):
+            source = self.root / "package-sources" / f"source-{index}.{kind}"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            if kind == "txt":
+                source.write_text(f"Page {index}\n", encoding="utf-8")
+                name = f"{index:02}-page.txt"
+            else:
+                source.write_bytes(make_profile_bmp())
+                name = f"{index:02}-page.bmp"
+            sources.append((source, name))
+        prepared = build_prepared_media_package(sources, folder_name)
+        package_root = export_prepared_media_package(
+            prepared, self.root / f"{folder_name}-archive"
+        )
+        return self.catalog.import_prepared_package(package_root)
+
+    def test_explicit_prepared_package_is_expanded_only_as_a_host_logical_plan(self):
+        item = self._import_package(("txt", "bmp", "txt"))
+
+        plan = build_library_device_transfer_plan(
+            self.catalog,
+            [item.item_id],
+            ("root",),
+            empty_device(),
+        )
+
+        self.assertEqual(
+            [(node.kind, node.file_type, node.destination_path) for node in plan.nodes],
+            [
+                ("directory", None, ("root", "Package")),
+                ("file", "txt", ("root", "Package", "01-page.txt")),
+                ("file", "bmp", ("root", "Package", "02-page.bmp")),
+                ("file", "txt", ("root", "Package", "03-page.txt")),
+            ],
+        )
+        self.assertEqual(plan.selected_item_ids, (item.item_id,))
+        self.assertEqual(plan.expected_delta.removed_paths, ())
+        self.assertEqual(
+            plan.to_dict()["safety"],
+            {
+                "candidate_constructed": False,
+                "transaction_constructed": False,
+                "authorization_created": False,
+                "sender_called": False,
+                "live_capability_evaluated": False,
+            },
+        )
+
+    def test_explicit_prepared_packages_of_other_shapes_remain_host_plannable(self):
+        for index, kinds in enumerate(
+            (("txt", "bmp"), ("txt", "bmp", "txt", "txt", "txt")),
+            start=1,
+        ):
+            with self.subTest(kinds=kinds):
+                item = self._import_package(kinds, folder_name=f"Package-{index}")
+                plan = build_library_device_transfer_plan(
+                    self.catalog,
+                    [item.item_id],
+                    ("root",),
+                    empty_device(),
+                )
+                self.assertEqual(
+                    tuple(node.file_type for node in plan.nodes if node.kind == "file"),
+                    kinds,
+                )
+                self.assertFalse(plan.to_dict()["safety"]["candidate_constructed"])
+
+    def test_prepared_package_manifest_drift_blocks_logical_planning(self):
+        item = self._import_package(("txt", "bmp", "txt"))
+        manifest_path = Path(item.package.manifest_path)
+        manifest_path.write_bytes(manifest_path.read_bytes() + b" ")
+
+        with self.assertRaisesRegex(LibraryDeviceTransferPlanError, "revalidated"):
+            build_library_device_transfer_plan(
+                self.catalog,
+                [item.item_id],
+                ("root",),
+                empty_device(),
+            )
+
+    def test_prepared_package_destination_conflict_is_not_overwritten(self):
+        item = self._import_package(("txt", "bmp", "txt"))
+        snapshot = DeviceLibrarySnapshot(
+            (
+                DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),
+                DeviceLibraryNode(("root", "Package"), "directory", 0),
+            )
+        )
+
+        with self.assertRaisesRegex(LibraryDeviceTransferPlanError, "conflict"):
+            build_library_device_transfer_plan(
+                self.catalog,
+                [item.item_id],
+                ("root",),
+                snapshot,
+            )
 
     def test_selected_subtree_preserves_hierarchy_and_destination(self):
         source = self.root / "Novel"

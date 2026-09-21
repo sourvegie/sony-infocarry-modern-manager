@@ -67,6 +67,11 @@ from .content_workspace import ContentWorkspaceSettings
 from .library_prepare import LibraryPreparationError
 from .library_workflow import LibraryWorkflowService
 from .prepared_content import PreparedContentArtifact, PreparedContentError
+from .capability_profile import (
+    INITIAL_EXPERIMENTAL_PROFILE_ID,
+    VNW_V15_FOUR_LEAF_PROFILE_ID,
+)
+from .execution_profile import guarded_execution_profile
 from .transfer_shape import (
     EXACT_VERIFIED_LIVE_PROFILE,
     FOUR_LEAF_VERIFIED_CHILD_KINDS,
@@ -136,6 +141,77 @@ def _library_package_shape(package: Any) -> str:
             kind = getattr(child, "kind", None)
         kinds.append(str(kind).upper() if kind else "?")
     return "/".join(kinds) or "PACKAGE"
+
+
+def _exact_live_package_artifact(
+    item: Any,
+    plan: LibraryDeviceTransferPlan,
+) -> Optional[PreparedContentArtifact]:
+    """Return the artifact only for one exact, root-level guarded mapping.
+
+    The generic device plan remains host-only. This adapter proves that its
+    explicit package expansion agrees with an existing guarded profile;
+    readiness, authorization, preflight, execution, and read-back remain
+    owned by ``LibraryTransferExecutionFacade``.
+    """
+
+    if (
+        not isinstance(plan, LibraryDeviceTransferPlan)
+        or plan.destination_path != ("root",)
+        or plan.expected_delta.removed_paths
+        or plan.selected_item_ids != (getattr(item, "item_id", None),)
+        or getattr(item, "node_kind", None) != NODE_PREPARED_PACKAGE
+        or getattr(item, "package", None) is None
+        or not isinstance(getattr(item, "prepared_artifact", None), dict)
+    ):
+        return None
+    try:
+        artifact = PreparedContentArtifact.from_dict(item.prepared_artifact)
+        assessment = assess_transfer_shape(artifact)
+    except (PreparedContentError, TypeError, ValueError):
+        return None
+    if assessment.classification != EXACT_VERIFIED_LIVE_PROFILE:
+        return None
+
+    if assessment.ordered_kinds == CURRENT_VERIFIED_CHILD_KINDS:
+        profile_id = INITIAL_EXPERIMENTAL_PROFILE_ID
+    elif assessment.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
+        profile_id = VNW_V15_FOUR_LEAF_PROFILE_ID
+    else:
+        return None
+    try:
+        profile = guarded_execution_profile(profile_id)
+    except ValueError:
+        return None
+    if (
+        artifact.root_name != getattr(item.package, "folder_name", None)
+        or tuple(child.kind for child in artifact.children) != profile.child_kinds
+        or tuple(child.name for child in artifact.children) != profile.child_names
+    ):
+        return None
+
+    expected_root = ("root", artifact.root_name)
+    nodes = plan.nodes
+    if (
+        len(nodes) != len(artifact.children) + 1
+        or nodes[0].source_item_id != item.item_id
+        or nodes[0].source_path != item.source_path
+        or nodes[0].kind != "directory"
+        or nodes[0].destination_path != expected_root
+    ):
+        return None
+    for index, (child, node) in enumerate(zip(artifact.children, nodes[1:])):
+        if (
+            node.source_item_id != item.item_id
+            or node.kind != "file"
+            or node.file_type != child.kind
+            or node.destination_path != expected_root + (child.name,)
+            or node.source_payload_sha256 != child.source_sha256
+            or node.source_payload_bytes != child.source_bytes
+            or node.sibling_order != index
+        ):
+            return None
+    return artifact
 
 
 def _library_display_type(item: Any) -> str:
@@ -3699,7 +3775,9 @@ def launch_ttk_desktop(
 
         start_library_operation("Review transfer", revision, work, success)
 
-    def library_single_transfer_review_action() -> None:
+    def library_single_transfer_review_action(
+        *, continue_to_preflight: bool = False
+    ) -> None:
         """Show one prepared item's supported shape and review requirements."""
 
         nonlocal library_current_plan_report, library_current_readiness
@@ -3773,6 +3851,23 @@ def launch_ttk_desktop(
                     else "disabled"
                 )
             )
+            if continue_to_preflight:
+                if not review.host_profile_eligible:
+                    library_status_var.set(
+                        "This selection is not ready for the existing guarded device-transfer flow; see the review details"
+                    )
+                    return
+                if not library_execution_facade.can_prepare_live:
+                    library_status_var.set(
+                        "This exact package shape is reviewable, but no separately authorized live operation is configured; no device checks or transfer occurred"
+                    )
+                    messagebox.showinfo(
+                        "Transfer unavailable",
+                        "This exact package shape can be reviewed, but a separately authorized VNW-V15 operation is not configured. No device checks or device change occurred.",
+                        parent=root,
+                    )
+                    return
+                library_live_preflight_action(continue_to_confirmation=True)
 
         start_library_operation("Review transfer", revision, work, success)
 
@@ -3783,7 +3878,9 @@ def launch_ttk_desktop(
         elif selected:
             library_transfer_review_action(SELECTION_SELECTED)
 
-    def library_live_preflight_action() -> None:
+    def library_live_preflight_action(
+        *, continue_to_confirmation: bool = False
+    ) -> None:
         """Refresh read-only evidence through the product facade only."""
 
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
@@ -3847,11 +3944,13 @@ def launch_ttk_desktop(
             library_status_var.set(
                 "Current device readiness checked; Send to InfoCarry remains guarded for this exact operation"
             )
+            if continue_to_confirmation:
+                library_transfer_once_action()
 
         start_library_operation("Check device readiness", revision, work, success)
 
     def library_transfer_action() -> None:
-        """Create and show a host-only plan; this action has no live execution path."""
+        """Plan one selection, then hand exact packages to the guarded facade."""
 
         if library_catalog is None:
             library_status_var.set("Local Library is unavailable; no device action was started")
@@ -3939,7 +4038,7 @@ def launch_ttk_desktop(
                 "Candidate growth and capacity: unknown; no candidate was built\n"
                 f"Backup: {backup_label}; this is not a fresh pre-operation backup\n"
                 "Readiness: not evaluated by this offline plan\n"
-                "Physical transfer: not attempted or authorized\n"
+                "Physical transfer: not attempted; this plan does not authorize a device operation\n"
                 "Device auxiliary state: unresolved; this plan does not claim live verification"
             )
             preview_paths = plan.expected_delta.added_paths
@@ -3955,10 +4054,34 @@ def launch_ttk_desktop(
             details += "\n\nExpected additions:\n" + (
                 "\n".join(preview_lines) if preview_lines else "  None"
             )
-            library_status_var.set(
-                "Offline transfer plan ready; no device change or authorization occurred"
+            live_artifact = (
+                _exact_live_package_artifact(selected[0], plan)
+                if len(selected) == 1
+                else None
             )
-            messagebox.showinfo("Offline transfer plan", details, parent=root)
+            if live_artifact is None:
+                details += (
+                    "\n\n"
+                    f"{file_count} item(s) are ready in the Local Library, but this transfer structure has not yet been enabled for device transfer.\n"
+                    "This is a host-only plan; no device checks, candidate, authorization, or transfer occurred."
+                )
+                library_status_var.set(
+                    "Offline transfer plan ready; this selection is not enabled for device transfer"
+                )
+                messagebox.showinfo("Offline transfer plan", details, parent=root)
+                return
+
+            details += (
+                "\n\n"
+                "This explicit prepared package matches an existing guarded transfer shape. "
+                "Continuing through its current readiness and safety checks; this plan itself "
+                "does not authorize or perform a device change."
+            )
+            library_status_var.set(
+                "Exact package mapping found; continuing through existing guarded readiness checks"
+            )
+            messagebox.showinfo("Transfer plan", details, parent=root)
+            library_single_transfer_review_action(continue_to_preflight=True)
 
         start_library_operation(
             "Checking transfer plan",

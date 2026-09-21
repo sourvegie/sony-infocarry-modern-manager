@@ -137,10 +137,11 @@ readiness review for exactly one explicitly selected prepared root package with
 authoritative TXT → BMP → TXT or TXT → BMP → TXT → TXT direct children. It
 shows the destination, prepared sizes and hashes, verified-baseline conflict
 information, lower-bound capacity information when available, and the fresh
-evidence still required for any future operation. A visible `Transfer once`
-affordance remains disabled and has no normal-UI callback. This is a product
-explanation of the reviewed VNW-V15 profiles, not reusable authorization and
-not generalized live transfer capability; VNW-V10 remains uncharacterized.
+evidence still required for any future operation. The legacy Prepare/Review/
+Refresh Checks/Send controls remain outside the normal Library surface. The
+P18-037 primary Transfer action routes only an exact package through the
+existing guarded facade; this is not reusable authorization or generalized
+live transfer capability. VNW-V10 remains uncharacterized.
 
 ## P18-017 host execution integration
 
@@ -157,3 +158,13 @@ one exact fresh VNW-V15 operation for target
 path. This is evidence of the narrow reviewed profile, not reusable
 authorization; every future operation still requires its own fresh evidence
 and owner approval, and this matrix does not authorize it.
+
+The P18-037 primary **Transfer →** action now admits that existing facade only
+after the generic plan proves one explicit imported package maps exactly to a
+root-level reviewed three- or four-leaf profile. It continues through the
+same readiness, fresh preflight, typed operation-specific confirmation, and
+one-shot execution callbacks; unsupported plans stop host-only. No second
+candidate builder, coordinator, authorization, persistent safety owner,
+sender, or live-success decision was added. The default app remains inert
+without its separately supplied operation binding/runtime. This is UI
+reachability repair, not capability promotion.

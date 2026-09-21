@@ -141,14 +141,20 @@ Device Library destination; validates source freshness and CP932 components;
 and rejects conflicts without overwrite or merge. Its generated offline
 fixture contains 61 directories and 150 mixed TXT/BMP leaves. Those figures
 are host/UI test scale, not device limits. The normal **Transfer** action
-displays only this offline plan; it does not build candidate bytes, evaluate
-live eligibility, authorize, or send. Expected semantic path deltas are
-modeled independently of candidate construction. Capacity growth remains
-unknown when no candidate is built, and unresolved device auxiliary state is
-not treated as verified. P18-037 adds host-only generalized delete-closure
-planning; the normal Delete control remains disabled for arbitrary
-selections. Current live VNW-V15 shapes and guarded boundaries remain exactly
-as listed in [`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
+first displays this generic logical plan. Only one explicitly imported and
+revalidated root package with an exact existing VNW-V15 three- or four-leaf
+shape can continue through the existing readiness, fresh-preflight, and typed
+one-shot-confirmation facade; the plan itself never authorizes a device
+operation. The default desktop launch has no runtime or operation binding, so
+it performs no device checks or transaction. Unsupported structures remain
+host-only, with no candidate bytes, generalized live path, or new capability.
+Expected semantic path deltas are modeled independently of candidate
+construction. Capacity growth remains unknown when no candidate is built, and
+unresolved device auxiliary state is not treated as verified. P18-037 adds
+host-only generalized delete-closure planning; the normal Delete control
+remains disabled for arbitrary selections. Current live VNW-V15 shapes and
+guarded boundaries remain exactly as listed in
+[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
 
 The Tkinter/ttk desktop provides connection status, verified read-only backup,
 a hierarchical Device Library browser, selected download/export,

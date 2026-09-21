@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-09-21
+Date: 2026-09-22
 
 ## P18-037 — Local Library ↔ Device Library Manager foundation
 
@@ -16,24 +16,27 @@ offline scale fixture contains 61 directories and 150 mixed leaves. A separate
 host-only delete-closure/expected-delta model rejects unsafe or unresolved
 selections.
 
-The new primary Transfer action only displays an offline plan from a complete
-Device Library backup: it constructs no candidate or transaction, does not
-evaluate live eligibility, authorize, or send. The existing exact VNW-V15
-three- and four-leaf guarded service paths and capability rows are unchanged,
-but the redesigned pane does not expose them. Generalized live transfer,
-nested live transfer, arbitrary deletion, and Restore remain unavailable.
-This boundary and the candidate-construction evidence gap are documented in
-the [P18-037 analysis record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
+The primary Transfer action first builds the generic offline plan. Only one
+explicitly imported, fully revalidated, root-level prepared package whose
+ordered leaves match an existing exact VNW-V15 three- or four-leaf profile
+continues through the existing readiness, fresh-preflight, and typed
+one-shot-confirmation facade. The default desktop launch still has no runtime
+or operation binding, so it performs no device checks or transaction. Generic
+plans and every unsupported shape remain host-only; no candidate, authorization
+pipeline, safety owner, or capability row was added. Generalized/nested live
+transfer, arbitrary deletion, and Restore remain unavailable. The accepted
+P2 finding and this R3-bounded correction are recorded in the [P18-037 analysis
+record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
 
-Focused library/UI/live-regression tests pass (135); the portable Python 3.12
-suite passes (963 tests, 3 documented skips); `py_compile` and
-`git diff --check` pass. The local arm64 macOS app bundle builds and signs;
-its isolated LaunchServices smoke opened/closed the redesigned window with
-zero USB enumeration or sender calls. A startup visual check was performed;
-broader owner interaction checks remain pending. Windows packaging/CI,
-independent exact-head R2 review, and PR publication are pending. No physical
-device access or device-changing operation occurred. This is not a capability
-promotion.
+The portable Python 3.12 suite passes (972 tests, 3 documented skips), as do
+the focused package-bridge, exact-route, readiness, UI, and safety regressions;
+`py_compile` and `git diff --check` pass. The local arm64 macOS app bundle
+builds and signs, and the isolated LaunchServices smoke opens/closes the
+redesigned window with zero device-enumeration, sender, claim, marker, or lock
+activity. Windows packaging/CI and fresh independent exact-head R3 review are
+pending. Work continues on existing PR #65; no separate PR was created. No
+physical device access or device-changing operation occurred. This is not a
+capability promotion.
 
 ## Product direction after P18-036
 
