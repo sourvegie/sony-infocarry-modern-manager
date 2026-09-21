@@ -54,9 +54,9 @@ class LibraryDeviceTransferTests(unittest.TestCase):
         source = self.root / "Novel"
         chapter = source / "Part 01"
         chapter.mkdir(parents=True)
-        (chapter / "page.txt").write_text("first\n", encoding="utf-8")
+        (chapter / "page.txt").write_bytes(b"first\n")
         (chapter / "image.bmp").write_bytes(make_profile_bmp())
-        (source / "opening.txt").write_text("opening\n", encoding="utf-8")
+        (source / "opening.txt").write_bytes(b"opening\n")
         root_item = self.catalog.import_folder(source)
 
         plan = build_library_device_transfer_plan(
