@@ -123,12 +123,21 @@ nested/batched selections, conflicts, VNW-V10, deletion, and Restore do not
 enter the guarded path. No second candidate builder, authorization, claim/
 marker/lock owner, sender, or parallel pipeline was added.
 
-Host validation on the current working tree: 972 portable tests passed with 3
-documented skips; focused package bridge/readiness/UI/safety suites passed;
+Host validation: 972 portable tests passed with 3 documented skips; the
+focused package bridge/readiness/UI/safety group (73 tests) passed;
 `py_compile` and `git diff --check` passed. The macOS arm64/Tk 9 app built and
-passed the isolated LaunchServices smoke; the report showed zero device
+passed the isolated LaunchServices smoke; its report showed zero device
 enumeration, sender, claim, marker, or installation-lock activity. No physical
-device was accessed. The existing PR #65 remains open; the exact-head review
-and PR CI are pending publication of the corrected head. Do not create another
-PR or merge automatically. Final disposition after R3 review and platform CI
-is `READY_FOR_HARDWARE_TEST`, then stop for a separately approved procedure.
+device was accessed.
+
+Implementation commit `c7647aa2adb7b90c6bf83279e8aa4d81595ff0ad` was pushed to
+the existing PR #65. Fresh independent exact-head R3 review passed with
+`P0=0, P1=0, P2=0`. PR workflows passed on that implementation commit:
+[Offline tests run 203](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35628159298),
+[macOS package run 20](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35628159292),
+and [Windows package run 24](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35628159501).
+The offline suite passed on both macOS and Windows; both package builds and
+their frozen-runtime/LaunchServices smokes passed. PR #65 remains open and
+unmerged; no separate PR was created. Do not merge automatically. Host-side
+disposition is `READY_FOR_HARDWARE_TEST`; a physical operation still requires
+separate operation-specific owner approval and an approved procedure.

@@ -33,10 +33,14 @@ the focused package-bridge, exact-route, readiness, UI, and safety regressions;
 `py_compile` and `git diff --check` pass. The local arm64 macOS app bundle
 builds and signs, and the isolated LaunchServices smoke opens/closes the
 redesigned window with zero device-enumeration, sender, claim, marker, or lock
-activity. Windows packaging/CI and fresh independent exact-head R3 review are
-pending. Work continues on existing PR #65; no separate PR was created. No
-physical device access or device-changing operation occurred. This is not a
-capability promotion.
+activity. On implementation commit `c7647aa2adb7b90c6bf83279e8aa4d81595ff0ad`,
+the independent exact-head R3 review passed (`P0=0, P1=0, P2=0`), and PR #65 CI
+passed on macOS and Windows offline suites plus macOS and Windows package/smoke
+workflows. Work continues on existing PR #65; no separate PR was created and
+the PR remains unmerged. No physical device access or device-changing
+operation occurred. Host-side disposition is `READY_FOR_HARDWARE_TEST`; that
+does not authorize a physical operation, which still requires separate
+operation-specific owner approval and an approved procedure.
 
 ## Product direction after P18-036
 
