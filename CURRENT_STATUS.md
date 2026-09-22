@@ -82,6 +82,37 @@ was created. No physical operation occurred or is authorized by this task; any
 future hardware validation requires new operation-specific owner authorization
 and an approved procedure.
 
+The 2026-09-22 continuation followed a stopped `-06` host/device attempt in
+which the packaged `+ Add` control was reported disabled; the preserved stop
+record contains no live widget/health snapshot, so its exact runtime branch
+cannot be distinguished. Source tracing identified incorrect coupling in
+Library busy/selection state, while catalog/workflow health remains the
+independent valid fail-closed condition. Commit
+`d3cafa73c5c254578f95891285f61ca2f9183102` decouples Add and import controls
+from device and transfer state, preserves a guard against a conflicting
+concurrent Library import, and extends both packaged production-bootstrap
+smokes to exercise Add Files/Add Folder with disposable host fixtures and
+device/sender calls forbidden. The smoke confirms nested ordinary-folder
+import, unchanged source files, Add available with an indeterminate lock and
+unavailable live runtime/no operation binding, unchanged lock bytes, and zero
+claims/markers. Transfer admission, authorization, claim/marker lifecycle,
+sender, and independent verification code were not changed. Focused local
+validation passed 43 tests; the full Python 3.12 suite passed 997 tests with 3
+documented skips; `compileall` and `git diff --check` passed. Exact-commit
+[Offline tests run 211](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35735357171)
+passed on macOS and Windows;
+[macOS package run 28](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35735357217)
+passed the Apple Silicon build and LaunchServices/package smoke; and
+[Windows package run 32](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35735357125)
+passed the x64 build and packaged smoke. Fresh independent exact-commit R3
+review passed `P0=0, P1=0, P2=0`. A local screenshot of the CI-built Manager
+showed `+ Add` enabled; the native chooser windows were not separately
+visually inspected. No physical-device validation or device-changing action
+occurred. The code commit is pushed to existing PR #65; it remains open and
+unmerged. Host disposition remains `READY_FOR_HARDWARE_TEST`, with a new
+operation-specific owner authorization and approved procedure required for
+any later physical validation.
+
 ## Product direction after P18-036
 
 The current product direction and near-term sequence are recorded in
