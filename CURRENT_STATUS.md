@@ -57,25 +57,30 @@ prepare physical-validation attempt `-05`. That attempt stopped before device
 access when the packaged Manager was found to lack production runtime and
 operation-binding wiring; no physical operation occurred. Attempts `-01`
 through `-04` also remain stopped and are not relabeled. The owner-authorized
-R3 follow-up is based on `f1128d...` and adds shared production reachability
-without widening the reviewed transfer shapes. Host validation currently
-passes on the corrected worktree: the Python 3.12 suite ran 995 tests with 3
-documented skips; the focused application-safety, production-provider,
-guarded-execution, and desktop UI group passed 83 tests; `compileall` and
-`git diff --check` pass. Because local PyUSB is unavailable, these host runs
-used an external test-only PyUSB import stub that raises on any USB
-discovery/session call. Independent review of first implementation commit
-`0f3708a...` found one P2: startup reconciliation could mutate the persistent
-lock and sender marker. The correction makes startup inspect that state
-read-only while retaining reconciliation and fail-closed blocking at the
-canonical guarded write boundary. Exact-head hosted macOS/Windows package
-workflows, offline CI, and fresh independent review of the correction remain
-pending. The local macOS package build stops at `pip check` because
-`packaging` is missing, before creating an app bundle. Do not report
-`READY_FOR_HARDWARE_TEST` until they pass. Work remains on existing PR #65,
-with no separate PR or merge. No physical operation is authorized by this
-implementation task; any future hardware validation requires new
-operation-specific owner authorization and an approved procedure.
+R3 follow-up's reviewed runtime-code commit is
+`c3da4c16b8e210132f764d18f45e6ec7aaf22d2b`. Host validation passed: the
+Python 3.12 suite ran 995 tests with 3 documented skips; the focused
+application-safety, production-provider, guarded-execution, and desktop UI
+group passed 83 tests; `compileall` and `git diff --check` passed. Because
+local PyUSB is unavailable, these host runs used an external test-only PyUSB
+import stub that raises on any USB discovery/session call. Exact-head hosted
+[Offline tests run 209](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974618)
+passed on macOS and Windows;
+[macOS package run 26](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974796)
+passed the Apple Silicon build and LaunchServices smoke; and
+[Windows package run 30](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974643)
+passed the x64 build and frozen-runtime smoke. Independent strong exact-head
+review of the corrected implementation passed `P0=0, P1=0, P2=0`. Its first
+review had found P2 startup safety-state mutation; startup now inspects state
+read-only and the canonical guarded execution boundary retains durable
+reconciliation before claim consumption. The local macOS package attempt
+stopped before bundle creation because `pip check` found `packaging` missing;
+hosted package builds passed. Host disposition is
+`READY_FOR_HARDWARE_TEST`. This status update is documentation-only after the
+reviewed runtime-code commit. PR #65 remains open and unmerged; no separate PR
+was created. No physical operation occurred or is authorized by this task; any
+future hardware validation requires new operation-specific owner authorization
+and an approved procedure.
 
 ## Product direction after P18-036
 

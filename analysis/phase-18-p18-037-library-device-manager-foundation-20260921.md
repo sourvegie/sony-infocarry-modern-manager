@@ -233,18 +233,24 @@ before claim consumption and blocks any write. A dedicated regression proves
 the startup inspection leaves the marker and lock unchanged.
 
 The capability boundary is unchanged: only VNW-V15 `TXT → BMP → TXT` and
-`TXT → BMP → TXT → TXT` may reach the existing guarded operation. On the
-corrected worktree, the Python 3.12 suite passed 995 tests with 3 documented
-skips; the focused application-safety, production-provider, guarded-execution,
-and desktop UI group passed 83 tests; `compileall` and `git diff --check`
-passed. Tests used an external test-only PyUSB import stub whose
-discovery/session functions raise, because PyUSB is absent locally; no
-hardware was enumerated or accessed. The initial implementation commit's
-exact-head hosted macOS and Windows package/smoke workflows and offline suites
-passed, but new final-head workflows and a fresh independent re-review of the
-correction are required. The local macOS package attempt stopped at `pip check`
-because `packaging` is missing, before building the application. No
+`TXT → BMP → TXT → TXT` may reach the existing guarded operation. On corrected
+runtime-code commit `c3da4c16b8e210132f764d18f45e6ec7aaf22d2b`, the Python 3.12
+suite passed 995 tests with 3 documented skips; the focused application-safety,
+production-provider, guarded-execution, and desktop UI group passed 83 tests;
+`compileall` and `git diff --check` passed. Tests used an external test-only
+PyUSB import stub whose discovery/session functions raise, because PyUSB is
+absent locally; no hardware was enumerated or accessed. Exact-head hosted
+[Offline tests run 209](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974618)
+passed on macOS and Windows;
+[macOS package run 26](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974796)
+passed the Apple Silicon build and LaunchServices smoke; and
+[Windows package run 30](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974643)
+passed the x64 build and frozen-runtime smoke. The first independent exact-head
+review found one P2 for startup lock/marker mutation; the bounded correction is
+described above. Fresh independent strong re-review of the corrected exact
+head passed `P0=0, P1=0, P2=0`. The local macOS package attempt stopped at
+`pip check` because `packaging` is missing, before bundle creation; hosted
+packaging passed. Host disposition is `READY_FOR_HARDWARE_TEST`. This record
+update is documentation-only after the reviewed runtime-code commit. No
 hardware validation is part of this task; a new operation-specific owner
-authorization and approved procedure would still be required before any
-physical test. Do not report `READY_FOR_HARDWARE_TEST` or `COMPLETE` until the
-remaining gates pass.
+authorization and approved procedure are required before any physical test.
