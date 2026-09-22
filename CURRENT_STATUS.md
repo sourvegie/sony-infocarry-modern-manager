@@ -16,31 +16,38 @@ offline scale fixture contains 61 directories and 150 mixed leaves. A separate
 host-only delete-closure/expected-delta model rejects unsafe or unresolved
 selections.
 
-The primary Transfer action first builds the generic offline plan. Only one
-explicitly imported, fully revalidated, root-level prepared package whose
-ordered leaves match an existing exact VNW-V15 three- or four-leaf profile
-continues through the existing readiness, fresh-preflight, and typed
-one-shot-confirmation facade. The default desktop launch still has no runtime
-or operation binding, so it performs no device checks or transaction. Generic
-plans and every unsupported shape remain host-only; no candidate, authorization
-pipeline, safety owner, or capability row was added. Generalized/nested live
-transfer, arbitrary deletion, and Restore remain unavailable. The accepted
-P2 finding and this R3-bounded correction are recorded in the [P18-037 analysis
+The primary Transfer action first builds the generic offline plan. A single
+ordinary root-level Local Library folder can now be adapted transiently into
+the existing prepared-package contract only when its revalidated direct-file
+children, persisted order, canonical names, and unchanged content match one of
+the exact VNW-V15 three- or four-leaf profiles. The transient package is staged
+under Manager-owned application state and overlaid in memory; it is not added
+to or persisted in the user catalog. It continues through the existing
+readiness, fresh-preflight, typed one-shot-confirmation, and execution facade.
+The adapter cannot authorize execution, build a device candidate, or transmit.
+The default desktop launch still has no runtime or operation binding, so it
+performs no device checks or transaction. Generic plans and every unsupported
+shape remain host-only; no candidate, authorization pipeline, safety owner, or
+physical capability was added. Generalized/nested live transfer, arbitrary
+deletion, and Restore remain unavailable. The accepted P2 finding and this
+R3-bounded correction are recorded in the [P18-037 analysis
 record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
 
-The portable Python 3.12 suite passes (972 tests, 3 documented skips), as do
-the focused package-bridge, exact-route, readiness, UI, and safety regressions;
-`py_compile` and `git diff --check` pass. The local arm64 macOS app bundle
-builds and signs, and the isolated LaunchServices smoke opens/closes the
-redesigned window with zero device-enumeration, sender, claim, marker, or lock
-activity. On implementation commit `c7647aa2adb7b90c6bf83279e8aa4d81595ff0ad`,
-the independent exact-head R3 review passed (`P0=0, P1=0, P2=0`), and PR #65 CI
-passed on macOS and Windows offline suites plus macOS and Windows package/smoke
-workflows. Work continues on existing PR #65; no separate PR was created and
-the PR remains unmerged. No physical device access or device-changing
-operation occurred. Host-side disposition is `READY_FOR_HARDWARE_TEST`; that
-does not authorize a physical operation, which still requires separate
-operation-specific owner approval and an approved procedure.
+The portable Python 3.12 suite passes (983 tests, 3 documented skips), as do
+the 84 focused adapter/readiness/UI/device-plan tests, `compileall`, and
+`git diff --check`. The local arm64/Tk 9 macOS app build and strict ad-hoc
+signature verification pass. Local LaunchServices registration/smoke did not
+run successfully from this `/private/tmp` worktree: LaunchServices reported
+`kLSNoExecutableErr`, Spotlight registration returned `-10822`, and direct
+frozen-runtime invocation aborted before a report. Windows packaging and
+final-head hosted CI have not run; `gh auth status` reports the stored GitHub
+token invalid. Independent exact-head review is pending. Previous PR CI and
+review on `c7647aa2adb7b90c6bf83279e8aa4d81595ff0ad` are historical, not
+validation of this changed head. Physical validation attempt -01 through -04
+stopped before live preflight/authorization/sender; no device change occurred.
+Work continues on existing PR #65; no separate PR was created and the PR
+remains unmerged. Do not perform hardware validation until the host gate,
+review, CI, and a new operation-specific owner authorization are complete.
 
 ## Product direction after P18-036
 

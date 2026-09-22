@@ -141,3 +141,48 @@ their frozen-runtime/LaunchServices smokes passed. PR #65 remains open and
 unmerged; no separate PR was created. Do not merge automatically. Host-side
 disposition is `READY_FOR_HARDWARE_TEST`; a physical operation still requires
 separate operation-specific owner approval and an approved procedure.
+
+## 2026-09-22 continuation — ordinary-folder adapter
+
+The approved physical UI validation was stopped safely before live preflight,
+authorization, or sender start because the redesigned visible UI could not
+map an ordinary Local Library folder to the existing exact prepared-package
+contract. No device-changing operation or device change occurred. Attempts
+`-01` through `-04` remain historical stopped attempts and are not relabeled
+successful. No physical validation is part of this continuation.
+
+The owner explicitly authorized a capability-reachability expansion limited
+to the already reviewed exact VNW-V15 TXT → BMP → TXT and TXT → BMP → TXT → TXT
+profiles, with no expansion of the physical capability envelope. The normal
+`Add Folder → select → Transfer` route now first builds the unchanged generic
+host-only logical plan. An application-boundary adapter accepts only one
+selected ordinary folder to the existing device root, with direct regular-file
+children whose persisted Local Library sibling order, canonical existing
+profile filenames, supported content, hashes, sizes, and bytes match one
+exact existing profile. It reuses the existing preparation/package builder
+and stages a transient package under Manager-owned prepared-content state,
+providing an in-memory catalog overlay only to the existing transfer
+review/readiness services. It does not persist a synthetic catalog entry or
+alter source files. CP932 substitutions that would change text are rejected
+with a user-facing explanation. Final admission remains with the canonical
+readiness/preflight path; no new profile, candidate, sender, authorization,
+coordinator, claim store, marker, lock owner, or bypass of backup/capacity/
+conflict/confirmation/no-retry/read-back controls was added. Unsupported
+structures remain host-only.
+
+Host regression coverage exercises exact three-/four-leaf mappings, persisted
+order and target name, source immutability and drift checks, unsupported
+counts/orders/nesting/target conflicts/destinations, CP932 replacement refusal,
+the visible Add Folder → Transfer route, and arrival only at the existing
+readiness boundary with no execution claim or sender call. The focused group
+passed (84 tests), the complete portable suite passed (983 tests, 3 documented
+skips), and `compileall` plus `git diff --check` passed. The local arm64/Tk 9
+macOS app built and passed strict ad-hoc signature verification. However, the
+local LaunchServices smoke did not pass: LaunchServices returned
+`kLSNoExecutableErr`, forced registration could not scan the `/private/tmp`
+bundle (`-10822` from Spotlight), and direct frozen-runtime invocation
+aborted before writing its report. This is recorded as a local environment
+failure, not a smoke pass. Windows packaging and final-head hosted CI have not
+run because `gh auth status` reports the stored GitHub token invalid.
+Independent exact-head review remains pending. No hardware was accessed; no PR
+was created or merged.

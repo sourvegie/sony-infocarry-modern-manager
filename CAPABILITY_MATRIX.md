@@ -27,6 +27,10 @@ Only a row with an exact reviewed shape and complete safety gates may be
 labeled **Experimental**. The P18 product integration covers only the exact
 flat TXT → BMP → TXT and TXT → BMP → TXT → TXT Library rows and keeps
 unsupported items preview-only.
+For those rows only, the ordinary Local Library folder UI may transiently map
+one exact folder to the existing prepared-package contract before invoking the
+same readiness and guarded execution path. This is UI reachability, not an
+additional operation shape or authorization.
 Library selection identifies the logical change; the protocol still sends a
 complete candidate library image. Every future operation requires a fresh
 complete backup, immediate revalidation, exact operation-specific confirmation,

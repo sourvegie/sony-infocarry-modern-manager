@@ -457,6 +457,26 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn(contract, source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
 
+    def test_visible_add_folder_transfer_path_uses_transient_exact_adapter(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        action_start = source.index("    def library_transfer_action()")
+        action_end = source.index("    def library_transfer_once_action()", action_start)
+        action = source[action_start:action_end]
+        self.assertIn("library_folder_import_action", source)
+        self.assertIn("library_folder_import_button.configure(command=library_folder_import_action)", source)
+        self.assertIn('label="Add Folder…", command=lambda: library_folder_import_action()', source)
+        self.assertIn("prepare_exact_folder_package(", action)
+        self.assertIn("selected[0].node_kind == NODE_FOLDER", action)
+        self.assertIn("catalog_override=catalog_override", action)
+        self.assertIn("artifact_override=artifact_override", action)
+        self.assertIn("transfer_stage=folder_stage", action)
+        self.assertIn("library_single_transfer_review_action(", action)
+        self.assertIn("library_toolbar.pack_forget()", source)
+        self.assertNotIn("library_prepare_action()", action)
+        self.assertNotIn("library_package_import_action()", action)
+        self.assertNotIn("execute_once(", action)
+        self.assertNotIn("refresh_live_preflight(", action)
+
     def test_primary_transfer_routes_only_exact_packages_through_existing_guards(self):
         source = inspect.getsource(launch_ttk_desktop)
         action_start = source.index("    def library_transfer_action()")
@@ -464,10 +484,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
         action = source[action_start:action_end]
         self.assertIn("build_library_device_transfer_plan(", action)
         self.assertIn("_exact_live_package_artifact(", action)
-        self.assertIn(
-            "library_single_transfer_review_action(continue_to_preflight=True)",
-            action,
-        )
+        self.assertIn("library_single_transfer_review_action(", action)
+        self.assertIn("continue_to_preflight=True", action)
         self.assertIn("has not yet been enabled for device transfer", action)
         self.assertIn("this plan does not authorize a device operation", action)
         self.assertIn("library_toolbar.pack_forget()", source)

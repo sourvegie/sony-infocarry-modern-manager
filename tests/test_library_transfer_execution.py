@@ -27,6 +27,7 @@ from infocarry.desktop_ttk import _exact_live_package_artifact
 from infocarry.execution_profile import FOUR_LEAF_CHILD_NAMES, FRESH_CHILD_NAMES
 from infocarry.library import LibraryCatalog
 from infocarry.library_device_transfer import build_library_device_transfer_plan
+from infocarry.library_folder_package_adapter import prepare_exact_folder_package
 from infocarry.library_transfer_execution import (
     FRESH_AUXILIARY_STATE_POLICY,
     LibraryTransferExecutionError,
@@ -255,6 +256,94 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             return connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0]
         finally:
             connection.close()
+
+    def test_visible_folder_transfer_mapping_enters_only_existing_readiness_boundary(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        source_root = setup["root"] / "visible-local-library"
+        folder_path = source_root / FRESH_TEST_TARGET
+        folder_path.mkdir(parents=True)
+        source_payloads = {}
+        for index, (kind, name) in enumerate(
+            zip(("txt", "bmp", "txt"), FRESH_CHILD_NAMES),
+            start=1,
+        ):
+            path = folder_path / name
+            if kind == "txt":
+                path.write_text(f"Ordinary folder page {index}\n", encoding="utf-8")
+            else:
+                path.write_bytes(make_profile_bmp())
+            source_payloads[path] = path.read_bytes()
+
+        folder_catalog = LibraryCatalog(source_root / "library.json")
+        folder = folder_catalog.import_folder(folder_path)
+        logical_plan = build_library_device_transfer_plan(
+            folder_catalog,
+            [folder.item_id],
+            ("root",),
+            DeviceLibrarySnapshot(
+                (DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),)
+            ),
+        )
+        catalog_before_stage = folder_catalog.path.read_bytes()
+        stage = prepare_exact_folder_package(
+            folder_catalog,
+            folder,
+            logical_plan,
+            staging_parent=setup["root"] / "manager-prepared-content",
+        )
+        self.assertIsNotNone(stage)
+        self.addCleanup(stage.cleanup)
+
+        # Equivalent to the visible Transfer action's existing single-item
+        # readiness step. It deliberately stops before live preflight.
+        queue = build_library_transfer_queue_plan(
+            stage.catalog,
+            selected_item_ids=[folder.item_id],
+            selection_mode=SELECTION_SELECTED,
+            backup=setup["baseline"],
+            available_capacity_bytes=10_000_000,
+        )
+        readiness = setup["facade"].review_readiness(queue.to_dict())
+
+        self.assertTrue(readiness.host_profile_eligible)
+        self.assertEqual(
+            readiness.report["profile"]["id"],
+            INITIAL_EXPERIMENTAL_PROFILE_ID,
+        )
+        self.assertEqual(
+            readiness.report["package"]["folder_path"],
+            f"root\\{FRESH_TEST_TARGET}",
+        )
+        self.assertFalse(queue.to_dict()["safety"]["candidate_constructed"])
+        self.assertIsNone(setup["candidate_holder"]["candidate"])
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertEqual(folder_catalog.path.read_bytes(), catalog_before_stage)
+        for path, payload in source_payloads.items():
+            self.assertTrue(path.is_file())
+            self.assertEqual(path.read_bytes(), payload)
+
+        # Simulate only the exact admitted live-service boundary with the
+        # injected host runtime. This may build a candidate, but does not
+        # execute, consume a claim, or call the sender.
+        self._patch_template_hashes(setup)
+        operation_root = setup["root"] / "folder-operation"
+        prepared = setup["facade"].refresh_live_preflight(
+            queue.to_dict(),
+            catalog=stage.catalog,
+            preflight_report_path=operation_root / "sealed-preflight.json",
+            bundle_path=operation_root / "operation-bundle.json",
+            store=False,
+        )
+        self.assertTrue(prepared.ready)
+        self.assertEqual(
+            tuple(item.kind for item in prepared.preflight.candidate.package.items),
+            ("txt", "bmp", "txt"),
+        )
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertIsNone(setup["candidate_holder"]["candidate"])
 
     def _patch_template_hashes(self, setup):
         template_hash = hashlib.sha256(setup["template"].data).hexdigest()

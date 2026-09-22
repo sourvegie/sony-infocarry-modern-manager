@@ -25,6 +25,13 @@ continues only as a regression/new-path risk. SQLite and JSON storage
 consolidation is deliberately deferred until migration and crash-consistency
 behavior are proven, while one application-wide safety owner remains mandatory.
 
+P18-037's ordinary-folder adapter is limited to transiently materializing the
+existing exact three-/four-leaf package contracts after generic host planning,
+source revalidation, and unchanged-byte preparation. Final live admission stays
+with the canonical readiness/preflight machinery; it adds no capability,
+candidate, sender, or safety owner. See the dated P18-037 analysis for the
+continuation's tests and review.
+
 P18-001A responsive usability is closed for the owner-observed bounded sizes;
 that human observation does not establish hardware or other display-environment
 behavior. Historical P15–P18 risks and dispositions are preserved in the

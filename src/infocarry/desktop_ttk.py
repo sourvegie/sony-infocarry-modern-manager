@@ -51,6 +51,10 @@ from .library import (
     LibraryCatalogError,
     LibraryError,
 )
+from .library_folder_package_adapter import (
+    LibraryFolderPackageStage,
+    prepare_exact_folder_package,
+)
 from .device_library_semantics import (
     AuxiliaryStateSnapshot,
     DeviceLibraryNode,
@@ -2824,6 +2828,7 @@ def launch_ttk_desktop(
         on_success: Any,
         *,
         validate_revision: bool = True,
+        on_terminal: Any = None,
     ) -> None:
         """Start a Library operation and apply only current main-thread results."""
 
@@ -2832,11 +2837,17 @@ def launch_ttk_desktop(
             library_status_var.set(
                 "A Device Manager operation is in progress; Library work will remain disabled"
             )
+            if on_terminal is not None:
+                on_terminal()
             return
         set_library_operation_busy(True, label=f"{name}…")
 
         def on_progress(update: OperationProgress) -> None:
             library_operation_activity_var.set(update.label)
+
+        def finish_terminal() -> None:
+            if on_terminal is not None:
+                on_terminal()
 
         def on_complete(outcome: OperationOutcome[Any]) -> None:
             nonlocal library_operation_token, library_current_readiness
@@ -2855,6 +2866,7 @@ def launch_ttk_desktop(
                 library_status_var.set(
                     "The result was discarded because the selected content or target changed; prepare or review again"
                 )
+                finish_terminal()
                 return
             set_library_operation_busy(False)
             if outcome.status is OperationStatus.SUCCEEDED:
@@ -2867,11 +2879,13 @@ def launch_ttk_desktop(
                         library_report, format_library_operation_failure(error)
                     )
                     library_status_var.set(state.message)
+                finish_terminal()
                 return
             if outcome.cancelled:
                 library_status_var.set(
                     "Host-only operation cancelled safely; no device-changing action was started"
                 )
+                finish_terminal()
                 return
             error = outcome.error or RuntimeError("the host-only operation failed")
             state = readiness_state_from_error(error)
@@ -2880,6 +2894,7 @@ def launch_ttk_desktop(
             library_current_readiness = state
             _set_readonly_text(library_report, format_library_operation_failure(error))
             library_status_var.set(state.message)
+            finish_terminal()
 
         try:
             library_operation_token = library_operation_controller.start(
@@ -2891,6 +2906,8 @@ def launch_ttk_desktop(
         except OperationBusyError:
             set_library_operation_busy(False)
             library_status_var.set("Another Library operation is already in progress")
+            if on_terminal is not None:
+                on_terminal()
 
     def clear_library_review_for_input_change() -> None:
         nonlocal library_current_plan_report, library_current_readiness
@@ -3776,7 +3793,11 @@ def launch_ttk_desktop(
         start_library_operation("Review transfer", revision, work, success)
 
     def library_single_transfer_review_action(
-        *, continue_to_preflight: bool = False
+        *,
+        continue_to_preflight: bool = False,
+        catalog_override: Optional[LibraryCatalog] = None,
+        artifact_override: Optional[PreparedContentArtifact] = None,
+        transfer_stage: Optional[LibraryFolderPackageStage] = None,
     ) -> None:
         """Show one prepared item's supported shape and review requirements."""
 
@@ -3784,16 +3805,39 @@ def launch_ttk_desktop(
         nonlocal library_prepared_operation, library_current_revision
 
         if library_catalog is None:
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
             return
         selected_items = selected_library_items()
         if len(selected_items) != 1:
             library_status_var.set("Review one prepared item at a time, or review all prepared items.")
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
             return
         item = selected_items[0]
+        review_catalog = catalog_override or library_catalog
+        if review_catalog is None:
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
+            return
+        try:
+            review_item = review_catalog.get(item.item_id)
+        except LibraryError:
+            library_status_var.set(
+                "The selected content changed before exact transfer review; no device action occurred"
+            )
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
+            return
         revision = library_transfer_review_revision(library_item_revision(item))
-        review_artifacts = canonical_artifacts_for((item,), current_item_id=item.item_id)
+        review_artifacts = (
+            {item.item_id: artifact_override}
+            if artifact_override is not None
+            else canonical_artifacts_for((review_item,), current_item_id=item.item_id)
+        )
         clear_library_review_for_input_change()
         library_current_revision = revision
+        transfer_stage_handed_off = {"value": False}
 
         def work(cancelled: threading.Event, progress_callback: Any) -> Any:
             progress_callback("Reviewing transfer readiness")
@@ -3811,7 +3855,7 @@ def launch_ttk_desktop(
             if cancelled.is_set():
                 raise LibraryTransferReadinessError("transfer readiness review was cancelled")
             plan = build_library_transfer_queue_plan(
-                library_catalog,
+                review_catalog,
                 selected_item_ids=[item.item_id],
                 selection_mode=SELECTION_SELECTED,
                 backup=backup,
@@ -3856,6 +3900,8 @@ def launch_ttk_desktop(
                     library_status_var.set(
                         "This selection is not ready for the existing guarded device-transfer flow; see the review details"
                     )
+                    if transfer_stage is not None:
+                        transfer_stage.cleanup()
                     return
                 if not library_execution_facade.can_prepare_live:
                     library_status_var.set(
@@ -3866,10 +3912,33 @@ def launch_ttk_desktop(
                         "This exact package shape can be reviewed, but a separately authorized VNW-V15 operation is not configured. No device checks or device change occurred.",
                         parent=root,
                     )
+                    if transfer_stage is not None:
+                        transfer_stage.cleanup()
                     return
-                library_live_preflight_action(continue_to_confirmation=True)
+                transfer_stage_handed_off["value"] = transfer_stage is not None
+                library_live_preflight_action(
+                    continue_to_confirmation=True,
+                    catalog_override=review_catalog,
+                    transfer_stage=transfer_stage,
+                )
+            elif transfer_stage is not None:
+                transfer_stage.cleanup()
 
-        start_library_operation("Review transfer", revision, work, success)
+        start_library_operation(
+            "Review transfer",
+            revision,
+            work,
+            success,
+            on_terminal=(
+                None
+                if transfer_stage is None
+                else lambda: (
+                    None
+                    if transfer_stage_handed_off["value"]
+                    else transfer_stage.cleanup()
+                )
+            ),
+        )
 
     def library_primary_transfer_review_action() -> None:
         selected = selected_library_items()
@@ -3879,26 +3948,36 @@ def launch_ttk_desktop(
             library_transfer_review_action(SELECTION_SELECTED)
 
     def library_live_preflight_action(
-        *, continue_to_confirmation: bool = False
+        *,
+        continue_to_confirmation: bool = False,
+        catalog_override: Optional[LibraryCatalog] = None,
+        transfer_stage: Optional[LibraryFolderPackageStage] = None,
     ) -> None:
         """Refresh read-only evidence through the product facade only."""
 
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         nonlocal library_current_revision
+        preflight_catalog = catalog_override or library_catalog
         if (
-            library_catalog is None
+            preflight_catalog is None
             or library_current_plan_report is None
             or not library_execution_facade.can_prepare_live
         ):
             library_status_var.set(
                 "Live preflight is blocked until a fresh authorized VNW-V15 operation is configured"
             )
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
             return
         runtime = library_execution_facade.runtime
         if runtime is None:
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
             return
         item = selected_library_item()
         if item is None:
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
             return
         plan_report = library_current_plan_report
         revision = library_transfer_review_revision(library_item_revision(item))
@@ -3916,9 +3995,11 @@ def launch_ttk_desktop(
                     stage="preflight",
                 )
             progress_callback("Checking current device readiness")
+            if transfer_stage is not None:
+                transfer_stage.verify_source_bindings()
             prepared = library_execution_facade.refresh_live_preflight(
                 plan_report or {},
-                catalog=library_catalog,
+                catalog=preflight_catalog,
                 preflight_report_path=operation_root / "sealed-preflight.json",
                 bundle_path=operation_root / "operation-bundle.json",
                 audit_location=str(runtime.evidence_namespace),
@@ -3947,7 +4028,15 @@ def launch_ttk_desktop(
             if continue_to_confirmation:
                 library_transfer_once_action()
 
-        start_library_operation("Check device readiness", revision, work, success)
+        start_library_operation(
+            "Check device readiness",
+            revision,
+            work,
+            success,
+            on_terminal=(
+                None if transfer_stage is None else transfer_stage.cleanup
+            ),
+        )
 
     def library_transfer_action() -> None:
         """Plan one selection, then hand exact packages to the guarded facade."""
@@ -4054,11 +4143,24 @@ def launch_ttk_desktop(
             details += "\n\nExpected additions:\n" + (
                 "\n".join(preview_lines) if preview_lines else "  None"
             )
-            live_artifact = (
-                _exact_live_package_artifact(selected[0], plan)
-                if len(selected) == 1
-                else None
-            )
+            folder_stage: Optional[LibraryFolderPackageStage] = None
+            catalog_override: Optional[LibraryCatalog] = None
+            artifact_override: Optional[PreparedContentArtifact] = None
+            live_artifact: Optional[PreparedContentArtifact] = None
+            if len(selected) == 1:
+                if selected[0].node_kind == NODE_FOLDER:
+                    folder_stage = prepare_exact_folder_package(
+                        library_catalog,
+                        selected[0],
+                        plan,
+                        staging_parent=application_paths().prepared_content_root,
+                    )
+                    if folder_stage is not None:
+                        catalog_override = folder_stage.catalog
+                        artifact_override = folder_stage.artifact
+                        live_artifact = folder_stage.artifact
+                else:
+                    live_artifact = _exact_live_package_artifact(selected[0], plan)
             if live_artifact is None:
                 details += (
                     "\n\n"
@@ -4073,15 +4175,20 @@ def launch_ttk_desktop(
 
             details += (
                 "\n\n"
-                "This explicit prepared package matches an existing guarded transfer shape. "
+                "This selection matches an existing exact guarded transfer shape. "
                 "Continuing through its current readiness and safety checks; this plan itself "
                 "does not authorize or perform a device change."
             )
             library_status_var.set(
-                "Exact package mapping found; continuing through existing guarded readiness checks"
+                "Exact transfer mapping found; continuing through existing guarded readiness checks"
             )
             messagebox.showinfo("Transfer plan", details, parent=root)
-            library_single_transfer_review_action(continue_to_preflight=True)
+            library_single_transfer_review_action(
+                continue_to_preflight=True,
+                catalog_override=catalog_override,
+                artifact_override=artifact_override,
+                transfer_stage=folder_stage,
+            )
 
         start_library_operation(
             "Checking transfer plan",
