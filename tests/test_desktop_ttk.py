@@ -28,6 +28,7 @@ from infocarry.desktop_ttk import (
     _try_create_application_write_safety_owner,
     format_experimental_library_transfer_review,
     format_library_host_only_terminal_state,
+    format_library_operation_failure,
     format_library_preparation_summary,
     format_library_preview_summary,
     format_library_readiness_summary,
@@ -41,6 +42,7 @@ from infocarry.desktop_ttk import (
 )
 from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.library_transfer_execution import LibraryTransferExecutionError
+from infocarry.library_folder_package_adapter import LibraryFolderPackageAdapterError
 from infocarry.library_transfer_readiness import ReadinessAction, ReadinessState
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 from infocarry.execution_claim_store import ExecutionClaimStoreError
@@ -795,6 +797,22 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("do not retry", message)
         self.assertIn("read-only diagnosis", message)
         self.assertIn("independent_readback", message)
+
+    def test_folder_transfer_cp932_rejection_is_visible_in_normal_error_report(self):
+        message = format_library_operation_failure(
+            LibraryFolderPackageAdapterError(
+                "This folder contains text that needs CP932 character substitutions. "
+                "The Manager will not silently alter it for transfer; use source text "
+                "that needs no substitutions. No device checks or changes occurred."
+            )
+        )
+
+        self.assertIn("TRANSFER PREPARATION STOPPED", message)
+        self.assertIn("text needs review", message)
+        self.assertIn("source was not changed", message)
+        self.assertIn("needs no CP932 substitutions", message)
+        self.assertIn("No device checks or changes occurred", message)
+        self.assertNotIn("Review the details and prepare again", message)
 
     def test_conversion_and_renderer_summaries_are_explicitly_offline(self):
         import tempfile

@@ -52,6 +52,7 @@ from .library import (
     LibraryError,
 )
 from .library_folder_package_adapter import (
+    LibraryFolderPackageAdapterError,
     LibraryFolderPackageStage,
     prepare_exact_folder_package,
 )
@@ -1395,6 +1396,20 @@ def format_library_operation_failure(error: BaseException, *, artifact_identity:
 
     state = readiness_state_from_error(error, artifact_identity=artifact_identity)
     detail = str(error)
+    if (
+        isinstance(error, LibraryFolderPackageAdapterError)
+        and "needs CP932 character substitutions" in detail
+    ):
+        return "\n".join(
+            (
+                "TRANSFER PREPARATION STOPPED — source text needs review",
+                "",
+                "This folder contains text that cannot be transferred without substitutions. The source was not changed.",
+                "Use source text that needs no CP932 substitutions, then try Transfer again.",
+                "",
+                "No device checks or changes occurred.",
+            )
+        )
     marker = "text contains characters unsupported by CP932:"
     if marker in detail:
         diagnostic = detail.split(marker, 1)[1].strip().rstrip(")")
