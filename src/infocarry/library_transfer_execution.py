@@ -8,7 +8,7 @@ opening the manager cannot open USB or construct a sender.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
@@ -46,6 +46,7 @@ from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
 )
 from .write_gate import DEFAULT_MAX_AGE_SECONDS
+from .write_safety_boundary import PersistentWriteSafetyOwner
 
 
 FRESH_AUXILIARY_STATE_POLICY = (
@@ -144,13 +145,13 @@ def _derived_operation_id(
     maximum_logical_transactions: int,
     maximum_sender_calls: int,
     automatic_retry_allowed: bool,
+    preflight_seal_sha256: Optional[str] = None,
 ) -> str:
     """Derive a stable logical identity from the current reviewed binding.
 
-    This identifier is only the preflight-independent portion of the
-    operation identity.  The sealed preflight/bundle then adds the current
-    package, target paths, fresh backup/state, native capacity, candidate,
-    transaction, and authorization hashes before hardware readiness.
+    The original unsealed binding form remains stable for existing evidence.
+    A production one-shot binding adds the exact fresh preflight seal and uses
+    the v3 identity, so it cannot be reused for another evidence set.
     """
 
     payload = {
@@ -166,7 +167,133 @@ def _derived_operation_id(
         "maximum_sender_calls": maximum_sender_calls,
         "automatic_retry_allowed": automatic_retry_allowed,
     }
+    if preflight_seal_sha256 is not None:
+        payload["format"] = "infocarry-library-operation-binding-v3"
+        payload["preflight_seal_sha256"] = preflight_seal_sha256
     return f"vnw-v15-library-operation-{_sha256_json(payload)}"
+
+
+def _require_sha256(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or value != value.lower()
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(f"{label} must be a lowercase SHA-256 digest")
+    return value
+
+
+@dataclass(frozen=True)
+class LibraryTransferOperationIntent:
+    """A non-authorizing exact target/profile request for fresh preflight.
+
+    The intent can reach read-only preflight only. It carries no operation ID
+    until the fresh sealed preflight exists, and it cannot enter the guarded
+    execution coordinator. The final typed user confirmation converts the
+    preflight-bound intent to a one-shot operation binding.
+    """
+
+    target_folder_name: str
+    profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID
+    device_model_profile_id: str = VNW_V15_PROFILE_ID
+    device_identity: tuple[str, str] = ("0x054c", "0x001e")
+    child_kinds: Optional[tuple[str, ...]] = None
+    confirmation_policy: str = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT
+    fixed_state_policy: str = FRESH_AUXILIARY_STATE_POLICY
+    maximum_logical_transactions: int = 1
+    maximum_sender_calls: int = 1
+    automatic_retry_allowed: bool = False
+    preflight_seal_sha256: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        _validate_target_folder_name(self.target_folder_name)
+        try:
+            profile = guarded_execution_profile(self.profile_id)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        if self.device_model_profile_id != VNW_V15_PROFILE_ID:
+            raise ValueError("only the reviewed VNW-V15 model profile is supported")
+        if self.device_identity != ("0x054c", "0x001e"):
+            raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
+        child_kinds = profile.child_kinds if self.child_kinds is None else tuple(self.child_kinds)
+        if child_kinds != profile.child_kinds:
+            raise ValueError("the operation intent differs from its exact execution profile")
+        object.__setattr__(self, "child_kinds", child_kinds)
+        profile.require_target(self.target_folder_name)
+        if self.confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
+            raise ValueError("the reviewed Library operation requires explicit confirmation")
+        if self.fixed_state_policy != FRESH_AUXILIARY_STATE_POLICY:
+            raise ValueError("the reviewed auxiliary-state policy is required")
+        if self.maximum_logical_transactions != 1 or self.maximum_sender_calls != 1:
+            raise ValueError("the reviewed Library operation is one-shot")
+        if self.automatic_retry_allowed is not False:
+            raise ValueError("automatic retry is forbidden")
+        if self.preflight_seal_sha256 is not None:
+            _require_sha256(self.preflight_seal_sha256, "preflight seal")
+
+    @property
+    def confirmation_phrase(self) -> str:
+        return _derived_confirmation_phrase(self.target_folder_name)
+
+    @property
+    def owner_approval_phrase(self) -> str:
+        # This is the expected consent value in the legacy sealed-report
+        # schema, not consent itself. Authorization occurs only after the
+        # user supplies it to authorize() and the guarded coordinator checks it.
+        return self.confirmation_phrase
+
+    @property
+    def operation_id(self) -> Optional[str]:
+        if self.preflight_seal_sha256 is None:
+            return None
+        return _derived_operation_id(
+            target_folder_name=self.target_folder_name,
+            profile_id=self.profile_id,
+            device_model_profile_id=self.device_model_profile_id,
+            device_identity=self.device_identity,
+            child_kinds=tuple(self.child_kinds or ()),
+            confirmation_policy=self.confirmation_policy,
+            fixed_state_policy=self.fixed_state_policy,
+            maximum_logical_transactions=self.maximum_logical_transactions,
+            maximum_sender_calls=self.maximum_sender_calls,
+            automatic_retry_allowed=self.automatic_retry_allowed,
+            preflight_seal_sha256=self.preflight_seal_sha256,
+        )
+
+    def bind_preflight(self, preflight_seal_sha256: str) -> "LibraryTransferOperationIntent":
+        return replace(
+            self,
+            preflight_seal_sha256=_require_sha256(
+                preflight_seal_sha256, "preflight seal"
+            ),
+        )
+
+    def authorize(self, confirmation: str) -> "LibraryTransferOperationBinding":
+        if self.preflight_seal_sha256 is None:
+            raise LibraryTransferExecutionError(
+                "operation intent lacks a fresh sealed preflight"
+            )
+        if confirmation != self.confirmation_phrase:
+            raise LibraryTransferExecutionError(
+                "the confirmation does not bind the fresh operation target",
+                stage="confirmation",
+            )
+        return LibraryTransferOperationBinding(
+            target_folder_name=self.target_folder_name,
+            owner_approval_phrase=confirmation,
+            confirmation_phrase=self.confirmation_phrase,
+            profile_id=self.profile_id,
+            device_model_profile_id=self.device_model_profile_id,
+            device_identity=self.device_identity,
+            child_kinds=self.child_kinds,
+            confirmation_policy=self.confirmation_policy,
+            fixed_state_policy=self.fixed_state_policy,
+            maximum_logical_transactions=self.maximum_logical_transactions,
+            maximum_sender_calls=self.maximum_sender_calls,
+            automatic_retry_allowed=self.automatic_retry_allowed,
+            preflight_seal_sha256=self.preflight_seal_sha256,
+        )
 
 
 @dataclass(frozen=True)
@@ -192,6 +319,7 @@ class LibraryTransferOperationBinding:
     maximum_logical_transactions: int = 1
     maximum_sender_calls: int = 1
     automatic_retry_allowed: bool = False
+    preflight_seal_sha256: Optional[str] = None
 
     def __post_init__(self) -> None:
         _validate_target_folder_name(self.target_folder_name)
@@ -232,6 +360,8 @@ class LibraryTransferOperationBinding:
             raise ValueError("the reviewed Library operation is one-shot")
         if self.automatic_retry_allowed is not False:
             raise ValueError("automatic retry is forbidden")
+        if self.preflight_seal_sha256 is not None:
+            _require_sha256(self.preflight_seal_sha256, "preflight seal")
 
         confirmation_phrase = self.confirmation_phrase
         if confirmation_phrase is None:
@@ -254,6 +384,7 @@ class LibraryTransferOperationBinding:
             maximum_logical_transactions=self.maximum_logical_transactions,
             maximum_sender_calls=self.maximum_sender_calls,
             automatic_retry_allowed=self.automatic_retry_allowed,
+            preflight_seal_sha256=self.preflight_seal_sha256,
         )
         if operation_id is None:
             operation_id = derived_operation_id
@@ -294,6 +425,8 @@ class LibraryTransferOperationBinding:
         if include_authorization:
             value["owner_approval_phrase"] = self.owner_approval_phrase
             value["confirmation_phrase"] = self.confirmation_phrase
+        if self.preflight_seal_sha256 is not None:
+            value["preflight_seal_sha256"] = self.preflight_seal_sha256
         return value
 
     @property
@@ -327,7 +460,7 @@ class LibraryTransferExecutionRuntime:
     backend: Any = None
     execution_claim_store: Optional[PersistentExecutionClaimStore] = None
     indeterminate_write_lock: Optional[PersistentIndeterminateWriteLock] = None
-    new_record_timestamp_be32: int = 0
+    new_record_timestamp_be32: int | Callable[[], int] = 0
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS
 
 
@@ -343,6 +476,7 @@ class PreparedLibraryTransferOperation:
     preflight_report_path: Path
     bundle_path: Path
     plan_sha256: str
+    operation_intent: Optional[LibraryTransferOperationIntent] = None
 
     @property
     def ready(self) -> bool:
@@ -370,6 +504,7 @@ class LibraryTransferExecutionFacade:
         *,
         operation_binding: Optional[LibraryTransferOperationBinding] = None,
         runtime: Optional[LibraryTransferExecutionRuntime] = None,
+        runtime_provider: Any = None,
     ) -> None:
         if operation_binding is not None and not isinstance(
             operation_binding, LibraryTransferOperationBinding
@@ -379,21 +514,86 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError("execution runtime is malformed")
         self.operation_binding = operation_binding
         self.runtime = runtime
+        self.runtime_provider = runtime_provider
+        self._write_safety_owner: Optional[PersistentWriteSafetyOwner] = None
+        self._write_safety_error: Optional[str] = None
         self._prepared_operation: Optional[PreparedLibraryTransferOperation] = None
 
     @property
     def can_prepare_live(self) -> bool:
-        return self.operation_binding is not None and self.runtime is not None
+        return self.runtime is not None or self.runtime_provider is not None
+
+    @property
+    def evidence_namespace(self) -> Path:
+        if self.runtime is not None:
+            return Path(self.runtime.evidence_namespace)
+        namespace = getattr(self.runtime_provider, "evidence_namespace", None)
+        if namespace is None:
+            raise LibraryTransferExecutionError(
+                "the configured live runtime has no evidence namespace"
+            )
+        return Path(namespace)
+
+    def attach_write_safety_owner(
+        self,
+        owner: Optional[PersistentWriteSafetyOwner],
+        configuration_error: Optional[str] = None,
+    ) -> None:
+        """Share the desktop's one existing application-wide safety owner."""
+
+        if self.runtime is not None:
+            return
+        if owner is not None and not isinstance(owner, PersistentWriteSafetyOwner):
+            raise LibraryTransferExecutionError("application write-safety owner is malformed")
+        self._write_safety_owner = owner
+        self._write_safety_error = configuration_error
+
+    def _ensure_runtime(self) -> LibraryTransferExecutionRuntime:
+        if self.runtime is not None:
+            return self.runtime
+        if self.runtime_provider is None:
+            raise LibraryTransferExecutionError(
+                "live transfer runtime is not configured; no device checks occurred"
+            )
+        if self._write_safety_owner is None:
+            detail = self._write_safety_error or "the application safety state is unavailable"
+            raise LibraryTransferExecutionError(
+                "live transfer is unavailable because the existing application-wide "
+                f"write-safety owner could not be verified: {detail}"
+            )
+        try:
+            runtime = self.runtime_provider.create_runtime(
+                write_safety_owner=self._write_safety_owner
+            )
+        except Exception as exc:
+            raise LibraryTransferExecutionError(
+                f"live transfer configuration is unavailable: {exc}; no device checks occurred",
+                stage="runtime_configuration",
+            ) from exc
+        if not isinstance(runtime, LibraryTransferExecutionRuntime):
+            raise LibraryTransferExecutionError(
+                "production runtime provider returned a malformed runtime"
+            )
+        self.runtime = runtime
+        return runtime
 
     @property
     def transfer_actionable(self) -> bool:
         return bool(
             self._prepared_operation is not None
             and self._prepared_operation.ready
-            and self.operation_binding is not None
-            and self.operation_binding.authorized
             and self.runtime is not None
-            and self._binding_matches_prepared_operation(self._prepared_operation)
+            and (
+                (
+                    self.operation_binding is None
+                    and self._prepared_operation.operation_intent is not None
+                    and self._prepared_operation.operation_intent.preflight_seal_sha256
+                    == self._prepared_operation.preflight.seal_sha256
+                    and self._prepared_operation.operation_bundle.operation_id
+                    == self._prepared_operation.operation_intent.operation_id
+                )
+                or self._binding_matches_prepared_operation(self._prepared_operation)
+            )
         )
 
     @property
@@ -415,6 +615,10 @@ class LibraryTransferExecutionFacade:
             and bundle.confirmation_policy == binding.confirmation_policy
             and bundle.fixed_state_policy == binding.fixed_state_policy
             and bundle.operation_id == binding.operation_id
+            and (
+                binding.preflight_seal_sha256 is None
+                or binding.preflight_seal_sha256 == prepared.preflight.seal_sha256
+            )
         )
 
     def review_readiness(
@@ -425,20 +629,10 @@ class LibraryTransferExecutionFacade:
         except LibraryTransferReadinessError:
             raise
 
-    def _require_target(self, readiness: LibraryTransferReadiness) -> None:
-        binding = self.operation_binding
-        if binding is None:
-            raise LibraryTransferExecutionError(
-                "no separately authorized fresh operation is configured"
-            )
+    def _operation_intent(
+        self, readiness: LibraryTransferReadiness
+    ) -> LibraryTransferOperationIntent:
         report_profile = readiness.report.get("profile", {})
-        if (
-            not isinstance(report_profile, Mapping)
-            or report_profile.get("id") != binding.profile_id
-        ):
-            raise LibraryTransferExecutionError(
-                "the selected package shape differs from the current operation profile"
-            )
         if not readiness.host_profile_eligible:
             eligibility = readiness.report.get("eligibility", {})
             reasons = (
@@ -454,18 +648,48 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 f"the selected package is not ready for the current operation: {detail}"
             )
+        profile_id = report_profile.get("id") if isinstance(report_profile, Mapping) else None
+        if not isinstance(profile_id, str):
+            raise LibraryTransferExecutionError("the selected package has no exact capability profile")
         package = readiness.report.get("package", {})
         folder_path = package.get("folder_path") if isinstance(package, Mapping) else None
-        expected_path = f"root\\{binding.target_folder_name}"
-        if folder_path != expected_path:
+        if not isinstance(folder_path, str) or not folder_path.startswith("root\\"):
             raise LibraryTransferExecutionError(
-                "the selected package is not bound to the current operation target"
+                "the selected package is not a permitted root-level target"
             )
-        destination = readiness.report.get("destination", {})
-        if isinstance(destination, Mapping) and destination.get("conflicts"):
+        target_folder_name = folder_path[len("root\\"):]
+        if not target_folder_name or "\\" in target_folder_name or "/" in target_folder_name:
+            raise LibraryTransferExecutionError("the selected package target is not one root component")
+        destination = readiness.report.get("destination")
+        if (
+            not isinstance(destination, Mapping)
+            or destination.get("conflicts") != []
+        ):
             raise LibraryTransferExecutionError(
-                "the current operation target already exists; no replacement target is selected"
+                "the destination is not affirmatively verified conflict-free; "
+                "no replacement target is selected"
             )
+        try:
+            intent = LibraryTransferOperationIntent(
+                target_folder_name=target_folder_name,
+                profile_id=profile_id,
+            )
+        except (TypeError, ValueError) as exc:
+            raise LibraryTransferExecutionError(
+                f"the selected package is outside the exact VNW-V15 profiles: {exc}",
+                stage="profile",
+            ) from exc
+        binding = self.operation_binding
+        if binding is not None:
+            if binding.profile_id != intent.profile_id or binding.target_folder_name != intent.target_folder_name:
+                raise LibraryTransferExecutionError(
+                    "the selected package shape differs from the current operation binding"
+                )
+            if binding.preflight_seal_sha256 is not None:
+                raise LibraryTransferExecutionError(
+                    "a binding from an earlier preflight cannot be reused"
+                )
+        return intent
 
     def refresh_live_preflight(
         self,
@@ -490,14 +714,11 @@ class LibraryTransferExecutionFacade:
         """
 
         binding = self.operation_binding
-        runtime = self.runtime
-        if binding is None or runtime is None:
-            raise LibraryTransferExecutionError(
-                "live preflight is unavailable until a fresh authorized operation and runtime are supplied"
-            )
-        binding.require_authorized()
         readiness = self.review_readiness(plan_report)
-        self._require_target(readiness)
+        intent = self._operation_intent(readiness)
+        runtime = self._ensure_runtime()
+        if binding is not None:
+            binding.require_authorized()
 
         from .backup_format import parse_backup_blob
         from .prepared_library_package_live_adapter import (
@@ -509,6 +730,15 @@ class LibraryTransferExecutionFacade:
             template = runtime.template
             if template is None:
                 template = parse_backup_blob(template_path.read_bytes())
+            timestamp = runtime.new_record_timestamp_be32
+            if callable(timestamp):
+                timestamp = timestamp()
+            if (
+                isinstance(timestamp, bool)
+                or not isinstance(timestamp, int)
+                or not 0 <= timestamp <= 0xFFFFFFFF
+            ):
+                raise ValueError("fresh record timestamp must fit an unsigned 32-bit integer")
             operation_root = Path(preflight_report_path).expanduser().resolve().parent
             operation_root.mkdir(parents=True, exist_ok=True)
             preflight = prepare_prepared_library_package_live_preflight(
@@ -516,9 +746,9 @@ class LibraryTransferExecutionFacade:
                 selected_item_id=self._selected_item_id(plan_report),
                 backup_destination=operation_root / "backup-before-preflight",
                 template=template,
-                new_record_timestamp_be32=runtime.new_record_timestamp_be32,
-                expected_folder_name=binding.target_folder_name,
+                new_record_timestamp_be32=timestamp,
                 operation_binding=binding,
+                operation_intent=None if binding is not None else intent,
                 detect_device=runtime.detect_device,
                 query_capacity=runtime.query_capacity,
                 capture=runtime.capture,
@@ -527,18 +757,26 @@ class LibraryTransferExecutionFacade:
                 progress=progress,
                 max_age_seconds=runtime.max_age_seconds,
             )
+            bound_intent = intent.bind_preflight(preflight.seal_sha256)
             fresh_plan_report = self._build_fresh_plan(
                 plan_report,
                 catalog=catalog,
                 preflight=preflight,
             )
             fresh_readiness = self.review_readiness(fresh_plan_report)
-            self._require_target(fresh_readiness)
+            fresh_intent = self._operation_intent(fresh_readiness)
+            if (
+                fresh_intent.target_folder_name != bound_intent.target_folder_name
+                or fresh_intent.profile_id != bound_intent.profile_id
+            ):
+                raise LibraryTransferExecutionError(
+                    "fresh readiness changed the exact operation target or profile"
+                )
             candidate_policy = preflight.candidate.core.audit_dict().get("policy", {})
             if (
                 not isinstance(candidate_policy, Mapping)
                 or candidate_policy.get("fixed_state")
-                != binding.fixed_state_policy
+                != intent.fixed_state_policy
             ):
                 raise LibraryTransferExecutionError(
                     "fresh evidence does not provide the reviewed auxiliary-state policy"
@@ -552,7 +790,11 @@ class LibraryTransferExecutionFacade:
                 Path(preflight_report_path),
                 template_path=template_path,
                 capacity_response_path=capacity_path,
-                operation_id=binding.operation_id,
+                operation_id=(
+                    binding.operation_id
+                    if binding is not None
+                    else bound_intent.operation_id
+                ),
             )
             bundle_written = operation_bundle.write(Path(bundle_path))
             review = build_experimental_library_transfer_review(
@@ -560,7 +802,7 @@ class LibraryTransferExecutionFacade:
                 preflight_report=preflight.to_dict(),
                 bundle_report=operation_bundle.to_dict(),
                 audit_location=audit_location or str(runtime.evidence_namespace),
-                operation_binding=binding,
+                operation_binding=binding or bound_intent,
             )
             if not review.ready_for_hardware_test:
                 raise LibraryTransferExecutionError(
@@ -581,6 +823,7 @@ class LibraryTransferExecutionFacade:
             preflight_report_path=Path(preflight_report_path).expanduser().resolve(),
             bundle_path=Path(bundle_written).expanduser().resolve(),
             plan_sha256=_sha256_json(fresh_plan_report),
+            operation_intent=bound_intent if binding is None else None,
         )
         if store:
             self._prepared_operation = prepared
@@ -595,11 +838,13 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 "prepared operation result is malformed"
             )
-        if not prepared.ready or not self._binding_matches_prepared_operation(prepared):
-            raise LibraryTransferExecutionError(
-                "prepared operation does not match the current authorized binding"
-            )
+        previous = self._prepared_operation
         self._prepared_operation = prepared
+        if not prepared.ready or not self.transfer_actionable:
+            self._prepared_operation = previous
+            raise LibraryTransferExecutionError(
+                "prepared operation does not match the current exact operation intent"
+            )
 
     def _selected_item_id(self, plan_report: Mapping[str, Any]) -> str:
         selection = plan_report.get("selection")
@@ -658,18 +903,12 @@ class LibraryTransferExecutionFacade:
     ) -> Any:
         """Enter the existing guarded coordinator once; never retry."""
 
-        binding = self.operation_binding
         runtime = self.runtime
         prepared = self._prepared_operation
-        if binding is None or runtime is None or prepared is None:
+        if runtime is None or prepared is None:
             raise LibraryTransferExecutionError(
                 "Transfer once is blocked until the reviewed fresh operation is ready"
             )
-        try:
-            binding.require_authorized()
-        except LibraryTransferExecutionError:
-            self._prepared_operation = None
-            raise
         if not prepared.ready or not self.transfer_actionable:
             self._prepared_operation = None
             raise LibraryTransferExecutionError(
@@ -696,38 +935,89 @@ class LibraryTransferExecutionFacade:
                 "persistent claim store and indeterminate-write lock are required"
             )
 
-        from .experimental_library_transfer import GuardedLibraryExecutionCoordinator
+        binding = self.operation_binding
+        consent_interaction = confirmation_interaction
+        created_for_this_execution = False
+        if binding is None:
+            intent = prepared.operation_intent
+            if (
+                intent is None
+                or intent.preflight_seal_sha256 != prepared.preflight.seal_sha256
+                or intent.operation_id != prepared.operation_bundle.operation_id
+            ):
+                self._prepared_operation = None
+                raise LibraryTransferExecutionError(
+                    "the operation intent is stale or differs from the fresh sealed preflight"
+                )
+            try:
+                # Collect the final user consent before creating the executable
+                # binding. The canonical coordinator then independently checks
+                # this same phrase against the sealed operation immediately
+                # before claim consumption and execution.
+                confirmation = confirmation_interaction(prepared.review.to_dict())
+                binding = intent.authorize(confirmation)
+            except Exception as exc:
+                self._prepared_operation = None
+                if isinstance(exc, LibraryTransferExecutionError):
+                    raise
+                raise LibraryTransferExecutionError(
+                    f"final operation confirmation failed: {exc}",
+                    stage="confirmation",
+                ) from exc
+            self.operation_binding = binding
+            created_for_this_execution = True
+            if not self.transfer_actionable:
+                self.operation_binding = None
+                self._prepared_operation = None
+                raise LibraryTransferExecutionError(
+                    "the final confirmation did not bind the current sealed operation"
+                )
+            consent_interaction = lambda _review: confirmation
+        else:
+            try:
+                binding.require_authorized()
+            except LibraryTransferExecutionError:
+                self._prepared_operation = None
+                raise
 
-        coordinator = GuardedLibraryExecutionCoordinator(
-            indeterminate_write_lock=runtime.indeterminate_write_lock,
-            execution_claim_store=runtime.execution_claim_store,
-            operation_binding=binding,
-        )
-        runner_kwargs = {
-            "detect_device": runtime.detect_device,
-            "query_capacity": runtime.query_capacity,
-            "backend": runtime.backend,
-            "capture": runtime.capture,
-            "evidence_namespace": runtime.evidence_namespace,
-            "now": runner_overrides.pop("now", None),
-            "max_age_seconds": runtime.max_age_seconds,
-        }
-        runner_kwargs.update(runner_overrides)
         try:
+            from .experimental_library_transfer import GuardedLibraryExecutionCoordinator
+
+            coordinator = GuardedLibraryExecutionCoordinator(
+                indeterminate_write_lock=runtime.indeterminate_write_lock,
+                execution_claim_store=runtime.execution_claim_store,
+                operation_binding=binding,
+            )
+            runner_kwargs = {
+                "detect_device": runtime.detect_device,
+                "query_capacity": runtime.query_capacity,
+                "backend": runtime.backend,
+                "capture": runtime.capture,
+                "evidence_namespace": runtime.evidence_namespace,
+                "now": runner_overrides.pop("now", None),
+                "max_age_seconds": runtime.max_age_seconds,
+            }
+            runner_kwargs.update(runner_overrides)
             result = coordinator.execute(
                 prepared.operation_bundle,
                 plan_report=plan_report,
-                confirmation_interaction=confirmation_interaction,
+                confirmation_interaction=consent_interaction,
                 low_level_bulk_write_calls=low_level_bulk_write_calls,
                 **runner_kwargs,
             )
             self._prepared_operation = None
+            if created_for_this_execution:
+                self.operation_binding = None
             return result
         except LibraryTransferExecutionError:
             self._prepared_operation = None
+            if created_for_this_execution:
+                self.operation_binding = None
             raise
         except Exception as exc:
             self._prepared_operation = None
+            if created_for_this_execution:
+                self.operation_binding = None
             raise LibraryTransferExecutionError(
                 str(exc),
                 stage=str(getattr(exc, "stage", "execution")),
@@ -746,5 +1036,6 @@ __all__ = [
     "LibraryTransferExecutionFacade",
     "LibraryTransferExecutionRuntime",
     "LibraryTransferOperationBinding",
+    "LibraryTransferOperationIntent",
     "PreparedLibraryTransferOperation",
 ]

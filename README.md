@@ -145,9 +145,15 @@ first displays this generic logical plan. Only one explicitly imported and
 revalidated root package with an exact existing VNW-V15 three- or four-leaf
 shape can continue through the existing readiness, fresh-preflight, and typed
 one-shot-confirmation facade; the plan itself never authorizes a device
-operation. The default desktop launch has no runtime or operation binding, so
-it performs no device checks or transaction. Unsupported structures remain
-host-only, with no candidate bytes, generalized live path, or new capability.
+operation. Packaged macOS and Windows entry points supply one shared lazy
+runtime provider, but launch creates neither a live runtime nor an operation
+binding and performs no device checks or transaction. After exact-profile
+admission and fresh read-only evidence, the final typed confirmation creates a
+one-shot binding tied to that preflight and enters the canonical guarded route.
+If the external reviewed template or persistent safety configuration is
+unavailable, live transfer fails closed while safe read-only Manager functions
+remain available. Unsupported structures remain host-only, with no candidate
+bytes, generalized live path, or new capability.
 Expected semantic path deltas are modeled independently of candidate
 construction. Capacity growth remains unknown when no candidate is built, and
 unresolved device auxiliary state is not treated as verified. P18-037 adds

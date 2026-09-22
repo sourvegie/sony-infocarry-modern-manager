@@ -47,6 +47,7 @@ from infocarry.prepared_library_package_operation_bundle import load_operation_b
 from infocarry.execution_claim_store import PersistentExecutionClaimStore
 from infocarry.indeterminate_write_lock import PersistentIndeterminateWriteLock
 from infocarry.write_protocol import REQUEST_BEGIN_TRANSMIT
+from infocarry.write_safety_boundary import PersistentWriteSafetyOwner
 import infocarry.experimental_library_transfer as experimental_transfer_module
 from infocarry.prepared_library_package_live_adapter import (
     PreparedLibraryPackageLiveResultReconciliationError,
@@ -94,6 +95,8 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         target=FRESH_TEST_TARGET,
         child_kinds=("txt", "bmp", "txt"),
         profile_id=None,
+        include_operation_binding=True,
+        runtime_provider_mode=False,
     ):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
@@ -183,17 +186,21 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                 after_state = fixed_state
             _write_archive(destination, blob, NOW, fixed_state=after_state)
 
-        binding = LibraryTransferOperationBinding(
-            target_folder_name=target,
-            owner_approval_phrase=FRESH_OWNER_APPROVAL,
-            profile_id=(
-                profile_id
-                or (
-                    VNW_V15_FOUR_LEAF_PROFILE_ID
-                    if tuple(child_kinds) == ("txt", "bmp", "txt", "txt")
-                    else INITIAL_EXPERIMENTAL_PROFILE_ID
-                )
-            ),
+        binding = (
+            LibraryTransferOperationBinding(
+                target_folder_name=target,
+                owner_approval_phrase=FRESH_OWNER_APPROVAL,
+                profile_id=(
+                    profile_id
+                    or (
+                        VNW_V15_FOUR_LEAF_PROFILE_ID
+                        if tuple(child_kinds) == ("txt", "bmp", "txt", "txt")
+                        else INITIAL_EXPERIMENTAL_PROFILE_ID
+                    )
+                ),
+            )
+            if include_operation_binding
+            else None
         )
         claim_store = PersistentExecutionClaimStore(
             root / "installation-state" / "execution-claims.sqlite3"
@@ -212,10 +219,39 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             new_record_timestamp_be32=0x6A958595,
             max_age_seconds=None,
         )
-        facade = LibraryTransferExecutionFacade(
-            operation_binding=binding,
-            runtime=runtime,
-        )
+        runtime_provider = None
+        if runtime_provider_mode:
+            class FakeRuntimeProvider:
+                evidence_namespace = runtime.evidence_namespace
+
+                def __init__(self):
+                    self.create_calls = 0
+
+                def create_runtime(self, *, write_safety_owner):
+                    self.create_calls += 1
+                    if (
+                        write_safety_owner.execution_claim_store is not claim_store
+                        or write_safety_owner.indeterminate_write_lock is not lock
+                    ):
+                        raise AssertionError("provider did not receive the shared safety owner")
+                    return runtime
+
+            runtime_provider = FakeRuntimeProvider()
+            facade = LibraryTransferExecutionFacade(
+                operation_binding=binding,
+                runtime_provider=runtime_provider,
+            )
+            facade.attach_write_safety_owner(
+                PersistentWriteSafetyOwner(
+                    execution_claim_store=claim_store,
+                    indeterminate_write_lock=lock,
+                )
+            )
+        else:
+            facade = LibraryTransferExecutionFacade(
+                operation_binding=binding,
+                runtime=runtime,
+            )
         return {
             "temporary": temporary,
             "root": root,
@@ -229,20 +265,23 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             "candidate_holder": candidate_holder,
             "captures": captures,
             "facade": facade,
+            "runtime": runtime,
+            "runtime_provider": runtime_provider,
             "backend": runtime.backend,
             "claim_store": claim_store,
             "lock": lock,
             "binding": binding,
         }
 
-    def _prepare(self, setup):
+    def _prepare(self, setup, *, operation_name="operation"):
         self._patch_template_hashes(setup)
         offline_plan = setup["plan"]
+        operation_root = setup["root"] / operation_name
         prepared = setup["facade"].refresh_live_preflight(
             offline_plan,
             catalog=setup["catalog"],
-            preflight_report_path=setup["root"] / "operation" / "sealed-preflight.json",
-            bundle_path=setup["root"] / "operation" / "operation-bundle.json",
+            preflight_report_path=operation_root / "sealed-preflight.json",
+            bundle_path=operation_root / "operation-bundle.json",
         )
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
         setup["offline_plan"] = offline_plan
@@ -458,6 +497,103 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             profile_id=VNW_V15_FOUR_LEAF_PROFILE_ID,
         )
         self._assert_exact_route_reaches_guarded_preflight(setup)
+
+    def test_production_style_late_binding_requires_final_confirmation_for_both_profiles(self):
+        for label, kinds, profile_id in (
+            (
+                "three-leaf",
+                ("txt", "bmp", "txt"),
+                INITIAL_EXPERIMENTAL_PROFILE_ID,
+            ),
+            (
+                "four-leaf",
+                ("txt", "bmp", "txt", "txt"),
+                VNW_V15_FOUR_LEAF_PROFILE_ID,
+            ),
+        ):
+            with self.subTest(profile=label):
+                setup = self._setup(
+                    child_kinds=kinds,
+                    profile_id=profile_id,
+                    include_operation_binding=False,
+                    runtime_provider_mode=True,
+                )
+                self.addCleanup(setup["temporary"].cleanup)
+                facade = setup["facade"]
+                provider = setup["runtime_provider"]
+                self.assertIsNone(facade.operation_binding)
+                self.assertIsNone(facade.runtime)
+                self.assertEqual(provider.create_calls, 0)
+                prepared = self._prepare(setup)
+                self.assertIs(facade.runtime, setup["runtime"])
+                self.assertEqual(provider.create_calls, 1)
+                intent = prepared.operation_intent
+                self.assertIsNotNone(intent)
+                self.assertIsNone(facade.operation_binding)
+                self.assertEqual(
+                    prepared.operation_bundle.operation_id,
+                    intent.operation_id,
+                )
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
+
+                with self.assertRaises(LibraryTransferExecutionError):
+                    facade.execute_once(
+                        setup["plan"],
+                        confirmation_interaction=lambda _review: "not the target phrase",
+                    )
+                self.assertIsNone(facade.operation_binding)
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
+
+                prepared = self._prepare(setup, operation_name="confirmed-operation")
+                self.assertIsNone(facade.operation_binding)
+                result = facade.execute_once(
+                    setup["plan"],
+                    confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+                )
+                self.assertEqual(result.state, "readback_verified")
+                self.assertEqual(result.completion, 0)
+                self.assertEqual(
+                    sum(
+                        call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
+                        for call in setup["backend"].calls
+                    ),
+                    1,
+                )
+                self.assertIsNone(facade.operation_binding)
+                self.assertEqual(self._claim_count(setup), 1)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
+
+    def test_production_style_unsupported_shape_is_rejected_before_live_preflight(self):
+        for kinds in (
+            ("txt", "txt", "bmp", "txt"),
+            ("txt", "bmp", "txt", "txt", "txt"),
+        ):
+            with self.subTest(child_kinds=kinds):
+                setup = self._setup(
+                    child_kinds=kinds,
+                    include_operation_binding=False,
+                )
+                self.addCleanup(setup["temporary"].cleanup)
+                with self.assertRaises(LibraryTransferExecutionError):
+                    setup["facade"].refresh_live_preflight(
+                        setup["plan"],
+                        catalog=setup["catalog"],
+                        preflight_report_path=setup["root"] / "blocked" / "sealed.json",
+                        bundle_path=setup["root"] / "blocked" / "bundle.json",
+                    )
+                self.assertIsNone(setup["facade"].operation_binding)
+                self.assertEqual(setup["captures"], [])
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
 
     def test_unsupported_package_shapes_remain_host_only(self):
         for label, kinds in (
@@ -882,6 +1018,54 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                     for call in setup["backend"].calls
                     if call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
                 ]
+            ),
+            1,
+        )
+        self.assertEqual(self._claim_count(setup), 1)
+        with self.assertRaises(Exception):
+            setup["facade"].execute_once(
+                setup["plan"],
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+        self.assertEqual(
+            sum(
+                call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
+                for call in setup["backend"].calls
+            ),
+            1,
+        )
+
+    def test_sender_session_close_failure_after_completion_is_locked_as_indeterminate(self):
+        backend = PackageWorkflowBackend()
+
+        def fail_close():
+            raise OSError("simulated USB session close failure")
+
+        backend.close = fail_close
+        setup = self._setup(backend=backend)
+        self.addCleanup(setup["temporary"].cleanup)
+        self._prepare(setup)
+
+        with self.assertRaises(LibraryTransferExecutionError) as raised:
+            setup["facade"].execute_once(
+                setup["plan"],
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+
+        self.assertEqual(
+            raised.exception.state,
+            "indeterminate_after_transaction_start",
+        )
+        self.assertEqual(
+            raised.exception.audit["native_completion_observed"],
+            "0x0000",
+        )
+        self.assertIsNotNone(setup["lock"].read())
+        self.assertIsNotNone(setup["claim_store"].read_sender_in_flight())
+        self.assertEqual(
+            sum(
+                call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
+                for call in backend.calls
             ),
             1,
         )

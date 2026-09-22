@@ -1748,6 +1748,11 @@ def launch_ttk_desktop(
             "the configured Library runtime does not provide the shared persistent "
             "claim store and indeterminate-write lock"
         )
+    if configured_runtime is None and library_execution_facade.runtime_provider is not None:
+        library_execution_facade.attach_write_safety_owner(
+            replacement_safety_owner,
+            replacement_safety_configuration_error,
+        )
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
     worker: Optional[threading.Thread] = None
@@ -3920,11 +3925,11 @@ def launch_ttk_desktop(
                     return
                 if not library_execution_facade.can_prepare_live:
                     library_status_var.set(
-                        "This exact package shape is reviewable, but no separately authorized live operation is configured; no device checks or transfer occurred"
+                        "This exact package shape is reviewable, but the guarded live runtime is unavailable; no device checks or transfer occurred"
                     )
                     messagebox.showinfo(
                         "Transfer unavailable",
-                        "This exact package shape can be reviewed, but a separately authorized VNW-V15 operation is not configured. No device checks or device change occurred.",
+                        "This exact package shape can be reviewed, but the guarded VNW-V15 runtime is unavailable. No device checks or device change occurred.",
                         parent=root,
                     )
                     if transfer_stage is not None:
@@ -3979,13 +3984,8 @@ def launch_ttk_desktop(
             or not library_execution_facade.can_prepare_live
         ):
             library_status_var.set(
-                "Live preflight is blocked until a fresh authorized VNW-V15 operation is configured"
+                "Live preflight is blocked until the exact supported selection and guarded runtime are ready"
             )
-            if transfer_stage is not None:
-                transfer_stage.cleanup()
-            return
-        runtime = library_execution_facade.runtime
-        if runtime is None:
             if transfer_stage is not None:
                 transfer_stage.cleanup()
             return
@@ -3999,7 +3999,7 @@ def launch_ttk_desktop(
         clear_library_review_for_input_change()
         library_current_revision = revision
         operation_root = (
-            Path(runtime.evidence_namespace).expanduser().resolve()
+            library_execution_facade.evidence_namespace.expanduser().resolve()
             / f"ui-preflight-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
         )
 
@@ -4017,7 +4017,7 @@ def launch_ttk_desktop(
                 catalog=preflight_catalog,
                 preflight_report_path=operation_root / "sealed-preflight.json",
                 bundle_path=operation_root / "operation-bundle.json",
-                audit_location=str(runtime.evidence_namespace),
+                audit_location=str(library_execution_facade.evidence_namespace),
                 cancelled=cancelled.is_set,
                 progress=lambda label, _completed, _total: progress_callback(label),
                 store=False,
@@ -4226,16 +4226,27 @@ def launch_ttk_desktop(
         if (
             library_prepared_operation is None
             or not library_execution_facade.transfer_actionable
-            or library_execution_facade.operation_binding is None
         ):
             library_status_var.set(
                 "Send to InfoCarry is blocked until the exact reviewed operation is ready"
             )
             library_transfer_once_button.configure(state="disabled")
             return
+        binding = library_execution_facade.operation_binding
+        intent = library_prepared_operation.operation_intent
         confirmation_phrase = (
-            library_execution_facade.operation_binding.confirmation_phrase
+            intent.confirmation_phrase
+            if intent is not None
+            else binding.confirmation_phrase
+            if binding is not None
+            else None
         )
+        if confirmation_phrase is None:
+            library_status_var.set(
+                "Send to InfoCarry is blocked because the exact operation confirmation is unavailable"
+            )
+            library_transfer_once_button.configure(state="disabled")
+            return
         answer = simpledialog.askstring(
             "Confirm Send to InfoCarry",
             (

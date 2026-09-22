@@ -51,6 +51,7 @@ from .execution_claim_store import (
 from .indeterminate_write_lock import PersistentIndeterminateWriteLock
 from .library_transfer_execution import (
     LibraryTransferOperationBinding,
+    LibraryTransferOperationIntent,
 )
 from .library import LibraryCatalog
 from .prepared_library_package_bridge import (
@@ -1028,6 +1029,7 @@ def _validate_expected_folder(expected_folder_name: str) -> None:
 
 def _resolve_operation_binding(
     operation_binding: Optional[LibraryTransferOperationBinding],
+    operation_intent: Optional[LibraryTransferOperationIntent] = None,
     *,
     expected_folder_name: Optional[str] = None,
     owner_approval_phrase: Optional[str] = None,
@@ -1036,11 +1038,37 @@ def _resolve_operation_binding(
 ) -> tuple[str, str, str, str]:
     """Resolve the legacy adapter default or one typed current binding.
 
-    The no-binding branch exists only for the historical low-level adapter
-    compatibility tests.  The normal product facade always supplies the
-    typed binding, so it never selects a milestone target or phrase here.
+    The production facade supplies either a non-authorizing intent for fresh
+    preflight or a one-shot binding created after final typed consent. The
+    no-binding branch remains only for historical low-level adapter tests.
     """
 
+    if operation_intent is not None:
+        if operation_binding is not None:
+            raise PreparedLibraryPackageLiveAdapterError(
+                "supply either a non-authorizing operation intent or an authorized binding",
+                stage="approval",
+                state="failed",
+            )
+        values = (
+            operation_intent.target_folder_name,
+            operation_intent.owner_approval_phrase,
+            operation_intent.confirmation_phrase,
+            operation_intent.confirmation_policy,
+        )
+        for supplied, bound, label in (
+            (expected_folder_name, values[0], "destination"),
+            (owner_approval_phrase, values[1], "expected confirmation"),
+            (confirmation_phrase, values[2], "confirmation"),
+            (confirmation_policy, values[3], "confirmation policy"),
+        ):
+            if supplied is not None and supplied != bound:
+                raise PreparedLibraryPackageLiveAdapterError(
+                    f"{label} differs from the exact operation intent",
+                    stage="approval",
+                    state="failed",
+                )
+        return values
     if operation_binding is None:
         values = (
             expected_folder_name or P18_014_TARGET_FOLDER,
@@ -1715,6 +1743,30 @@ def _resolve_prepared_library_package_operation_bundle(
             raise OperationBundleError(
                 "non-default exact-shape operation bundles require a typed operation id"
             )
+        bundle_operation_binding = None
+        if bundle.operation_id is not None:
+            binding_values = {
+                "target_folder_name": bundle.expected_folder_name,
+                "owner_approval_phrase": bundle.owner_approval_phrase,
+                "confirmation_phrase": bundle.confirmation_phrase,
+                "confirmation_policy": bundle.confirmation_policy,
+                "profile_id": binding.get(
+                    "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
+                ),
+            }
+            unsealed_binding = LibraryTransferOperationBinding(**binding_values)
+            if unsealed_binding.operation_id == bundle.operation_id:
+                bundle_operation_binding = unsealed_binding
+            else:
+                sealed_binding = LibraryTransferOperationBinding(
+                    **binding_values,
+                    preflight_seal_sha256=bundle.preflight_seal_sha256,
+                )
+                if sealed_binding.operation_id != bundle.operation_id:
+                    raise OperationBundleError(
+                        "operation id matches neither the legacy nor fresh-sealed binding"
+                    )
+                bundle_operation_binding = sealed_binding
         preflight = load_prepared_library_package_live_preflight(
             report_path,
             catalog=catalog,
@@ -1722,20 +1774,7 @@ def _resolve_prepared_library_package_operation_bundle(
             backup=baseline,
             template=template,
             capacity_response=capacity_response,
-            operation_binding=(
-                LibraryTransferOperationBinding(
-                    target_folder_name=bundle.expected_folder_name,
-                    owner_approval_phrase=bundle.owner_approval_phrase,
-                    confirmation_phrase=bundle.confirmation_phrase,
-                    confirmation_policy=bundle.confirmation_policy,
-                    operation_id=bundle.operation_id,
-                    profile_id=binding.get(
-                        "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
-                    ),
-                )
-                if bundle.operation_id is not None
-                else None
-            ),
+            operation_binding=bundle_operation_binding,
         )
         if _backup_identity(preflight.before_backup).sha256 != bundle.baseline_state_identity_sha256:
             raise ValueError("loaded preflight raw-state identity differs from the bundle")
@@ -2089,6 +2128,7 @@ def prepare_prepared_library_package_live_preflight(
     confirmation_phrase: Optional[str] = None,
     confirmation_policy: Optional[str] = None,
     operation_binding: Optional[LibraryTransferOperationBinding] = None,
+    operation_intent: Optional[LibraryTransferOperationIntent] = None,
 ) -> PreparedLibraryPackageLivePreflight:
     """Run and seal the required fresh, read-only injected preflight.
 
@@ -2105,6 +2145,7 @@ def prepare_prepared_library_package_live_preflight(
         confirmation_policy,
     ) = _resolve_operation_binding(
         operation_binding,
+        operation_intent,
         expected_folder_name=expected_folder_name,
         owner_approval_phrase=owner_approval_phrase,
         confirmation_phrase=confirmation_phrase,
@@ -2122,6 +2163,8 @@ def prepare_prepared_library_package_live_preflight(
     profile_id = (
         operation_binding.profile_id
         if operation_binding is not None
+        else operation_intent.profile_id
+        if operation_intent is not None
         else INITIAL_EXPERIMENTAL_PROFILE_ID
     )
     try:
@@ -2602,12 +2645,55 @@ def execute_prepared_library_package_live(
                     state="failed",
                 )
             sender_calls = 1
-            return sender_impl.send(
-                candidate.transaction,
-                BoundAuthorization(),
-                cancelled=cancelled,
-                progress=progress,
-            )
+            try:
+                completion = sender_impl.send(
+                    candidate.transaction,
+                    BoundAuthorization(),
+                    cancelled=cancelled,
+                    progress=progress,
+                )
+            except BaseException as send_error:
+                close = getattr(backend, "close", None)
+                if callable(close):
+                    try:
+                        close()
+                    except Exception as close_error:
+                        add_note = getattr(send_error, "add_note", None)
+                        if callable(add_note):
+                            add_note(
+                                "write-session close also failed: "
+                                f"{type(close_error).__name__}: {close_error}"
+                            )
+                raise
+            close = getattr(backend, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception as close_error:
+                    completion_display = (
+                        f"0x{completion:04x}"
+                        if type(completion) is int
+                        else repr(completion)
+                    )
+                    error = PreparedLibraryPackageLiveAdapterError(
+                        "the sender returned native completion "
+                        f"{completion_display}, but the write session could not be closed; "
+                        "the result is indeterminate and requires read-only diagnosis",
+                        stage="sender_session_close",
+                        state="indeterminate_after_transaction_start",
+                        write_started=True,
+                    )
+                    error.audit["write_session_close_error"] = (
+                        f"{type(close_error).__name__}: {close_error}"
+                    )
+                    error.audit["native_completion_observed"] = completion_display
+                    error.write_failure_assessment = WriteFailureAssessment(
+                        primary_error=str(error),
+                        write_started=True,
+                        device_outcome="indeterminate",
+                    )
+                    raise error from close_error
+            return completion
 
         try:
             if write_safety_owner is None:
@@ -2694,7 +2780,7 @@ def execute_prepared_library_package_live(
             if assessment.device_outcome == "indeterminate"
             else "failed"
         )
-        raise _failure(
+        failure = _failure(
             f"P17-005 transaction stopped: {exc}",
             stage="write",
             state=state,
@@ -2707,7 +2793,13 @@ def execute_prepared_library_package_live(
             evidence_outputs=evidence_outputs,
             approval_consumed=approval_consumed,
             execution_claim=claim_audit,
-        ) from exc
+        )
+        if isinstance(exc, PreparedLibraryPackageLiveAdapterError):
+            for key in ("write_session_close_error", "native_completion_observed"):
+                value = exc.audit.get(key)
+                if isinstance(value, str):
+                    failure.audit[key] = value
+        raise failure from exc
 
     if isinstance(completion, bool) or not isinstance(completion, int) or completion != 0:
         value = repr(completion) if not isinstance(completion, int) else f"0x{completion:04x}"

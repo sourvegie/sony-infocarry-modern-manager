@@ -25,16 +25,20 @@ under Manager-owned application state and overlaid in memory; it is not added
 to or persisted in the user catalog. It continues through the existing
 readiness, fresh-preflight, typed one-shot-confirmation, and execution facade.
 The adapter cannot authorize execution, build a device candidate, or transmit.
-The default desktop launch still has no runtime or operation binding, so it
-performs no device checks or transaction. Generic plans and every unsupported
-shape remain host-only; no candidate, authorization pipeline, safety owner, or
-physical capability was added. Generalized/nested live transfer, arbitrary
-deletion, and Restore remain unavailable. The accepted P2 finding and this
-R3-bounded correction are recorded in the [P18-037 analysis
+Both packaged entry points now wire the same lazy production runtime provider;
+launch creates no live runtime or operation binding and performs no device
+checks, claim, marker, lock mutation, or write. After exact-profile admission
+and fresh read-only evidence, the final typed confirmation creates a one-shot
+binding tied to that preflight. Runtime configuration fails closed while safe
+read-only Manager functions remain available. Generic plans and every
+unsupported shape remain host-only; there is no capability-envelope
+expansion, alternate sender, or parallel safety path. Generalized/nested live
+transfer, arbitrary deletion, and Restore remain unavailable. The accepted P2
+finding and R3-bounded corrections are recorded in the [P18-037 analysis
 record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
 
-The final implementation head `7bda0b18533c7f85aea3d0947ea0802162eeb469`
-passes the portable Python 3.12 suite (984 tests, 3 documented skips), the 85
+The previous validated implementation checkpoint `7bda0b18533c7f85aea3d0947ea0802162eeb469`
+passed the portable Python 3.12 suite (984 tests, 3 documented skips), the 85
 focused adapter/readiness/UI/device-plan tests, `compileall`, and
 `git diff --check`. The local arm64/Tk 9 macOS app build and strict ad-hoc
 signature verification pass. Local LaunchServices could not scan/open the app
@@ -48,12 +52,25 @@ smoke; and
 [Windows package run 27](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898153)
 passed the x64 build and frozen-runtime smoke. Independent exact-head review,
 including its CP932 display finding and correction, passed `P0=0, P1=0, P2=0`.
-Physical validation attempt -01 through -04 stopped before live
-preflight/authorization/sender; no device change occurred. Work continues on
-existing PR #65; no separate PR was created and the PR remains open and
-unmerged. No physical device operation is authorized by this implementation
-task; any future hardware validation requires new operation-specific owner
-authorization and an approved procedure.
+The pre-task exact head `f1128d56005ad91e312494a77876829ab18fb670` was used to
+prepare physical-validation attempt `-05`. That attempt stopped before device
+access when the packaged Manager was found to lack production runtime and
+operation-binding wiring; no physical operation occurred. Attempts `-01`
+through `-04` also remain stopped and are not relabeled. The owner-authorized
+R3 follow-up is based on `f1128d...` and adds shared production reachability
+without widening the reviewed transfer shapes. Host validation currently
+passes: the Python 3.12 suite ran 993 tests with 3 documented skips; the
+focused production-provider, guarded-execution, and desktop UI group passed
+71 tests; `compileall` and `git diff --check` pass. Because local PyUSB is
+unavailable, these host runs used an external test-only PyUSB import stub
+that raises on any USB discovery/session call. The local macOS package build
+stops at `pip check` because `packaging` is missing, before creating an app
+bundle. Exact-head macOS/Windows package workflows and CI, and fresh
+independent exact-head review, remain pending; do not report
+`READY_FOR_HARDWARE_TEST` until they pass. Work remains on existing PR #65,
+with no separate PR or merge. No physical operation is authorized by this
+implementation task; any future hardware validation requires new
+operation-specific owner authorization and an approved procedure.
 
 ## Product direction after P18-036
 

@@ -195,3 +195,43 @@ directory LaunchServices smoke. Exact-head hosted [offline tests run 206](https:
 and [Windows package run 27](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898153)
 all passed; Windows build/frozen-runtime smoke and both-platform offline suites
 are included. No hardware was accessed; no PR was created or merged.
+
+## 2026-09-22 continuation — production runtime reachability
+
+Physical-validation attempt `-05`, prepared from exact head
+`f1128d56005ad91e312494a77876829ab18fb670`, stopped before device access. The
+packaged Manager did not supply the production live runtime or operation
+binding, so its redesigned ordinary-folder `Transfer →` action could not reach
+the existing guarded route. No authorization, sender call, USB write, or
+device-changing operation occurred. Attempts `-01` through `-04` remain
+unchanged historical stops.
+
+The owner explicitly authorized an R3 capability-reachability correction,
+without expanding the physical envelope. The in-progress implementation uses
+one shared lazy provider from the normal macOS and Windows entry points. It
+uses canonical application paths and the existing persistent safety owner,
+device/session services, native capacity query, complete backup capture,
+canonical readiness/coordinator, sender, and independent read-back path. The
+reviewed P16/P17 template remains an external Evidence artifact and must match
+its pinned SHA-256; missing or mismatched template/configuration fails closed.
+Launch constructs neither a runtime nor an operation binding and does not
+enumerate USB. After exact three-/four-leaf admission and fresh sealed
+read-only preflight, the final typed one-shot confirmation creates a
+preflight-seal-bound binding for that execution. Unsupported shapes remain
+host-only. No second sender, candidate pipeline, coordinator, or safety owner
+is introduced.
+
+The capability boundary is unchanged: only VNW-V15 `TXT → BMP → TXT` and
+`TXT → BMP → TXT → TXT` may reach the existing guarded operation. Host
+validation passes on this worktree: 993 tests passed with 3 documented skips;
+the focused production-provider, guarded-execution, and desktop UI group
+passed 71 tests; Python 3.12 `compileall` and `git diff --check` passed. The
+test run used an external test-only PyUSB import stub whose discovery/session
+functions raise, because PyUSB is absent locally; no hardware was enumerated
+or accessed. The local macOS package attempt stopped at `pip check` because
+`packaging` is missing, before building the application. Final-head hosted
+macOS/Windows package smokes and CI, and independent strong exact-head review,
+remain pending. No hardware validation is part of this task; a new
+operation-specific owner authorization and approved procedure would still be
+required before any physical test. Do not report `READY_FOR_HARDWARE_TEST` or
+`COMPLETE` until the remaining gates pass.

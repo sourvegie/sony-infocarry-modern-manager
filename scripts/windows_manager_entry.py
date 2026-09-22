@@ -446,9 +446,9 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
         try:
             report["checks"]["host_content"] = _run_host_workflow_checks()
             tkinter.Tk = managed_smoke_window
-            from infocarry.desktop_ttk import launch_ttk_desktop
+            from infocarry.library_transfer_runtime_provider import launch_production_manager
 
-            launch_ttk_desktop()
+            launch_production_manager()
         finally:
             tkinter.Tk = original_tk
             AuthorizedWriteSender.send = original_sender
@@ -499,9 +499,9 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
 def main() -> int:
     arguments = sys.argv[1:]
     if not arguments:
-        from infocarry.desktop import launch_desktop
+        from infocarry.library_transfer_runtime_provider import launch_production_manager
 
-        launch_desktop()
+        launch_production_manager()
         return 0
     if len(arguments) == 2 and arguments[0] == "--runtime-smoke":
         return _run_packaged_runtime_smoke(Path(arguments[1]))
