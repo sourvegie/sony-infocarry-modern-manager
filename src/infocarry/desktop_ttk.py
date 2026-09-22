@@ -2761,6 +2761,20 @@ def launch_ttk_desktop(
         if root.winfo_exists():
             root.after(1000, process_library_review_freshness)
 
+    def set_library_add_controls_available(available: bool) -> None:
+        """Bind host import affordances only to Local Library health."""
+
+        state = "normal" if available else "disabled"
+        library_add_button.configure(state=state)
+        for index in range(2):
+            library_add_menu.entryconfigure(index, state=state)
+        for button in (
+            library_import_button,
+            library_folder_import_button,
+            library_package_import_button,
+        ):
+            button.configure(state=state)
+
     def restore_device_manager_controls() -> None:
         """Restore Device Manager controls after a Library operation ends."""
 
@@ -2785,7 +2799,6 @@ def launch_ttk_desktop(
             ):
                 button.configure(state="disabled")
             for button in (
-                library_add_button,
                 library_search_entry,
                 library_remove_selection_button,
                 library_reorder_up_button,
@@ -2793,9 +2806,6 @@ def launch_ttk_desktop(
                 library_details_toggle_button,
                 library_technical_details_action_button,
                 library_transfer_button,
-                library_import_button,
-                library_folder_import_button,
-                library_package_import_button,
                 library_move_up_button,
                 library_move_down_button,
                 library_rename_button,
@@ -2984,7 +2994,7 @@ def launch_ttk_desktop(
         library_tree.delete(*library_tree.get_children())
         library_tree_items.clear()
         if library_catalog is None or library_workflow is None:
-            library_add_button.configure(state="disabled")
+            set_library_add_controls_available(False)
             library_search_entry.configure(state="disabled")
             library_transfer_button.configure(state="disabled")
             library_remove_selection_button.configure(state="disabled")
@@ -3007,11 +3017,8 @@ def launch_ttk_desktop(
             library_transfer_once_button.configure(state="disabled")
             library_selection_summary_var.set("Local Library unavailable")
             return
-        library_add_button.configure(state="normal")
+        set_library_add_controls_available(True)
         library_search_entry.configure(state="normal")
-        library_import_button.configure(state="normal")
-        library_folder_import_button.configure(state="normal")
-        library_package_import_button.configure(state="normal")
         library_live_preflight_button.configure(state="disabled")
         library_transfer_once_button.configure(state="disabled")
 
@@ -3316,9 +3323,6 @@ def launch_ttk_desktop(
             library_current_revision = None
         if library_operation_controller.busy:
             for button in (
-                library_import_button,
-                library_folder_import_button,
-                library_package_import_button,
                 library_move_up_button,
                 library_move_down_button,
                 library_rename_button,
@@ -3400,6 +3404,18 @@ def launch_ttk_desktop(
                 format_library_selection_summary(item),
             )
 
+    def library_import_can_start() -> bool:
+        if not library_operation_controller.busy:
+            return True
+        message = (
+            "The current Manager operation is still in progress. This import was not started; "
+            "wait for the current operation to finish and then try again. Your source files "
+            "were not changed."
+        )
+        library_status_var.set(message)
+        messagebox.showinfo("Local Library", message, parent=root)
+        return False
+
     def library_import_action() -> None:
         if library_workflow is None:
             messagebox.showerror("Library", library_catalog_error or "Library is unavailable", parent=root)
@@ -3416,6 +3432,8 @@ def launch_ttk_desktop(
             parent=root,
         )
         if not selected:
+            return
+        if not library_import_can_start():
             return
         try:
             clear_library_review_for_input_change()
@@ -3439,6 +3457,8 @@ def launch_ttk_desktop(
         )
         if not selected:
             return
+        if not library_import_can_start():
+            return
         try:
             clear_library_review_for_input_change()
             item = library_workflow.import_folder(Path(selected))
@@ -3459,6 +3479,8 @@ def launch_ttk_desktop(
             parent=root,
         )
         if not selected:
+            return
+        if not library_import_can_start():
             return
         try:
             clear_library_review_for_input_change()
@@ -4401,9 +4423,6 @@ def launch_ttk_desktop(
             button.configure(state=state)
         if busy:
             for button in (
-                library_import_button,
-                library_folder_import_button,
-                library_package_import_button,
                 library_move_up_button,
                 library_move_down_button,
                 library_rename_button,
@@ -4418,14 +4437,6 @@ def launch_ttk_desktop(
                 button.configure(state="disabled")
         else:
             show_library_selection()
-            if library_catalog is None:
-                library_import_button.configure(state="disabled")
-                library_folder_import_button.configure(state="disabled")
-                library_package_import_button.configure(state="disabled")
-            else:
-                library_import_button.configure(state="normal")
-                library_folder_import_button.configure(state="normal")
-                library_package_import_button.configure(state="normal")
         export_button.configure(state="disabled" if busy or not tree.selection() else "normal")
         if busy:
             replacement_button.configure(state="disabled")
@@ -5114,8 +5125,17 @@ def launch_ttk_desktop(
 
     menu_bar = tk.Menu(root)
     file_menu = tk.Menu(menu_bar, tearoff=False)
-    file_menu.add_command(label="Add Files…", command=library_import_action)
-    file_menu.add_command(label="Add Folder…", command=library_folder_import_action)
+    local_import_state = (
+        "normal" if library_catalog is not None and library_workflow is not None else "disabled"
+    )
+    file_menu.add_command(
+        label="Add Files…", command=library_import_action, state=local_import_state
+    )
+    file_menu.add_command(
+        label="Add Folder…",
+        command=library_folder_import_action,
+        state=local_import_state,
+    )
     file_menu.add_separator()
     file_menu.add_command(label="Settings…", command=show_settings_action)
     file_menu.add_separator()

@@ -477,6 +477,67 @@ class DesktopTtkMessageTests(unittest.TestCase):
         ):
             self.assertIn(control, source)
 
+    def test_local_add_controls_are_decoupled_from_device_and_transfer_state(self):
+        source = inspect.getsource(launch_ttk_desktop)
+
+        def body(name: str, next_name: str) -> str:
+            start = source.index(f"    def {name}(")
+            end = source.index(f"\n    def {next_name}(", start + 1)
+            return source[start:end]
+
+        add_state = body(
+            "set_library_add_controls_available", "restore_device_manager_controls"
+        )
+        for control in (
+            "library_add_button",
+            "library_add_menu.entryconfigure",
+            "library_import_button",
+            "library_folder_import_button",
+        ):
+            self.assertIn(control, add_state)
+        for forbidden_state in (
+            "library_execution_facade",
+            "operation_binding",
+            "capacity",
+            "replacement_safety_owner",
+            "indeterminate_write_lock",
+            "sender",
+            "usb",
+        ):
+            self.assertNotIn(forbidden_state, add_state.casefold())
+
+        device_busy = body("set_busy", "selected_device_destination_path")
+        for control in (
+            "library_add_button",
+            "library_import_button",
+            "library_folder_import_button",
+            "library_package_import_button",
+        ):
+            self.assertNotIn(control, device_busy)
+
+        library_busy = body("set_library_operation_busy", "library_cancel_action")
+        for control in (
+            "library_add_button",
+            "library_import_button",
+            "library_folder_import_button",
+            "library_package_import_button",
+        ):
+            self.assertNotIn(control, library_busy)
+
+        selection_state = body("show_library_selection", "library_import_can_start")
+        for control in (
+            "library_add_button",
+            "library_add_menu",
+            "library_import_button",
+            "library_folder_import_button",
+            "library_package_import_button",
+        ):
+            self.assertNotIn(control, selection_state)
+
+        import_action = body("library_import_can_start", "library_import_action")
+        self.assertIn("library_operation_controller.busy", import_action)
+        self.assertNotIn("library_execution_facade", import_action)
+
     def test_library_layout_wires_hierarchy_chooser_order_and_host_preview(self):
         source = inspect.getsource(launch_ttk_desktop)
         for contract in (

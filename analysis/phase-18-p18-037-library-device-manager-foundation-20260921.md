@@ -254,3 +254,44 @@ packaging passed. Host disposition is `READY_FOR_HARDWARE_TEST`. This record
 update is documentation-only after the reviewed runtime-code commit. No
 hardware validation is part of this task; a new operation-specific owner
 authorization and approved procedure are required before any physical test.
+
+## 2026-09-22 continuation — Local Library Add reachability diagnosis
+
+During authorized attempt `-06`, the visible `+ Add` control was reported
+greyed out and did not open its menu; the standard File → Add Folder… action
+also did not open a picker. The preserved stop record does not include the
+live widget state, Local Library health message, or accessibility snapshot,
+so it cannot identify which runtime condition was active at that moment.
+
+The exact-head source trace identifies deliberate but incorrect state
+coupling, rather than a production-provider or package-bootstrap branch:
+
+- `launch_ttk_desktop` constructs `+ Add` with normal Tk defaults, and its
+  initial `refresh_library_view()` enables it and the file/folder imports
+  when both the catalog and workflow are healthy. The same view disables
+  imports when catalog initialization failed; that independent health gate is
+  correct and remains fail-closed.
+- `set_library_operation_busy()` disables `+ Add` and all import controls for
+  any foreground Library operation, including host-only work. This shares a
+  transient work-state with the host import affordance instead of keeping
+  import availability tied to Local Library health.
+- `show_library_selection()` independently disables the file, folder, and
+  prepared-package import buttons while a Library operation is busy, so
+  changing only the busy callback would not have corrected every visible
+  import route.
+- The separate Device Manager `set_busy()` disables the legacy Add Files/Add
+  Folder widgets during refresh/backup work even though these actions are
+  host-only. Those widgets are currently hidden by the redesigned layout, but
+  the stale coupling remains in production code.
+- The production runtime provider is not consulted by either import callback
+  or the catalog-health branch. The macOS/Windows package smoke checked the
+  workspace and disabled legacy send button but did not inspect the `+ Add`
+  state, menu entries, or picker callbacks; this is a missing bootstrap/UI
+  regression, not evidence of a packaging-only discrepancy or Tk menu defect.
+
+The correction will make Add state derive from Local Library catalog/workflow
+health alone, remove Device Manager busy-state changes to Add, and exercise
+the actual production bootstrap's `+ Add` menu and host pickers with isolated
+fixtures and device/sender callbacks forbidden. No transfer-admission,
+authorization, claim, marker, lock, candidate, sender, or verification code is
+to be relaxed or duplicated.
