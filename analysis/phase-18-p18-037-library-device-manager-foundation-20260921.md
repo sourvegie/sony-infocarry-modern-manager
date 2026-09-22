@@ -170,19 +170,28 @@ coordinator, claim store, marker, lock owner, or bypass of backup/capacity/
 conflict/confirmation/no-retry/read-back controls was added. Unsupported
 structures remain host-only.
 
+The first independent exact-head review found P2: the preparation rejection
+was safe, but its CP932-specific explanation was reduced to generic guidance
+in the normal UI. Commit
+`7bda0b18533c7f85aea3d0947ea0802162eeb469` corrected the normal failure report
+and added a display-level regression asserting that text is not changed, the
+source should be revised without substitutions, and no device checks or
+changes occurred. The bounded exact-head re-review passed
+`P0=0, P1=0, P2=0`.
+
 Host regression coverage exercises exact three-/four-leaf mappings, persisted
 order and target name, source immutability and drift checks, unsupported
-counts/orders/nesting/target conflicts/destinations, CP932 replacement refusal,
-the visible Add Folder → Transfer route, and arrival only at the existing
-readiness boundary with no execution claim or sender call. The focused group
-passed (84 tests), the complete portable suite passed (983 tests, 3 documented
-skips), and `compileall` plus `git diff --check` passed. The local arm64/Tk 9
-macOS app built and passed strict ad-hoc signature verification. However, the
-local LaunchServices smoke did not pass: LaunchServices returned
-`kLSNoExecutableErr`, forced registration could not scan the `/private/tmp`
-bundle (`-10822` from Spotlight), and direct frozen-runtime invocation
-aborted before writing its report. This is recorded as a local environment
-failure, not a smoke pass. Windows packaging and final-head hosted CI have not
-run because `gh auth status` reports the stored GitHub token invalid.
-Independent exact-head review remains pending. No hardware was accessed; no PR
-was created or merged.
+counts/orders/nesting/target conflicts/destinations, CP932 replacement refusal
+and its user-visible explanation, the visible Add Folder → Transfer route, and
+arrival only at the existing readiness boundary with no execution claim or
+sender call. The focused group passed (85 tests); the complete portable suite
+passed (984 tests, 3 documented skips); `compileall` and `git diff --check`
+passed. The local arm64/Tk 9 macOS app built and passed strict ad-hoc signature
+verification. Local LaunchServices could not scan/open the `/private/tmp`
+bundle (`kLSNoExecutableErr`; Spotlight returned `-10822`), but the exact-head
+hosted macOS package run passed its Apple Silicon build and Japanese-working-
+directory LaunchServices smoke. Exact-head hosted [offline tests run 206](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898124),
+[macOS package run 23](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898122),
+and [Windows package run 27](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898153)
+all passed; Windows build/frozen-runtime smoke and both-platform offline suites
+are included. No hardware was accessed; no PR was created or merged.

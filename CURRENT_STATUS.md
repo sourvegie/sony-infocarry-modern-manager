@@ -33,21 +33,27 @@ deletion, and Restore remain unavailable. The accepted P2 finding and this
 R3-bounded correction are recorded in the [P18-037 analysis
 record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
 
-The portable Python 3.12 suite passes (983 tests, 3 documented skips), as do
-the 84 focused adapter/readiness/UI/device-plan tests, `compileall`, and
+The final implementation head `7bda0b18533c7f85aea3d0947ea0802162eeb469`
+passes the portable Python 3.12 suite (984 tests, 3 documented skips), the 85
+focused adapter/readiness/UI/device-plan tests, `compileall`, and
 `git diff --check`. The local arm64/Tk 9 macOS app build and strict ad-hoc
-signature verification pass. Local LaunchServices registration/smoke did not
-run successfully from this `/private/tmp` worktree: LaunchServices reported
-`kLSNoExecutableErr`, Spotlight registration returned `-10822`, and direct
-frozen-runtime invocation aborted before a report. Windows packaging and
-final-head hosted CI have not run; `gh auth status` reports the stored GitHub
-token invalid. Independent exact-head review is pending. Previous PR CI and
-review on `c7647aa2adb7b90c6bf83279e8aa4d81595ff0ad` are historical, not
-validation of this changed head. Physical validation attempt -01 through -04
-stopped before live preflight/authorization/sender; no device change occurred.
-Work continues on existing PR #65; no separate PR was created and the PR
-remains unmerged. Do not perform hardware validation until the host gate,
-review, CI, and a new operation-specific owner authorization are complete.
+signature verification pass. Local LaunchServices could not scan/open the app
+from this `/private/tmp` worktree (`kLSNoExecutableErr`; Spotlight registration
+returned `-10822`), but final-head hosted packaging passed its actual smokes:
+[Offline tests run 206](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898124)
+passed on macOS and Windows;
+[macOS package run 23](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898122)
+passed the Apple Silicon build and Japanese-working-directory LaunchServices
+smoke; and
+[Windows package run 27](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898153)
+passed the x64 build and frozen-runtime smoke. Independent exact-head review,
+including its CP932 display finding and correction, passed `P0=0, P1=0, P2=0`.
+Physical validation attempt -01 through -04 stopped before live
+preflight/authorization/sender; no device change occurred. Work continues on
+existing PR #65; no separate PR was created and the PR remains open and
+unmerged. No physical device operation is authorized by this implementation
+task; any future hardware validation requires new operation-specific owner
+authorization and an approved procedure.
 
 ## Product direction after P18-036
 
