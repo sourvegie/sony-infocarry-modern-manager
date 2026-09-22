@@ -221,17 +221,30 @@ preflight-seal-bound binding for that execution. Unsupported shapes remain
 host-only. No second sender, candidate pipeline, coordinator, or safety owner
 is introduced.
 
+The independent strong review of implementation commit
+`0f3708ada4d4b963fd0c9f7cd1cab9217f53fcd2` found one P2: the Manager's startup
+safety notice called the mutating reconciliation method, which could promote
+an abandoned sender-start marker into the persistent installation-wide lock
+and update the marker at application launch. The finding is accepted. Startup
+now calls a read-only safety inspection; it reports an unresolved marker and
+keeps the UI fail-closed without mutating the lock or marker. The canonical
+guarded execution boundary still performs the original durable reconciliation
+before claim consumption and blocks any write. A dedicated regression proves
+the startup inspection leaves the marker and lock unchanged.
+
 The capability boundary is unchanged: only VNW-V15 `TXT → BMP → TXT` and
-`TXT → BMP → TXT → TXT` may reach the existing guarded operation. Host
-validation passes on this worktree: 993 tests passed with 3 documented skips;
-the focused production-provider, guarded-execution, and desktop UI group
-passed 71 tests; Python 3.12 `compileall` and `git diff --check` passed. The
-test run used an external test-only PyUSB import stub whose discovery/session
-functions raise, because PyUSB is absent locally; no hardware was enumerated
-or accessed. The local macOS package attempt stopped at `pip check` because
-`packaging` is missing, before building the application. Final-head hosted
-macOS/Windows package smokes and CI, and independent strong exact-head review,
-remain pending. No hardware validation is part of this task; a new
-operation-specific owner authorization and approved procedure would still be
-required before any physical test. Do not report `READY_FOR_HARDWARE_TEST` or
-`COMPLETE` until the remaining gates pass.
+`TXT → BMP → TXT → TXT` may reach the existing guarded operation. On the
+corrected worktree, the Python 3.12 suite passed 995 tests with 3 documented
+skips; the focused application-safety, production-provider, guarded-execution,
+and desktop UI group passed 83 tests; `compileall` and `git diff --check`
+passed. Tests used an external test-only PyUSB import stub whose
+discovery/session functions raise, because PyUSB is absent locally; no
+hardware was enumerated or accessed. The initial implementation commit's
+exact-head hosted macOS and Windows package/smoke workflows and offline suites
+passed, but new final-head workflows and a fresh independent re-review of the
+correction are required. The local macOS package attempt stopped at `pip check`
+because `packaging` is missing, before building the application. No
+hardware validation is part of this task; a new operation-specific owner
+authorization and approved procedure would still be required before any
+physical test. Do not report `READY_FOR_HARDWARE_TEST` or `COMPLETE` until the
+remaining gates pass.

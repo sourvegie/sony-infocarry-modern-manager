@@ -1669,8 +1669,13 @@ def _application_safety_notice(
 ) -> Optional[str]:
     if configuration_error:
         return configuration_error
-    _, detail = _application_write_safety_status(owner)
-    return detail
+    if owner is None:
+        return None
+    try:
+        owner.inspect_execution_boundary()
+    except Exception as exc:
+        return str(exc)
+    return None
 
 
 def _persistent_safety_unavailable_message(detail: str) -> str:

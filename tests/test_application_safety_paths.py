@@ -137,6 +137,30 @@ class ApplicationSafetyPathsTests(unittest.TestCase):
         self.assertEqual(marker.attempt_id, "attempt-abandoned")
         self.assertEqual(restarted.indeterminate_write_lock.path, self.paths.indeterminate_write_lock)
 
+    def test_startup_inspection_does_not_promote_abandoned_marker(self):
+        owner = create_default_application_write_safety_owner(paths=self.paths)
+        claim = owner.consume_execution_claim(_BINDINGS)
+        owner.mark_sender_start(
+            claim,
+            attempt_id="attempt-startup-inspection",
+            evidence_root="fixture-evidence",
+            operation_label="fixture-operation",
+        )
+
+        restarted = create_default_application_write_safety_owner(paths=self.paths)
+        marker_before = restarted.execution_claim_store.read_sender_in_flight()
+        self.assertIsNotNone(marker_before)
+        self.assertFalse(self.paths.indeterminate_write_lock.exists())
+
+        with self.assertRaisesRegex(
+            IndeterminateWriteLockError, "unresolved sender-start marker"
+        ):
+            restarted.inspect_execution_boundary()
+
+        marker_after = restarted.execution_claim_store.read_sender_in_flight()
+        self.assertEqual(marker_after, marker_before)
+        self.assertFalse(self.paths.indeterminate_write_lock.exists())
+
     def test_existing_legacy_root_without_claim_database_fails_closed_without_creating_db(self):
         self.paths.safety_root.mkdir(parents=True)
 

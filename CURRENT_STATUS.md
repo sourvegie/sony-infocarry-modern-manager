@@ -59,14 +59,19 @@ operation-binding wiring; no physical operation occurred. Attempts `-01`
 through `-04` also remain stopped and are not relabeled. The owner-authorized
 R3 follow-up is based on `f1128d...` and adds shared production reachability
 without widening the reviewed transfer shapes. Host validation currently
-passes: the Python 3.12 suite ran 993 tests with 3 documented skips; the
-focused production-provider, guarded-execution, and desktop UI group passed
-71 tests; `compileall` and `git diff --check` pass. Because local PyUSB is
-unavailable, these host runs used an external test-only PyUSB import stub
-that raises on any USB discovery/session call. The local macOS package build
-stops at `pip check` because `packaging` is missing, before creating an app
-bundle. Exact-head macOS/Windows package workflows and CI, and fresh
-independent exact-head review, remain pending; do not report
+passes on the corrected worktree: the Python 3.12 suite ran 995 tests with 3
+documented skips; the focused application-safety, production-provider,
+guarded-execution, and desktop UI group passed 83 tests; `compileall` and
+`git diff --check` pass. Because local PyUSB is unavailable, these host runs
+used an external test-only PyUSB import stub that raises on any USB
+discovery/session call. Independent review of first implementation commit
+`0f3708a...` found one P2: startup reconciliation could mutate the persistent
+lock and sender marker. The correction makes startup inspect that state
+read-only while retaining reconciliation and fail-closed blocking at the
+canonical guarded write boundary. Exact-head hosted macOS/Windows package
+workflows, offline CI, and fresh independent review of the correction remain
+pending. The local macOS package build stops at `pip check` because
+`packaging` is missing, before creating an app bundle. Do not report
 `READY_FOR_HARDWARE_TEST` until they pass. Work remains on existing PR #65,
 with no separate PR or merge. No physical operation is authorized by this
 implementation task; any future hardware validation requires new

@@ -195,6 +195,41 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn("globally locked", message)
             self.assertIn("Do not remove or recreate the safety files", message)
 
+    def test_startup_safety_notice_is_read_only_for_an_abandoned_sender_marker(self):
+        with TemporaryDirectory(prefix="infocarry-ui-marker-") as temporary:
+            paths = application_paths(
+                home=Path(temporary), platform="darwin", os_name="posix", environ={}
+            )
+            owner = create_default_application_write_safety_owner(paths=paths)
+            claim = owner.consume_execution_claim(
+                {
+                    "preflight_seal_sha256": "a" * 64,
+                    "core_preflight_seal_sha256": "b" * 64,
+                    "candidate_blob_sha256": "c" * 64,
+                    "transaction_sha256": "d" * 64,
+                    "authorization_sha256": "e" * 64,
+                    "baseline_state_identity_sha256": "f" * 64,
+                    "capacity_response_sha256": "1" * 64,
+                }
+            )
+            owner.mark_sender_start(
+                claim,
+                attempt_id="attempt-ui-startup",
+                evidence_root="fixture-evidence",
+                operation_label="fixture-operation",
+            )
+            restarted = create_default_application_write_safety_owner(paths=paths)
+
+            detail = _application_safety_notice(restarted, None)
+
+            self.assertIn("unresolved sender-start marker", detail or "")
+            self.assertFalse(paths.indeterminate_write_lock.exists())
+            marker = restarted.execution_claim_store.read_sender_in_flight()
+            self.assertIsNotNone(marker)
+            self.assertEqual(marker.state, "in_flight")
+            source = inspect.getsource(launch_ttk_desktop)
+            self.assertIn("initial_safety_detail = _application_safety_notice(", source)
+
     def test_device_home_startup_does_not_claim_disconnected_before_inspection(self):
         heading, message = _initial_device_home_status()
 
