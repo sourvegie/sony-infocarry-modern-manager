@@ -321,6 +321,7 @@ def _folder_plan_matches(
 ) -> Optional[tuple[LibraryItem, ...]]:
     if (
         folder.node_kind != NODE_FOLDER
+        or folder.parent_id is not None
         or plan.destination_path != ("root",)
         or plan.expected_delta.removed_paths
         or plan.selected_item_ids != (folder.item_id,)

@@ -931,26 +931,58 @@ class LibraryTransferExecutionFacade:
         claim = None
         marker = None
         claim_store = runtime.execution_claim_store
-        if claim_store is not None:
+        claim_read_error: Optional[str] = None
+        marker_read_error: Optional[str] = None
+        if claim_store is None:
+            claim_read_error = "ExecutionClaimStoreUnavailable: claim store is not configured"
+            marker_read_error = "ExecutionClaimStoreUnavailable: marker store is not configured"
+        else:
             try:
                 claim = claim_store.read_claim(
                     prepared.operation_bundle.preflight_seal_sha256
                 )
-                marker = claim_store.read_sender_in_flight()
-            except Exception:
+            except Exception as exc:
                 # A store read failure is itself evidence, but must not obscure
                 # the original fail-closed error or mutate the safety state.
-                claim = None
-                marker = None
+                claim_read_error = f"{exc.__class__.__name__}: {exc}"
+            try:
+                marker = claim_store.read_sender_in_flight()
+            except Exception as exc:
+                marker_read_error = f"{exc.__class__.__name__}: {exc}"
         marker_for_operation = (
             marker is not None
             and marker.preflight_seal_sha256
             == prepared.operation_bundle.preflight_seal_sha256
         )
-        sender_started = bool(
+        explicit_sender_started = bool(
             error.state == "indeterminate_after_transaction_start"
             or error.audit.get("sender_started") is True
-            or marker_for_operation
+        )
+        sender_started: Optional[bool]
+        if explicit_sender_started:
+            sender_started = True
+        elif claim_read_error is not None or marker_read_error is not None:
+            # Unknown is materially different from absent at this boundary.
+            # Preserve that distinction so a read failure cannot be reported
+            # as a falsely safe pre-send state.
+            sender_started = None
+        else:
+            sender_started = marker_for_operation
+        claim_state = (
+            "unavailable"
+            if claim_read_error is not None
+            else "present"
+            if claim is not None
+            else "absent"
+        )
+        marker_state = (
+            "unavailable"
+            if marker_read_error is not None
+            else "present_for_operation"
+            if marker_for_operation
+            else "present_other_operation"
+            if marker is not None
+            else "absent"
         )
         artifacts = {
             "sealed_report": prepared.operation_bundle.sealed_report.to_dict(),
@@ -974,13 +1006,28 @@ class LibraryTransferExecutionFacade:
             "authorization_occurred": bool(
                 binding is not None and binding.authorized
             ),
-            "execution_claim_created": claim is not None,
-            "sender_marker_present": marker_for_operation,
+            "execution_claim_created": (
+                None if claim_read_error is not None else claim is not None
+            ),
+            "execution_claim_state": claim_state,
+            "sender_marker_present": (
+                None if marker_read_error is not None else marker_for_operation
+            ),
+            "sender_marker_state": marker_state,
+            "diagnostic_state_read_errors": [
+                value
+                for value in (claim_read_error, marker_read_error)
+                if value is not None
+            ],
             "artifacts": artifacts,
         }
+        error.audit["diagnostic_path"] = str(diagnostic_path)
         try:
             _write_new_json(diagnostic_path, value)
-        except Exception:
+        except Exception as exc:
+            error.audit["diagnostic_persistence_error"] = (
+                f"{exc.__class__.__name__}: {exc}"
+            )
             return None
         error.audit["diagnostic_path"] = str(diagnostic_path)
         return diagnostic_path

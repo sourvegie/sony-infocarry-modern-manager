@@ -387,7 +387,10 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         )
         bound_bundle = load_operation_bundle(prepared.bundle_path)
         self.assertIsNotNone(bound_bundle.operation_owned_staging)
-        self.assertTrue(bound_bundle.package_manifest.path.endswith("prepared-package/manifest.json"))
+        self.assertEqual(
+            Path(bound_bundle.package_manifest.path).parts[-2:],
+            ("prepared-package", "manifest.json"),
+        )
         stage.cleanup()
         reloaded_bundle = load_operation_bundle(prepared.bundle_path)
         self.assertIsNotNone(reloaded_bundle.operation_owned_staging)
@@ -544,6 +547,115 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             readiness_state_from_error(error).reason_codes,
             (ReadinessReasonCode.TRANSFER_PREPARATION_UNVERIFIED,),
         )
+
+    def test_nested_folder_selection_is_rejected_before_operation_staging(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        source_root = setup["root"] / "ordinary-source"
+        outer = source_root / "Outer"
+        nested = outer / "Nested"
+        nested.mkdir(parents=True)
+        (nested / "01-introduction.txt").write_text("intro\n", encoding="utf-8")
+        (nested / "02-page-01.bmp").write_bytes(make_profile_bmp())
+        (nested / "03-ending.txt").write_text("end\n", encoding="utf-8")
+        folder_catalog = LibraryCatalog(source_root / "library.json")
+        folder_catalog.import_folder(outer)
+        nested_item = next(
+            item
+            for item in folder_catalog._items.values()
+            if item.source_filename == "Nested"
+        )
+        logical_plan = build_library_device_transfer_plan(
+            folder_catalog,
+            [nested_item.item_id],
+            DEVICE_ROOT_PATH,
+            DeviceLibrarySnapshot(
+                (DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),)
+            ),
+        )
+        self.assertIsNone(
+            prepare_exact_folder_package(
+                folder_catalog,
+                nested_item,
+                logical_plan,
+                staging_parent=setup["root"] / "manager-prepared-content",
+            )
+        )
+
+    def test_diagnostic_store_read_failure_is_explicitly_unknown(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        prepared = self._prepare(setup)
+        error = LibraryTransferExecutionError(
+            "operation-owned package is unavailable",
+            stage="operation_staging",
+        )
+        with patch.object(
+            type(setup["claim_store"]),
+            "read_claim",
+            side_effect=RuntimeError("claim database unavailable"),
+        ), patch.object(
+            type(setup["claim_store"]),
+            "read_sender_in_flight",
+            side_effect=RuntimeError("marker database unavailable"),
+        ):
+            diagnostic_path = setup["facade"]._persist_operation_diagnostic(
+                prepared,
+                error,
+                binding=None,
+            )
+        self.assertIsNotNone(diagnostic_path)
+        diagnostic = json.loads(Path(diagnostic_path).read_text(encoding="utf-8"))
+        self.assertIsNone(diagnostic["sender_started"])
+        self.assertIsNone(diagnostic["execution_claim_created"])
+        self.assertIsNone(diagnostic["sender_marker_present"])
+        self.assertEqual(diagnostic["execution_claim_state"], "unavailable")
+        self.assertEqual(diagnostic["sender_marker_state"], "unavailable")
+        self.assertEqual(len(diagnostic["diagnostic_state_read_errors"]), 2)
+
+    def test_diagnostic_write_failure_is_exposed_on_original_error(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        prepared = self._prepare(setup)
+        error = LibraryTransferExecutionError("pre-send failure")
+        with patch(
+            "infocarry.library_transfer_execution._write_new_json",
+            side_effect=OSError("evidence volume unavailable"),
+        ):
+            diagnostic_path = setup["facade"]._persist_operation_diagnostic(
+                prepared,
+                error,
+                binding=None,
+            )
+        self.assertIsNone(diagnostic_path)
+        self.assertTrue(
+            error.audit["diagnostic_path"].endswith("pre-send-diagnostic.json")
+        )
+        self.assertIn(
+            "evidence volume unavailable",
+            error.audit["diagnostic_persistence_error"],
+        )
+
+    def test_diagnostic_missing_store_is_explicitly_unavailable(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        prepared = self._prepare(setup)
+        setup["facade"].runtime = replace(
+            setup["facade"].runtime,
+            execution_claim_store=None,
+        )
+        error = LibraryTransferExecutionError("pre-send failure")
+        diagnostic_path = setup["facade"]._persist_operation_diagnostic(
+            prepared,
+            error,
+            binding=None,
+        )
+        diagnostic = json.loads(Path(diagnostic_path).read_text(encoding="utf-8"))
+        self.assertIsNone(diagnostic["sender_started"])
+        self.assertIsNone(diagnostic["execution_claim_created"])
+        self.assertIsNone(diagnostic["sender_marker_present"])
+        self.assertEqual(diagnostic["execution_claim_state"], "unavailable")
+        self.assertEqual(diagnostic["sender_marker_state"], "unavailable")
 
     def _generic_exact_plan(self, setup):
         snapshot = DeviceLibrarySnapshot(

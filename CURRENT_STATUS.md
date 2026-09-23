@@ -48,14 +48,16 @@ operation evidence directory before sealing, binds their identities and
 hashes into the existing operation bundle, and retains them through the full
 guarded lifecycle. The user catalog and original source files remain
 unchanged. Durable pre-send diagnostics record stable reason codes and claim,
-marker, authorization, and sender-start state, while the normal UI remains
-concise and fail-closed. The focused ordinary-folder regression covers
-three-/four-leaf cleanup survival, reload, source/catalog immutability, fake
-canonical execution, and missing-artifact diagnosis with zero claim/sender
-activity. The full Python 3.12 portable suite passes 1,000 tests with 3
-documented skips; compile and `git diff --check` pass. This remains host-only
-until fresh independent exact-head review, final macOS/Windows CI, and
-packaging checks pass; no physical operation is authorized or claimed.
+marker, authorization, and sender-start state, while unavailable safety state
+and diagnostic-write failures are explicit and the normal UI remains concise
+and fail-closed. The focused ordinary-folder regression covers three-/four-leaf
+cleanup survival, reload, source/catalog immutability, root-level-only
+admission, fake canonical execution, and missing-artifact/diagnostic failure
+cases with zero claim/sender activity. The full Python 3.12 portable suite
+passes 1,004 tests with 3 documented skips; compile and `git diff --check`
+pass. This remains host-only until fresh independent exact-head review, final
+macOS/Windows CI, and packaging checks pass; no physical operation is
+authorized or claimed.
 
 See the [operation-owned staging analysis record](analysis/phase-18-p18-037-operation-owned-staging-20260923.md).
 

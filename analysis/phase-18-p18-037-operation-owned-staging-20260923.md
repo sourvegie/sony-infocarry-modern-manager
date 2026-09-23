@@ -51,17 +51,21 @@ reason code, exception class/message, operation and artifact bindings, and
 sender-start, authorization, claim, and marker status. The normal UI maps
 staging-verification failures to “Transfer preparation could not be verified.
 No device change occurred.” No traceback is shown and no failed sealed
-operation is recycled.
+operation is recycled. A fresh exact-head review also required the ordinary
+folder adapter to reject non-root folder nodes, and required claim/marker read
+failures, missing safety stores, and diagnostic-write failures to remain
+explicitly unknown/unavailable rather than being represented as safe absence.
+The portable path assertion was made separator-neutral for Windows.
 
 ## Host validation
 
 Focused ordinary-folder tests cover three- and four-leaf package survival
 after temporary cleanup, stable catalog reload, source/catalog immutability,
-canonical fake execution after reload, and missing staged-artifact diagnosis
-before any claim or sender call. The complete portable Python 3.12 suite
-passed 1,000 tests with 3 documented skips. The external test-only PyUSB stub
-was used to ensure the suite could not discover or open hardware. Compilation
-and `git diff --check` passed.
+root-level-only admission, canonical fake execution after reload, and missing
+staged-artifact/diagnostic failures before any claim or sender call. The
+complete portable Python 3.12 suite passed 1,004 tests with 3 documented
+skips. The external test-only PyUSB stub was used to ensure the suite could
+not discover or open hardware. Compilation and `git diff --check` passed.
 
 This checkpoint remains host-only and requires fresh independent exact-head
 review plus final macOS/Windows CI and packaging checks before the disposition
