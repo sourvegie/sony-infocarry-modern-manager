@@ -112,6 +112,33 @@ class PersistentWriteSafetyOwner:
             "read-only diagnosis is required"
         )
 
+    def inspect_execution_boundary(self) -> None:
+        """Read safety state without reconciling markers or mutating the lock.
+
+        UI startup uses this method so an abandoned sender marker remains
+        fail-closed without turning application launch into a persistent
+        safety-state transition. The first explicit guarded execution still
+        calls ``assert_execution_boundary_available`` before claim consumption;
+        that canonical boundary promotes an unresolved marker to the global
+        lock and blocks the write.
+        """
+
+        self.execution_claim_store.validate_integrity()
+        lock_record = self.indeterminate_write_lock.read(
+            self.device_model_profile.lock_key
+        )
+        if lock_record is not None and lock_record.locked:
+            raise IndeterminateWriteLockError(
+                "InfoCarry writes are globally locked after an indeterminate outcome; "
+                "read-only diagnosis is required"
+            )
+        marker = self.execution_claim_store.read_sender_in_flight()
+        if marker is not None:
+            raise IndeterminateWriteLockError(
+                "InfoCarry writes are blocked by an unresolved sender-start marker; "
+                "the canonical guarded boundary must reconcile it before execution"
+            )
+
     def consume_execution_claim(
         self,
         bindings: Mapping[str, str],

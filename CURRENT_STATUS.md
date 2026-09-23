@@ -1,6 +1,141 @@
 # Current Project Status
 
-Date: 2026-09-21
+Date: 2026-09-22
+
+## P18-037 — Local Library ↔ Device Library Manager foundation
+
+P18-037 implements the side-by-side Local Library and Device Library workspace
+on `task/P18-037-library-device-manager`, from canonical base
+`dfeeb4604b25b77a61c99ff9e0677ed69aa7c8ca`. The Local Library remains a
+persistent catalog of references to user files; nested import, search,
+multi-selection, persisted sibling ordering, remove-without-deleting-sources,
+and compact Details are part of the redesigned window. The generic ordered
+TXT/BMP tree and destination planner preserve selected subtrees, validate
+source freshness and encoded components, and fail closed on conflicts. Its
+offline scale fixture contains 61 directories and 150 mixed leaves. A separate
+host-only delete-closure/expected-delta model rejects unsafe or unresolved
+selections.
+
+The primary Transfer action first builds the generic offline plan. A single
+ordinary root-level Local Library folder can now be adapted transiently into
+the existing prepared-package contract only when its revalidated direct-file
+children, persisted order, canonical names, and unchanged content match one of
+the exact VNW-V15 three- or four-leaf profiles. The transient package is staged
+under Manager-owned application state and overlaid in memory; it is not added
+to or persisted in the user catalog. It continues through the existing
+readiness, fresh-preflight, typed one-shot-confirmation, and execution facade.
+The adapter cannot authorize execution, build a device candidate, or transmit.
+Both packaged entry points now wire the same lazy production runtime provider;
+launch creates no live runtime or operation binding and performs no device
+checks, claim, marker, lock mutation, or write. After exact-profile admission
+and fresh read-only evidence, the final typed confirmation creates a one-shot
+binding tied to that preflight. Runtime configuration fails closed while safe
+read-only Manager functions remain available. Generic plans and every
+unsupported shape remain host-only; there is no capability-envelope
+expansion, alternate sender, or parallel safety path. Generalized/nested live
+transfer, arbitrary deletion, and Restore remain unavailable. The accepted P2
+finding and R3-bounded corrections are recorded in the [P18-037 analysis
+record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
+
+The 2026-09-23 continuation preserved the owner-stopped `-07` physical
+validation as a failed pre-write attempt. Host reproduction showed that the
+ordinary-folder adapter's transient prepared package was cleaned before the
+sealed operation was reloaded, causing the canonical bundle resolver to fail
+closed with `bound artifact is unavailable`; no claim, sender, USB request, or
+device change occurred. The host-only correction now materializes a complete
+operation-owned prepared package and reloadable catalog snapshot under the
+operation evidence directory before sealing, binds their identities and
+hashes into the existing operation bundle, and retains them through the full
+guarded lifecycle. The user catalog and original source files remain
+unchanged. Durable pre-send diagnostics record stable reason codes and claim,
+marker, authorization, and sender-start state, while unavailable safety state
+and diagnostic-write failures are explicit and the normal UI remains concise
+and fail-closed. The focused ordinary-folder regression covers three-/four-leaf
+cleanup survival, reload, source/catalog immutability, root-level-only
+admission, fake canonical execution, and missing-artifact/diagnostic failure
+cases with zero claim/sender activity. The full Python 3.12 portable suite
+passes 1,004 tests with 3 documented skips; compile and `git diff --check`
+pass. This remains host-only until fresh independent exact-head review, final
+macOS/Windows CI, and packaging checks pass; no physical operation is
+authorized or claimed.
+
+See the [operation-owned staging analysis record](analysis/phase-18-p18-037-operation-owned-staging-20260923.md).
+
+The previous validated implementation checkpoint `7bda0b18533c7f85aea3d0947ea0802162eeb469`
+passed the portable Python 3.12 suite (984 tests, 3 documented skips), the 85
+focused adapter/readiness/UI/device-plan tests, `compileall`, and
+`git diff --check`. The local arm64/Tk 9 macOS app build and strict ad-hoc
+signature verification pass. Local LaunchServices could not scan/open the app
+from this `/private/tmp` worktree (`kLSNoExecutableErr`; Spotlight registration
+returned `-10822`), but final-head hosted packaging passed its actual smokes:
+[Offline tests run 206](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898124)
+passed on macOS and Windows;
+[macOS package run 23](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898122)
+passed the Apple Silicon build and Japanese-working-directory LaunchServices
+smoke; and
+[Windows package run 27](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35687898153)
+passed the x64 build and frozen-runtime smoke. Independent exact-head review,
+including its CP932 display finding and correction, passed `P0=0, P1=0, P2=0`.
+The pre-task exact head `f1128d56005ad91e312494a77876829ab18fb670` was used to
+prepare physical-validation attempt `-05`. That attempt stopped before device
+access when the packaged Manager was found to lack production runtime and
+operation-binding wiring; no physical operation occurred. Attempts `-01`
+through `-04` also remain stopped and are not relabeled. The owner-authorized
+R3 follow-up's reviewed runtime-code commit is
+`c3da4c16b8e210132f764d18f45e6ec7aaf22d2b`. Host validation passed: the
+Python 3.12 suite ran 995 tests with 3 documented skips; the focused
+application-safety, production-provider, guarded-execution, and desktop UI
+group passed 83 tests; `compileall` and `git diff --check` passed. Because
+local PyUSB is unavailable, these host runs used an external test-only PyUSB
+import stub that raises on any USB discovery/session call. Exact-head hosted
+[Offline tests run 209](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974618)
+passed on macOS and Windows;
+[macOS package run 26](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974796)
+passed the Apple Silicon build and LaunchServices smoke; and
+[Windows package run 30](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35725974643)
+passed the x64 build and frozen-runtime smoke. Independent strong exact-head
+review of the corrected implementation passed `P0=0, P1=0, P2=0`. Its first
+review had found P2 startup safety-state mutation; startup now inspects state
+read-only and the canonical guarded execution boundary retains durable
+reconciliation before claim consumption. The local macOS package attempt
+stopped before bundle creation because `pip check` found `packaging` missing;
+hosted package builds passed. Host disposition is
+`READY_FOR_HARDWARE_TEST`. This status update is documentation-only after the
+reviewed runtime-code commit. PR #65 remains open and unmerged; no separate PR
+was created. No physical operation occurred or is authorized by this task; any
+future hardware validation requires new operation-specific owner authorization
+and an approved procedure.
+
+The 2026-09-22 continuation followed a stopped `-06` host/device attempt in
+which the packaged `+ Add` control was reported disabled; the preserved stop
+record contains no live widget/health snapshot, so its exact runtime branch
+cannot be distinguished. Source tracing identified incorrect coupling in
+Library busy/selection state, while catalog/workflow health remains the
+independent valid fail-closed condition. Commit
+`d3cafa73c5c254578f95891285f61ca2f9183102` decouples Add and import controls
+from device and transfer state, preserves a guard against a conflicting
+concurrent Library import, and extends both packaged production-bootstrap
+smokes to exercise Add Files/Add Folder with disposable host fixtures and
+device/sender calls forbidden. The smoke confirms nested ordinary-folder
+import, unchanged source files, Add available with an indeterminate lock and
+unavailable live runtime/no operation binding, unchanged lock bytes, and zero
+claims/markers. Transfer admission, authorization, claim/marker lifecycle,
+sender, and independent verification code were not changed. Focused local
+validation passed 43 tests; the full Python 3.12 suite passed 997 tests with 3
+documented skips; `compileall` and `git diff --check` passed. Exact-commit
+[Offline tests run 211](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35735357171)
+passed on macOS and Windows;
+[macOS package run 28](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35735357217)
+passed the Apple Silicon build and LaunchServices/package smoke; and
+[Windows package run 32](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/35735357125)
+passed the x64 build and packaged smoke. Fresh independent exact-commit R3
+review passed `P0=0, P1=0, P2=0`. A local screenshot of the CI-built Manager
+showed `+ Add` enabled; the native chooser windows were not separately
+visually inspected. No physical-device validation or device-changing action
+occurred. The code commit is pushed to existing PR #65; it remains open and
+unmerged. Host disposition remains `READY_FOR_HARDWARE_TEST`, with a new
+operation-specific owner authorization and approved procedure required for
+any later physical validation.
 
 ## Product direction after P18-036
 

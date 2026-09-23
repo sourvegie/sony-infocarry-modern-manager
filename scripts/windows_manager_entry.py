@@ -354,6 +354,30 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             raise RuntimeError("packaged smoke safety state is outside its temporary APPDATA profile")
         if state_root.exists():
             raise RuntimeError("packaged smoke requires a fresh temporary application-data profile")
+        smoke_root = report_path.parent
+        add_file_source = smoke_root / "Add Files Smoke.txt"
+        add_file_source.write_text("Host-only Add Files smoke.\n", encoding="utf-8")
+        add_folder_source = smoke_root / "Add Folder Smoke"
+        nested_source = add_folder_source / "nested"
+        nested_source.mkdir(parents=True)
+        nested_file_source = nested_source / "nested.txt"
+        nested_file_source.write_text("Host-only nested folder smoke.\n", encoding="utf-8")
+        picker_calls: list[str] = []
+        import tkinter.filedialog as filedialog_module
+
+        original_askopenfilenames = filedialog_module.askopenfilenames
+        original_askdirectory = filedialog_module.askdirectory
+
+        def choose_add_files(**_kwargs: Any) -> tuple[str, ...]:
+            picker_calls.append("files")
+            return (str(add_file_source),)
+
+        def choose_add_folder(**_kwargs: Any) -> str:
+            picker_calls.append("folder")
+            return str(add_folder_source)
+
+        filedialog_module.askopenfilenames = choose_add_files
+        filedialog_module.askdirectory = choose_add_folder
         isolation_counters = {"device_enumeration_calls": 0, "sender_calls": 0}
         import usb.core
         from infocarry.write_protocol import AuthorizedWriteSender
@@ -386,17 +410,144 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
                     if window_state["title"] != "InfoCarry Manager":
                         raise RuntimeError("normal manager window title was not initialized")
                     controls = _inspect_widgets(root)
-                    send_buttons = [
+                    panes = [
+                        control
+                        for control in controls
+                        if str(control.winfo_class()) == "TPanedwindow"
+                        and len(control.panes()) == 2
+                    ]
+                    headings = {
+                        str(control.cget("text"))
+                        for control in controls
+                        if str(control.winfo_class()).endswith("Label")
+                    }
+                    transfer_buttons = [
+                        control
+                        for control in controls
+                        if str(control.winfo_class()).endswith("Button")
+                        and control.cget("text") == "Transfer →"
+                    ]
+                    guarded_send_buttons = [
                         control
                         for control in controls
                         if str(control.winfo_class()).endswith("Button")
                         and control.cget("text") == "Send to InfoCarry"
                     ]
-                    if not send_buttons:
-                        raise RuntimeError("normal manager transfer control was not created")
-                    if any(str(button.cget("state")) != "disabled" for button in send_buttons):
-                        raise RuntimeError("normal manager transfer control was not disabled")
-                    window_state["send_control"] = "disabled"
+                    if not panes or not {"LOCAL LIBRARY", "DEVICE LIBRARY"}.issubset(headings):
+                        raise RuntimeError("normal manager side-by-side library workspace was not created")
+                    if not transfer_buttons:
+                        raise RuntimeError("host-only library transfer action was not created")
+                    add_buttons = [
+                        control
+                        for control in controls
+                        if str(control.winfo_class()).endswith("Menubutton")
+                        and control.cget("text") == "+ Add"
+                    ]
+                    if len(add_buttons) != 1 or add_buttons[0].instate(["disabled"]):
+                        raise RuntimeError("packaged + Add control is not enabled")
+                    add_menu = root.nametowidget(str(add_buttons[0].cget("menu")))
+                    add_labels = [
+                        str(add_menu.entrycget(index, "label"))
+                        for index in range(int(add_menu.index("end")) + 1)
+                    ]
+                    if add_labels != ["Add Files…", "Add Folder…"] or any(
+                        str(add_menu.entrycget(index, "state")) != "normal"
+                        for index in range(2)
+                    ):
+                        raise RuntimeError("packaged + Add menu entries are not enabled")
+                    menu_bar = root.nametowidget(str(root.cget("menu")))
+                    file_entry = next(
+                        index
+                        for index in range(int(menu_bar.index("end")) + 1)
+                        if menu_bar.entrycget(index, "label") == "File"
+                    )
+                    file_menu = root.nametowidget(
+                        str(menu_bar.entrycget(file_entry, "menu"))
+                    )
+                    if any(
+                        str(file_menu.entrycget(index, "state")) != "normal"
+                        for index in range(2)
+                    ):
+                        raise RuntimeError("packaged File-menu Add entries are not enabled")
+                    add_menu.invoke(0)
+                    add_menu.invoke(1)
+                    from infocarry.app_paths import application_paths
+                    from infocarry.library import LibraryCatalog, NODE_FILE, NODE_FOLDER
+
+                    catalog = LibraryCatalog(application_paths().library_catalog)
+                    imported_file = next(
+                        (
+                            item
+                            for item in catalog.items
+                            if item.node_kind == NODE_FILE
+                            and Path(item.source_path) == add_file_source.resolve()
+                        ),
+                        None,
+                    )
+                    imported_folder = next(
+                        (
+                            item
+                            for item in catalog.roots
+                            if item.node_kind == NODE_FOLDER
+                            and Path(item.source_path) == add_folder_source.resolve()
+                        ),
+                        None,
+                    )
+                    nested_folder = (
+                        next(
+                            (
+                                item
+                                for item in catalog.children(imported_folder.item_id)
+                                if item.node_kind == NODE_FOLDER
+                                and item.source_filename == "nested"
+                            ),
+                            None,
+                        )
+                        if imported_folder is not None
+                        else None
+                    )
+                    nested_file = (
+                        next(
+                            (
+                                item
+                                for item in catalog.children(nested_folder.item_id)
+                                if item.node_kind == NODE_FILE
+                                and item.source_filename == "nested.txt"
+                            ),
+                            None,
+                        )
+                        if nested_folder is not None
+                        else None
+                    )
+                    if (
+                        picker_calls != ["files", "folder"]
+                        or imported_file is None
+                        or imported_folder is None
+                        or nested_folder is None
+                        or nested_file is None
+                        or add_file_source.read_text(encoding="utf-8")
+                        != "Host-only Add Files smoke.\n"
+                        or nested_file_source.read_text(encoding="utf-8")
+                        != "Host-only nested folder smoke.\n"
+                    ):
+                        raise RuntimeError("packaged Add pickers did not import the host fixtures safely")
+                    window_state["local_library_add"] = {
+                        "button": "enabled",
+                        "menu_entries": add_labels,
+                        "file_menu_entries": "enabled",
+                        "pickers_opened": picker_calls,
+                        "files_imported": 1,
+                        "nested_folder_imported": True,
+                        "source_files_unchanged": True,
+                    }
+                    if not guarded_send_buttons or any(
+                        str(button.cget("state")) != "disabled"
+                        for button in guarded_send_buttons
+                    ):
+                        raise RuntimeError("legacy live-send control was not kept disabled")
+                    window_state["workspace"] = "local_and_device_library"
+                    window_state["host_only_transfer"] = "created"
+                    window_state["guarded_send_control"] = "disabled"
                 except BaseException as exc:
                     window_state["error"] = f"{type(exc).__name__}: {exc}"
                 finally:
@@ -422,23 +573,28 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
         try:
             report["checks"]["host_content"] = _run_host_workflow_checks()
             tkinter.Tk = managed_smoke_window
-            from infocarry.desktop_ttk import launch_ttk_desktop
+            from infocarry.library_transfer_runtime_provider import launch_production_manager
 
-            launch_ttk_desktop()
+            launch_production_manager()
         finally:
             tkinter.Tk = original_tk
             AuthorizedWriteSender.send = original_sender
             usb.core.find = original_usb_find
+            filedialog_module.askopenfilenames = original_askopenfilenames
+            filedialog_module.askdirectory = original_askdirectory
         if window_state.get("error"):
             raise RuntimeError(window_state["error"])
         if window_state.get("title") != "InfoCarry Manager":
             raise RuntimeError("main manager window was not observed")
-        if window_state.get("send_control") != "disabled":
+        if window_state.get("guarded_send_control") != "disabled":
             raise RuntimeError("guarded transfer control was not confirmed disabled")
         report["checks"]["main_manager_window"] = {
             "title": window_state["title"],
             "opened": True,
+            "workspace": window_state["workspace"],
+            "host_only_transfer": window_state["host_only_transfer"],
             "guarded_send_control": "disabled",
+            "local_library_add": window_state["local_library_add"],
             "closed_cleanly": True,
         }
         if not (state_root / "execution-claims.sqlite3").is_file():
@@ -448,6 +604,139 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
             raise RuntimeError(f"forbidden device/sender path was reached: {isolation_counters}")
         if any(measured_safety_counters.values()):
             raise RuntimeError(f"persistent write-safety counters were nonzero: {measured_safety_counters}")
+
+        locked_appdata = smoke_root / "write-locked-appdata" / "Roaming"
+        os.environ["APPDATA"] = str(locked_appdata)
+        from infocarry.app_paths import application_paths as current_application_paths
+        from infocarry.device_model_profile import VNW_V15_PROFILE
+        from infocarry.indeterminate_write_lock import PersistentIndeterminateWriteLock
+        from infocarry.library_transfer_execution import LibraryTransferExecutionFacade
+        import infocarry.library_transfer_runtime_provider as runtime_provider_module
+
+        locked_paths = current_application_paths()
+        if not locked_paths.safety_root.is_relative_to(locked_appdata.resolve()):
+            raise RuntimeError("locked-state smoke safety files escaped the isolated profile")
+        locked_store = PersistentIndeterminateWriteLock(
+            locked_paths.indeterminate_write_lock
+        )
+        locked_store.record_indeterminate(
+            reason="host-only packaged Add-control regression fixture",
+            evidence_root=str(smoke_root / "locked-state-evidence"),
+            model_key=VNW_V15_PROFILE.model_key,
+            incident_id="host-only-add-state-smoke",
+            attempt_id="host-only-add-state-smoke-01",
+        )
+        locked_bytes_before = locked_paths.indeterminate_write_lock.read_bytes()
+        unavailable_facades: list[LibraryTransferExecutionFacade] = []
+
+        def create_unavailable_facade() -> LibraryTransferExecutionFacade:
+            facade = LibraryTransferExecutionFacade()
+            unavailable_facades.append(facade)
+            return facade
+
+        original_facade_factory = (
+            runtime_provider_module.create_production_library_transfer_facade
+        )
+        runtime_provider_module.create_production_library_transfer_facade = (
+            create_unavailable_facade
+        )
+        locked_window_state: dict[str, Any] = {}
+        usb.core.find = forbid_device_enumeration
+        AuthorizedWriteSender.send = forbid_sender
+
+        def managed_locked_smoke_window(*args: Any, **kwargs: Any) -> Any:
+            root = original_tk(*args, **kwargs)
+
+            def inspect_and_close() -> None:
+                try:
+                    root.update_idletasks()
+                    controls = _inspect_widgets(root)
+                    add_buttons = [
+                        control
+                        for control in controls
+                        if str(control.winfo_class()).endswith("Menubutton")
+                        and control.cget("text") == "+ Add"
+                    ]
+                    if len(add_buttons) != 1 or add_buttons[0].instate(["disabled"]):
+                        raise RuntimeError(
+                            "+ Add was disabled by the installation-wide write lock"
+                        )
+                    add_menu = root.nametowidget(str(add_buttons[0].cget("menu")))
+                    if any(
+                        str(add_menu.entrycget(index, "state")) != "normal"
+                        for index in range(2)
+                    ):
+                        raise RuntimeError(
+                            "+ Add menu entries were disabled by the installation-wide write lock"
+                        )
+                    locked_window_state["add_control"] = "enabled"
+                    locked_window_state["menu_entries"] = "enabled"
+                except BaseException as exc:
+                    locked_window_state["error"] = f"{type(exc).__name__}: {exc}"
+                finally:
+                    root.after(50, close_locked_window)
+
+            def close_locked_window() -> None:
+                try:
+                    command = root.protocol("WM_DELETE_WINDOW")
+                    if command:
+                        root.tk.call(command)
+                    else:
+                        root.destroy()
+                    locked_window_state["closed_cleanly"] = True
+                except BaseException as exc:
+                    locked_window_state["error"] = (
+                        f"clean shutdown failed: {type(exc).__name__}: {exc}"
+                    )
+                    try:
+                        root.destroy()
+                    except Exception:
+                        pass
+
+            root.after(500, inspect_and_close)
+            return root
+
+        try:
+            tkinter.Tk = managed_locked_smoke_window
+            from infocarry.library_transfer_runtime_provider import launch_production_manager
+
+            launch_production_manager()
+        finally:
+            tkinter.Tk = original_tk
+            runtime_provider_module.create_production_library_transfer_facade = (
+                original_facade_factory
+            )
+            AuthorizedWriteSender.send = original_sender
+            usb.core.find = original_usb_find
+            os.environ["APPDATA"] = str(profile_root)
+
+        if locked_window_state.get("error") or not locked_window_state.get(
+            "closed_cleanly"
+        ):
+            raise RuntimeError(
+                locked_window_state.get("error", "locked-state window did not close")
+            )
+        if (
+            len(unavailable_facades) != 1
+            or unavailable_facades[0].can_prepare_live
+            or unavailable_facades[0].operation_binding is not None
+        ):
+            raise RuntimeError("unavailable-runtime fixture unexpectedly enabled live transfer")
+        if locked_paths.indeterminate_write_lock.read_bytes() != locked_bytes_before:
+            raise RuntimeError("packaged startup mutated the pre-existing write lock")
+        locked_counters = _read_safety_counters(locked_paths.safety_root)
+        if locked_counters["claims_consumed"] or locked_counters["sender_marker_rows"]:
+            raise RuntimeError("locked-state Add smoke created a claim or sender marker")
+        if any(isolation_counters.values()):
+            raise RuntimeError(f"locked-state host-only smoke reached a device path: {isolation_counters}")
+        report["checks"]["add_under_lock_and_unavailable_runtime"] = {
+            **locked_window_state,
+            "runtime_provider_available": False,
+            "operation_binding_present": False,
+            "write_lock_unchanged": True,
+            "claims_created": 0,
+            "sender_markers_created": 0,
+        }
         report["checks"]["usb_backend"]["device_enumeration_calls"] = isolation_counters[
             "device_enumeration_calls"
         ]
@@ -473,9 +762,9 @@ def _run_packaged_runtime_smoke(report_path: Path) -> int:
 def main() -> int:
     arguments = sys.argv[1:]
     if not arguments:
-        from infocarry.desktop import launch_desktop
+        from infocarry.library_transfer_runtime_provider import launch_production_manager
 
-        launch_desktop()
+        launch_production_manager()
         return 0
     if len(arguments) == 2 and arguments[0] == "--runtime-smoke":
         return _run_packaged_runtime_smoke(Path(arguments[1]))

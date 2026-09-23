@@ -67,6 +67,7 @@ class ReadinessReasonCode(str, Enum):
     UNSUPPORTED_LIVE_PROFILE = "unsupported_live_profile"
     UNSUPPORTED_SOURCE_FORMAT = "unsupported_source_format"
     PREPARATION_FAILED = "preparation_failed"
+    TRANSFER_PREPARATION_UNVERIFIED = "transfer_preparation_unverified"
     REVIEW_REQUIRED = "review_required"
     VALIDATION_FAILED = "validation_failed"
 
@@ -96,6 +97,7 @@ _REASON_MESSAGES: dict[ReadinessReasonCode, str] = {
     ReadinessReasonCode.UNSUPPORTED_LIVE_PROFILE: "This prepared content is valid, but its transfer shape is not currently supported.",
     ReadinessReasonCode.UNSUPPORTED_SOURCE_FORMAT: "This format is not ready for conversion yet.",
     ReadinessReasonCode.PREPARATION_FAILED: "Preparation could not be completed. Fix the content and prepare it again.",
+    ReadinessReasonCode.TRANSFER_PREPARATION_UNVERIFIED: "Transfer preparation could not be verified. No device change occurred.",
     ReadinessReasonCode.REVIEW_REQUIRED: "Review transfer to confirm the current state before sending.",
     ReadinessReasonCode.VALIDATION_FAILED: "The content is not ready for transfer. Review the details and prepare again.",
 }
@@ -114,6 +116,7 @@ _REASON_ACTIONS: dict[ReadinessReasonCode, ReadinessAction] = {
     ReadinessReasonCode.UNSUPPORTED_LIVE_PROFILE: ReadinessAction.REVIEW,
     ReadinessReasonCode.UNSUPPORTED_SOURCE_FORMAT: ReadinessAction.PREPARE,
     ReadinessReasonCode.PREPARATION_FAILED: ReadinessAction.REPREPARE,
+    ReadinessReasonCode.TRANSFER_PREPARATION_UNVERIFIED: ReadinessAction.DIAGNOSE,
     ReadinessReasonCode.REVIEW_REQUIRED: ReadinessAction.REVIEW,
     ReadinessReasonCode.VALIDATION_FAILED: ReadinessAction.REVIEW,
 }
@@ -205,6 +208,14 @@ def _reason_code_for_text(text: str) -> ReadinessReasonCode:
     """Map legacy planner prose to stable product reason codes."""
 
     lowered = text.casefold()
+    if (
+        "bound artifact is unavailable" in lowered
+        or "bound artifact hash changed" in lowered
+        or "operation-owned staging" in lowered
+        or "operation bundle" in lowered and "could not be verified" in lowered
+        or "transfer preparation could not be verified" in lowered
+    ):
+        return ReadinessReasonCode.TRANSFER_PREPARATION_UNVERIFIED
     if "indeterminate" in lowered or "may have started" in lowered:
         return ReadinessReasonCode.PREVIOUS_OPERATION_INDETERMINATE
     if "installation-wide" in lowered and "lock" in lowered or "safety lock" in lowered:

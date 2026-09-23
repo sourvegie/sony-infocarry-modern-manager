@@ -1050,8 +1050,28 @@ class LibraryCatalog:
     def remove(self, item_id: str) -> bool:
         if item_id not in self._items:
             return False
-        removed = {item_id}
-        pending = [item_id]
+        return self.remove_many((item_id,))
+
+    def remove_many(self, item_ids: Iterable[str]) -> bool:
+        """Remove selected catalog entries and descendants, never source data."""
+
+        if isinstance(item_ids, (str, bytes)):
+            raise LibraryError("Library removal requires a sequence of item IDs")
+        try:
+            requested = tuple(item_ids)
+        except TypeError as exc:
+            raise LibraryError("Library removal requires a sequence of item IDs") from exc
+        if not requested:
+            return False
+        if any(not isinstance(item_id, str) or not item_id for item_id in requested):
+            raise LibraryError("Library removal contains an invalid item ID")
+        if len(set(requested)) != len(requested):
+            raise LibraryError("Library removal contains duplicate item IDs")
+        missing = [item_id for item_id in requested if item_id not in self._items]
+        if missing:
+            raise LibraryError(f"Library removal item was not found: {missing[0]}")
+        removed = set(requested)
+        pending = list(requested)
         while pending:
             parent = pending.pop()
             descendants = [
@@ -1059,16 +1079,21 @@ class LibraryCatalog:
             ]
             removed.update(descendants)
             pending.extend(descendants)
-        parent_id = self._items[item_id].parent_id
+        affected_parents = {
+            self._items[removed_id].parent_id
+            for removed_id in removed
+            if self._items[removed_id].parent_id not in removed
+        }
         updated = {
             key: value for key, value in self._items.items() if key not in removed
         }
-        siblings = sorted(
-            (item for item in updated.values() if item.parent_id == parent_id),
-            key=lambda item: item.sibling_order,
-        )
-        for order, sibling in enumerate(siblings):
-            updated[sibling.item_id] = replace(sibling, sibling_order=order)
+        for parent_id in affected_parents:
+            siblings = sorted(
+                (item for item in updated.values() if item.parent_id == parent_id),
+                key=lambda item: item.sibling_order,
+            )
+            for order, sibling in enumerate(siblings):
+                updated[sibling.item_id] = replace(sibling, sibling_order=order)
         self._commit_items(updated)
         return True
 
@@ -1077,6 +1102,34 @@ class LibraryCatalog:
 
     def move_down(self, item_id: str) -> LibraryItem:
         return self._move(item_id, 1)
+
+    def move_to(self, item_id: str, sibling_index: int) -> LibraryItem:
+        """Move one node to an explicit position among its existing siblings.
+
+        This is a catalog/planning-order change only.  Source files and folder
+        contents are never moved or rewritten.  The index is the final zero-
+        based position after removal of the selected node.
+        """
+
+        if isinstance(sibling_index, bool) or not isinstance(sibling_index, int):
+            raise LibraryError("Library sibling index must be an integer")
+        item = self.get(item_id)
+        siblings = list(self.children(item.parent_id))
+        source_index = next(
+            index for index, sibling in enumerate(siblings)
+            if sibling.item_id == item_id
+        )
+        if sibling_index < 0 or sibling_index >= len(siblings):
+            raise LibraryError("Library sibling index is outside the current sibling list")
+        if source_index == sibling_index:
+            return item
+        siblings.insert(sibling_index, siblings.pop(source_index))
+        updated = dict(self._items)
+        for order, sibling in enumerate(siblings):
+            if sibling.sibling_order != order:
+                updated[sibling.item_id] = replace(sibling, sibling_order=order)
+        self._commit_items(updated)
+        return self._items[item_id]
 
     def _move(self, item_id: str, delta: int) -> LibraryItem:
         if delta not in {-1, 1}:
@@ -1088,12 +1141,7 @@ class LibraryCatalog:
         if target < 0 or target >= len(siblings):
             direction = "up" if delta < 0 else "down"
             raise LibraryError(f"Library node cannot move {direction} beyond its siblings")
-        other = siblings[target]
-        updated = dict(self._items)
-        updated[item.item_id] = replace(item, sibling_order=other.sibling_order)
-        updated[other.item_id] = replace(other, sibling_order=item.sibling_order)
-        self._commit_items(updated)
-        return updated[item.item_id]
+        return self.move_to(item_id, target)
 
     def update_preparation(
         self,

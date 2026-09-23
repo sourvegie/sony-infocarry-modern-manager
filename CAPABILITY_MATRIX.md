@@ -10,12 +10,14 @@ or recovery behavior.
 | --- | --- | --- | --- | --- | --- | --- |
 | Initial conservative envelope: one new flat root folder with 1–8 ordered TXT/BMP children | Per-shape constrained evidence only; no envelope-wide native proof | Machine-enforced profile and host-only façade; exact package grouping, hashes, limits, conflict/capacity rules | None for the envelope as a whole | Preparation/review only; `defined_not_live_enabled` | Exact evidence and later R3 enablement for each operation shape; recovery remains unresolved | Continue selection/order/prepare/preview and offline Legacy Oracle work |
 | One host/offline hierarchy: one prepared root, 1–8 TXT/BMP leaves, depth/count/path/size limits below | Existing nested backup trees and format constraints support offline modeling; nested creation is not proven | Machine-enforced `host-offline-hierarchical-library-txt-bmp-v1`; deterministic ordered manifest and exact device-tree preview through the unified façade | None | Host prepare/preview only; `host_offline_draft_not_live_enabled` | No nested candidate, authorization, sender, completion proof, or recovery model | Continue offline validation and independent R2 review; do not enable live transfer |
+| Generic Local Library → Device Library logical plan (ordered TXT/BMP files and arbitrary nested folders) | Existing Library source references and read-only backup hierarchy; no new native-format inference | `LibraryDeviceTransferPlan` preserves selection/sibling order and subtree paths, validates source bytes and CP932 components, detects conflicts, and emits an independent expected path delta; scale fixture covers 61 folders/150 mixed leaves | None; no candidate or transaction is constructed | Host-only destination/conflict planning from a loaded backup; the normal `Transfer` action does not authorize or send | Candidate growth, metadata overhead, device auxiliary state and physical fit remain unknown unless separately evidenced; no hierarchy candidate model | Keep the logical model separate from capability and execution policy; no live generalization |
 | Existing root TXT replacement | Guarded existing-TXT Manager/USB captures and read-back records | Candidate, authorization, fresh backup, and independent read-back verifier | One constrained existing-TXT replacement is read-back verified | Existing guarded Device Manager write remains available behind the shared persistent application-wide claim/marker/lock boundary; offline preview remains available | Recovery after an indeterminate write; generalized replacement semantics | Keep the existing narrow flow and shared safety owner; diagnose indeterminate outcomes read-only |
 | One root-level TXT creation | Clean native add capture and one-folder package evidence | Exact one-record construction and no-retry guarded workflow | One constrained modern root TXT add/read-back smoke | Experimental/narrow only; not a general Library transfer | Arbitrary names, state, and package shapes | Separate operation-specific review and approval for the proven shape |
 | Constrained root-level TXT deletion | Native deletion-effect evidence | Narrow surviving-state/delete candidate and verifier | One constrained modern root TXT deletion/read-back smoke | Not exposed as a normal destructive action | Recovery, generalized delete, and overwrite semantics | Preserve read-only diagnosis; no general delete exposure |
+| Generalized selected-file/subtree deletion plan | Existing logical hierarchy only; generalized record/reference effects are unresolved | Host-only `DeviceLibraryDeletePlan` computes a deterministic closure and expected removals; rejects root/system, stale, overlapping and auxiliary-state-unsafe selections | None | Not exposed; Device Library Delete remains disabled for arbitrary selections | No candidate construction, auxiliary-reference policy, sender, or live verifier for generalized deletion | Keep offline planning only; do not connect it to hardware |
 | Ordered four-TXT package | P15-001 native ordered four-child capture | Exact ordered multi-child candidate and fake workflow | P15-003 exact four-TXT smoke/read-back | Not enabled by the P18 mixed-package product path | General child counts, profiles, and package combinations | Keep as historical constrained evidence |
-| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; P18-025 physically validated the exact reviewed VNW-V15 UI/adapter/canonical lifecycle for `IC_P18_LIBRARY_20260913_03`: one logical sender, one real `0x101b`, retries `0`, exact `0x0000`, complete post-backup, independent `readback_verified`, and preserved auxiliary/shared state | Reviewed narrow shape; normal readiness and the shared guarded path accept this exact reviewed VNW-V15 shape when fresh evidence and separate owner authorization are supplied; default UI state remains authorization-gated and no generalized live transfer is enabled | No blocker for this exact recorded proof; interrupted-write recovery, other shapes, broader targets, and VNW-V10 remain unavailable | Preserve the exact guarded path and require fresh operation-specific evidence and owner authorization for any future run; do not enable V10 or broader shapes |
-| Flat TXT → BMP → TXT → TXT Library package | P18-030 deterministic direct-content preparation; P18-032 physically validated the exact VNW-V15 shape and shared auxiliary-state policy in the preserved evidence namespace | `verified-vnw-v15-four-leaf-direct-v1`, exact ordered four-child profile, generic multi-package candidate/authorization/workflow/read-back seams, fresh-backup/capacity/conflict gates, and typed operation binding | P18-032 exact proof: one reviewed disposable VNW-V15 root, one logical sender, one real `0x101b`, retries `0`, explicit `0x0000`, complete post-write backup, independent `readback_verified`, exact four-leaf target, and preserved shared/unrelated state; physical counters for P18-033 remain zero | Physically verified narrow shape; normal readiness accepts the exact order and the generic guarded path remains available when fresh evidence and separate owner authorization are supplied; default UI/CLI action remains authorization-gated and no generalized live transfer is enabled | Interrupted-write recovery, broader targets, other shapes, destructive semantics, and VNW-V10 remain unavailable | Preserve the exact guarded path and require fresh operation-specific evidence and owner authorization for any future run; do not enable arbitrary four-leaf permutations or broader counts |
+| Flat TXT → BMP → TXT Library package | P16-001 native mixed Capture 01; P16-003B exact mixed smoke; P17-018 and P18-015 exact Library-package read-back | P17-002/P17-003 package contract, P17-017 output lifecycle, P17-019 wrapper reconciliation; P18-010/P18-014 host proofs bind exact fixed targets and established display-history/bookmark preservation | P17-018 returned explicit `0x0000` and verified its exact `_03` folder. P18-015 separately returned `0x0000`; P18-025 physically validated the exact reviewed VNW-V15 UI/adapter/canonical lifecycle for `IC_P18_LIBRARY_20260913_03`: one logical sender, one real `0x101b`, retries `0`, exact `0x0000`, complete post-backup, independent `readback_verified`, and preserved auxiliary/shared state | Narrow shape only; an ordinary root-level Local Library folder can reach the same guarded route through visible `Transfer →` after exact-profile admission and a fresh one-shot typed confirmation; startup remains inert and runtime configuration fails closed | Interrupted-write recovery, missing/mismatched external reviewed template, other shapes, broader targets, and VNW-V10 remain unavailable | Preserve the exact guarded path; any physical validation still requires fresh operation-specific owner approval and an approved procedure; do not enable V10 or broader shapes |
+| Flat TXT → BMP → TXT → TXT Library package | P18-030 deterministic direct-content preparation; P18-032 physically validated the exact VNW-V15 shape and shared auxiliary-state policy in the preserved evidence namespace | `verified-vnw-v15-four-leaf-direct-v1`, exact ordered four-child profile, generic multi-package candidate/authorization/workflow/read-back seams, fresh-backup/capacity/conflict gates, and typed operation binding | P18-032 exact proof: one reviewed disposable VNW-V15 root, one logical sender, one real `0x101b`, retries `0`, explicit `0x0000`, complete post-write backup, independent `readback_verified`, exact four-leaf target, and preserved shared/unrelated state; physical counters for P18-033 remain zero | Narrow shape only; an ordinary root-level Local Library folder can reach the same guarded route through visible `Transfer →` after exact-profile admission and a fresh one-shot typed confirmation; startup remains inert and runtime configuration fails closed | Interrupted-write recovery, missing/mismatched external reviewed template, broader targets, destructive semantics, and VNW-V10 remain unavailable | Preserve the exact guarded path; any physical validation still requires fresh operation-specific owner approval and an approved procedure; do not enable arbitrary four-leaf permutations or broader counts |
 | Other flat TXT/BMP combinations, nesting outside the host/offline profile, multiple packages, or batch | No sufficiently specific native evidence | Preparation may remain reviewable only where an exact profile accepts it | Not proven for transfer | Unavailable / preview-only with a precise reason | Missing exact evidence and safety model; no automatic grouping | Obtain a separately scoped evidence and review task |
 | Restore, synchronization, recovery, or alternate modes | Not established for this product boundary | No enabled candidate or execution path | Unproven | Unavailable | Physical recovery and broader state semantics | Read-only diagnosis and evidence work only |
 
@@ -25,12 +27,17 @@ Only a row with an exact reviewed shape and complete safety gates may be
 labeled **Experimental**. The P18 product integration covers only the exact
 flat TXT → BMP → TXT and TXT → BMP → TXT → TXT Library rows and keeps
 unsupported items preview-only.
+For those rows only, the ordinary Local Library folder UI may transiently map
+one exact folder to the existing prepared-package contract before invoking the
+same readiness and guarded execution path. This is UI reachability, not an
+additional operation shape or authorization.
 Library selection identifies the logical change; the protocol still sends a
-complete candidate library image. Every future operation requires a fresh
-complete backup, immediate revalidation, exact operation-specific confirmation,
-one logical transaction maximum, explicit integer `0x0000`, complete post-write
-backup, independent read-back, and no automatic retry. An indeterminate result
-directs the user to read-only diagnosis and preserved evidence.
+complete candidate library image. Every operation requires a fresh complete
+backup, immediate revalidation, exact one-shot in-app confirmation, one logical
+transaction maximum, explicit integer `0x0000`, complete post-write backup,
+independent read-back, and no automatic retry. Hardware validation remains a
+separate owner-authorized activity. An indeterminate result directs the user to
+read-only diagnosis and preserved evidence.
 
 This matrix records capability status; it is not an owner approval, a hardware
 preflight, or permission to transmit `0x101b`.
@@ -119,6 +126,15 @@ capacity evidence, total model limit, baseline model length, candidate growth,
 and remaining after transfer are **Not evaluated**. No nested candidate,
 authorization, sender, or write path exists.
 
+P18-037 adds a separate generic logical tree/transfer model that does not
+inherit this draft's 1–8-leaf, depth-2, 9-directory, or 17-node bounds. Its
+offline scale fixture contains 61 directories and 150 mixed TXT/BMP leaves.
+The model checks names, source freshness, ordering and conflicts, but does not
+serialize a candidate or imply that a larger tree fits on any device. Its
+normal UI `Transfer` action only produces this host-side plan. The generalized
+delete model is likewise a closure/expected-delta plan only; the product Delete
+control remains disabled for arbitrary selections.
+
 ## P18-016 normal product readiness exposure
 
 The normal ttk Library workflow now exposes a host-only reviewed-shape
@@ -126,23 +142,37 @@ readiness review for exactly one explicitly selected prepared root package with
 authoritative TXT → BMP → TXT or TXT → BMP → TXT → TXT direct children. It
 shows the destination, prepared sizes and hashes, verified-baseline conflict
 information, lower-bound capacity information when available, and the fresh
-evidence still required for any future operation. A visible `Transfer once`
-affordance remains disabled and has no normal-UI callback. This is a product
-explanation of the reviewed VNW-V15 profiles, not reusable authorization and
-not generalized live transfer capability; VNW-V10 remains uncharacterized.
+evidence still required for any future operation. The legacy Prepare/Review/
+Refresh Checks/Send controls remain outside the normal Library surface. The
+P18-037 primary Transfer action routes only an exact package through the
+existing guarded facade; this is not reusable authorization or generalized
+live transfer capability. VNW-V10 remains uncharacterized.
 
 ## P18-017 host execution integration
 
 The normal ttk path now delegates fresh live preflight and any future
 `Transfer once` interaction through
-`src/infocarry/library_transfer_execution.py`. The facade has no operation
-binding or runtime in the default desktop launch, so the ordinary UI remains
-disabled until a separately authorized exact fresh VNW-V15 operation is
-supplied and all canonical gates pass. When supplied, the facade delegates to
-the existing guarded coordinator and adapter; it does not implement native
-transfer semantics or a GUI-specific write path. P18-025 physically validated
-one exact fresh VNW-V15 operation for target
+`src/infocarry/library_transfer_execution.py`. Normal packaged entry points
+inject a lazy runtime provider, but startup creates no runtime or operation
+binding. An exact supported folder can request read-only preflight; only after
+fresh evidence and the final typed one-shot confirmation does the facade
+create a preflight-bound binding and delegate to the existing guarded
+coordinator and adapter. It does not implement native transfer semantics or a
+GUI-specific write path. P18-025 physically validated one exact fresh VNW-V15 operation for target
 `IC_P18_LIBRARY_20260913_03` and the TXT → BMP → TXT shape through that guarded
 path. This is evidence of the narrow reviewed profile, not reusable
 authorization; every future operation still requires its own fresh evidence
 and owner approval, and this matrix does not authorize it.
+
+The P18-037 primary **Transfer →** action admits one exact ordinary Local
+Library folder only after the generic plan and profile checks prove that its
+direct ordered children match the reviewed three- or four-leaf VNW-V15 shape.
+Both packaged entry points supply the same lazy production runtime provider;
+no runtime or operation binding is created at startup. After read-only device,
+capacity, and fresh complete-backup evidence is sealed, the final typed
+confirmation creates a one-shot evidence-bound operation binding and hands off
+to the existing canonical coordinator. Unsupported plans remain host-only;
+missing runtime configuration or reviewed template disables live transfer
+without disabling safe read-only UI. No second candidate builder, coordinator,
+authorization pipeline, persistent safety owner, sender, or live-success
+decision was added. This is UI reachability repair, not capability promotion.

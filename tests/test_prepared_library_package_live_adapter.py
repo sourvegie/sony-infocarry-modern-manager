@@ -1033,6 +1033,38 @@ class PreparedLibraryPackageLiveAdapterTests(unittest.TestCase):
                     "0x0000",
                 )
 
+    def test_success_persists_marker_resolution_after_preserving_in_flight_snapshot(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        result = self._execute(setup)
+        live_root = Path(result.audit["evidence_outputs"]["root"])
+        manifest = json.loads(
+            (live_root / "result-manifest-0001.json").read_text(encoding="utf-8")
+        )
+        terminal = json.loads(
+            (live_root / "sender-marker-resolution-0001.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertFalse(
+            manifest["result_audit"]["execution_claim"]["sender_marker"][
+                "resolved"
+            ]
+        )
+        self.assertEqual(
+            manifest["result_audit"]["execution_claim"]["sender_marker"]["state"],
+            "in_flight",
+        )
+        self.assertEqual(terminal["state"], "resolved")
+        self.assertEqual(terminal["resolution"], "verified_terminal_success")
+        self.assertEqual(terminal["terminal_state"], "readback_verified")
+        self.assertTrue(terminal["sender_marker"]["resolved"])
+        self.assertFalse(terminal["durable_observation"]["active_sender_marker_present"])
+        self.assertEqual(
+            terminal["preflight_seal_sha256"], result.preflight.seal_sha256
+        )
+        self.assertIsNone(setup["execution_claim_store"].read_sender_in_flight())
+
     def test_production_entrypoint_preflight_reaches_sender_boundary_without_send(self):
         setup = self._setup()
         self.addCleanup(setup["temporary"].cleanup)

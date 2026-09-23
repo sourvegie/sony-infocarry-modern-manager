@@ -104,17 +104,20 @@ text preview reads UTF-8 input, normalizes it to CRLF, validates strict CP932
 encoding and an optional caller-supplied limit, and writes only a JSON audit;
 it never includes candidate payload bytes or transmits anything.
 
-The local Library supports ordered hierarchical folders and TXT/BMP/EPUB
-sources. EPUB preparation is host-only: bounded EPUB 2/3 packages are
+The Local Library supports persistent ordered hierarchical folders and
+TXT/BMP/EPUB source references. The normal ttk window shows Local Library and
+Device Library side-by-side; Add Files/Add Folder, search, multi-selection,
+collapsible Details, drag reorder, and ▲/▼ reorder are available without a
+separate Arrange stage. Removing an item removes only its catalog reference;
+the original source is never deleted. EPUB preparation is host-only: bounded EPUB 2/3 packages are
 inspected without extraction, network access, or script execution, then
 text-centric chapters are normalized into deterministic TXT children and only
 the existing exact local 237×320 1-bit BMP profile is retained as an image
 child.
 Normal multi-file and recursive-folder chooser imports are non-destructive;
-Move up/Move down changes explicit sibling order, and Library removal never
-touches a device or source file. The approved Tk runtime has no external
-file-drop API, so drag-and-drop is unavailable without the optional TkDND
-dependency. The versioned per-user catalog is stored at
+the order is persisted and changing it never rewrites source files. Finder/
+Explorer file-drop import remains unavailable without optional TkDND. The
+versioned per-user catalog is stored at
 `${HOME}/Library/Application Support/SonyInfoCarryModernManager/library.json`
 on macOS. The catalog is outside this checkout and reverse-engineering
 evidence; its previous version is retained as `library.previous.json` after a
@@ -129,24 +132,41 @@ DRM/encryption, malformed package data, and bounded-resource violations fail
 closed; the source ZIP is bounded at 64 MiB, with 512 entries, 8 MiB per
 entry, 32 MiB total decompressed data, and a 1000:1 compression-ratio limit.
 The separate
-`host-offline-hierarchical-library-txt-bmp-v1` draft accepts one prepared root,
-1–8 leaves, directory depth at most 2, no empty directories, at most 9
-directories/17 logical nodes, 39 CP932 bytes per component, 259 CP932 bytes per
-relative path, and the existing 1 MiB leaf / 4 MiB source-total / 1 MiB
-prepared-total limits. Its deterministic manifest and device-tree preview are
-offline only. Unsupported types, encoding/BMP failures, duplicates, stale
-sources, and limit or capability mismatch fail closed. A supplied fresh
-verified device-path baseline makes destination conflicts visible in the
-preview; conflicts remain preview-only and do not authorize an operation.
-Capacity fields remain **Not evaluated** without fresh verified evidence. The unchanged flat
-V15 profile remains `defined_not_live_enabled`; no Library send control is
-exposed.
+`host-offline-hierarchical-library-txt-bmp-v1` preparation draft remains
+limited to one prepared root, 1–8 leaves, depth at most 2, at most 9
+directories/17 nodes, and its stated size/path constraints. P18-037's
+`LibraryDeviceTransferPlan` is a separate generic logical host model: it
+preserves selection and sibling order, nested folder structure, and a selected
+Device Library destination; validates source freshness and CP932 components;
+and rejects conflicts without overwrite or merge. Its generated offline
+fixture contains 61 directories and 150 mixed TXT/BMP leaves. Those figures
+are host/UI test scale, not device limits. The normal **Transfer** action
+first displays this generic logical plan. Only one explicitly imported and
+revalidated root package with an exact existing VNW-V15 three- or four-leaf
+shape can continue through the existing readiness, fresh-preflight, and typed
+one-shot-confirmation facade; the plan itself never authorizes a device
+operation. Packaged macOS and Windows entry points supply one shared lazy
+runtime provider, but launch creates neither a live runtime nor an operation
+binding and performs no device checks or transaction. After exact-profile
+admission and fresh read-only evidence, the final typed confirmation creates a
+one-shot binding tied to that preflight and enters the canonical guarded route.
+If the external reviewed template or persistent safety configuration is
+unavailable, live transfer fails closed while safe read-only Manager functions
+remain available. Unsupported structures remain host-only, with no candidate
+bytes, generalized live path, or new capability.
+Expected semantic path deltas are modeled independently of candidate
+construction. Capacity growth remains unknown when no candidate is built, and
+unresolved device auxiliary state is not treated as verified. P18-037 adds
+host-only generalized delete-closure planning; the normal Delete control
+remains disabled for arbitrary selections. Current live VNW-V15 shapes and
+guarded boundaries remain exactly as listed in
+[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
 
-The no-write desktop Device Manager uses Tkinter/ttk and provides connection
-status, verified read-only backup, a hierarchical folder/file browser,
-selected download/export, progress/cancellation, recovery guidance, and TXT
-and BMP previews. Sibling order follows the order encoded in the device's
-directory child tables rather than an alphabetical sort:
+The Tkinter/ttk desktop provides connection status, verified read-only backup,
+a hierarchical Device Library browser, selected download/export,
+progress/cancellation, recovery guidance, and TXT/BMP previews. Device sibling
+order follows the order encoded in the device's directory child tables rather
+than an alphabetical sort:
 
 ```sh
 .venv/bin/infocarry desktop

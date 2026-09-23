@@ -28,6 +28,7 @@ from infocarry.desktop_ttk import (
     _try_create_application_write_safety_owner,
     format_experimental_library_transfer_review,
     format_library_host_only_terminal_state,
+    format_library_operation_failure,
     format_library_preparation_summary,
     format_library_preview_summary,
     format_library_readiness_summary,
@@ -41,6 +42,7 @@ from infocarry.desktop_ttk import (
 )
 from infocarry.guarded_workflow import GuardedWorkflowError
 from infocarry.library_transfer_execution import LibraryTransferExecutionError
+from infocarry.library_folder_package_adapter import LibraryFolderPackageAdapterError
 from infocarry.library_transfer_readiness import ReadinessAction, ReadinessState
 from infocarry.offline_conversion import PageLayout, load_utf8_text_document
 from infocarry.execution_claim_store import ExecutionClaimStoreError
@@ -193,6 +195,41 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn("globally locked", message)
             self.assertIn("Do not remove or recreate the safety files", message)
 
+    def test_startup_safety_notice_is_read_only_for_an_abandoned_sender_marker(self):
+        with TemporaryDirectory(prefix="infocarry-ui-marker-") as temporary:
+            paths = application_paths(
+                home=Path(temporary), platform="darwin", os_name="posix", environ={}
+            )
+            owner = create_default_application_write_safety_owner(paths=paths)
+            claim = owner.consume_execution_claim(
+                {
+                    "preflight_seal_sha256": "a" * 64,
+                    "core_preflight_seal_sha256": "b" * 64,
+                    "candidate_blob_sha256": "c" * 64,
+                    "transaction_sha256": "d" * 64,
+                    "authorization_sha256": "e" * 64,
+                    "baseline_state_identity_sha256": "f" * 64,
+                    "capacity_response_sha256": "1" * 64,
+                }
+            )
+            owner.mark_sender_start(
+                claim,
+                attempt_id="attempt-ui-startup",
+                evidence_root="fixture-evidence",
+                operation_label="fixture-operation",
+            )
+            restarted = create_default_application_write_safety_owner(paths=paths)
+
+            detail = _application_safety_notice(restarted, None)
+
+            self.assertIn("unresolved sender-start marker", detail or "")
+            self.assertFalse(paths.indeterminate_write_lock.exists())
+            marker = restarted.execution_claim_store.read_sender_in_flight()
+            self.assertIsNotNone(marker)
+            self.assertEqual(marker.state, "in_flight")
+            source = inspect.getsource(launch_ttk_desktop)
+            self.assertIn("initial_safety_detail = _application_safety_notice(", source)
+
     def test_device_home_startup_does_not_claim_disconnected_before_inspection(self):
         heading, message = _initial_device_home_status()
 
@@ -243,15 +280,21 @@ class DesktopTtkMessageTests(unittest.TestCase):
             format_early_transfer_eligibility_summary(artifact(("txt", "txt"))),
         )
 
-    def test_device_home_is_first_tab_and_uses_shared_read_only_inspection(self):
+    def test_local_and_device_libraries_share_the_primary_workspace(self):
         source = inspect.getsource(launch_ttk_desktop)
-        self.assertLess(source.index('notebook.add(device_tab, text="Device")'), source.index('notebook.add(library_tab, text="Content")'))
-        self.assertIn('text="Back Up Now"', source)
+        self.assertIn('workspace = ttk.Panedwindow(root, orient="horizontal")', source)
+        self.assertIn("workspace.add(library_tab, weight=1)", source)
+        self.assertIn("workspace.add(device_tab, weight=1)", source)
+        self.assertNotIn("notebook.add(", source)
+        self.assertIn('text="LOCAL LIBRARY"', source)
+        self.assertIn('text="DEVICE LIBRARY"', source)
+        self.assertIn('text="Back Up"', source)
         self.assertIn('text="Technical Details…"', source)
         self.assertIn("device_home_service.inspect()", source)
         self.assertIn("remember_complete_backup(application_data_paths, destination)", source)
         self.assertIn("device_home_frame.bind(\"<Configure>\"", source)
         self.assertIn("Backup ≠ Restore: backups are read-only snapshots; Restore is unavailable.", source)
+        self.assertIn('text="Delete", state="disabled"', source)
 
     def test_normal_library_formatters_hide_technical_identities(self):
         state = ReadinessState(
@@ -408,7 +451,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertEqual(_library_package_shape(package), "TXT/BMP/TXT")
 
     def test_library_review_geometry_is_explicit_and_usable(self):
-        self.assertEqual(LIBRARY_MINIMUM_GEOMETRY, (980, 680))
+        self.assertEqual(LIBRARY_MINIMUM_GEOMETRY, (1080, 680))
         self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[0], LIBRARY_MINIMUM_GEOMETRY[0])
         self.assertGreaterEqual(LIBRARY_DEFAULT_GEOMETRY[1], LIBRARY_MINIMUM_GEOMETRY[1])
         self.assertGreaterEqual(LIBRARY_LIST_MIN_WIDTH, 320)
@@ -419,18 +462,81 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertNotIn("minsize=", source)
         for control in (
             "library_tree_horizontal_scroll",
+            "tree_horizontal_scroll",
             "library_report_horizontal_scroll",
-            "library_safety_notice",
             "library_status_label",
-            "library_experimental_group",
             "keep_library_sash_in_bounds",
             "sashpos",
-            "library_folder_import_button",
-            "library_move_up_button",
-            "library_move_down_button",
-            "library_preview_button",
+            "library_add_menu",
+            "library_search_entry",
+            "library_remove_selection_button",
+            "library_reorder_up_button",
+            "library_reorder_down_button",
+            "library_transfer_button",
+            "library_toolbar.pack_forget()",
         ):
             self.assertIn(control, source)
+
+    def test_local_add_controls_are_decoupled_from_device_and_transfer_state(self):
+        source = inspect.getsource(launch_ttk_desktop)
+
+        def body(name: str, next_name: str) -> str:
+            start = source.index(f"    def {name}(")
+            end = source.index(f"\n    def {next_name}(", start + 1)
+            return source[start:end]
+
+        add_state = body(
+            "set_library_add_controls_available", "restore_device_manager_controls"
+        )
+        for control in (
+            "library_add_button",
+            "library_add_menu.entryconfigure",
+            "library_import_button",
+            "library_folder_import_button",
+        ):
+            self.assertIn(control, add_state)
+        for forbidden_state in (
+            "library_execution_facade",
+            "operation_binding",
+            "capacity",
+            "replacement_safety_owner",
+            "indeterminate_write_lock",
+            "sender",
+            "usb",
+        ):
+            self.assertNotIn(forbidden_state, add_state.casefold())
+
+        device_busy = body("set_busy", "selected_device_destination_path")
+        for control in (
+            "library_add_button",
+            "library_import_button",
+            "library_folder_import_button",
+            "library_package_import_button",
+        ):
+            self.assertNotIn(control, device_busy)
+
+        library_busy = body("set_library_operation_busy", "library_cancel_action")
+        for control in (
+            "library_add_button",
+            "library_import_button",
+            "library_folder_import_button",
+            "library_package_import_button",
+        ):
+            self.assertNotIn(control, library_busy)
+
+        selection_state = body("show_library_selection", "library_import_can_start")
+        for control in (
+            "library_add_button",
+            "library_add_menu",
+            "library_import_button",
+            "library_folder_import_button",
+            "library_package_import_button",
+        ):
+            self.assertNotIn(control, selection_state)
+
+        import_action = body("library_import_can_start", "library_import_action")
+        self.assertIn("library_operation_controller.busy", import_action)
+        self.assertNotIn("library_execution_facade", import_action)
 
     def test_library_layout_wires_hierarchy_chooser_order_and_host_preview(self):
         source = inspect.getsource(launch_ttk_desktop)
@@ -440,15 +546,78 @@ class DesktopTtkMessageTests(unittest.TestCase):
             "library_workflow.import_files",
             "library_workflow.import_folder",
             "library_catalog.children(parent_id)",
-            "library_workflow.move_up",
-            "library_workflow.move_down",
-            "library_workflow.remove",
+            "library_catalog.move_to",
+            "library_catalog.remove_many",
             "library_workflow.prepare_preview",
             "format_library_device_tree_preview",
-            "unavailable without TkDND",
+            'library_tree.bind("<B1-Motion>"',
         ):
             self.assertIn(contract, source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
+
+    def test_visible_add_folder_transfer_path_uses_transient_exact_adapter(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        action_start = source.index("    def library_transfer_action()")
+        action_end = source.index("    def library_transfer_once_action()", action_start)
+        action = source[action_start:action_end]
+        self.assertIn("library_folder_import_action", source)
+        self.assertIn("library_folder_import_button.configure(command=library_folder_import_action)", source)
+        self.assertIn('label="Add Folder…", command=lambda: library_folder_import_action()', source)
+        self.assertIn("prepare_exact_folder_package(", action)
+        self.assertIn("selected[0].node_kind == NODE_FOLDER", action)
+        self.assertIn("catalog_override=catalog_override", action)
+        self.assertIn("artifact_override=artifact_override", action)
+        self.assertIn("transfer_stage=folder_stage", action)
+        self.assertIn("library_single_transfer_review_action(", action)
+        self.assertIn("library_toolbar.pack_forget()", source)
+        self.assertNotIn("library_prepare_action()", action)
+        self.assertNotIn("library_package_import_action()", action)
+        self.assertNotIn("execute_once(", action)
+        self.assertNotIn("refresh_live_preflight(", action)
+
+    def test_primary_transfer_routes_only_exact_packages_through_existing_guards(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        action_start = source.index("    def library_transfer_action()")
+        action_end = source.index("    def library_transfer_once_action()", action_start)
+        action = source[action_start:action_end]
+        self.assertIn("build_library_device_transfer_plan(", action)
+        self.assertIn("_exact_live_package_artifact(", action)
+        self.assertIn("library_single_transfer_review_action(", action)
+        self.assertIn("continue_to_preflight=True", action)
+        self.assertIn("has not yet been enabled for device transfer", action)
+        self.assertIn("this plan does not authorize a device operation", action)
+        self.assertIn("library_toolbar.pack_forget()", source)
+        self.assertNotIn("execute_once(", action)
+        self.assertNotIn("refresh_live_preflight(", action)
+        self.assertNotIn("build_candidate", action)
+        self.assertNotIn("sender", action.lower())
+        self.assertNotIn("experimental-flat-root-folder-txt-bmp-v1", action)
+        self.assertNotIn("verified-vnw-v15-four-leaf-direct-v1", action)
+
+    def test_opening_and_selecting_library_content_never_starts_live_services(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        selection_start = source.index("    def show_library_selection(")
+        selection_end = source.index("\n    def ", selection_start + 6)
+        selection = source[selection_start:selection_end]
+        for operation in (
+            "review_readiness(",
+            "refresh_live_preflight(",
+            "execute_once(",
+        ):
+            self.assertNotIn(operation, selection)
+        self.assertIn('library_tree.bind("<<TreeviewSelect>>", show_library_selection)', source)
+        self.assertIn("library_transfer_button.configure(command=library_transfer_action)", source)
+
+    def test_local_remove_only_updates_the_catalog(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        action_start = source.index("    def library_remove_action()")
+        action_end = source.index("    def library_move_action(", action_start)
+        action = source[action_start:action_end]
+        self.assertIn("library_catalog.remove_many(", action)
+        self.assertIn("original source files will not be ", action)
+        self.assertIn("moved or deleted.", action)
+        self.assertNotIn(".unlink(", action)
+        self.assertNotIn("shutil.rmtree(", action)
 
     def test_existing_replacement_confirmation_keeps_simpledialog_imported(self):
         source = inspect.getsource(launch_ttk_desktop)
@@ -724,6 +893,22 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("do not retry", message)
         self.assertIn("read-only diagnosis", message)
         self.assertIn("independent_readback", message)
+
+    def test_folder_transfer_cp932_rejection_is_visible_in_normal_error_report(self):
+        message = format_library_operation_failure(
+            LibraryFolderPackageAdapterError(
+                "This folder contains text that needs CP932 character substitutions. "
+                "The Manager will not silently alter it for transfer; use source text "
+                "that needs no substitutions. No device checks or changes occurred."
+            )
+        )
+
+        self.assertIn("TRANSFER PREPARATION STOPPED", message)
+        self.assertIn("text needs review", message)
+        self.assertIn("source was not changed", message)
+        self.assertIn("needs no CP932 substitutions", message)
+        self.assertIn("No device checks or changes occurred", message)
+        self.assertNotIn("Review the details and prepare again", message)
 
     def test_conversion_and_renderer_summaries_are_explicitly_offline(self):
         import tempfile
