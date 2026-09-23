@@ -6,9 +6,9 @@ Date: 2026-09-24
 
 PR #65 was merged into `main` with the standard merge-commit method after
 verification of the exact approved PR head
-`87bc260e3a669bb61e8a31967068ec58dc36bee1`. The merge commit and canonical
-`main` head are both
-`9449b19600476f86f67ff2cb33179aaacab30a65`. The final offline macOS and
+`87bc260e3a669bb61e8a31967068ec58dc36bee1`. The merge commit is
+`9449b19600476f86f67ff2cb33179aaacab30a65`; `main` now includes that merge
+and this documentation-only closure. The final offline macOS and
 Windows checks and macOS/Windows package checks were green; the repository
 has no configured required-review gate and no submitted review records for
 this PR. This closure is documentation-only: no physical device operation
