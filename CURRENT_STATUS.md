@@ -1,6 +1,20 @@
 # Current Project Status
 
-Date: 2026-09-22
+Date: 2026-09-24
+
+## P18-037 post-merge closure
+
+PR #65 was merged into `main` with the standard merge-commit method after
+verification of the exact approved PR head
+`87bc260e3a669bb61e8a31967068ec58dc36bee1`. The merge commit and canonical
+`main` head are both
+`9449b19600476f86f67ff2cb33179aaacab30a65`. The final offline macOS and
+Windows checks and macOS/Windows package checks were green; the repository
+has no configured required-review gate and no submitted review records for
+this PR. This closure is documentation-only: no physical device operation
+was performed, and historical validation evidence and prior dated status
+snapshots remain unchanged. References below to PR #65 being open or
+unmerged describe the state at the dates of those snapshots.
 
 ## P18-037 — Local Library ↔ Device Library Manager foundation
 
