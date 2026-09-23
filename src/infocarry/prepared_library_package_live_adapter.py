@@ -17,9 +17,10 @@ not a product transfer API and not a claim of physical compatibility.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import time
 from types import MappingProxyType
@@ -112,6 +113,9 @@ P17_009_CONFIRMATION_POLICY = PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICI
 P17_005_RUNNER_FORMAT = "infocarry-p17-005-library-package-live-adapter-v1"
 P17_005_EVIDENCE_MANIFEST_FORMAT = (
     "infocarry-p17-005-library-package-evidence-manifest-v1"
+)
+P17_005_SENDER_MARKER_RESOLUTION_FORMAT = (
+    "infocarry-p17-005-sender-marker-terminal-resolution-v1"
 )
 # This is the exact top-level shape emitted by the P17-012 sealed-preflight
 # producer.  Keep it strict: in particular, the prospective transaction hash
@@ -561,6 +565,136 @@ def _execution_claim_audit(
     result = claim.to_dict()
     result["sender_marker"] = marker
     return result
+
+
+def write_sender_marker_terminal_resolution_evidence(
+    destination: Path,
+    *,
+    preflight: "PreparedLibraryPackageLivePreflight",
+    claim: ExecutionClaimRecord,
+    sender_marker: SenderInFlightRecord,
+    execution_claim_store: PersistentExecutionClaimStore,
+    result_manifest: Path,
+    resolution: str,
+    now: Optional[datetime] = None,
+) -> Path:
+    """Persist operation-bound marker resolution after the store resolves it.
+
+    The result manifest intentionally preserves the sender-start snapshot that
+    existed while the sender was in flight. This separate record is written
+    only after the live marker handle has been resolved and the active marker
+    row is confirmed absent. It contains hashes and lifecycle identifiers,
+    not candidate, transaction, or raw device bytes.
+    """
+
+    if resolution != "verified_terminal_success":
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker terminal evidence requires verified terminal success",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    if not isinstance(claim, ExecutionClaimRecord):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker terminal evidence requires a committed execution claim",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    if not isinstance(sender_marker, SenderInFlightRecord):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker terminal evidence requires the pre-resolution marker record",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    if sender_marker.state != "in_flight" or sender_marker.claim_id != claim.claim_id:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker terminal evidence is not bound to the active claim",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    expected = _execution_claim_bindings(preflight)
+    if any(getattr(claim, key) != value for key, value in expected.items()):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker terminal evidence claim differs from the sealed operation",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    if any(getattr(sender_marker, key) != value for key, value in expected.items()):
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker terminal evidence marker differs from the sealed operation",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    try:
+        active_marker = execution_claim_store.read_sender_in_flight()
+    except Exception as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"could not verify resolved sender marker state: {exc}",
+            stage="terminal_evidence",
+            state="failed",
+        ) from exc
+    if active_marker is not None:
+        raise PreparedLibraryPackageLiveAdapterError(
+            "sender marker remains active after terminal resolution",
+            stage="terminal_evidence",
+            state="failed",
+        )
+
+    path = Path(destination).expanduser().resolve()
+    manifest_path = Path(result_manifest).expanduser().resolve()
+    if path.exists():
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"refusing to replace existing sender marker terminal evidence: {path}",
+            stage="terminal_evidence",
+            state="failed",
+        )
+    resolved_at = (now or datetime.now(timezone.utc)).isoformat()
+    marker_audit = sender_marker.to_dict()
+    marker_audit.update({"committed": True, "state": "resolved", "resolved": True})
+    payload = {
+        "format": P17_005_SENDER_MARKER_RESOLUTION_FORMAT,
+        "version": 1,
+        "state": "resolved",
+        "resolution": resolution,
+        "resolved_at_utc": resolved_at,
+        "terminal_state": "readback_verified",
+        "preflight_seal_sha256": preflight.seal_sha256,
+        "result_manifest": str(manifest_path),
+        "execution_claim": claim.to_dict(),
+        "sender_marker": marker_audit,
+        "durable_observation": {
+            "active_sender_marker_present": False,
+            "active_sender_marker_count": 0,
+        },
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            directory_fd = os.open(path.parent, os.O_RDONLY)
+        except OSError:
+            directory_fd = None
+        if directory_fd is not None:
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+    except FileExistsError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"refusing to replace existing sender marker terminal evidence: {path}",
+            stage="terminal_evidence",
+            state="failed",
+        ) from exc
+    except OSError as exc:
+        raise PreparedLibraryPackageLiveAdapterError(
+            f"could not write sender marker terminal evidence: {exc}",
+            stage="terminal_evidence",
+            state="failed",
+        ) from exc
+    return path
 
 
 def _candidate_comparison_view(
@@ -2921,6 +3055,16 @@ def execute_prepared_library_package_live(
             sender_marker_resolved=True,
         )
         audit["execution_claim"] = claim_audit
+        write_sender_marker_terminal_resolution_evidence(
+            evidence_outputs.root / "sender-marker-resolution-0001.json",
+            preflight=preflight,
+            claim=claim_record,
+            sender_marker=sender_marker.record,
+            execution_claim_store=execution_claim_store,
+            result_manifest=evidence_outputs.manifest,
+            resolution="verified_terminal_success",
+            now=None,
+        )
     except Exception as exc:
         raise _failure(
             f"P17-005 post-operation backup/read-back failed: {exc}",
@@ -3150,6 +3294,7 @@ __all__ = [
     "P17_005_OWNER_APPROVAL",
     "P17_005_PROFILE",
     "P17_005_RUNNER_FORMAT",
+    "P17_005_SENDER_MARKER_RESOLUTION_FORMAT",
     "P17_005_SUCCESS_SEQUENCE",
     "P17_005_TARGET_FOLDER",
     "P17_009_CONFIRMATION",
@@ -3169,4 +3314,5 @@ __all__ = [
     "prepare_prepared_library_package_live_preflight",
     "reconcile_prepared_library_package_live_result",
     "write_prepared_library_package_evidence_manifest",
+    "write_sender_marker_terminal_resolution_evidence",
 ]
