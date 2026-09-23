@@ -4048,6 +4048,7 @@ def launch_ttk_desktop(
                 cancelled=cancelled.is_set,
                 progress=lambda label, _completed, _total: progress_callback(label),
                 store=False,
+                operation_stage=transfer_stage,
             )
             progress_callback("Device readiness checked")
             return prepared

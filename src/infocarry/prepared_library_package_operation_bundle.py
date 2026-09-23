@@ -231,6 +231,7 @@ class PreparedLibraryPackageOperationBundle:
     expected_post_operation: Mapping[str, Any]
     format: str = OPERATION_BUNDLE_FORMAT
     operation_id: Optional[str] = None
+    operation_owned_staging: Optional[OperationArtifact] = None
 
     def __post_init__(self) -> None:
         if self.format != OPERATION_BUNDLE_FORMAT:
@@ -247,6 +248,15 @@ class PreparedLibraryPackageOperationBundle:
         ):
             if not isinstance(artifact, OperationArtifact):
                 raise OperationBundleError(f"{label} is not an artifact binding")
+        if self.operation_owned_staging is not None:
+            if not isinstance(self.operation_owned_staging, OperationArtifact):
+                raise OperationBundleError(
+                    "operation_owned_staging is not an artifact binding"
+                )
+            if self.operation_owned_staging.basis != "file_bytes":
+                raise OperationBundleError(
+                    "operation_owned_staging must bind metadata file bytes"
+                )
         if self.baseline_backup.basis != "backup_manifest_bytes":
             raise OperationBundleError("baseline_backup must bind manifest bytes")
         if not isinstance(self.selected_item_id, str) or not self.selected_item_id:
@@ -328,6 +338,7 @@ class PreparedLibraryPackageOperationBundle:
         template_path: Path,
         capacity_response_path: Path,
         operation_id: Optional[str] = None,
+        operation_owned_staging_path: Optional[Path] = None,
     ) -> "PreparedLibraryPackageOperationBundle":
         """Create a bundle from one sealed report and its exact artifacts.
 
@@ -407,6 +418,11 @@ class PreparedLibraryPackageOperationBundle:
             package_children=tuple(dict(child) for child in children),
             expected_post_operation=dict(expected_post),
             operation_id=operation_id,
+            operation_owned_staging=(
+                OperationArtifact.file(operation_owned_staging_path)
+                if operation_owned_staging_path is not None
+                else None
+            ),
         )
 
     def to_dict(self, *, include_bundle_hash: bool = True) -> dict[str, Any]:
@@ -453,6 +469,10 @@ class PreparedLibraryPackageOperationBundle:
                 "accepted_completion": "0x0000",
             },
         }
+        if self.operation_owned_staging is not None:
+            value["artifacts"]["operation_owned_staging"] = (
+                self.operation_owned_staging.to_dict()
+            )
         if self.operation_id is not None:
             value["operation_id"] = self.operation_id
         if include_bundle_hash:
@@ -485,6 +505,101 @@ class PreparedLibraryPackageOperationBundle:
             self.package_manifest,
         ):
             artifact.verify()
+        if self.operation_owned_staging is not None:
+            self.operation_owned_staging.verify()
+            self._verify_operation_owned_staging()
+
+    def _verify_operation_owned_staging(self) -> None:
+        """Verify the stable package is bound to this exact sealed operation."""
+
+        metadata_path = Path(self.operation_owned_staging.path)
+        metadata = _strict_object(metadata_path)
+        required = {
+            "format",
+            "operation_id",
+            "preflight_seal_sha256",
+            "package_root",
+            "package_manifest_path",
+            "package_manifest_file_sha256",
+            "prepared_manifest_sha256",
+            "prepared_artifact_identity",
+        }
+        if set(metadata) != required:
+            raise OperationBundleError(
+                "operation-owned staging metadata schema differs"
+            )
+        if metadata["format"] != "infocarry-p18-037-operation-owned-package-v1":
+            raise OperationBundleError("operation-owned staging format is unsupported")
+        if self.operation_id is None or metadata["operation_id"] != self.operation_id:
+            raise OperationBundleError(
+                "operation-owned staging operation identity does not match the bundle"
+            )
+        if metadata["preflight_seal_sha256"] != self.preflight_seal_sha256:
+            raise OperationBundleError(
+                "operation-owned staging preflight seal does not match the bundle"
+            )
+
+        package_root = Path(_absolute_path(metadata["package_root"], "package root"))
+        package_manifest_path = Path(
+            _absolute_path(metadata["package_manifest_path"], "package manifest")
+        )
+        if (
+            _digest(
+                metadata["package_manifest_file_sha256"],
+                "package manifest file hash",
+            )
+            != self.package_manifest.sha256
+        ):
+            raise OperationBundleError(
+                "operation-owned staging package manifest hash does not match the bundle"
+            )
+        prepared_manifest_sha256 = _digest(
+            metadata["prepared_manifest_sha256"], "prepared manifest hash"
+        )
+        if (
+            not isinstance(metadata["prepared_artifact_identity"], str)
+            or not metadata["prepared_artifact_identity"]
+        ):
+            raise OperationBundleError(
+                "operation-owned staging prepared artifact identity is invalid"
+            )
+        sealed_report = _strict_object(Path(self.sealed_report.path))
+        try:
+            sealed_binding = sealed_report["candidate"]["library_binding"]
+        except (KeyError, TypeError) as exc:
+            raise OperationBundleError(
+                "sealed report lacks operation-owned package binding"
+            ) from exc
+        if (
+            not isinstance(sealed_binding, Mapping)
+            or sealed_binding.get("manifest_sha256") != prepared_manifest_sha256
+            or sealed_binding.get("prepared_content_identity")
+            != metadata["prepared_artifact_identity"]
+        ):
+            raise OperationBundleError(
+                "operation-owned staging identity differs from the sealed report"
+            )
+        if (
+            metadata_path.is_symlink()
+            or package_root.is_symlink()
+            or package_manifest_path.is_symlink()
+        ):
+            raise OperationBundleError(
+                "operation-owned staging must not contain symbolic links"
+            )
+        if (
+            package_root.name != "prepared-package"
+            or package_root != metadata_path.parent
+            or package_manifest_path != package_root / "manifest.json"
+            or metadata_path != package_root / "operation-binding.json"
+            or package_root.parent != Path(self.sealed_report.path).parent
+            or Path(self.catalog.path).parent != package_root.parent
+            or Path(self.catalog.path).name != "library-catalog.json"
+            or Path(self.package_manifest.path) != package_manifest_path
+        ):
+            raise OperationBundleError(
+                "operation-owned staging paths are not bound to the sealed operation"
+            )
 
 
 def _artifact_from_dict(value: Any, label: str) -> OperationArtifact:
@@ -552,14 +667,18 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
     if _sha256(_canonical_json(unsigned)) != expected_hash:
         raise OperationBundleError("operation bundle self-hash does not match contents")
     artifacts = value["artifacts"]
-    if not isinstance(artifacts, Mapping) or set(artifacts) != {
+    allowed_artifacts = {
         "sealed_report",
         "baseline_backup",
         "catalog",
         "template",
         "capacity_response",
         "package_manifest",
-    }:
+    }
+    if not isinstance(artifacts, Mapping) or set(artifacts) not in (
+        allowed_artifacts,
+        allowed_artifacts | {"operation_owned_staging"},
+    ):
         raise OperationBundleError("operation bundle artifact schema differs")
     output_policy = value["evidence_output_policy"]
     if output_policy != EVIDENCE_OUTPUT_POLICY:
@@ -607,6 +726,14 @@ def load_operation_bundle(path: Path, *, verify_artifacts: bool = True) -> Prepa
             expected_post_operation=value["expected_post_operation"],
             format=value["format"],
             operation_id=value.get("operation_id"),
+            operation_owned_staging=(
+                _artifact_from_dict(
+                    artifacts["operation_owned_staging"],
+                    "operation_owned_staging",
+                )
+                if "operation_owned_staging" in artifacts
+                else None
+            ),
         )
     except (TypeError, ValueError) as exc:
         if isinstance(exc, OperationBundleError):

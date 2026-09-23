@@ -18,6 +18,7 @@ from infocarry.library_device_transfer import (
     build_library_device_transfer_plan,
 )
 from infocarry.library_folder_package_adapter import prepare_exact_folder_package
+from infocarry.prepared_media_package import load_prepared_media_package
 from infocarry.transfer_shape import EXACT_VERIFIED_LIVE_PROFILE, assess_transfer_shape
 
 
@@ -167,6 +168,61 @@ class LibraryFolderPackageAdapterTests(unittest.TestCase):
         self.assertEqual(
             tuple(child.source_sha256 for child in stage.artifact.children),
             tuple(node.source_payload_sha256 for node in plan.nodes[1:]),
+        )
+
+    def test_operation_owned_package_survives_transient_cleanup(self):
+        folder = self._import_folder(("txt", "bmp", "txt"))
+        plan = self._plan(folder)
+        original_catalog = self.catalog_path.read_bytes()
+        original_source = {
+            child.source_path: Path(child.source_path).read_bytes()
+            for child in self.catalog.children(folder.item_id)
+        }
+        stage = prepare_exact_folder_package(
+            self.catalog, folder, plan, staging_parent=self.staging
+        )
+        self.assertIsNotNone(stage)
+        operation_root = self.root / "manager" / "Evidence" / "operation-001"
+        stage.materialize_operation_artifact(operation_root)
+        stable_root = stage.operation_owned_root
+        self.assertIsNotNone(stable_root)
+        stage.bind_operation_identity(
+            operation_id="operation-001",
+            preflight_seal_sha256="a" * 64,
+        )
+        stage.cleanup()
+
+        self.assertTrue((stable_root / "manifest.json").is_file())
+        imported = load_prepared_media_package(stable_root)
+        self.assertEqual(imported.package.folder_name, folder.source_filename)
+        self.assertEqual(self.catalog_path.read_bytes(), original_catalog)
+        self.assertEqual(self.catalog.get(folder.item_id).node_kind, "folder")
+        for source_path, payload in original_source.items():
+            self.assertEqual(Path(source_path).read_bytes(), payload)
+
+    def test_four_leaf_operation_owned_package_survives_transient_cleanup(self):
+        folder = self._import_folder(("txt", "bmp", "txt", "txt"))
+        plan = self._plan(folder)
+        stage = prepare_exact_folder_package(
+            self.catalog, folder, plan, staging_parent=self.staging
+        )
+        self.assertIsNotNone(stage)
+        operation_root = self.root / "manager" / "Evidence" / "four-leaf-operation"
+        stage.materialize_operation_artifact(operation_root)
+        stage.bind_operation_identity(
+            operation_id="four-leaf-operation",
+            preflight_seal_sha256="b" * 64,
+        )
+        stable_root = stage.operation_owned_root
+        stage.cleanup()
+        imported = load_prepared_media_package(stable_root)
+        self.assertEqual(
+            tuple(item.kind for item in imported.package.items),
+            ("txt", "bmp", "txt", "txt"),
+        )
+        self.assertEqual(
+            tuple(item.name for item in imported.package.items),
+            FOUR_LEAF_CHILD_NAMES,
         )
 
     def test_unsupported_direct_shapes_and_nested_selection_remain_host_only(self):

@@ -11,7 +11,9 @@ from copy import copy
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import hashlib
+import json
 from pathlib import Path
+import shutil
 import tempfile
 from typing import Optional
 
@@ -48,6 +50,9 @@ class LibraryFolderPackageAdapterError(ValueError):
     """An otherwise exact folder changed while its transient package was built."""
 
 
+OPERATION_STAGING_BINDING_FORMAT = "infocarry-p18-037-operation-owned-package-v1"
+
+
 @dataclass
 class LibraryFolderPackageStage:
     """An operation-scoped package view; never saved to the user catalog."""
@@ -58,6 +63,8 @@ class LibraryFolderPackageStage:
     source_folder: Path
     source_bindings: tuple[tuple[Path, str, int], ...]
     _temporary_directory: tempfile.TemporaryDirectory
+    operation_owned_root: Optional[Path] = None
+    operation_binding_path: Optional[Path] = None
 
     def verify_source_bindings(self) -> None:
         """Reject original-source drift before entering live preflight."""
@@ -96,7 +103,200 @@ class LibraryFolderPackageStage:
                 )
 
     def cleanup(self) -> None:
+        """Remove only the pre-seal workspace.
+
+        Once ``materialize_operation_artifact`` has run, the operation-owned
+        copy is deliberately outside this temporary directory.  It is
+        evidence required by the sealed operation and is retained for the
+        operation's full lifecycle; cleanup must never remove it.
+        """
+
         self._temporary_directory.cleanup()
+
+    def materialize_operation_artifact(self, operation_root: Path) -> LibraryCatalog:
+        """Copy the exact package into the operation-owned evidence area.
+
+        The returned catalog is an in-memory overlay only.  The persistent
+        Local Library item remains an ordinary folder and the original source
+        files remain untouched.  The copy is loaded again after copying so the
+        manifest, source copies, prepared payloads, hashes, and canonical
+        semantic artifact identity are all checked before live preflight sees
+        it.
+        """
+
+        if self.operation_owned_root is not None:
+            if self.operation_owned_root.parent != Path(operation_root).expanduser().resolve():
+                raise LibraryFolderPackageAdapterError(
+                    "the operation-owned package was already bound to another operation"
+                )
+            return self.catalog
+
+        operation_parent = Path(operation_root).expanduser().resolve()
+        if operation_parent.is_symlink():
+            raise LibraryFolderPackageAdapterError(
+                "operation-owned evidence directory must not be a symbolic link"
+            )
+        operation_parent.mkdir(parents=True, exist_ok=True)
+        package_root = operation_parent / "prepared-package"
+        if package_root.exists() or package_root.is_symlink():
+            raise LibraryFolderPackageAdapterError(
+                f"refusing to reuse operation-owned prepared package: {package_root}"
+            )
+
+        source_path = Path(self.item.source_path).expanduser()
+        if source_path.is_symlink() or not source_path.is_dir():
+            raise LibraryFolderPackageAdapterError(
+                "the transient prepared package is unavailable before sealing"
+            )
+        source_root = source_path.resolve()
+        try:
+            shutil.copytree(source_root, package_root, symlinks=False)
+            imported = load_prepared_media_package(package_root)
+            stable_artifact = imported.package.to_prepared_content_artifact()
+            manifest_size = imported.manifest_path.stat().st_size
+        except (OSError, PreparedMediaPackageError, ValueError) as exc:
+            shutil.rmtree(package_root, ignore_errors=True)
+            raise LibraryFolderPackageAdapterError(
+                f"the operation-owned prepared package could not be verified: {exc}"
+            ) from exc
+
+        if (
+            imported.manifest_sha256 != self.item.prepared_manifest_sha256
+            or stable_artifact.artifact_identity != self.artifact.artifact_identity
+            or imported.package.folder_name != self.item.source_filename
+        ):
+            shutil.rmtree(package_root, ignore_errors=True)
+            raise LibraryFolderPackageAdapterError(
+                "the operation-owned prepared package identity differs before sealing"
+            )
+
+        reference = LibraryPackageReference(
+            format=str(imported.manifest["format"]),
+            root_path=str(imported.root),
+            manifest_path=str(imported.manifest_path),
+            manifest_sha256=imported.manifest_sha256,
+            folder_name=imported.package.folder_name,
+            children=tuple(dict(child) for child in imported.children),
+        )
+        timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        observation = {
+            "timestamp_utc": timestamp,
+            "status": SOURCE_PRESENT,
+            "sha256": imported.manifest_sha256,
+            "size_bytes": manifest_size,
+        }
+        stable_item = replace(
+            self.item,
+            source_path=str(imported.root),
+            source_filename=imported.package.folder_name,
+            source_sha256=imported.manifest_sha256,
+            source_size_bytes=manifest_size,
+            detected_format="prepared-flat-package",
+            supported=True,
+            state=STATE_READY,
+            preparation_state=PREPARATION_PREPARED,
+            target_folder_name=imported.package.folder_name,
+            target_child_name=None,
+            prepared_manifest_sha256=imported.manifest_sha256,
+            prepared_manifest_path=str(imported.manifest_path),
+            source_status=SOURCE_PRESENT,
+            observed_source_sha256=imported.manifest_sha256,
+            observed_source_size_bytes=manifest_size,
+            observed_timestamp_utc=timestamp,
+            last_validation_error=None,
+            source_observations=(observation,),
+            package=reference,
+            prepared_artifact=stable_artifact.to_dict(),
+        )
+        stable_catalog = copy(self.catalog)
+        descendant_ids = {
+            item.item_id
+            for item in self.catalog._items.values()
+            if item.parent_id == self.item.item_id
+        }
+        stable_catalog._items = {
+            item_id: item
+            for item_id, item in self.catalog._items.items()
+            if item_id not in descendant_ids and item_id != self.item.item_id
+        }
+        stable_catalog._items[stable_item.item_id] = stable_item
+        catalog_path = operation_parent / "library-catalog.json"
+        if catalog_path.exists() or catalog_path.is_symlink():
+            shutil.rmtree(package_root, ignore_errors=True)
+            raise LibraryFolderPackageAdapterError(
+                f"refusing to reuse operation-owned catalog: {catalog_path}"
+            )
+        stable_catalog.path = catalog_path
+        stable_catalog.previous_path = catalog_path.with_name(
+            f"{catalog_path.stem}.previous{catalog_path.suffix}"
+        )
+        try:
+            with catalog_path.open("x", encoding="utf-8") as stream:
+                json.dump(
+                    stable_catalog.to_dict(),
+                    stream,
+                    ensure_ascii=True,
+                    indent=2,
+                    sort_keys=True,
+                )
+                stream.write("\n")
+                stream.flush()
+        except OSError as exc:
+            shutil.rmtree(package_root, ignore_errors=True)
+            raise LibraryFolderPackageAdapterError(
+                f"the operation-owned catalog could not be persisted: {exc}"
+            ) from exc
+        self.catalog = stable_catalog
+        self.item = stable_item
+        self.artifact = stable_artifact
+        self.operation_owned_root = package_root
+        return stable_catalog
+
+    def bind_operation_identity(
+        self,
+        *,
+        operation_id: str,
+        preflight_seal_sha256: str,
+    ) -> Path:
+        """Persist the seal/operation binding beside the stable package."""
+
+        if self.operation_owned_root is None:
+            raise LibraryFolderPackageAdapterError(
+                "operation-owned package must be materialized before identity binding"
+            )
+        if self.operation_binding_path is not None:
+            raise LibraryFolderPackageAdapterError(
+                "operation-owned package identity is already bound"
+            )
+        manifest_path = self.operation_owned_root / "manifest.json"
+        try:
+            manifest_bytes = manifest_path.read_bytes()
+        except OSError as exc:
+            raise LibraryFolderPackageAdapterError(
+                "the operation-owned prepared manifest is unavailable before sealing"
+            ) from exc
+        binding_path = self.operation_owned_root / "operation-binding.json"
+        value = {
+            "format": OPERATION_STAGING_BINDING_FORMAT,
+            "operation_id": operation_id,
+            "preflight_seal_sha256": preflight_seal_sha256,
+            "package_root": str(self.operation_owned_root),
+            "package_manifest_path": str(manifest_path),
+            "package_manifest_file_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+            "prepared_manifest_sha256": self.item.prepared_manifest_sha256,
+            "prepared_artifact_identity": self.artifact.artifact_identity,
+        }
+        try:
+            with binding_path.open("x", encoding="utf-8") as stream:
+                json.dump(value, stream, ensure_ascii=True, indent=2, sort_keys=True)
+                stream.write("\n")
+                stream.flush()
+        except (FileExistsError, OSError) as exc:
+            raise LibraryFolderPackageAdapterError(
+                f"the operation-owned identity could not be persisted: {exc}"
+            ) from exc
+        self.operation_binding_path = binding_path
+        return binding_path
 
 
 def _sha256(payload: bytes) -> str:
@@ -364,5 +564,6 @@ def prepare_exact_folder_package(
 __all__ = [
     "LibraryFolderPackageAdapterError",
     "LibraryFolderPackageStage",
+    "OPERATION_STAGING_BINDING_FORMAT",
     "prepare_exact_folder_package",
 ]

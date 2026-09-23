@@ -744,6 +744,25 @@ class PersistentExecutionClaimStore:
         finally:
             connection.close()
 
+    def read_claim(self, preflight_seal_sha256: str) -> ExecutionClaimRecord | None:
+        """Read one committed claim without changing durable safety state."""
+
+        seal = _digest(preflight_seal_sha256, "preflight_seal_sha256")
+        connection = self._open_connection()
+        try:
+            row = connection.execute(
+                self._claim_select_sql()
+                + " FROM execution_claims WHERE preflight_seal_sha256 = ?",
+                (seal,),
+            ).fetchone()
+            return None if row is None else self._claim_from_row(row)
+        except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+            raise ExecutionClaimStoreError(
+                f"execution claim could not be read: {exc}"
+            ) from exc
+        finally:
+            connection.close()
+
     def assert_no_sender_in_flight(self) -> None:
         marker = self.read_sender_in_flight()
         if marker is not None:

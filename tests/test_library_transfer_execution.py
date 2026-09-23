@@ -39,6 +39,10 @@ from infocarry.library_transfer_plan import (
     SELECTION_SELECTED,
     build_library_transfer_queue_plan,
 )
+from infocarry.library_transfer_readiness import (
+    ReadinessReasonCode,
+    readiness_state_from_error,
+)
 from infocarry.prepared_media_package import (
     build_prepared_media_package,
     export_prepared_media_package,
@@ -374,15 +378,38 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             preflight_report_path=operation_root / "sealed-preflight.json",
             bundle_path=operation_root / "operation-bundle.json",
             store=False,
+            operation_stage=stage,
         )
         self.assertTrue(prepared.ready)
         self.assertEqual(
             tuple(item.kind for item in prepared.preflight.candidate.package.items),
             ("txt", "bmp", "txt"),
         )
-        self.assertEqual(setup["backend"].calls, [])
-        self.assertEqual(self._claim_count(setup), 0)
-        self.assertIsNone(setup["candidate_holder"]["candidate"])
+        bound_bundle = load_operation_bundle(prepared.bundle_path)
+        self.assertIsNotNone(bound_bundle.operation_owned_staging)
+        self.assertTrue(bound_bundle.package_manifest.path.endswith("prepared-package/manifest.json"))
+        stage.cleanup()
+        reloaded_bundle = load_operation_bundle(prepared.bundle_path)
+        self.assertIsNotNone(reloaded_bundle.operation_owned_staging)
+        reloaded_bundle.verify_artifacts()
+        setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
+        setup["facade"].adopt_prepared_operation(prepared)
+        setup["plan"] = dict(prepared.plan_report)
+        result = setup["facade"].execute_once(
+            setup["plan"],
+            confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+        )
+        self.assertEqual(result.state, "readback_verified")
+        self.assertEqual(
+            sum(
+                call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
+                for call in setup["backend"].calls
+            ),
+            1,
+        )
+        self.assertEqual(self._claim_count(setup), 1)
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertIsNone(setup["lock"].read())
 
     def _patch_template_hashes(self, setup):
         template_hash = hashlib.sha256(setup["template"].data).hexdigest()
@@ -443,6 +470,80 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         self.assertEqual(self._claim_count(setup), 1)
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
         self.assertIsNone(setup["lock"].read())
+
+    def test_missing_operation_owned_package_is_diagnostic_before_claim(self):
+        setup = self._setup()
+        self.addCleanup(setup["temporary"].cleanup)
+        self._patch_template_hashes(setup)
+        source_root = setup["root"] / "ordinary-source"
+        folder_path = source_root / FRESH_TEST_TARGET
+        folder_path.mkdir(parents=True)
+        for index, (kind, name) in enumerate(
+            zip(("txt", "bmp", "txt"), FRESH_CHILD_NAMES),
+            start=1,
+        ):
+            path = folder_path / name
+            if kind == "txt":
+                path.write_text(f"Ordinary folder page {index}\n", encoding="utf-8")
+            else:
+                path.write_bytes(make_profile_bmp())
+        catalog = LibraryCatalog(source_root / "library.json")
+        folder = catalog.import_folder(folder_path)
+        logical_plan = build_library_device_transfer_plan(
+            catalog,
+            [folder.item_id],
+            DEVICE_ROOT_PATH,
+            DeviceLibrarySnapshot(
+                (DeviceLibraryNode(DEVICE_ROOT_PATH, "directory", 0, system=True),)
+            ),
+        )
+        stage = prepare_exact_folder_package(
+            catalog,
+            folder,
+            logical_plan,
+            staging_parent=setup["root"] / "manager-prepared-content",
+        )
+        self.assertIsNotNone(stage)
+        self.addCleanup(stage.cleanup)
+        prepared = setup["facade"].refresh_live_preflight(
+            build_library_transfer_queue_plan(
+                stage.catalog,
+                selected_item_ids=[folder.item_id],
+                selection_mode=SELECTION_SELECTED,
+                backup=setup["baseline"],
+                available_capacity_bytes=10_000_000,
+            ).to_dict(),
+            catalog=stage.catalog,
+            preflight_report_path=setup["root"] / "missing-stage" / "sealed-preflight.json",
+            bundle_path=setup["root"] / "missing-stage" / "operation-bundle.json",
+            operation_stage=stage,
+        )
+        setup["facade"].adopt_prepared_operation(prepared)
+        setup["plan"] = dict(prepared.plan_report)
+        stage.cleanup()
+        Path(prepared.operation_bundle.package_manifest.path).unlink()
+
+        with self.assertRaises(LibraryTransferExecutionError) as raised:
+            setup["facade"].execute_once(
+                setup["plan"],
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+        error = raised.exception
+        diagnostic_path = Path(error.audit["diagnostic_path"])
+        diagnostic = json.loads(diagnostic_path.read_text(encoding="utf-8"))
+        self.assertEqual(diagnostic["reason_code"], "staged_artifact_missing")
+        self.assertFalse(diagnostic["sender_started"])
+        self.assertTrue(diagnostic["authorization_occurred"])
+        self.assertFalse(diagnostic["execution_claim_created"])
+        self.assertFalse(diagnostic["sender_marker_present"])
+        self.assertEqual(setup["backend"].calls, [])
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertIsNone(setup["lock"].read())
+        self.assertEqual(
+            readiness_state_from_error(error).reason_codes,
+            (ReadinessReasonCode.TRANSFER_PREPARATION_UNVERIFIED,),
+        )
 
     def _generic_exact_plan(self, setup):
         snapshot = DeviceLibrarySnapshot(

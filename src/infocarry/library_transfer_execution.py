@@ -496,6 +496,32 @@ def _write_new_json(path: Path, value: Mapping[str, Any]) -> None:
     )
 
 
+def _operation_diagnostic_reason(error: LibraryTransferExecutionError) -> str:
+    """Return a stable reason code for a durable pre-send diagnosis."""
+
+    text = str(error).casefold()
+    stage = str(error.stage).casefold()
+    if "bound artifact is unavailable" in text or "prepared manifest is unavailable" in text:
+        return "staged_artifact_missing"
+    if "bound artifact hash changed" in text or "bound artifact size changed" in text:
+        return "staged_artifact_hash_mismatch"
+    if "source changed" in text:
+        return "source_changed_since_staging"
+    if stage == "confirmation" or "confirmation" in text:
+        return "final_confirmation_mismatch"
+    if "profile" in text or stage == "profile":
+        return "capability_profile_rejection"
+    if "capacity" in text or "readiness" in text:
+        return "capacity_readiness_rejection"
+    if "stale" in text or "plan changed" in text or "earlier preflight" in text:
+        return "stale_ui_operation_state"
+    if "operation bundle" in text or stage == "operation_bundle":
+        return "operation_bundle_mismatch"
+    if "operation-owned" in text or stage == "operation_staging":
+        return "staged_artifact_missing"
+    return "pre_send_failure"
+
+
 class LibraryTransferExecutionFacade:
     """Single product service used by ttk and deterministic host tests."""
 
@@ -702,6 +728,7 @@ class LibraryTransferExecutionFacade:
         cancelled: Optional[Callable[[], bool]] = None,
         progress: Optional[Callable[[str, int, int], None]] = None,
         store: bool = True,
+        operation_stage: Any = None,
     ) -> PreparedLibraryTransferOperation:
         """Obtain fresh read-only evidence and seal one future operation.
 
@@ -741,6 +768,16 @@ class LibraryTransferExecutionFacade:
                 raise ValueError("fresh record timestamp must fit an unsigned 32-bit integer")
             operation_root = Path(preflight_report_path).expanduser().resolve().parent
             operation_root.mkdir(parents=True, exist_ok=True)
+            if operation_stage is not None:
+                materialize = getattr(
+                    operation_stage, "materialize_operation_artifact", None
+                )
+                if not callable(materialize):
+                    raise LibraryTransferExecutionError(
+                        "the supplied operation stage cannot be durably materialized",
+                        stage="operation_staging",
+                    )
+                catalog = materialize(operation_root)
             preflight = prepare_prepared_library_package_live_preflight(
                 catalog=catalog,
                 selected_item_id=self._selected_item_id(plan_report),
@@ -782,6 +819,21 @@ class LibraryTransferExecutionFacade:
                     "fresh evidence does not provide the reviewed auxiliary-state policy"
                 )
             _write_new_json(Path(preflight_report_path), preflight.to_dict())
+            operation_id = (
+                binding.operation_id if binding is not None else bound_intent.operation_id
+            )
+            operation_owned_staging_path = None
+            if operation_stage is not None:
+                bind_identity = getattr(operation_stage, "bind_operation_identity", None)
+                if not callable(bind_identity):
+                    raise LibraryTransferExecutionError(
+                        "the supplied operation stage cannot bind the sealed operation",
+                        stage="operation_staging",
+                    )
+                operation_owned_staging_path = bind_identity(
+                    operation_id=operation_id,
+                    preflight_seal_sha256=preflight.seal_sha256,
+                )
             capacity_path = self._capacity_artifact_path(
                 preflight.capacity_response,
                 operation_root,
@@ -790,11 +842,8 @@ class LibraryTransferExecutionFacade:
                 Path(preflight_report_path),
                 template_path=template_path,
                 capacity_response_path=capacity_path,
-                operation_id=(
-                    binding.operation_id
-                    if binding is not None
-                    else bound_intent.operation_id
-                ),
+                operation_id=operation_id,
+                operation_owned_staging_path=operation_owned_staging_path,
             )
             bundle_written = operation_bundle.write(Path(bundle_path))
             review = build_experimental_library_transfer_review(
@@ -865,6 +914,77 @@ class LibraryTransferExecutionFacade:
         capacity_path.write_bytes(raw)
         return capacity_path
 
+    def _persist_operation_diagnostic(
+        self,
+        prepared: PreparedLibraryTransferOperation,
+        error: LibraryTransferExecutionError,
+        *,
+        binding: Optional[LibraryTransferOperationBinding],
+    ) -> Optional[Path]:
+        """Persist a concise, hash-bound diagnosis without changing safety state."""
+
+        runtime = self.runtime
+        if runtime is None:
+            return None
+        operation_root = Path(prepared.bundle_path).expanduser().resolve().parent
+        diagnostic_path = operation_root / "pre-send-diagnostic.json"
+        claim = None
+        marker = None
+        claim_store = runtime.execution_claim_store
+        if claim_store is not None:
+            try:
+                claim = claim_store.read_claim(
+                    prepared.operation_bundle.preflight_seal_sha256
+                )
+                marker = claim_store.read_sender_in_flight()
+            except Exception:
+                # A store read failure is itself evidence, but must not obscure
+                # the original fail-closed error or mutate the safety state.
+                claim = None
+                marker = None
+        marker_for_operation = (
+            marker is not None
+            and marker.preflight_seal_sha256
+            == prepared.operation_bundle.preflight_seal_sha256
+        )
+        sender_started = bool(
+            error.state == "indeterminate_after_transaction_start"
+            or error.audit.get("sender_started") is True
+            or marker_for_operation
+        )
+        artifacts = {
+            "sealed_report": prepared.operation_bundle.sealed_report.to_dict(),
+            "package_manifest": prepared.operation_bundle.package_manifest.to_dict(),
+        }
+        if prepared.operation_bundle.operation_owned_staging is not None:
+            artifacts["operation_owned_staging"] = (
+                prepared.operation_bundle.operation_owned_staging.to_dict()
+            )
+        value: dict[str, Any] = {
+            "format": "infocarry-library-transfer-diagnostic-v1",
+            "reason_code": _operation_diagnostic_reason(error),
+            "exception_class": error.__class__.__name__,
+            "exception_message": str(error),
+            "stage": error.stage,
+            "state": error.state,
+            "operation_id": prepared.operation_bundle.operation_id,
+            "preflight_seal_sha256": prepared.operation_bundle.preflight_seal_sha256,
+            "bundle_path": str(prepared.bundle_path),
+            "sender_started": sender_started,
+            "authorization_occurred": bool(
+                binding is not None and binding.authorized
+            ),
+            "execution_claim_created": claim is not None,
+            "sender_marker_present": marker_for_operation,
+            "artifacts": artifacts,
+        }
+        try:
+            _write_new_json(diagnostic_path, value)
+        except Exception:
+            return None
+        error.audit["diagnostic_path"] = str(diagnostic_path)
+        return diagnostic_path
+
     def _build_fresh_plan(
         self,
         plan_report: Mapping[str, Any],
@@ -909,33 +1029,55 @@ class LibraryTransferExecutionFacade:
             raise LibraryTransferExecutionError(
                 "Transfer once is blocked until the reviewed fresh operation is ready"
             )
-        if not prepared.ready or not self.transfer_actionable:
+
+        binding = self.operation_binding
+
+        def fail_before_coordinator(
+            error: LibraryTransferExecutionError,
+            *,
+            clear_binding: bool = False,
+        ) -> None:
+            self._persist_operation_diagnostic(
+                prepared,
+                error,
+                binding=binding,
+            )
             self._prepared_operation = None
-            raise LibraryTransferExecutionError(
-                "Transfer once is blocked by incomplete or stale reviewed state"
+            if clear_binding:
+                self.operation_binding = None
+            raise error
+
+        if not prepared.ready or not self.transfer_actionable:
+            fail_before_coordinator(
+                LibraryTransferExecutionError(
+                    "Transfer once is blocked by incomplete or stale reviewed state"
+                )
             )
         if _sha256_json(plan_report) != prepared.plan_sha256:
-            self._prepared_operation = None
-            raise LibraryTransferExecutionError(
-                "the Library plan changed after review; obtain a new fresh preflight"
+            fail_before_coordinator(
+                LibraryTransferExecutionError(
+                    "the Library plan changed after review; obtain a new fresh preflight"
+                )
             )
         try:
             validate_library_transfer_readiness(prepared.readiness.report)
         except LibraryTransferReadinessError as exc:
-            self._prepared_operation = None
-            raise LibraryTransferExecutionError(
-                f"readiness review integrity failed: {exc}"
-            ) from exc
+            fail_before_coordinator(
+                LibraryTransferExecutionError(
+                    f"readiness review integrity failed: {exc}"
+                )
+            )
         if runner_overrides.get("retry") or runner_overrides.get("automatic_retry"):
-            self._prepared_operation = None
-            raise LibraryTransferExecutionError("automatic retry is not supported")
+            fail_before_coordinator(
+                LibraryTransferExecutionError("automatic retry is not supported")
+            )
         if runtime.execution_claim_store is None or runtime.indeterminate_write_lock is None:
-            self._prepared_operation = None
-            raise LibraryTransferExecutionError(
-                "persistent claim store and indeterminate-write lock are required"
+            fail_before_coordinator(
+                LibraryTransferExecutionError(
+                    "persistent claim store and indeterminate-write lock are required"
+                )
             )
 
-        binding = self.operation_binding
         consent_interaction = confirmation_interaction
         created_for_this_execution = False
         if binding is None:
@@ -945,9 +1087,10 @@ class LibraryTransferExecutionFacade:
                 or intent.preflight_seal_sha256 != prepared.preflight.seal_sha256
                 or intent.operation_id != prepared.operation_bundle.operation_id
             ):
-                self._prepared_operation = None
-                raise LibraryTransferExecutionError(
-                    "the operation intent is stale or differs from the fresh sealed preflight"
+                fail_before_coordinator(
+                    LibraryTransferExecutionError(
+                        "the operation intent is stale or differs from the fresh sealed preflight"
+                    )
                 )
             try:
                 # Collect the final user consent before creating the executable
@@ -957,28 +1100,29 @@ class LibraryTransferExecutionFacade:
                 confirmation = confirmation_interaction(prepared.review.to_dict())
                 binding = intent.authorize(confirmation)
             except Exception as exc:
-                self._prepared_operation = None
                 if isinstance(exc, LibraryTransferExecutionError):
-                    raise
-                raise LibraryTransferExecutionError(
-                    f"final operation confirmation failed: {exc}",
-                    stage="confirmation",
-                ) from exc
+                    fail_before_coordinator(exc)
+                fail_before_coordinator(
+                    LibraryTransferExecutionError(
+                        f"final operation confirmation failed: {exc}",
+                        stage="confirmation",
+                    )
+                )
             self.operation_binding = binding
             created_for_this_execution = True
             if not self.transfer_actionable:
-                self.operation_binding = None
-                self._prepared_operation = None
-                raise LibraryTransferExecutionError(
-                    "the final confirmation did not bind the current sealed operation"
+                fail_before_coordinator(
+                    LibraryTransferExecutionError(
+                        "the final confirmation did not bind the current sealed operation"
+                    ),
+                    clear_binding=True,
                 )
             consent_interaction = lambda _review: confirmation
         else:
             try:
                 binding.require_authorized()
-            except LibraryTransferExecutionError:
-                self._prepared_operation = None
-                raise
+            except LibraryTransferExecutionError as exc:
+                fail_before_coordinator(exc)
 
         try:
             from .experimental_library_transfer import GuardedLibraryExecutionCoordinator
@@ -1009,16 +1153,18 @@ class LibraryTransferExecutionFacade:
             if created_for_this_execution:
                 self.operation_binding = None
             return result
-        except LibraryTransferExecutionError:
+        except LibraryTransferExecutionError as exc:
+            self._persist_operation_diagnostic(
+                prepared,
+                exc,
+                binding=binding,
+            )
             self._prepared_operation = None
             if created_for_this_execution:
                 self.operation_binding = None
             raise
         except Exception as exc:
-            self._prepared_operation = None
-            if created_for_this_execution:
-                self.operation_binding = None
-            raise LibraryTransferExecutionError(
+            wrapped = LibraryTransferExecutionError(
                 str(exc),
                 stage=str(getattr(exc, "stage", "execution")),
                 state=str(getattr(exc, "state", "failed")),
@@ -1027,7 +1173,16 @@ class LibraryTransferExecutionFacade:
                     if isinstance(getattr(exc, "audit", None), Mapping)
                     else None
                 ),
-            ) from exc
+            )
+            self._persist_operation_diagnostic(
+                prepared,
+                wrapped,
+                binding=binding,
+            )
+            self._prepared_operation = None
+            if created_for_this_execution:
+                self.operation_binding = None
+            raise wrapped from exc
 
 
 __all__ = [

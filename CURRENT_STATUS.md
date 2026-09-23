@@ -37,6 +37,28 @@ transfer, arbitrary deletion, and Restore remain unavailable. The accepted P2
 finding and R3-bounded corrections are recorded in the [P18-037 analysis
 record](analysis/phase-18-p18-037-library-device-manager-foundation-20260921.md).
 
+The 2026-09-23 continuation preserved the owner-stopped `-07` physical
+validation as a failed pre-write attempt. Host reproduction showed that the
+ordinary-folder adapter's transient prepared package was cleaned before the
+sealed operation was reloaded, causing the canonical bundle resolver to fail
+closed with `bound artifact is unavailable`; no claim, sender, USB request, or
+device change occurred. The host-only correction now materializes a complete
+operation-owned prepared package and reloadable catalog snapshot under the
+operation evidence directory before sealing, binds their identities and
+hashes into the existing operation bundle, and retains them through the full
+guarded lifecycle. The user catalog and original source files remain
+unchanged. Durable pre-send diagnostics record stable reason codes and claim,
+marker, authorization, and sender-start state, while the normal UI remains
+concise and fail-closed. The focused ordinary-folder regression covers
+three-/four-leaf cleanup survival, reload, source/catalog immutability, fake
+canonical execution, and missing-artifact diagnosis with zero claim/sender
+activity. The full Python 3.12 portable suite passes 1,000 tests with 3
+documented skips; compile and `git diff --check` pass. This remains host-only
+until fresh independent exact-head review, final macOS/Windows CI, and
+packaging checks pass; no physical operation is authorized or claimed.
+
+See the [operation-owned staging analysis record](analysis/phase-18-p18-037-operation-owned-staging-20260923.md).
+
 The previous validated implementation checkpoint `7bda0b18533c7f85aea3d0947ea0802162eeb469`
 passed the portable Python 3.12 suite (984 tests, 3 documented skips), the 85
 focused adapter/readiness/UI/device-plan tests, `compileall`, and
