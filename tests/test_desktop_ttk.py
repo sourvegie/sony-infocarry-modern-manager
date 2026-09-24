@@ -461,7 +461,15 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn('"Transfer to InfoCarry"', action)
         self.assertIn("validate_revision=False", action)
         self.assertIn(
-            '"Transfer in progress — keep the InfoCarry connected"',
+            '"Final safety checks — keep the InfoCarry connected"',
+            action,
+        )
+        self.assertIn(
+            '"Transferring to InfoCarry — do not disconnect"',
+            action,
+        )
+        self.assertIn(
+            '"Verifying transfer — do not disconnect"',
             action,
         )
         self.assertIn("cancelled=lambda: False", action)
