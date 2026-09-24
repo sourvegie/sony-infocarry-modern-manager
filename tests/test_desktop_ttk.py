@@ -440,6 +440,55 @@ class DesktopTtkMessageTests(unittest.TestCase):
         ):
             self.assertIn(contract, source)
 
+    def test_live_transfer_uses_simple_confirmation_and_background_controller(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        start = source.index("    def library_transfer_once_action()")
+        end = source.index(
+            '    library_tree.bind("<<TreeviewSelect>>"',
+            start,
+        )
+        action = source[start:end]
+
+        self.assertIn('messagebox.askokcancel(', action)
+        self.assertIn('"Confirm Transfer"', action)
+        self.assertIn("Keep the InfoCarry connected until verification finishes.", action)
+        self.assertNotIn("simpledialog.askstring", action)
+        self.assertNotIn("Type exactly:", action)
+
+        self.assertIn("def work(", action)
+        self.assertIn("library_execution_facade.execute_once(", action)
+        self.assertIn("start_library_operation(", action)
+        self.assertIn('"Transfer to InfoCarry"', action)
+        self.assertIn("validate_revision=False", action)
+        self.assertIn(
+            '"Transfer in progress — keep the InfoCarry connected"',
+            action,
+        )
+        self.assertIn("cancelled=lambda: False", action)
+        self.assertIn('library_cancel_button.configure(state="disabled")', action)
+
+        # Clicking OK authorizes the existing exact sealed operation; it does
+        # not bypass or replace the canonical phrase-based safety contract.
+        self.assertIn(
+            "confirmation_interaction=lambda _review: confirmation_phrase",
+            action,
+        )
+        self.assertIn("intent.confirmation_phrase", action)
+
+    def test_transfer_success_copy_is_product_facing(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        start = source.index("    def library_transfer_once_action()")
+        end = source.index(
+            '    library_tree.bind("<<TreeviewSelect>>"',
+            start,
+        )
+        action = source[start:end]
+        self.assertIn(
+            '"Transfer complete — content verified on the InfoCarry"',
+            action,
+        )
+        self.assertNotIn("readback_verified", action)
+
     def test_library_package_shape_accepts_persisted_child_mappings(self):
         package = SimpleNamespace(
             children=(
