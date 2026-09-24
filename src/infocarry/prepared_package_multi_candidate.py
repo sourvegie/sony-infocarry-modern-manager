@@ -75,8 +75,8 @@ def _items(package: PreparedPackageInput) -> tuple[PreparedTextSourceItem | Prep
     if not isinstance(package, (PreparedTextPackageSet, PreparedMediaPackage)):
         raise PreparedMultiCandidateError("package must be an ordered TXT or TXT/BMP package")
     values = tuple(package.items)
-    if len(values) < 2:
-        raise PreparedMultiCandidateError("ordered device package requires at least two children")
+    if not values:
+        raise PreparedMultiCandidateError("ordered device package requires at least one child")
     return values
 
 

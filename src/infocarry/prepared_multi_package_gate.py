@@ -164,8 +164,8 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
         raise PreparedMultiPackageGateError("candidate device identity is invalid")
     for key in ("baseline_manifest_sha256", "baseline_blob_sha256", "prepared_manifest_sha256", "candidate_blob_sha256", "candidate_transaction_sha256", "capacity_response_sha256", "template_blob_sha256"):
         values[key] = _digest(values[key], key)
-    if len(values["source_sha256"]) < 2:
-        raise PreparedMultiPackageGateError("candidate must bind at least two source hashes")
+    if len(values["source_sha256"]) < 1:
+        raise PreparedMultiPackageGateError("candidate must bind at least one source hash")
     values["source_sha256"] = tuple(_digest(value, "source hash") for value in values["source_sha256"])
     if any(not isinstance(path, str) or not path for path in (values["template_folder_path"], *[path for _kind, path in values["template_item_paths"]])):
         raise PreparedMultiPackageGateError("candidate template path binding is invalid")
@@ -516,7 +516,7 @@ class PreparedMultiPackageAuthorization:
             raise PreparedMultiPackageGateError("authorization device identity is invalid")
         for label, value in (("baseline manifest", self.baseline_manifest_sha256), ("baseline blob", self.baseline_blob_sha256), ("prepared manifest", self.prepared_manifest_sha256), ("candidate blob", self.candidate_blob_sha256), ("candidate transaction", self.candidate_transaction_sha256), ("capacity response", self.capacity_response_sha256), ("template blob", self.template_blob_sha256)):
             _digest(value, label)
-        if len(self.source_sha256) < 2 or len(self.source_paths) != len(self.source_sha256) or len(self.target_kinds) != len(self.source_sha256) + 1 or len(self.target_record_offsets) != len(self.source_sha256) + 1 or len(self.target_paths) != len(self.source_sha256) + 1:
+        if len(self.source_sha256) < 1 or len(self.source_paths) != len(self.source_sha256) or len(self.target_kinds) != len(self.source_sha256) + 1 or len(self.target_record_offsets) != len(self.source_sha256) + 1 or len(self.target_paths) != len(self.source_sha256) + 1:
             raise PreparedMultiPackageGateError("authorization item bindings are inconsistent")
         for index, value in enumerate(self.source_sha256):
             _digest(value, f"source hash {index}")

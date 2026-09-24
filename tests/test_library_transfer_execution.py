@@ -14,6 +14,7 @@ from unittest.mock import patch
 from infocarry.backup_format import parse_backup_blob
 from infocarry.capacity_evidence import NativeCapacityResponse
 from infocarry.capability_profile import (
+    GENERALIZED_FLAT_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
 )
@@ -200,6 +201,8 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                         VNW_V15_FOUR_LEAF_PROFILE_ID
                         if tuple(child_kinds) == ("txt", "bmp", "txt", "txt")
                         else INITIAL_EXPERIMENTAL_PROFILE_ID
+                        if tuple(child_kinds) == ("txt", "bmp", "txt")
+                        else GENERALIZED_FLAT_PROFILE_ID
                     )
                 ),
             )
@@ -783,7 +786,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                 self.assertIsNone(setup["claim_store"].read_sender_in_flight())
                 self.assertIsNone(setup["lock"].read())
 
-    def test_production_style_unsupported_shape_is_rejected_before_live_preflight(self):
+    def test_generalized_shapes_reach_host_preflight_without_claim_or_sender(self):
         for kinds in (
             ("txt", "txt", "bmp", "txt"),
             ("txt", "bmp", "txt", "txt", "txt"),
@@ -794,31 +797,84 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                     include_operation_binding=False,
                 )
                 self.addCleanup(setup["temporary"].cleanup)
+                self._patch_template_hashes(setup)
+                prepared = setup["facade"].refresh_live_preflight(
+                    setup["plan"],
+                    catalog=setup["catalog"],
+                    preflight_report_path=setup["root"] / "host-only" / "sealed.json",
+                    bundle_path=setup["root"] / "host-only" / "bundle.json",
+                )
+                self.assertTrue(prepared.ready)
+                self.assertEqual(
+                    prepared.operation_intent.profile_id,
+                    GENERALIZED_FLAT_PROFILE_ID,
+                )
+                self.assertIsNone(setup["facade"].operation_binding)
+                self.assertEqual(len(setup["captures"]), 1)
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
+
+    def test_generalized_invalid_shapes_stop_before_authorization_claim_or_marker(self):
+        base_kinds = ("txt", "bmp", "txt", "bmp", "txt")
+        cases = (
+            ("zero leaves", lambda plan: plan["items"][0]["prepared_artifact"].update(
+                ordered_children=[]
+            )),
+            ("nested", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][1].update(
+                path=f"root\\{FRESH_TEST_TARGET}\\nested\\02-page.bmp"
+            )),
+            ("unsupported type", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][1].update(
+                kind="jpg"
+            )),
+            ("duplicate name", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][1].update(
+                name="01-page.txt"
+            )),
+            ("over-bound count", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"].append(
+                {**plan["items"][0]["prepared_artifact"]["ordered_children"][-1], "order": 5, "name": "06-page.txt", "kind": "txt", "path": f"root\\{FRESH_TEST_TARGET}\\06-page.txt"}
+            )),
+            ("over-bound bytes", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][0].update(
+                prepared_payload_bytes=1_048_577
+            )),
+            ("existing target", lambda plan: plan["items"][0].update(
+                conflicts=[{"path": f"root\\{FRESH_TEST_TARGET}", "reason": "exists"}],
+                queue_ready=False,
+                reasons=["one or more destination paths conflict with the verified backup"],
+            )),
+        )
+        for label, mutate in cases:
+            with self.subTest(reason=label):
+                setup = self._setup(
+                    child_kinds=base_kinds, include_operation_binding=False
+                )
+                self.addCleanup(setup["temporary"].cleanup)
+                changed = deepcopy(setup["plan"])
+                mutate(changed)
                 with self.assertRaises(LibraryTransferExecutionError):
                     setup["facade"].refresh_live_preflight(
-                        setup["plan"],
+                        changed,
                         catalog=setup["catalog"],
                         preflight_report_path=setup["root"] / "blocked" / "sealed.json",
                         bundle_path=setup["root"] / "blocked" / "bundle.json",
                     )
-                self.assertIsNone(setup["facade"].operation_binding)
                 self.assertEqual(setup["captures"], [])
                 self.assertEqual(setup["backend"].calls, [])
                 self.assertEqual(self._claim_count(setup), 0)
                 self.assertIsNone(setup["claim_store"].read_sender_in_flight())
                 self.assertIsNone(setup["lock"].read())
 
-    def test_unsupported_package_shapes_remain_host_only(self):
+    def test_generalized_flat_shapes_are_admitted_without_candidate_mutation(self):
         for label, kinds in (
             ("two-leaf", ("txt", "bmp")),
             ("reordered-four-leaf", ("txt", "txt", "bmp", "txt")),
             ("five-leaf", ("txt", "bmp", "txt", "txt", "txt")),
         ):
             with self.subTest(shape=label):
-                setup = self._setup(child_kinds=kinds)
+                setup = self._setup(child_kinds=kinds, include_operation_binding=False)
                 self.addCleanup(setup["temporary"].cleanup)
                 logical_plan = self._generic_exact_plan(setup)
-                self.assertIsNone(
+                self.assertIsNotNone(
                     _exact_live_package_artifact(setup["item"], logical_plan)
                 )
                 self.assertFalse(

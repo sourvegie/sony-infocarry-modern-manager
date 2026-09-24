@@ -183,11 +183,11 @@ def _run_host_workflow_checks() -> dict[str, Any]:
                 (extra, "04-extra.txt"),
             ],
         )
-        unsupported = _review_package(
+        generalized = _review_package(
             root=root,
             catalog=catalog,
             workflow=workflow,
-            name="Unsupported-Reordered",
+            name="Generalized-Reordered",
             ordered_sources=[
                 (story, "01-introduction.txt"),
                 (ending, "02-ending.txt"),
@@ -199,11 +199,11 @@ def _run_host_workflow_checks() -> dict[str, Any]:
             raise RuntimeError("the exact reviewed VNW-V15 three-leaf shape was not recognized")
         if not supported_four["eligible"] or supported_four["blocked"]:
             raise RuntimeError("the exact reviewed VNW-V15 four-leaf shape was not recognized")
-        if not unsupported["blocked"] or unsupported["eligible"]:
-            raise RuntimeError("an unsupported reordered shape was not blocked")
+        if not generalized["eligible"] or generalized["blocked"]:
+            raise RuntimeError("the generalized reordered flat shape was not host-admissible")
         if any(
             row["transfer_enabled"]
-            for row in (supported_three, supported_four, unsupported)
+            for row in (supported_three, supported_four, generalized)
         ):
             raise RuntimeError("offline readiness review exposed a transfer action")
         if VNW_V10_PROFILE.transfer_capable:
@@ -217,7 +217,7 @@ def _run_host_workflow_checks() -> dict[str, Any]:
                 "txt-bmp-txt": supported_three,
                 "txt-bmp-txt-txt": supported_four,
             },
-            "unsupported_shape_blocked": unsupported,
+            "generalized_shape_host_admissible": generalized,
             "vnw_v10_transfer_capable": VNW_V10_PROFILE.transfer_capable,
         }
 

@@ -7,6 +7,10 @@ import hashlib
 import json
 from typing import Any
 
+from .capability_profile import (
+    MAX_FLAT_LEAF_COUNT,
+    generalized_flat_capability_profile,
+)
 from .prepared_content import PreparedContentArtifact
 
 
@@ -14,13 +18,15 @@ TRANSFER_SHAPE_ASSESSMENT_FORMAT = "infocarry-transfer-shape-assessment-v1"
 VNW_V15_MODEL_PROFILE_ID = "sony-vnw-v15-reviewed-v1"
 EXACT_VERIFIED_LIVE_PROFILE = "exact_verified_vnw_v15_txt_bmp_txt"
 PLAUSIBLE_FUTURE_DIRECT_LEAF_V15 = "plausible_future_vnw_v15_direct_leaf"
+# Compatibility spelling for the P18-039 bounded generalized host profile.
+BOUNDED_GENERALIZED_FLAT_PROFILE = PLAUSIBLE_FUTURE_DIRECT_LEAF_V15
 UNMAPPABLE_UNSUPPORTED_SHAPE = "unmappable_unsupported_shape"
 CURRENT_VERIFIED_CHILD_KINDS = ("txt", "bmp", "txt")
 FOUR_LEAF_VERIFIED_CHILD_KINDS = ("txt", "bmp", "txt", "txt")
 VERIFIED_LIVE_CHILD_KINDS = frozenset(
     {CURRENT_VERIFIED_CHILD_KINDS, FOUR_LEAF_VERIFIED_CHILD_KINDS}
 )
-MAX_FUTURE_DIRECT_LEAF_CHILDREN = 8
+MAX_FUTURE_DIRECT_LEAF_CHILDREN = MAX_FLAT_LEAF_COUNT
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -64,6 +70,12 @@ class TransferShapeAssessment:
         return self.classification == PLAUSIBLE_FUTURE_DIRECT_LEAF_V15
 
     @property
+    def host_admissible_flat(self) -> bool:
+        """True for the bounded direct TXT/BMP host envelope."""
+
+        return self.plausible_future_direct_leaf or self.exact_verified_live_profile
+
+    @property
     def unmappable(self) -> bool:
         return self.classification == UNMAPPABLE_UNSUPPORTED_SHAPE
 
@@ -98,13 +110,13 @@ def assess_transfer_shape(
     if model_profile_id != VNW_V15_MODEL_PROFILE_ID:
         raise ValueError("transfer-shape assessment is only defined for reviewed VNW-V15")
     kinds = tuple(child.kind for child in artifact.children)
-    direct_leaf = all(
+    direct_leaf = bool(artifact.children) and all(
         child.kind in {"txt", "bmp"}
         and child.path.rsplit("\\", 1)[0] == artifact.root_path
         for child in artifact.children
     )
     exact = direct_leaf and kinds in VERIFIED_LIVE_CHILD_KINDS
-    plausible = direct_leaf and 1 <= len(kinds) <= MAX_FUTURE_DIRECT_LEAF_CHILDREN and all(kind in {"txt", "bmp"} for kind in kinds)
+    plausible = False
     reasons: list[str] = []
     if exact:
         classification = EXACT_VERIFIED_LIVE_PROFILE
@@ -114,15 +126,26 @@ def assess_transfer_shape(
             "ordered direct children exactly match the physically verified "
             f"VNW-V15 {shape} live shape"
         )
-    elif plausible:
-        classification = PLAUSIBLE_FUTURE_DIRECT_LEAF_V15
-        requires = True
-        reasons.extend(
-            (
-                "direct TXT/BMP leaves are structurally plausible but this exact shape has no reusable live proof",
-                "capability validation and separately scoped evidence are required before live readiness",
+    elif direct_leaf and 1 <= len(kinds) <= MAX_FUTURE_DIRECT_LEAF_CHILDREN:
+        try:
+            generalized_flat_capability_profile().validate_package(
+                folder_name=artifact.root_name,
+                children=artifact.to_legacy_children(),
             )
-        )
+        except ValueError as exc:
+            classification = UNMAPPABLE_UNSUPPORTED_SHAPE
+            requires = False
+            reasons.append(f"bounded flat host profile rejected the prepared content: {exc}")
+        else:
+            plausible = True
+            classification = PLAUSIBLE_FUTURE_DIRECT_LEAF_V15
+            requires = True
+            reasons.extend(
+                (
+                    "direct TXT/BMP leaves satisfy the bounded P18-039 host profile",
+                    "this exact order has no reusable physical proof; separate evidence and review are required before hardware use",
+                )
+            )
     else:
         classification = UNMAPPABLE_UNSUPPORTED_SHAPE
         requires = False
@@ -149,6 +172,7 @@ def assess_transfer_shape(
 
 __all__ = [
     "CURRENT_VERIFIED_CHILD_KINDS",
+    "BOUNDED_GENERALIZED_FLAT_PROFILE",
     "EXACT_VERIFIED_LIVE_PROFILE",
     "FOUR_LEAF_VERIFIED_CHILD_KINDS",
     "MAX_FUTURE_DIRECT_LEAF_CHILDREN",

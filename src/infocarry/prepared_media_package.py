@@ -17,6 +17,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Union
 
 from .bitmap import BitmapFormatError, decode_monochrome_bmp
+from .capability_profile import (
+    MAX_FLAT_LEAF_COUNT,
+    MAX_FLAT_PREPARED_BYTES_PER_CHILD,
+    MAX_FLAT_PREPARED_BYTES_TOTAL,
+    MAX_FLAT_SOURCE_BYTES_PER_CHILD,
+    MAX_FLAT_SOURCE_BYTES_TOTAL,
+)
 from .offline_conversion import load_utf8_text_document
 from .prepared_package import (
     METADATA_RECORD_SIZE,
@@ -190,8 +197,10 @@ class PreparedMediaPackage:
 
     def __post_init__(self) -> None:
         _validate_component(self.folder_name, label="folder name")
-        if not isinstance(self.items, tuple) or len(self.items) < 2:
-            raise PreparedMediaPackageError("typed package must contain at least two items")
+        if not isinstance(self.items, tuple) or not 1 <= len(self.items) <= MAX_FLAT_LEAF_COUNT:
+            raise PreparedMediaPackageError(
+                f"flat package must contain 1-{MAX_FLAT_LEAF_COUNT} items"
+            )
         if any(not isinstance(item, (PreparedTextSourceItem, PreparedBitmapSourceItem)) for item in self.items):
             raise PreparedMediaPackageError("items must be typed TXT or BMP source items")
         names = [item.name.casefold() for item in self.items]
@@ -220,6 +229,29 @@ class PreparedMediaPackage:
                 raise PreparedMediaPackageError(
                     "manifest_binding_sha256 must be a lowercase SHA-256 string"
                 ) from exc
+        source_total = sum(len(item.source_bytes) for item in self.items)
+        prepared_total = sum(
+            len(item.authored.payload)
+            if isinstance(item, PreparedTextSourceItem)
+            else len(item.source_bytes)
+            for item in self.items
+        )
+        if any(len(item.source_bytes) > MAX_FLAT_SOURCE_BYTES_PER_CHILD for item in self.items):
+            raise PreparedMediaPackageError("flat package source child exceeds the 1 MiB host limit")
+        if any(
+            (
+                len(item.authored.payload)
+                if isinstance(item, PreparedTextSourceItem)
+                else len(item.source_bytes)
+            )
+            > MAX_FLAT_PREPARED_BYTES_PER_CHILD
+            for item in self.items
+        ):
+            raise PreparedMediaPackageError("flat package prepared child exceeds the 1 MiB host limit")
+        if source_total > MAX_FLAT_SOURCE_BYTES_TOTAL:
+            raise PreparedMediaPackageError("flat package source aggregate exceeds the 4 MiB host limit")
+        if prepared_total > MAX_FLAT_PREPARED_BYTES_TOTAL:
+            raise PreparedMediaPackageError("flat package prepared aggregate exceeds the 1 MiB host limit")
 
     @property
     def target_folder_path(self) -> str:
@@ -358,6 +390,7 @@ def build_prepared_media_package(
     folder_name: str,
     *,
     require_mixed_kinds: bool = True,
+    minimum_items: int = 2,
 ) -> PreparedMediaPackage:
     """Build an ordered TXT/BMP package using only local offline validation."""
 
@@ -367,8 +400,10 @@ def build_prepared_media_package(
         source_specs = list(sources)
     except TypeError as exc:
         raise PreparedMediaPackageError("sources must be an ordered iterable") from exc
-    if len(source_specs) < 2:
-        raise PreparedMediaPackageError("typed package must contain at least two items")
+    if len(source_specs) < minimum_items:
+        raise PreparedMediaPackageError(
+            f"typed package must contain at least {minimum_items} item(s)"
+        )
     items: list[PreparedMediaItem] = []
     for spec in source_specs:
         if not isinstance(spec, (tuple, list)) or len(spec) != 2:
@@ -399,6 +434,7 @@ def build_prepared_content_package(
         sources,
         folder_name,
         require_mixed_kinds=False,
+        minimum_items=1,
     )
 
 
@@ -510,8 +546,10 @@ def load_prepared_media_package(root: Path) -> PreparedMediaPackageImport:
     if target.get("ordered_items") is not True:
         raise PreparedMediaPackageError("prepared package target must declare ordered items")
     raw_items = manifest_object.get("items")
-    if not isinstance(raw_items, list) or len(raw_items) < 2:
-        raise PreparedMediaPackageError("prepared typed-media package must contain at least two items")
+    if not isinstance(raw_items, list) or not 1 <= len(raw_items) <= MAX_FLAT_LEAF_COUNT:
+        raise PreparedMediaPackageError(
+            f"prepared typed-media package must contain 1-{MAX_FLAT_LEAF_COUNT} items"
+        )
     target_paths = target.get("item_paths")
     if target_paths != [f"{folder_path}\\{item.get('name')}" for item in raw_items if isinstance(item, Mapping)]:
         raise PreparedMediaPackageError("prepared package target paths do not match ordered items")
