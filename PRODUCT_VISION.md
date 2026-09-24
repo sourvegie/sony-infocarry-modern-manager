@@ -131,6 +131,15 @@ gates.
     from those values.
 13. Keep claims, hashes, seals, artifact identities, and evidence manifests
     discoverable in technical details without making them normal user concepts.
+14. Keep the application responsive during long-running operations. Show
+    plain-language progress such as preparing, backing up, transferring, and
+    verifying instead of allowing the window to appear hung.
+15. Use ordinary explicit confirmation for normal user actions. Transfer should
+    present a clear summary with OK/Cancel (and deletion should present
+    Delete/Cancel) rather than requiring a long typed authorization phrase.
+    Simplifying the human interaction must not bypass the operation-specific
+    binding, one-shot execution, no-retry, backup, lock, or verification
+    machinery underneath.
 
 A product-direction document, fixture, successful fake transfer, or previous
 narrow live result cannot widen the current capability boundary. The matrix
