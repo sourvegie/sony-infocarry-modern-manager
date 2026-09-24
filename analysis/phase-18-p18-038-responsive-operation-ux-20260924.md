@@ -82,10 +82,12 @@ ignores cooperative cancellation after the confirmation boundary. P18-038
 therefore treats the active live operation specially:
 
 - selection events cannot invalidate or detach the active controller token;
+- the tree selection is restored to the exact selection that entered the
+  confirmed live operation, preserving terminal diagnostic context;
 - mutable Library controls remain disabled while the live operation is active;
 - drag reorder is refused while any Library operation owns the controller; and
-- after the terminal result is delivered, the current visual selection is
-  reconciled normally.
+- after the terminal result is delivered, the selection lock is released and
+  the normal selection view is reconciled.
 
 This prevents a harmless click from discarding the terminal write result while
 preserving the existing stale-result behavior for cancellable host-only work.
