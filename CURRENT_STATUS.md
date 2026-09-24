@@ -3,51 +3,40 @@
 Date: 2026-09-24
 
 
-## P18-038 — Responsive operation UX + simple confirmation
+## P18-038 — COMPLETE / merged
 
-P18-038 is implemented on `task/P18-038-responsive-operation-ux` as PR #66,
-based on canonical `main` at
-`7f5a6b7c8bd9c1342c452b43658be6c38d6e47b5`. The current PR head is the review/CI authority. P18-038 does not expand the live
-capability envelope: only the existing exact reviewed VNW-V15 three- and
-four-leaf transfer profiles remain eligible.
+P18-038 is complete. PR [#66](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/66)
+was merged into canonical `main` with the normal merge-commit method. The
+validated PR head was
+`9c621fedc589725fcd0ec8be39b0f4e24f1ee77c`; the merge commit is
+`c7b6e853ddebae9afea16de8e073a34d5fac006d`. Canonical `main` was at that
+merge SHA immediately before this documentation-only status closure; the
+final canonical `main` SHA after the status-document commit is reported with
+this closure.
 
-The final guarded Library transfer no longer runs synchronously on Tk's event
-thread. The existing `LibraryTransferExecutionFacade.execute_once()` call is
-owned by the existing `OperationController` worker path, with progress
-marshalled back to the UI. The normal surface reports coarse owner-facing
-states for final safety checks, device transfer, and verification while the
-window remains responsive. The canonical facade/coordinator, one-shot sender,
-durable claim, sender marker, global indeterminate-write lock, no-retry policy,
-native completion checks, post-write backup, and independent read-back remain
-unchanged.
+The exact-head CI gate was green for the Apple Silicon macOS onedir/Tk 9
+package, the Windows x64 onedir/Tk 9 package, and the full Python 3.12 Offline
+tests on macOS and Windows. Independent review on the last code-bearing head
+was `P0=0, P1=0, P2=0`; only documentation-only commits followed that review.
+The implementation and decision record are in [the P18-038 analysis](analysis/phase-18-p18-038-responsive-operation-ux-20260924.md).
 
-The ordinary Library transfer confirmation is a normal OK/Cancel dialog that
-summarizes the sealed target and item count. OK supplies the exact
-already-derived confirmation phrase to the existing operation-specific
-authorization path; the user no longer has to type the phrase. The confirmation
-dialog is the cancellation boundary for a device-changing transfer. Once the
-guarded worker starts, the visible cancel action is disabled, cancellation is
-not forwarded into the sender lifecycle, and the Manager refuses to close
-until the operation reaches a terminal result.
+Successful physical validation used target `IC_P18_038_UI_20260924_01`.
+There was one sender call, one real `0x101b`, zero retries, native completion
+`0x0000`, and terminal result `readback_verified`. Complete pre-write and
+post-write backups were retained. The exact `TXT → BMP → TXT` source hashes
+were unchanged; the target was verified; and unrelated/shared state was
+preserved. The final installation-wide lock was `cleared`, active sender
+markers were `0`, and terminal sender-marker-resolution evidence was present.
 
-The responsive UI also preserves the live operation's controller attachment
-and diagnostic context. Selection/drag interaction cannot invalidate or detach
-the active live controller token, the exact Local Library selection is pinned
-during execution, and terminal reconciliation preserves the just-produced
-success/failure report and typed diagnostic readiness.
+Operator validation observed a responsive UI, an OK/Cancel confirmation,
+progress phases, close blocking during the guarded operation, and terminal
+result visibility. Screenshots and UI event logs were not retained; this is a
+documentation-only limitation and is not a lifecycle or safety defect.
 
-Exact-head automated validation is green:
-- full Python 3.12 portable suite on macOS;
-- full Python 3.12 portable suite on Windows;
-- `git diff --check` on both offline-suite jobs;
-- Apple Silicon macOS onedir/Tk 9 package and LaunchServices smoke; and
-- Windows x64 onedir/Tk 9 package smoke.
-
-The implementation and decision record are in
-[the P18-038 analysis](analysis/phase-18-p18-038-responsive-operation-ux-20260924.md).
-PR #66 is open and mergeable. A fresh independent exact-head review remains the
-only project gate before PM merge disposition. No physical device operation is
-authorized or claimed by P18-038 host implementation work.
+P18-038 introduced no capability expansion, Restore, deletion, overwrite/merge,
+generalized flat transfer, nested transfer, or VNW-V10 support. Historical
+evidence and old operation records were not rewritten, no physical device
+operation was performed during this closure, and `ROADMAP.md` was unchanged.
 
 ## P18-037 post-merge closure
 
