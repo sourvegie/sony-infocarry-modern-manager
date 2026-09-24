@@ -4242,7 +4242,7 @@ def launch_ttk_desktop(
         )
 
     def library_transfer_once_action() -> None:
-        """Confirm and run one prepared operation through the facade."""
+        """Confirm simply, then run one guarded transfer away from Tk's main thread."""
 
         nonlocal library_prepared_operation, library_current_readiness
 
@@ -4269,52 +4269,100 @@ def launch_ttk_desktop(
             if binding is not None
             else None
         )
-        if confirmation_phrase is None:
+        target_name = (
+            intent.target_folder_name
+            if intent is not None
+            else binding.target_folder_name
+            if binding is not None
+            else None
+        )
+        if confirmation_phrase is None or target_name is None:
             library_status_var.set(
                 "Send to InfoCarry is blocked because the exact operation confirmation is unavailable"
             )
             library_transfer_once_button.configure(state="disabled")
             return
-        answer = simpledialog.askstring(
-            "Confirm Send to InfoCarry",
+
+        report = library_prepared_operation.readiness.report
+        package = report.get("package", {}) if isinstance(report, Mapping) else {}
+        children = (
+            package.get("ordered_children", [])
+            if isinstance(package, Mapping)
+            else []
+        )
+        item_count = len(children) if isinstance(children, list) else 0
+        item_label = f"{item_count} item(s)" if item_count else "the selected content"
+        confirmed = messagebox.askokcancel(
+            "Confirm Transfer",
             (
-                "This is one guarded VNW-V15 transaction.\n\n"
-                "A fresh preflight, complete post-write backup, and independent read-back are required. "
-                "An indeterminate result will be locked for read-only diagnosis; it will not be retried.\n\n"
-                f"Type exactly: {confirmation_phrase}"
+                f"Transfer {item_label} to /{target_name} on the connected Sony VNW-V15?\n\n"
+                "The Manager will perform final safety checks, create a fresh backup, "
+                "transfer once, and verify the result on the device.\n\n"
+                "After the device-changing transfer begins, it cannot be cancelled or "
+                "automatically retried. Keep the InfoCarry connected until verification finishes."
             ),
             parent=root,
         )
-        if answer is None:
-            library_status_var.set("Send cancelled; no device transaction attempted")
+        if not confirmed:
+            library_status_var.set("Transfer cancelled; no device-changing transaction attempted")
             return
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
             library_status_var.set(
                 "Another manager operation started while confirmation was open; Send to InfoCarry remains disabled"
             )
             return
-        try:
-            result = library_execution_facade.execute_once(
-                library_current_plan_report or {},
-                confirmation_interaction=lambda _review: answer,
+
+        execution_plan_report = dict(library_current_plan_report or {})
+
+        def work(
+            _cancelled: threading.Event,
+            progress_callback: Any,
+        ) -> Any:
+            progress_callback("Transfer in progress — keep the InfoCarry connected")
+            return library_execution_facade.execute_once(
+                execution_plan_report,
+                confirmation_interaction=lambda _review: confirmation_phrase,
+                # The confirmation dialog is the cancellation boundary for a
+                # device-changing operation. Once this worker starts, no UI
+                # cancellation request is forwarded into the sender lifecycle.
+                cancelled=lambda: False,
+                progress=lambda _label, completed, total: progress_callback(
+                    "Transfer in progress — keep the InfoCarry connected",
+                    completed,
+                    total,
+                ),
             )
-        except BaseException as exc:
+
+        def success(result: Any) -> None:
+            nonlocal library_prepared_operation, library_current_readiness
             library_prepared_operation = None
-            library_current_readiness = readiness_state_from_error(exc)
-            library_transfer_once_button.configure(state="disabled")
-            library_status_var.set(library_current_readiness.message)
-            messagebox.showerror(
-                "Send to InfoCarry", library_current_readiness.message, parent=root
+            library_current_readiness = None
+            _set_readonly_text(
+                library_report,
+                format_library_transfer_execution_result(result.to_dict()),
             )
-            return
-        _set_readonly_text(
-            library_report,
-            format_library_transfer_execution_result(result.to_dict()),
-        )
-        library_transfer_once_button.configure(state="disabled")
+            library_transfer_once_button.configure(state="disabled")
+            library_status_var.set(
+                "Transfer complete — content verified on the InfoCarry"
+            )
+
         library_status_var.set(
-            "Transferred and verified; independent post-transfer checks passed"
+            "Transfer confirmed; final safety checks are running"
         )
+        start_library_operation(
+            "Transfer to InfoCarry",
+            (),
+            work,
+            success,
+            # The operation is sealed before this point. A harmless UI
+            # selection change must not discard a terminal device result.
+            validate_revision=False,
+        )
+        # The user already had an explicit Cancel choice in the confirmation
+        # dialog. Once execution starts, disabling cancellation avoids an
+        # ambiguous after-sender-start outcome while the Tk event loop remains
+        # fully responsive.
+        library_cancel_button.configure(state="disabled")
 
     library_tree.bind("<<TreeviewSelect>>", show_library_selection)
     library_import_button.configure(command=library_import_action)
