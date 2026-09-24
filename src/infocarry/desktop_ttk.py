@@ -4320,7 +4320,33 @@ def launch_ttk_desktop(
             _cancelled: threading.Event,
             progress_callback: Any,
         ) -> Any:
-            progress_callback("Transfer in progress — keep the InfoCarry connected")
+            sender_progress_seen = False
+            progress_callback("Final safety checks — keep the InfoCarry connected")
+
+            def live_progress(
+                label: str,
+                completed: Optional[int],
+                total: Optional[int],
+            ) -> None:
+                nonlocal sender_progress_seen
+                lowered = str(label).casefold()
+                if any(
+                    marker in lowered
+                    for marker in (
+                        "write authorized",
+                        "header sent",
+                        "sending payload",
+                        "write complete",
+                    )
+                ):
+                    sender_progress_seen = True
+                    owner_label = "Transferring to InfoCarry — do not disconnect"
+                elif sender_progress_seen:
+                    owner_label = "Verifying transfer — do not disconnect"
+                else:
+                    owner_label = "Final safety checks — keep the InfoCarry connected"
+                progress_callback(owner_label, completed, total)
+
             return library_execution_facade.execute_once(
                 execution_plan_report,
                 confirmation_interaction=lambda _review: confirmation_phrase,
@@ -4328,11 +4354,7 @@ def launch_ttk_desktop(
                 # device-changing operation. Once this worker starts, no UI
                 # cancellation request is forwarded into the sender lifecycle.
                 cancelled=lambda: False,
-                progress=lambda _label, completed, total: progress_callback(
-                    "Transfer in progress — keep the InfoCarry connected",
-                    completed,
-                    total,
-                ),
+                progress=live_progress,
             )
 
         def success(result: Any) -> None:
