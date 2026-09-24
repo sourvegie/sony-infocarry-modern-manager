@@ -1871,6 +1871,7 @@ def launch_ttk_desktop(
     library_technical_details_open = False
     library_operation_token: Any = None
     library_device_change_in_progress = False
+    library_device_change_locked_selection: tuple[str, ...] = ()
     ttk.Label(
         library_tab,
         text="LOCAL LIBRARY",
@@ -3189,8 +3190,18 @@ def launch_ttk_desktop(
         nonlocal library_current_preview, library_current_revision, library_technical_details_open
         if library_device_change_in_progress:
             # A click in the still-responsive tree must never invalidate or
-            # detach the active guarded operation. Keep all mutable actions
-            # disabled until its terminal callback has been delivered.
+            # detach the active guarded operation. Restore the selection that
+            # was sealed for this operation so a terminal failure cannot lose
+            # its diagnostic context merely because another row was clicked.
+            locked_selection = tuple(
+                tree_item
+                for tree_item in library_device_change_locked_selection
+                if library_tree.exists(tree_item)
+            )
+            if locked_selection and tuple(library_tree.selection()) != locked_selection:
+                library_tree.selection_set(locked_selection)
+            # Keep all mutable actions disabled until the terminal callback
+            # has been delivered.
             for button in (
                 library_remove_selection_button,
                 library_details_toggle_button,
@@ -4276,6 +4287,7 @@ def launch_ttk_desktop(
 
         nonlocal library_prepared_operation, library_current_readiness
         nonlocal library_device_change_in_progress
+        nonlocal library_device_change_locked_selection
 
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
             library_status_var.set(
@@ -4401,7 +4413,9 @@ def launch_ttk_desktop(
 
         def terminal() -> None:
             nonlocal library_device_change_in_progress
+            nonlocal library_device_change_locked_selection
             library_device_change_in_progress = False
+            library_device_change_locked_selection = ()
             # Selection changes are intentionally ignored while a live device
             # operation owns the controller. Reconcile the visible selection
             # only after the terminal result has been applied.
@@ -4410,6 +4424,7 @@ def launch_ttk_desktop(
         library_status_var.set(
             "Transfer confirmed; final safety checks are running"
         )
+        library_device_change_locked_selection = tuple(library_tree.selection())
         library_device_change_in_progress = True
         start_library_operation(
             "Transfer to InfoCarry",
