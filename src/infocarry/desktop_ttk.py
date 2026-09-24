@@ -1870,6 +1870,7 @@ def launch_ttk_desktop(
     library_current_revision: Any = None
     library_technical_details_open = False
     library_operation_token: Any = None
+    library_device_change_in_progress = False
     ttk.Label(
         library_tab,
         text="LOCAL LIBRARY",
@@ -4245,6 +4246,7 @@ def launch_ttk_desktop(
         """Confirm simply, then run one guarded transfer away from Tk's main thread."""
 
         nonlocal library_prepared_operation, library_current_readiness
+        nonlocal library_device_change_in_progress
 
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
             library_status_var.set(
@@ -4346,9 +4348,14 @@ def launch_ttk_desktop(
                 "Transfer complete — content verified on the InfoCarry"
             )
 
+        def terminal() -> None:
+            nonlocal library_device_change_in_progress
+            library_device_change_in_progress = False
+
         library_status_var.set(
             "Transfer confirmed; final safety checks are running"
         )
+        library_device_change_in_progress = True
         start_library_operation(
             "Transfer to InfoCarry",
             (),
@@ -4357,6 +4364,7 @@ def launch_ttk_desktop(
             # The operation is sealed before this point. A harmless UI
             # selection change must not discard a terminal device result.
             validate_revision=False,
+            on_terminal=terminal,
         )
         # The user already had an explicit Cancel choice in the confirmation
         # dialog. Once execution starts, disabling cancellation avoids an
@@ -5112,6 +5120,14 @@ def launch_ttk_desktop(
 
     def close_action() -> None:
         library_busy = library_operation_controller.busy
+        if library_device_change_in_progress:
+            messagebox.showinfo(
+                "Transfer in progress",
+                "The transfer is still running. Keep the InfoCarry connected and leave "
+                "this window open until the Manager reports a terminal result.",
+                parent=root,
+            )
+            return
         if (worker is not None and worker.is_alive()) or library_busy:
             if not messagebox.askyesno(
                 "Operation in progress",
