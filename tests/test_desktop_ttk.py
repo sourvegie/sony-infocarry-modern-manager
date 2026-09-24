@@ -466,6 +466,18 @@ class DesktopTtkMessageTests(unittest.TestCase):
         )
         self.assertIn("cancelled=lambda: False", action)
         self.assertIn('library_cancel_button.configure(state="disabled")', action)
+        self.assertIn("library_device_change_in_progress = True", action)
+        self.assertIn("on_terminal=terminal", action)
+
+        close_start = source.index("    def close_action()")
+        close_end = source.index(
+            '    tree.bind("<<TreeviewSelect>>"',
+            close_start,
+        )
+        close_action = source[close_start:close_end]
+        self.assertIn("if library_device_change_in_progress:", close_action)
+        self.assertIn('"Transfer in progress"', close_action)
+        self.assertIn("return", close_action)
 
         # Clicking OK authorizes the existing exact sealed operation; it does
         # not bypass or replace the canonical phrase-based safety contract.
