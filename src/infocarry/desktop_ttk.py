@@ -4412,14 +4412,22 @@ def launch_ttk_desktop(
             )
 
         def terminal() -> None:
+            nonlocal library_current_readiness
             nonlocal library_device_change_in_progress
             nonlocal library_device_change_locked_selection
+            terminal_report = library_report.get("1.0", "end-1c")
+            terminal_readiness = library_current_readiness
             library_device_change_in_progress = False
             library_device_change_locked_selection = ()
             # Selection changes are intentionally ignored while a live device
-            # operation owns the controller. Reconcile the visible selection
-            # only after the terminal result has been applied.
+            # operation owns the controller. Reconcile controls only after the
+            # terminal result has been applied, then restore that terminal
+            # result so a selection refresh cannot hide success/failure
+            # diagnostics.
             show_library_selection()
+            library_current_readiness = terminal_readiness
+            if terminal_report:
+                _set_readonly_text(library_report, terminal_report)
 
         library_status_var.set(
             "Transfer confirmed; final safety checks are running"
