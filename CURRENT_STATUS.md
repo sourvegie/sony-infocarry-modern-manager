@@ -30,8 +30,12 @@ Exact-head validation is 117 focused tests passed; 1,013 portable tests passed
 with 3 skipped; compilation and `git diff --check` passed. Local Windows host
 workflow/package smoke passed with USB enumeration, sender calls, claim
 consumption, and marker activity guarded at zero. The pull request and
-macOS/Windows CI results remain to be recorded after publication. See the
+macOS/Windows CI all passed on PR [#67](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/67): Python 3.12 offline suites on macOS and Windows, Apple Silicon macOS package, and Windows x64 package. The PR remains unmerged; its final documentation tip is the current branch head recorded in the final handoff. See the
 [P18-039 decision record](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md).
+
+Disposition: `READY_FOR_HARDWARE_TEST`. This is not a physical-operation
+authorization and does not promote generalized shapes to proven device
+capability.
 
 
 ## P18-038 — COMPLETE / merged

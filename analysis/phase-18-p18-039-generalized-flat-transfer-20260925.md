@@ -83,7 +83,11 @@ validation passed 117 focused tests and 1,013 portable tests with 3 skipped;
 compilation and `git diff --check` also passed. Local Windows host/package
 smoke passed with USB enumeration, sender calls, persistent claims, and
 sender-marker activity prohibited. Pull-request macOS/Windows package CI is
-pending publication.
+green on PR [#67](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/67):
+macOS and Windows Python 3.12 offline suites, Apple Silicon macOS package,
+and Windows x64 package all passed. The PR remains unmerged. The final PR
+documentation tip is the final branch head reported in the milestone
+handoff; the code-bearing reviewed head remains the SHA above.
 
 ## Explicit exclusions and next validation
 
@@ -98,5 +102,6 @@ readback, and terminal sender-marker evidence. Stop without retry on any
 uncertain boundary. No such validation was performed here.
 
 Disposition at this record: `READY_FOR_HARDWARE_TEST` after exact-head
-independent review, package/CI validation, and owner authorization. This
-record is not itself an authorization.
+independent review and package/CI validation. Owner authorization is still
+required for any later hardware work. This record is not itself an
+authorization.
