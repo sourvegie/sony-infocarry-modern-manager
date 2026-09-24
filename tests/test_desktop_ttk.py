@@ -475,6 +475,11 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("cancelled=lambda: False", action)
         self.assertIn('library_cancel_button.configure(state="disabled")', action)
         self.assertIn("library_device_change_in_progress = True", action)
+        self.assertIn(
+            "library_device_change_locked_selection = tuple(library_tree.selection())",
+            action,
+        )
+        self.assertIn("library_device_change_locked_selection = ()", action)
         self.assertIn("on_terminal=terminal", action)
 
         close_start = source.index("    def close_action()")
@@ -506,6 +511,8 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertLess(guard, invalidation)
         self.assertIn("library_cancel_button", selection[guard:invalidation])
         self.assertIn('button.configure(state="disabled")', selection[guard:invalidation])
+        self.assertIn("library_device_change_locked_selection", selection[guard:invalidation])
+        self.assertIn("library_tree.selection_set(locked_selection)", selection[guard:invalidation])
         self.assertIn("return", selection[guard:invalidation])
 
         drag_press_start = source.index("    def library_drag_press(")
