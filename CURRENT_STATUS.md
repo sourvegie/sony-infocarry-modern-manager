@@ -7,8 +7,7 @@ Date: 2026-09-24
 
 P18-038 is implemented on `task/P18-038-responsive-operation-ux` as PR #66,
 based on canonical `main` at
-`7f5a6b7c8bd9c1342c452b43658be6c38d6e47b5`. The current exact head is
-`bb867560553d0ecbbdcc725953265ff495982ba8`. It does not expand the live
+`7f5a6b7c8bd9c1342c452b43658be6c38d6e47b5`. The current PR head is the review/CI authority. P18-038 does not expand the live
 capability envelope: only the existing exact reviewed VNW-V15 three- and
 four-leaf transfer profiles remain eligible.
 
