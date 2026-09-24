@@ -37,6 +37,15 @@ should let the user:
 - transfer selected content to the connected InfoCarry when that operation is
   supported and ready.
 
+For the current bounded VNW-V15 host workflow, an ordinary selected folder is
+one root-level transfer unit. Its direct children remain in persisted source
+order and may be TXT or validated BMP leaves only. The P18-039 host profile
+admits 1–8 leaves within explicit host resource limits so the Manager can
+prepare, review, and preflight ordinary flat folders without enumerating
+permutations. This host admission is not a device-capacity claim or physical
+execution proof; the exact live shapes and remaining exclusions stay in the
+capability matrix.
+
 Removing an item from the Local Library only removes its local library entry
 or managed copy according to the documented storage behavior. It does not
 delete device content.

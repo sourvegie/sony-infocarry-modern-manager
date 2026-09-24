@@ -1,6 +1,37 @@
 # Current Project Status
 
-Date: 2026-09-24
+Date: 2026-09-25
+
+
+## P18-039 — HOST IMPLEMENTATION / READY FOR INDEPENDENT REVIEW
+
+P18-039 is implemented on branch
+`task/P18-039-generalized-flat-transfer`, created from canonical `main` at
+`a1d0d0c1a635ab55fefc0b312f5ec824ac17c3ee`. The generalized host profile is
+`generalized-flat-root-folder-txt-bmp-v1` (`host_reviewed_not_live_proven`):
+one root-level selected folder, 1–8 ordered direct TXT/BMP leaves, unique
+CP932-safe names, existing strict TXT/BMP content rules, and existing host
+resource limits of 1 MiB per child, 4 MiB source aggregate, and 1 MiB
+prepared aggregate. These are host safety/resource bounds, not device maxima.
+
+The normal folder UI now reaches the bounded flat adapter and the existing
+readiness/preflight/authorization seams. Exact three-/four-leaf profiles and
+the P18-038 controller, simple confirmation, background execution, selection,
+drag, close, claim, marker, lock, completion, post-backup, independent
+readback, and no-retry guards remain covered. Invalid nesting, types,
+duplicates/conflicts, zero leaves, over-bound selections, source/path drift,
+and existing targets stop before authorization, claim, sender marker, or
+sender activity.
+
+No physical device operation occurred: no USB sender, `0x101b`, live claim
+consumption, or device mutation. Fresh review of code-bearing head
+`f05190e8dcb509ce01f23b4d07c3ea5030654b8a` found zero P0/P1/P2 findings.
+Exact-head validation is 117 focused tests passed; 1,013 portable tests passed
+with 3 skipped; compilation and `git diff --check` passed. Local Windows host
+workflow/package smoke passed with USB enumeration, sender calls, claim
+consumption, and marker activity guarded at zero. The pull request and
+macOS/Windows CI results remain to be recorded after publication. See the
+[P18-039 decision record](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md).
 
 
 ## P18-038 — COMPLETE / merged
