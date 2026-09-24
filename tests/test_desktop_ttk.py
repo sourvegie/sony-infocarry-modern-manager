@@ -480,6 +480,10 @@ class DesktopTtkMessageTests(unittest.TestCase):
             action,
         )
         self.assertIn("library_device_change_locked_selection = ()", action)
+        self.assertIn('terminal_report = library_report.get("1.0", "end-1c")', action)
+        self.assertIn("terminal_readiness = library_current_readiness", action)
+        self.assertIn("library_current_readiness = terminal_readiness", action)
+        self.assertIn("_set_readonly_text(library_report, terminal_report)", action)
         self.assertIn("on_terminal=terminal", action)
 
         close_start = source.index("    def close_action()")
