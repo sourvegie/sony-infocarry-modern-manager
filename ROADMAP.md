@@ -21,13 +21,16 @@ priority; it does not authorize a device operation or expand a capability.
    device-changing transfer; once guarded execution begins, keep the UI
    responsive but do not offer a mid-write cancel or allow the window to close.
 
-2. **P18-039 — Generalized flat TXT/BMP transfer.** Promote a bounded
+2. **P18-039 — Generalized flat TXT/BMP transfer (host implementation in
+   independent-review readiness).** Promote a bounded
    structural rule for one root-level folder containing an ordered collection
    of supported TXT/BMP leaves, rather than enumerating exact three-/four-leaf
    permutations. Validate names, ordering, source freshness, formats, conflicts,
    capacity, candidate construction, and preservation invariants. Use
-   representative boundary cases and separate physical promotion evidence; the
-   structural host model does not itself authorize live execution.
+   representative boundary cases and separate physical promotion evidence. The
+   implementation uses the existing safety lifecycle for host preflight and
+   authorization seams, but the structural host model does not itself authorize
+   live execution or permit a physical operation in this milestone.
 
 3. **P18-040 — Nested library transfer.** Carry ordinary nested Local Library
    hierarchy through preparation, planning, guarded transfer, verification, and

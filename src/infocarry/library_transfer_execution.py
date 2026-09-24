@@ -186,7 +186,7 @@ def _require_sha256(value: Any, label: str) -> str:
 
 @dataclass(frozen=True)
 class LibraryTransferOperationIntent:
-    """A non-authorizing exact target/profile request for fresh preflight.
+    """A non-authorizing bounded target/profile request for fresh preflight.
 
     The intent can reach read-only preflight only. It carries no operation ID
     until the fresh sealed preflight exists, and it cannot enter the guarded
@@ -216,9 +216,11 @@ class LibraryTransferOperationIntent:
             raise ValueError("only the reviewed VNW-V15 model profile is supported")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
+        if profile.generalized_flat and self.child_kinds is None:
+            raise ValueError("the generalized flat operation requires ordered child kinds")
         child_kinds = profile.child_kinds if self.child_kinds is None else tuple(self.child_kinds)
-        if child_kinds != profile.child_kinds:
-            raise ValueError("the operation intent differs from its exact execution profile")
+        if not profile.accepts_children(child_kinds):
+            raise ValueError("the operation intent differs from its execution profile")
         object.__setattr__(self, "child_kinds", child_kinds)
         profile.require_target(self.target_folder_name)
         if self.confirmation_policy != PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT:
@@ -331,14 +333,16 @@ class LibraryTransferOperationBinding:
             raise ValueError("only the reviewed VNW-V15 model profile is supported")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
+        if execution_profile.generalized_flat and self.child_kinds is None:
+            raise ValueError("the generalized flat operation requires ordered child kinds")
         child_kinds = (
             execution_profile.child_kinds
             if self.child_kinds is None
             else tuple(self.child_kinds)
         )
-        if child_kinds != execution_profile.child_kinds:
+        if not execution_profile.accepts_children(child_kinds):
             raise ValueError(
-                "the operation binding child shape differs from its exact execution profile"
+                "the operation binding child shape differs from its execution profile"
             )
         object.__setattr__(self, "child_kinds", child_kinds)
         try:
@@ -696,9 +700,13 @@ class LibraryTransferExecutionFacade:
                 "no replacement target is selected"
             )
         try:
+            required_kinds = report_profile.get("required_child_kinds")
+            if not isinstance(required_kinds, list):
+                raise ValueError("the selected package has no ordered child-kind binding")
             intent = LibraryTransferOperationIntent(
                 target_folder_name=target_folder_name,
                 profile_id=profile_id,
+                child_kinds=tuple(required_kinds),
             )
         except (TypeError, ValueError) as exc:
             raise LibraryTransferExecutionError(

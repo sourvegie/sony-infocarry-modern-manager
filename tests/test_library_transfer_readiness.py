@@ -259,17 +259,17 @@ class LibraryTransferReadinessTests(unittest.TestCase):
             (
                 "wrong count",
                 _plan(children=_children()[:2]),
-                "exactly three direct children",
+                "destination paths differ from the canonical prepared content",
             ),
             (
                 "wrong order",
                 _plan(children=[_children()[1], _children()[0], _children()[2]]),
-                "TXT → BMP → TXT",
+                "destination paths differ from the canonical prepared content",
             ),
             (
                 "wrong kind",
                 _plan(children=_children(kinds=("txt", "txt", "txt"))),
-                "TXT → BMP → TXT",
+                "bounded flat host profile rejected",
             ),
             (
                 "nested",

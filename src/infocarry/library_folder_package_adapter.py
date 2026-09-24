@@ -1,4 +1,4 @@
-"""Transient adapter for exact flat Local Library folders.
+"""Transient adapter for bounded flat Local Library folders.
 
 This module only translates a folder already admitted by the host-only
 logical planner into the existing prepared-package contract. It does not
@@ -18,7 +18,9 @@ import tempfile
 from typing import Optional
 
 from .capability_profile import (
+    GENERALIZED_FLAT_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
+    MAX_FLAT_LEAF_COUNT,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
 )
 from .execution_profile import guarded_execution_profile
@@ -40,6 +42,7 @@ from .prepared_media_package import (
     PreparedMediaPackageError,
     PreparedTextSourceItem,
     build_prepared_media_package,
+    build_prepared_content_package,
     export_prepared_media_package,
     load_prepared_media_package,
 )
@@ -303,11 +306,21 @@ def _sha256(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _profile_for_kinds(kinds: tuple[str, ...]) -> Optional[str]:
-    if kinds == guarded_execution_profile(INITIAL_EXPERIMENTAL_PROFILE_ID).child_kinds:
+def _profile_for_package(kinds: tuple[str, ...], names: tuple[str, ...]) -> Optional[str]:
+    if (
+        kinds == guarded_execution_profile(INITIAL_EXPERIMENTAL_PROFILE_ID).child_kinds
+        and names == guarded_execution_profile(INITIAL_EXPERIMENTAL_PROFILE_ID).child_names
+    ):
         return INITIAL_EXPERIMENTAL_PROFILE_ID
-    if kinds == guarded_execution_profile(VNW_V15_FOUR_LEAF_PROFILE_ID).child_kinds:
+    if (
+        kinds == guarded_execution_profile(VNW_V15_FOUR_LEAF_PROFILE_ID).child_kinds
+        and names == guarded_execution_profile(VNW_V15_FOUR_LEAF_PROFILE_ID).child_names
+    ):
         return VNW_V15_FOUR_LEAF_PROFILE_ID
+    if 1 <= len(kinds) <= MAX_FLAT_LEAF_COUNT and all(
+        kind in {"txt", "bmp"} for kind in kinds
+    ):
+        return GENERALIZED_FLAT_PROFILE_ID
     return None
 
 
@@ -316,8 +329,8 @@ def _folder_plan_matches(
     folder: LibraryItem,
     plan: LibraryDeviceTransferPlan,
     *,
-    child_kinds: tuple[str, ...],
-    child_names: tuple[str, ...],
+    child_kinds: Optional[tuple[str, ...]] = None,
+    child_names: Optional[tuple[str, ...]] = None,
 ) -> Optional[tuple[LibraryItem, ...]]:
     if (
         folder.node_kind != NODE_FOLDER
@@ -328,7 +341,14 @@ def _folder_plan_matches(
     ):
         return None
     children = catalog.children(folder.item_id)
-    if len(children) != len(child_kinds) or len(plan.nodes) != len(children) + 1:
+    if not 1 <= len(children) <= MAX_FLAT_LEAF_COUNT or len(plan.nodes) != len(children) + 1:
+        return None
+    if child_kinds is not None and len(children) != len(child_kinds):
+        return None
+    if child_names is not None and len(children) != len(child_names):
+        return None
+    names = tuple(child.source_filename for child in children)
+    if len({name.casefold() for name in names}) != len(names):
         return None
     root_path = ("root", folder.source_filename)
     root = plan.nodes[0]
@@ -340,13 +360,14 @@ def _folder_plan_matches(
     ):
         return None
     expected_paths = {root_path}
-    for index, (child, kind, name, node) in enumerate(
-        zip(children, child_kinds, child_names, plan.nodes[1:])
-    ):
+    for index, (child, node) in enumerate(zip(children, plan.nodes[1:])):
+        kind = Path(child.source_filename).suffix.lower().lstrip(".")
+        expected_kind = child_kinds[index] if child_kinds is not None else kind
+        expected_name = child_names[index] if child_names is not None else child.source_filename
         if (
             child.node_kind != NODE_FILE
             or child.parent_id != folder.item_id
-            or child.source_filename != name
+            or child.source_filename != expected_name
             or child.source_status != SOURCE_PRESENT
             or not child.supported
             or child.state not in {STATE_IMPORTED, STATE_READY}
@@ -355,8 +376,8 @@ def _folder_plan_matches(
             or node.source_item_id != child.item_id
             or node.source_path != child.source_path
             or node.kind != "file"
-            or node.file_type != kind
-            or node.destination_path != root_path + (name,)
+            or node.file_type != expected_kind
+            or node.destination_path != root_path + (child.source_filename,)
             or node.sibling_order != index
         ):
             return None
@@ -376,24 +397,26 @@ def _folder_plan_matches(
             raise LibraryFolderPackageAdapterError(
                 f"Local Library source changed after planning: {child.source_filename}"
             )
-        expected_paths.add(root_path + (name,))
+        expected_paths.add(root_path + (child.source_filename,))
     actual_added = plan.expected_delta.added_paths
     if len(actual_added) != len(expected_paths) or set(actual_added) != expected_paths:
         return None
     return children
 
 
-def prepare_exact_folder_package(
+def _prepare_flat_folder_package(
     catalog: LibraryCatalog,
     folder: LibraryItem,
     plan: LibraryDeviceTransferPlan,
     *,
     staging_parent: Path,
+    exact_only: bool,
 ) -> Optional[LibraryFolderPackageStage]:
-    """Stage only an exact 3-/4-leaf folder matching an existing profile.
+    """Stage one bounded root-level folder into the canonical package façade.
 
-    ``None`` means the host plan is valid but outside the exact live shape.
-    Source races and staging failures raise a safe host-side error instead.
+    ``None`` means the host plan is valid but outside this adapter's flat
+    structural profile. Source races and staging failures raise a safe
+    host-side error instead.
     """
 
     if not isinstance(catalog, LibraryCatalog) or not isinstance(folder, LibraryItem):
@@ -402,16 +425,19 @@ def prepare_exact_folder_package(
         return None
     children = catalog.children(folder.item_id)
     kinds = tuple(Path(child.source_filename).suffix.lower().lstrip(".") for child in children)
-    profile_id = _profile_for_kinds(kinds)
+    names = tuple(child.source_filename for child in children)
+    profile_id = _profile_for_package(kinds, names)
     if profile_id is None:
+        return None
+    if exact_only and profile_id == GENERALIZED_FLAT_PROFILE_ID:
         return None
     profile = guarded_execution_profile(profile_id)
     children = _folder_plan_matches(
         catalog,
         folder,
         plan,
-        child_kinds=profile.child_kinds,
-        child_names=profile.child_names,
+        child_kinds=profile.child_kinds or None,
+        child_names=profile.child_names or None,
     )
     if children is None:
         return None
@@ -438,7 +464,12 @@ def prepare_exact_folder_package(
         (Path(child.source_path), child.source_filename) for child in children
     )
     try:
-        package = build_prepared_media_package(source_specs, folder.source_filename)
+        package_builder = (
+            build_prepared_media_package
+            if profile_id != GENERALIZED_FLAT_PROFILE_ID
+            else build_prepared_content_package
+        )
+        package = package_builder(source_specs, folder.source_filename)
     except (OSError, PreparedMediaPackageError, ValueError) as exc:
         raise LibraryFolderPackageAdapterError(
             f"Exact Local Library folder preparation failed: {exc}"
@@ -448,8 +479,8 @@ def prepare_exact_folder_package(
     built_hashes = tuple(item.source_sha256 for item in package.items)
     if (
         built_hashes != planned_hashes
-        or tuple(item.kind for item in package.items) != profile.child_kinds
-        or tuple(item.name for item in package.items) != profile.child_names
+        or tuple(item.kind for item in package.items) != kinds
+        or tuple(item.name for item in package.items) != names
     ):
         raise LibraryFolderPackageAdapterError(
             "Local Library sources no longer match the reviewed folder plan"
@@ -488,10 +519,12 @@ def prepare_exact_folder_package(
 
     assessment = assess_transfer_shape(artifact)
     if (
-        assessment.classification != EXACT_VERIFIED_LIVE_PROFILE
+        (assessment.classification != EXACT_VERIFIED_LIVE_PROFILE
+         if profile_id != GENERALIZED_FLAT_PROFILE_ID
+         else not assessment.host_admissible_flat)
         or artifact.root_name != folder.source_filename
-        or tuple(child.kind for child in artifact.children) != profile.child_kinds
-        or tuple(child.name for child in artifact.children) != profile.child_names
+        or tuple(child.kind for child in artifact.children) != kinds
+        or tuple(child.name for child in artifact.children) != names
         or tuple(child.source_sha256 for child in artifact.children) != planned_hashes
     ):
         temporary.cleanup()
@@ -536,7 +569,7 @@ def prepare_exact_folder_package(
         package=reference,
         prepared_artifact=artifact.to_dict(),
         prepared_metadata={
-            "compatibility_adapter": "transient_local_folder_to_prepared_media_package",
+            "compatibility_adapter": "transient_local_folder_to_bounded_flat_package",
             "package_manifest_sha256": imported.manifest_sha256,
         },
         node_kind=NODE_PREPARED_PACKAGE,
@@ -562,9 +595,38 @@ def prepare_exact_folder_package(
     )
 
 
+def prepare_flat_folder_package(
+    catalog: LibraryCatalog,
+    folder: LibraryItem,
+    plan: LibraryDeviceTransferPlan,
+    *,
+    staging_parent: Path,
+) -> Optional[LibraryFolderPackageStage]:
+    """Stage any bounded, direct-child TXT/BMP folder in persisted order."""
+
+    return _prepare_flat_folder_package(
+        catalog, folder, plan, staging_parent=staging_parent, exact_only=False
+    )
+
+
+def prepare_exact_folder_package(
+    catalog: LibraryCatalog,
+    folder: LibraryItem,
+    plan: LibraryDeviceTransferPlan,
+    *,
+    staging_parent: Path,
+) -> Optional[LibraryFolderPackageStage]:
+    """Compatibility adapter retaining the historical exact 3-/4-leaf gate."""
+
+    return _prepare_flat_folder_package(
+        catalog, folder, plan, staging_parent=staging_parent, exact_only=True
+    )
+
+
 __all__ = [
     "LibraryFolderPackageAdapterError",
     "LibraryFolderPackageStage",
     "OPERATION_STAGING_BINDING_FORMAT",
+    "prepare_flat_folder_package",
     "prepare_exact_folder_package",
 ]

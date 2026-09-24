@@ -9,6 +9,7 @@ from infocarry.prepared_package_multi_verify import (
     verify_prepared_multi_package_readback,
 )
 from infocarry.prepared_package_multi_candidate import build_prepared_multi_package_candidate
+from infocarry.prepared_media_package import build_prepared_media_package
 from infocarry.write_gate import verify_fresh_backup
 
 try:
@@ -88,6 +89,63 @@ class PreparedMultiVerifyTests(unittest.TestCase):
         self.assertEqual(result.details["ordered_children_verified"], True)
         self.assertEqual(result.details["removed_paths"], [])
         self.assertFalse(result.to_dict()["automatic_retry"])
+
+    def test_five_leaf_mixed_readback_verifies_exact_order_and_identity(self):
+        temporary, _package, backup, _candidate, template = (
+            _multi_fixture.PreparedMultiCandidateTests()._case(mixed=True)
+        )
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        now = datetime(2026, 8, 27, tzinfo=timezone.utc)
+        first = root / "one.txt"
+        image = root / "page.bmp"
+        second = root / "two.txt"
+        extra_image = root / "extra.bmp"
+        extra_text = root / "three.txt"
+        extra_image.write_bytes(_multi_fixture.make_profile_bmp())
+        extra_text.write_text("three\n", encoding="utf-8")
+        package = build_prepared_media_package(
+            (
+                (first, "01-one.txt"),
+                (image, "02-page.bmp"),
+                (second, "03-two.txt"),
+                (extra_image, "04-extra.bmp"),
+                (extra_text, "05-three.txt"),
+            ),
+            "FiveLeaf",
+        )
+        candidate = build_prepared_multi_package_candidate(
+            package,
+            backup,
+            template,
+            new_record_timestamp_be32=0x6A8ABA6F,
+            native_capacity_response=_multi_fixture.PreparedMultiCandidateTests()._response(),
+            template_folder_path=("root", "Template"),
+            template_item_paths={
+                "txt": ("root", "Template", "chapter"),
+                "bmp": ("root", "Template", "page"),
+            },
+        )
+        zero_state = {
+            command: b"\x00" * 64
+            for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)
+        }
+        post = _write_archive(
+            root / "five-leaf-after",
+            candidate.candidate_blob,
+            now,
+            fixed_state=zero_state,
+        )
+
+        result = verify_prepared_multi_package_readback(
+            candidate, post, completion=0, now=now, max_age_seconds=None
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.details["ordered_children_verified"], True)
+        self.assertEqual(
+            tuple(child.name for child in candidate.package.items),
+            ("01-one.txt", "02-page.bmp", "03-two.txt", "04-extra.bmp", "05-three.txt"),
+        )
 
     def test_nonzero_or_missing_completion_is_terminal(self):
         temporary, _package, _backup, candidate, _template = self._case()

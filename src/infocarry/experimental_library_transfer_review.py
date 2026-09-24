@@ -83,19 +83,52 @@ def _expected_paths(
     target_folder_name: str = EXPERIMENTAL_TARGET_FOLDER,
     *,
     profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
+    child_names: Optional[tuple[str, ...]] = None,
 ) -> list[str]:
     profile = guarded_execution_profile(profile_id)
+    names = profile.child_names if child_names is None else tuple(child_names)
     return [
         f"root\\{target_folder_name}",
         *[
             f"root\\{target_folder_name}\\{name}"
-            for name in profile.child_names
+            for name in names
         ],
     ]
 
 
-def _children_for_profile(profile_id: str) -> tuple[tuple[int, str, str], ...]:
+def _children_for_profile(
+    profile_id: str, *, item: Optional[Mapping[str, Any]] = None
+) -> tuple[tuple[int, str, str], ...]:
     profile = guarded_execution_profile(profile_id)
+    if profile.generalized_flat:
+        artifact = item.get("prepared_artifact") if isinstance(item, Mapping) else None
+        raw_children = artifact.get("ordered_children") if isinstance(artifact, Mapping) else None
+        if not isinstance(raw_children, list) or not raw_children:
+            raise ExperimentalLibraryTransferReviewError(
+                "the generalized flat profile requires an ordered child manifest"
+            )
+        result: list[tuple[int, str, str]] = []
+        for index, child in enumerate(raw_children):
+            if not isinstance(child, Mapping) or not all(
+                isinstance(child.get(key), (int, str))
+                for key in ("order", "kind", "name")
+            ):
+                raise ExperimentalLibraryTransferReviewError(
+                    "the generalized flat child manifest is malformed"
+                )
+            if child["order"] != index:
+                raise ExperimentalLibraryTransferReviewError(
+                    "the generalized flat child manifest order is not contiguous"
+                )
+            result.append((index, str(child["kind"]), str(child["name"])))
+        if not profile.accepts_children(
+            tuple(kind for _order, kind, _name in result),
+            tuple(name for _order, _kind, name in result),
+        ):
+            raise ExperimentalLibraryTransferReviewError(
+                "the generalized flat child manifest exceeds its host bounds"
+            )
+        return tuple(result)
     return tuple(
         (order, kind, name)
         for order, (kind, name) in enumerate(
@@ -159,8 +192,12 @@ def _package_is_exact(
     target_folder_name: str = EXPERIMENTAL_TARGET_FOLDER,
     profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
 ) -> tuple[bool, list[str]]:
-    expected_children = _children_for_profile(profile_id)
-    expected_paths = _expected_paths(target_folder_name, profile_id=profile_id)
+    expected_children = _children_for_profile(profile_id, item=item)
+    expected_paths = _expected_paths(
+        target_folder_name,
+        profile_id=profile_id,
+        child_names=tuple(name for _order, _kind, name in expected_children),
+    )
     reasons: list[str] = []
     if item.get("operation_type") != "prepared_flat_typed_package":
         reasons.append("the selected item is not an explicitly imported prepared package")
@@ -185,7 +222,7 @@ def _package_is_exact(
                 or child.get("path") != expected_paths[order + 1]
             ):
                 reasons.append(
-                    "the package order/profile is not the proven TXT/BMP/TXT shape"
+                    "the package order/profile is outside the bounded transfer shape"
                 )
                 break
             for field in ("source_sha256", "prepared_payload_sha256"):
@@ -221,8 +258,12 @@ def _sealed_ready_bindings(
 ) -> dict[str, Any]:
     """Validate only the public shape; the canonical runner validates bytes."""
 
-    expected_children = _children_for_profile(profile_id)
-    expected_paths = _expected_paths(target_folder_name, profile_id=profile_id)
+    expected_children = _children_for_profile(profile_id, item=item)
+    expected_paths = _expected_paths(
+        target_folder_name,
+        profile_id=profile_id,
+        child_names=tuple(name for _order, _kind, name in expected_children),
+    )
 
     if bundle.get("format") != "infocarry-p17-017-library-package-operation-bundle-v1":
         raise ExperimentalLibraryTransferReviewError("operation bundle format is unsupported")
@@ -712,7 +753,13 @@ def build_experimental_library_transfer_review(
             "independent_read_back_required": True,
             "wrapper_reconciliation": "P17-019 candidate-core disk-only verification",
             "expected_post_paths": _expected_paths(
-                target_folder_name, profile_id=profile_id
+                target_folder_name,
+                profile_id=profile_id,
+                child_names=tuple(
+                    child.get("name")
+                    for child in package_children
+                    if isinstance(child, Mapping)
+                ),
             ),
             "audit_location": audit_location,
         },

@@ -54,7 +54,7 @@ from .library import (
 from .library_folder_package_adapter import (
     LibraryFolderPackageAdapterError,
     LibraryFolderPackageStage,
-    prepare_exact_folder_package,
+    prepare_flat_folder_package,
 )
 from .device_library_semantics import (
     AuxiliaryStateSnapshot,
@@ -73,6 +73,7 @@ from .library_prepare import LibraryPreparationError
 from .library_workflow import LibraryWorkflowService
 from .prepared_content import PreparedContentArtifact, PreparedContentError
 from .capability_profile import (
+    GENERALIZED_FLAT_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
 )
@@ -152,7 +153,7 @@ def _exact_live_package_artifact(
     item: Any,
     plan: LibraryDeviceTransferPlan,
 ) -> Optional[PreparedContentArtifact]:
-    """Return the artifact only for one exact, root-level guarded mapping.
+    """Return the artifact only for one bounded, root-level guarded mapping.
 
     The generic device plan remains host-only. This adapter proves that its
     explicit package expansion agrees with an existing guarded profile;
@@ -175,7 +176,7 @@ def _exact_live_package_artifact(
         assessment = assess_transfer_shape(artifact)
     except (PreparedContentError, TypeError, ValueError):
         return None
-    if assessment.classification != EXACT_VERIFIED_LIVE_PROFILE:
+    if not assessment.host_admissible_flat:
         return None
 
     if assessment.ordered_kinds == CURRENT_VERIFIED_CHILD_KINDS:
@@ -183,15 +184,17 @@ def _exact_live_package_artifact(
     elif assessment.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
         profile_id = VNW_V15_FOUR_LEAF_PROFILE_ID
     else:
-        return None
+        profile_id = GENERALIZED_FLAT_PROFILE_ID
     try:
         profile = guarded_execution_profile(profile_id)
     except ValueError:
         return None
     if (
         artifact.root_name != getattr(item.package, "folder_name", None)
-        or tuple(child.kind for child in artifact.children) != profile.child_kinds
-        or tuple(child.name for child in artifact.children) != profile.child_names
+        or not profile.accepts_children(
+            tuple(child.kind for child in artifact.children),
+            tuple(child.name for child in artifact.children),
+        )
     ):
         return None
 
@@ -1061,9 +1064,9 @@ def format_early_transfer_eligibility_summary(
 
     if artifact is None:
         return (
-            "Transfer patterns: VNW-V15 TXT → BMP → TXT and TXT → BMP → TXT → TXT "
-            "are currently supported shapes. Prepare first to check the exact order; "
-            "other valid content can still be prepared and previewed."
+            "Transfer patterns: VNW-V15 supports one bounded flat root folder "
+            "with 1–8 ordered TXT/BMP leaves. Prepare first to review names, "
+            "order, conflicts, and the current host safety limits."
         )
     assessment = assess_transfer_shape(artifact)
     if assessment.classification == EXACT_VERIFIED_LIVE_PROFILE:
@@ -1078,10 +1081,13 @@ def format_early_transfer_eligibility_summary(
             "shape. Fresh device checks and separate operation authorization "
             "are still required before any future transfer."
         )
-    return (
-        "Prepared successfully — this arrangement is not yet supported for transfer. "
-        "Preparation and preview remain available."
-    )
+    if assessment.plausible_future_direct_leaf:
+        return (
+            "Prepared successfully — this bounded flat TXT/BMP arrangement is "
+            "host-admissible. Separate fresh device evidence and operation review "
+            "are still required before hardware use."
+        )
+    return "Prepared successfully — this arrangement remains preview-only for transfer."
 
 
 def _normalization_notice_lines(preview: Any, *, limit: int = 12) -> list[str]:
@@ -4233,7 +4239,7 @@ def launch_ttk_desktop(
             live_artifact: Optional[PreparedContentArtifact] = None
             if len(selected) == 1:
                 if selected[0].node_kind == NODE_FOLDER:
-                    folder_stage = prepare_exact_folder_package(
+                    folder_stage = prepare_flat_folder_package(
                         library_catalog,
                         selected[0],
                         plan,
@@ -4259,12 +4265,12 @@ def launch_ttk_desktop(
 
             details += (
                 "\n\n"
-                "This selection matches an existing exact guarded transfer shape. "
-                "Continuing through its current readiness and safety checks; this plan itself "
+                "This selection matches the bounded flat transfer profile. "
+                "Continuing through the existing readiness and safety checks; this plan itself "
                 "does not authorize or perform a device change."
             )
             library_status_var.set(
-                "Exact transfer mapping found; continuing through existing guarded readiness checks"
+                "Bounded flat transfer mapping found; continuing through existing guarded readiness checks"
             )
             messagebox.showinfo("Transfer plan", details, parent=root)
             library_single_transfer_review_action(
