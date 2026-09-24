@@ -495,6 +495,42 @@ class DesktopTtkMessageTests(unittest.TestCase):
         )
         self.assertIn("intent.confirmation_phrase", action)
 
+    def test_live_transfer_cannot_be_invalidated_by_selection_or_drag(self):
+        source = inspect.getsource(launch_ttk_desktop)
+
+        selection_start = source.index("    def show_library_selection(")
+        selection_end = source.index("\n    def library_import_can_start(", selection_start)
+        selection = source[selection_start:selection_end]
+        guard = selection.index("if library_device_change_in_progress:")
+        invalidation = selection.index("library_operation_controller.invalidate()")
+        self.assertLess(guard, invalidation)
+        self.assertIn("library_cancel_button", selection[guard:invalidation])
+        self.assertIn('button.configure(state="disabled")', selection[guard:invalidation])
+        self.assertIn("return", selection[guard:invalidation])
+
+        drag_press_start = source.index("    def library_drag_press(")
+        drag_motion_start = source.index("    def library_drag_motion(", drag_press_start)
+        drag_press = source[drag_press_start:drag_motion_start]
+        self.assertIn("if library_operation_controller.busy:", drag_press)
+
+        drag_release_start = source.index("    def library_drag_release(", drag_motion_start)
+        drag_release_end = source.index("\n    def library_rename_destination_action(", drag_release_start)
+        drag_release = source[drag_release_start:drag_release_end]
+        self.assertIn("if library_operation_controller.busy:", drag_release)
+        self.assertLess(
+            drag_release.index("if library_operation_controller.busy:"),
+            drag_release.index("clear_library_review_for_input_change()"),
+        )
+
+        transfer_start = source.index("    def library_transfer_once_action()")
+        transfer_end = source.index(
+            '    library_tree.bind("<<TreeviewSelect>>"',
+            transfer_start,
+        )
+        transfer = source[transfer_start:transfer_end]
+        self.assertIn("show_library_selection()", transfer)
+        self.assertIn("library_device_change_in_progress = False", transfer)
+
     def test_transfer_success_copy_is_product_facing(self):
         source = inspect.getsource(launch_ttk_desktop)
         start = source.index("    def library_transfer_once_action()")
