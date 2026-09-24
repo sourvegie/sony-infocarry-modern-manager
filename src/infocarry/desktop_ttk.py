@@ -3187,6 +3187,29 @@ def launch_ttk_desktop(
     def show_library_selection(_event: Any = None) -> None:
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         nonlocal library_current_preview, library_current_revision, library_technical_details_open
+        if library_device_change_in_progress:
+            # A click in the still-responsive tree must never invalidate or
+            # detach the active guarded operation. Keep all mutable actions
+            # disabled until its terminal callback has been delivered.
+            for button in (
+                library_remove_selection_button,
+                library_details_toggle_button,
+                library_technical_details_action_button,
+                library_transfer_button,
+                library_move_up_button,
+                library_move_down_button,
+                library_rename_button,
+                library_remove_button,
+                library_prepare_button,
+                library_preview_button,
+                library_selected_queue_button,
+                library_all_queue_button,
+                library_live_preflight_button,
+                library_transfer_once_button,
+                library_cancel_button,
+            ):
+                button.configure(state="disabled")
+            return
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
         has_selection = bool(library_tree.selection()) and library_catalog is not None
@@ -3554,6 +3577,9 @@ def launch_ttk_desktop(
             library_status_var.set(f"Move blocked: {exc}")
 
     def library_drag_press(event: Any) -> None:
+        if library_operation_controller.busy:
+            library_drag_state.update({"source": None, "moved": False})
+            return
         row = library_tree.identify_row(event.y)
         selection = tuple(library_tree.selection())
         library_drag_state.update(
@@ -3570,6 +3596,9 @@ def launch_ttk_desktop(
             library_drag_state["moved"] = True
 
     def library_drag_release(event: Any) -> None:
+        if library_operation_controller.busy:
+            library_drag_state.update({"source": None, "moved": False})
+            return
         source_tree_item = library_drag_state.get("source")
         moved = bool(library_drag_state.get("moved"))
         library_drag_state.update({"source": None, "moved": False})
@@ -4373,6 +4402,10 @@ def launch_ttk_desktop(
         def terminal() -> None:
             nonlocal library_device_change_in_progress
             library_device_change_in_progress = False
+            # Selection changes are intentionally ignored while a live device
+            # operation owns the controller. Reconcile the visible selection
+            # only after the terminal result has been applied.
+            show_library_selection()
 
         library_status_var.set(
             "Transfer confirmed; final safety checks are running"
