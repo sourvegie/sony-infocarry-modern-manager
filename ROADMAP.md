@@ -10,36 +10,38 @@ priority; it does not authorize a device operation or expand a capability.
 
 ## Near-term sequence
 
-1. **Focused UI/UX review.** Review the current Manager around the Local
-   Library ↔ Device Library mental model. Walk through adding files and folders,
-   selecting content, transfer, verified completion, and immediate device-tree
-   refresh. Review the corresponding selected deletion and refresh flow, backup
-   access, capacity visibility, and understandable failure states. Keep
-   technical evidence available without making it the ordinary workflow. Use
-   the review to focus subsequent changes.
+1. **P18-038 — Responsive operation UX + simple confirmation.** Keep the
+   Manager responsive throughout backup, preflight, transfer, post-write
+   backup, and verification. Show plain-language progress while the existing
+   guarded operation runs outside Tk's main thread. Replace the ordinary
+   transfer typed-key ritual with a clear OK/Cancel confirmation that summarizes
+   the exact target and scope; internally retain the same operation-specific
+   binding, durable claim, sender marker, no-retry rule, lock, and independent
+   verification. The confirmation dialog is the cancellation boundary for a
+   device-changing transfer; once guarded execution begins, keep the UI
+   responsive but do not offer a mid-write cancel or allow the window to close.
 
-2. **General library model and direct TXT/BMP transfer.** Build the reusable
-   library and operation model around folders and typed TXT/BMP items. Make
-   direct transfer of supported TXT and BMP content the first practical
-   everyday path. Validate bounded structural rules across representative
-   collections and edge cases instead of defining general validity as a set of
-   exact leaf-order permutations. Keep each device operation behind its
-   existing evidence, capability, authorization, backup, and verification
-   gates.
+2. **P18-039 — Generalized flat TXT/BMP transfer.** Promote a bounded
+   structural rule for one root-level folder containing an ordered collection
+   of supported TXT/BMP leaves, rather than enumerating exact three-/four-leaf
+   permutations. Validate names, ordering, source freshness, formats, conflicts,
+   capacity, candidate construction, and preservation invariants. Use
+   representative boundary cases and separate physical promotion evidence; the
+   structural host model does not itself authorize live execution.
 
-3. **Realistic nested hierarchy.** Support browsing and selecting content in
-   nested folders, and carry the structure through preparation and transfer
-   review. Validate at a realistic scale of roughly 30–50 folders and many
-   TXT/BMP items. Treat those figures as a planning and test target, not as a
-   hard product limit. Document any limit only when an evidenced device,
-   format, protocol, or resource constraint requires it.
+3. **P18-040 — Nested library transfer.** Carry ordinary nested Local Library
+   hierarchy through preparation, planning, guarded transfer, verification, and
+   Device Library refresh. Validate realistic collections of roughly 30–50
+   folders and 100+ mixed TXT/BMP leaves as a planning/test target, not a hard
+   device limit. Preserve selected hierarchy and ordering without introducing
+   synchronization or unmatched-content deletion.
 
-4. **Guarded deletion.** Deliver selected file and folder deletion as a core
-   Manager workflow. Require an operation-specific reviewed scope, fresh
-   device state, the existing verified-backup and explicit-confirmation
-   controls, bounded execution, and independent verification of the removal
-   and unaffected content. Refresh the Device Library immediately after
-   verified completion. Do not infer deletion from transfer or synchronization.
+4. **P18-041 — Guarded Device Library deletion.** Deliver selected file and
+   folder deletion as a normal Device Library action. Require a fresh complete
+   backup, explicit Delete/Cancel confirmation, bounded one-shot execution,
+   no automatic retry after an ambiguous start, complete post-operation
+   read-back, unaffected-content preservation checks, and immediate Device
+   Library refresh. Deletion remains a separate capability from transfer.
 
 5. **InfoCarry Toolkit integration.** Integrate the important Toolkit snapshot
    `97042a9` after the core Manager workflow is useful. Bring supported
