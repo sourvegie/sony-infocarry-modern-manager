@@ -2,6 +2,53 @@
 
 Date: 2026-09-24
 
+
+## P18-038 — Responsive operation UX + simple confirmation
+
+P18-038 is implemented on `task/P18-038-responsive-operation-ux` as PR #66,
+based on canonical `main` at
+`7f5a6b7c8bd9c1342c452b43658be6c38d6e47b5`. The current PR head is the review/CI authority. P18-038 does not expand the live
+capability envelope: only the existing exact reviewed VNW-V15 three- and
+four-leaf transfer profiles remain eligible.
+
+The final guarded Library transfer no longer runs synchronously on Tk's event
+thread. The existing `LibraryTransferExecutionFacade.execute_once()` call is
+owned by the existing `OperationController` worker path, with progress
+marshalled back to the UI. The normal surface reports coarse owner-facing
+states for final safety checks, device transfer, and verification while the
+window remains responsive. The canonical facade/coordinator, one-shot sender,
+durable claim, sender marker, global indeterminate-write lock, no-retry policy,
+native completion checks, post-write backup, and independent read-back remain
+unchanged.
+
+The ordinary Library transfer confirmation is a normal OK/Cancel dialog that
+summarizes the sealed target and item count. OK supplies the exact
+already-derived confirmation phrase to the existing operation-specific
+authorization path; the user no longer has to type the phrase. The confirmation
+dialog is the cancellation boundary for a device-changing transfer. Once the
+guarded worker starts, the visible cancel action is disabled, cancellation is
+not forwarded into the sender lifecycle, and the Manager refuses to close
+until the operation reaches a terminal result.
+
+The responsive UI also preserves the live operation's controller attachment
+and diagnostic context. Selection/drag interaction cannot invalidate or detach
+the active live controller token, the exact Local Library selection is pinned
+during execution, and terminal reconciliation preserves the just-produced
+success/failure report and typed diagnostic readiness.
+
+Exact-head automated validation is green:
+- full Python 3.12 portable suite on macOS;
+- full Python 3.12 portable suite on Windows;
+- `git diff --check` on both offline-suite jobs;
+- Apple Silicon macOS onedir/Tk 9 package and LaunchServices smoke; and
+- Windows x64 onedir/Tk 9 package smoke.
+
+The implementation and decision record are in
+[the P18-038 analysis](analysis/phase-18-p18-038-responsive-operation-ux-20260924.md).
+PR #66 is open and mergeable. A fresh independent exact-head review remains the
+only project gate before PM merge disposition. No physical device operation is
+authorized or claimed by P18-038 host implementation work.
+
 ## P18-037 post-merge closure
 
 PR #65 was merged into `main` with the standard merge-commit method after
