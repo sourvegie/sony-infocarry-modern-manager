@@ -2,6 +2,42 @@
 
 Date: 2026-09-24
 
+
+## P18-038 — Responsive operation UX + simple confirmation
+
+P18-038 is in progress on `task/P18-038-responsive-operation-ux` as PR #66,
+based on canonical `main` at
+`7f5a6b7c8bd9c1342c452b43658be6c38d6e47b5`. It does not expand the live
+capability envelope: only the existing exact reviewed VNW-V15 three- and
+four-leaf transfer profiles remain eligible.
+
+The final guarded Library transfer no longer runs synchronously on Tk's event
+thread. The existing `LibraryTransferExecutionFacade.execute_once()` call is
+now owned by the existing `OperationController` worker path, with progress
+marshalled back to the UI. The normal surface reports coarse owner-facing
+states for final safety checks, device transfer, and verification while the
+window remains responsive. The canonical facade/coordinator, one-shot sender,
+durable claim, sender marker, global indeterminate-write lock, no-retry policy,
+native completion checks, post-write backup, and independent read-back remain
+unchanged.
+
+The ordinary Library transfer confirmation is now a normal OK/Cancel dialog
+that summarizes the sealed target and item count. OK supplies the exact
+already-derived confirmation phrase to the existing operation-specific
+authorization path; the user no longer has to type the phrase. The confirmation
+dialog is the cancellation boundary for a device-changing transfer. Once the
+guarded worker starts, the visible cancel action is disabled, cancellation is
+not forwarded into the sender lifecycle, and the Manager refuses to close
+until the operation reaches a terminal result. Host/read-only operations retain
+their existing cooperative cancellation behavior.
+
+The implementation and decision record are in
+[the P18-038 analysis](analysis/phase-18-p18-038-responsive-operation-ux-20260924.md).
+PR #66 remains draft/open. Exact-head offline tests, macOS package smoke, and
+Windows package smoke are required together with an independent exact-head
+review before merge or any hardware-validation decision. No physical device
+operation is authorized or claimed by P18-038 host implementation work.
+
 ## P18-037 post-merge closure
 
 PR #65 was merged into `main` with the standard merge-commit method after
