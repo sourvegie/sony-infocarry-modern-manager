@@ -91,6 +91,10 @@ therefore treats the active live operation specially:
 
 This prevents a harmless click from discarding the terminal write result while
 preserving the existing stale-result behavior for cancellable host-only work.
+When the terminal callback releases the live-operation guard, it reconciles
+the normal control state without replacing the just-produced terminal report
+or typed diagnostic readiness. Success/failure evidence therefore remains
+visible until the user deliberately selects another normal view.
 
 ## Safety invariants unchanged
 
