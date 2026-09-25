@@ -105,3 +105,40 @@ Disposition at this record: `READY_FOR_HARDWARE_TEST` after exact-head
 independent review and package/CI validation. Owner authorization is still
 required for any later hardware work. This record is not itself an
 authorization.
+
+## Follow-up: macOS existing-directory picker gate
+
+The exact pre-fix macOS build reproduced the reported native-panel failure:
+after the existing P18-039 root folder was selected, the macOS `Choose` button
+remained disabled. The source used `tkinter.filedialog.askdirectory()` without
+`mustexist=True` for both source-folder actions. On macOS, Tk's
+`tk_chooseDirectory` command defaults `mustexist` to false and enables native
+directory creation when that option is false. That is the wrong native-panel
+mode for an existing source-directory import and caused the observed gate on
+this host.
+
+The correction passes `mustexist=True` to both folder pickers. It changes no
+transfer bounds, candidate construction, authorization, persistence logic,
+sender, USB, or hardware-facing behavior. A focused regression test asserts
+both picker calls retain the option.
+
+Host-only validation after the correction:
+
+- The rebuilt exact checkout artifact was opened in the native macOS panel;
+  the preserved `IC_P18_039_5LEAF_20260925_01` folder displayed its five
+  direct leaves and `Choose` was enabled. The choice was exercised without
+  entering transfer or device code.
+- The packaged smoke passed with the Add controls enabled, host-only transfer
+  created, guarded send disabled, and physical counters all zero
+  (`device_enumeration_calls=0`, `sender_calls=0`, `real_0x101b=0`,
+  `claims_consumed=0`).
+- The focused desktop suite passed 42/42 and the full portable suite passed
+  1,014 tests with 3 intentional skips. `git diff --check` passed.
+- The one catalog-only import created for the UI demonstration was removed by
+  restoring the verified pre-demo catalog snapshot; the catalog content hash
+  now matches its prior snapshot. No device write, `0x101b`, claim
+  consumption, sender activity, or hardware mutation occurred.
+
+This remains a host/UI correction only. The P18-039 disposition stays
+`READY_FOR_HARDWARE_TEST`; no new hardware authorization or executable
+hardware-facing risk was introduced.

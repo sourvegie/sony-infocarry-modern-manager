@@ -672,6 +672,18 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn(contract, source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
 
+    def test_library_source_directory_pickers_require_existing_directories(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        folder_action_start = source.index("    def library_folder_import_action()")
+        package_action_start = source.index("    def library_package_import_action()")
+        folder_action = source[folder_action_start:package_action_start]
+        package_action_end = source.index("    def library_move_action(", package_action_start)
+        package_action = source[package_action_start:package_action_end]
+        self.assertIn('title="Recursively import folder hierarchy into Library"', folder_action)
+        self.assertIn("mustexist=True", folder_action)
+        self.assertIn('title="Import prepared flat TXT/BMP package"', package_action)
+        self.assertIn("mustexist=True", package_action)
+
     def test_visible_add_folder_transfer_path_uses_transient_flat_adapter(self):
         source = inspect.getsource(launch_ttk_desktop)
         action_start = source.index("    def library_transfer_action()")

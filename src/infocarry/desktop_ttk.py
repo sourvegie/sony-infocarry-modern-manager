@@ -3495,6 +3495,7 @@ def launch_ttk_desktop(
         selected = filedialog.askdirectory(
             title="Recursively import folder hierarchy into Library",
             parent=root,
+            mustexist=True,
         )
         if not selected:
             return
@@ -3518,6 +3519,7 @@ def launch_ttk_desktop(
         selected = filedialog.askdirectory(
             title="Import prepared flat TXT/BMP package",
             parent=root,
+            mustexist=True,
         )
         if not selected:
             return

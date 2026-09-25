@@ -23,11 +23,19 @@ duplicates/conflicts, zero leaves, over-bound selections, source/path drift,
 and existing targets stop before authorization, claim, sender marker, or
 sender activity.
 
+The macOS existing-directory picker gate has a host-only correction: both
+source-folder pickers now pass `mustexist=True`, with no change to transfer,
+authorization, persistence, sender, USB, or hardware-write semantics. The
+pre-fix native panel was reproduced with the exact candidate; the rebuilt
+panel enabled `Choose` for that same existing folder. Evidence and the
+follow-up risk assessment are recorded in the
+[picker-gate follow-up](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md#follow-up-macos-existing-directory-picker-gate).
+
 No physical device operation occurred: no USB sender, `0x101b`, live claim
-consumption, or device mutation. Fresh review of code-bearing head
+consumption, or device mutation. Fresh review of the prior code-bearing head
 `f05190e8dcb509ce01f23b4d07c3ea5030654b8a` found zero P0/P1/P2 findings.
-Exact-head validation is 117 focused tests passed; 1,013 portable tests passed
-with 3 skipped; compilation and `git diff --check` passed. Local Windows host
+The picker-only follow-up passed 42 focused desktop tests and 1,014 portable
+tests with 3 skipped; compilation and `git diff --check` passed. Local Windows host
 workflow/package smoke passed with USB enumeration, sender calls, claim
 consumption, and marker activity guarded at zero. The pull request and
 macOS/Windows CI all passed on PR [#67](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/67): Python 3.12 offline suites on macOS and Windows, Apple Silicon macOS package, and Windows x64 package. The PR remains unmerged; its final documentation tip is the current branch head recorded in the final handoff. See the
