@@ -455,7 +455,9 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("Keep the InfoCarry connected until verification finishes.", action)
         self.assertIn("simpledialog.askstring", action)
         self.assertIn('"Approve Exact Operation"', action)
-        self.assertIn("owner_identity.approval_phrase", action)
+        self.assertIn("owner_identity.identity_sha256", action)
+        self.assertNotIn("owner_identity.approval_phrase", action)
+        self.assertIn("supplied separately by the owner", action)
         self.assertIn("authorize_prepared_operation(owner_approval)", action)
         self.assertLess(
             action.index("authorize_prepared_operation(owner_approval)"),

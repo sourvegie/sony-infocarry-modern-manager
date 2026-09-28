@@ -288,7 +288,10 @@ capacity response, candidate, transaction, authorization hash, and core/outer
 preflight seals. The bundle hash covers every remaining bound bundle field and
 artifact. After fresh preflight, the Manager displays these exact identifiers
 and requires a separate exact approval phrase derived from the complete
-identity. Ordinary Confirm Transfer OK remains the final transaction consent
+identity. It shows the full fingerprint for the post-preflight authorization
+handoff but deliberately does not display or synthesize the accepted phrase;
+that phrase must be supplied separately by the owner. Ordinary Confirm
+Transfer OK remains the final transaction consent
 but cannot create owner identity approval. The execution facade compares the
 stored approval with the operation presented for execution before it creates
 an executable binding or enters the coordinator. Missing or changed approval
@@ -314,3 +317,18 @@ validation would still require a new operation-specific owner authorization;
 it should be considered only if the owner wants end-to-end UI evidence of the
 new two-step approval UX, not as a prerequisite for accepting the root-cause
 or pre-sender fix.
+
+This is an identity-enforcement control, not local user authentication. The
+software proves that the separately supplied approval matches the exact bundle
+presented for execution. Establishing that the human or channel supplying the
+phrase is the owner remains part of the approved operating procedure unless a
+future task introduces a separately provisioned trusted signing key or account
+identity. The Manager no longer makes procedural approval transferable to a
+new identity merely by displaying an OK dialog or its expected approval phrase.
+
+The new external-owner identity comparison is intentionally at
+`LibraryTransferExecutionFacade.execute_once()`, the sole production Manager
+entry to the guarded coordinator. Lower-level experimental/test APIs retain
+their existing internal binding and coordinator checks and are not claimed to
+authenticate or ingest external owner approval. No other production caller
+reaches those lower-level entry points.

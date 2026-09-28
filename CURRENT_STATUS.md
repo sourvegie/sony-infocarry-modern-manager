@@ -38,12 +38,16 @@ The host-only correction separates those two decisions. Fresh preflight now
 exposes one complete owner-authorization identity whose bundle hash covers all
 bound fields and artifacts and whose named fields include the device, baseline,
 capacity, candidate, transaction, authorization, and both seals. A distinct
-exact approval phrase pins that identity before execution. Missing or stale
+exact approval phrase supplied separately by the owner pins that identity
+before execution; the Manager shows the fingerprint but not the accepted
+phrase. Missing or stale
 approval stops before coordinator entry, claim consumption, marker creation,
 or sender activity; the ordinary Confirm Transfer OK cannot create or replace
 it. The existing coordinator, USB transport, and sender are unchanged. This
-fix remains host-only pending validation and independent R3 review; it does not
-close P18-039 or promote `CAPABILITY_MATRIX.md`.
+fix enforces exact identity in software; human owner authentication remains an
+operating-procedure responsibility. It remains host-only pending validation
+and independent R3 review and does not close P18-039 or promote
+`CAPABILITY_MATRIX.md`.
 
 
 ## P18-039 — HOST IMPLEMENTATION / READY FOR INDEPENDENT REVIEW

@@ -4378,8 +4378,9 @@ def launch_ttk_desktop(
                 f"Candidate: {owner_identity.candidate_blob_sha256}\n"
                 f"Transaction: {owner_identity.transaction_sha256}\n"
                 f"Preflight seal: {owner_identity.preflight_seal_sha256}\n\n"
-                "Enter this exact approval phrase:\n"
-                f"{owner_identity.approval_phrase}"
+                f"Authorization fingerprint: {owner_identity.identity_sha256}\n\n"
+                "Enter the exact approval phrase supplied separately by the owner. "
+                "The Manager does not display or generate that phrase."
             ),
             parent=root,
         )
