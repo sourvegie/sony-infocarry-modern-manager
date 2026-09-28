@@ -1,6 +1,28 @@
 # Current Project Status
 
-Date: 2026-09-25
+Date: 2026-09-28
+
+## P18-039 — PHYSICAL READBACK VERIFIED / EXACT-OPERATION CLOSURE HELD
+
+The Manager's 2026-09-28 terminal evidence records one real sender call and
+one `0x101b` transaction, native completion `0x0000`, a complete post-write
+backup, and `readback_verified` for the exact new root folder
+`IC_P18_039_FLAT_20260925_01` with ordered
+TXT/BMP/TXT/BMP/TXT leaves. Independent readback reports the five expected
+payload hashes and order, no removed paths, and preserved shared state. The
+executed claim remains consumed, the sender marker was resolved with terminal
+evidence, and the installation-wide lock is cleared. No retry is recorded.
+
+**Closure hold:** the executed operation was a newly sealed 2026-09-28
+operation (`8d901688…`), candidate `60f664f4…`, transaction `bab3787a…`.
+It does not match the expressly frozen P18-039 operation (`732d10fb…`),
+candidate `86eee55c…`, or transaction `e52b0212…`. The frozen preflight has
+no consumed claim or terminal result. This is genuine physical proof for this
+specific five-leaf payload and target, but it is not proof that the exact
+owner-authorized frozen transaction was sent. P18-039 is **not COMPLETE or
+merge-ready** pending owner/PM disposition of that material identity mismatch;
+the generalized 1–8-leaf profile remains unpromoted. No further hardware
+write is appropriate. See the [P18-039 evidence closure review](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md#physical-evidence-review-2026-09-28).
 
 
 ## P18-039 — HOST IMPLEMENTATION / READY FOR INDEPENDENT REVIEW

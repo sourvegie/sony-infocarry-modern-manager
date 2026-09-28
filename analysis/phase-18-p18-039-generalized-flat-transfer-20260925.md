@@ -142,3 +142,91 @@ Host-only validation after the correction:
 This remains a host/UI correction only. The P18-039 disposition stays
 `READY_FOR_HARDWARE_TEST`; no new hardware authorization or executable
 hardware-facing risk was introduced.
+
+## Physical evidence review — 2026-09-28
+
+The owner reported the Manager UI message “Transfer complete — content verified
+on the InfoCarry.” That message prompted inspection; it is not the basis of
+this result. The actual terminal record is the excluded external evidence at
+`~/Library/Application Support/SonyInfoCarryModernManager/Evidence/Library Transfer Operations/p17-017-attempt-ef18b96b487d4ba99a858e4fb3635f5a/`.
+Its `result-manifest-0001.json` has SHA-256
+`c22fb9672268cc03fa6a628901e2edae41ab6cc4dd4e990a06c608334f0057aa`.
+The paired preflight is `ui-preflight-20260928-204148-599694` in the same
+external evidence namespace. These complete backup and operation files remain
+outside Git; this section contains only sanitized identities and conclusions.
+
+### Actual terminal and safety evidence
+
+- The production result audit says `state=readback_verified`,
+  `usb_transmission_performed=true`, `device_changing_operation_performed=true`,
+  `workflow.sender_calls=1`, one `single_0x101b_transaction` step, native
+  completion `0x0000`, and `automatic_retry_allowed=false`. Thus the Manager
+  records one real sender/`0x101b` operation and zero retries. There is no
+  separate external USB bus capture for an independently measured packet count.
+- The complete before and after backups each contain eight objects and all
+  object lengths and SHA-256 hashes match their manifests. The post-backup
+  manifest SHA-256 is
+  `5a62df773befe6684c652a278c50ce098b359e100aecced4176b79cf94ee642c`;
+  the post-backup blob SHA-256 is
+  `60f664f4a2a37b1b89f377fa83bef9e8bc8d14a482361b821314f812d9c1b106`.
+  The Manager's independent readback verifier reports `success=true`,
+  `ordered_children_verified=true`, `shared_path_count=360`,
+  `shared_payloads_unchanged=true`, `shared_timestamps_unchanged=true`,
+  `fixed_state_exact=true`, and no removed paths. Display-history and bookmark
+  references were semantically rebased as expected; opaque bookmark values
+  and unrelated state were preserved under the reviewed policy.
+- Readback confirms the new target
+  `root\IC_P18_039_FLAT_20260925_01` with exactly these ordered direct leaves:
+  `01-intro.txt`, `02-page-a.bmp`, `03-middle.txt`, `04-page-b.bmp`,
+  `05-ending.txt`. Their prepared payload SHA-256 values, in that order, are
+  `d16567039a003110d246cc6a0a4d0b2042efa9f2240485f6a5facbb09c00dcb1`,
+  `f795a8e1466c3988b804f344645a6208bdcfa27e9d51d8b314c99d9a5973aadd`,
+  `0323580a5e02206cc0b06d85744a8ef78b449e30d184cef3867152ca4792671a`,
+  `f795a8e1466c3988b804f344645a6208bdcfa27e9d51d8b314c99d9a5973aadd`,
+  `a31b66d8b27676dc0af07d32ba4d17b90c54ffa39f406c37a9475672e9e46eec`.
+- The executed claim `815429097814474a97374042c8bff6fd` is durably
+  `consumed`. The sender marker started `in_flight`, was resolved as
+  `verified_terminal_success` by `sender-marker-resolution-0001.json`, and
+  the claim database now has zero active sender markers. The installation-wide
+  indeterminate-write lock is `cleared`.
+
+### Material identity discrepancy and disposition
+
+The frozen `_02` Manager executable currently hashes to the requested
+`46954025f3ffe119263377a01d59d8e0bfad2ba81172d5782dbf994df8d76b00`;
+its stated source commit is `397f29d5c741772674ec445843a7af33f9772e8c`.
+However, the executed terminal result is bound to operation
+`vnw-v15-library-operation-8d9016888b3f8451ecf8bc1865c6d40e648a0d11c47c6567095133ef1736b55a`,
+candidate `60f664f4a2a37b1b89f377fa83bef9e8bc8d14a482361b821314f812d9c1b106`,
+transaction `bab3787af7de707aba1f54c1f1b1afb88b6853713411265a628f26425878b879`,
+and preflight seal
+`cec5fa1477e9529b7e934b9b39e6449c39bc7453b358727ca5597153f25352cc`.
+The fresh preflight uses a different record timestamp and operation binding,
+although the selected target, ordered leaf names, prepared manifest identity,
+and five payload hashes match the frozen shape.
+
+The specified frozen operation
+`vnw-v15-library-operation-732d10fb442fb463c1907461c5e538317bc8869958c5acb068923185076c67b5`,
+candidate `86eee55cecdadb6bb57dc295adeb109a2dd08d9ad80b827abfaf0b2a33ffb1a4`,
+transaction `e52b021275b7a35bf675ed35f1adc82f5d081232c6edfc4f712eec8684524ab3`,
+and seal `94ba5bd223c0751a4f715a13d829c45d79629b02b01aacb295368515abe2ad8d`
+appear only in the 2026-09-27 read-only preflight. Its seal has no consumed
+claim and there is no matching terminal result. The later terminal result
+cannot be relabeled as that exact frozen operation.
+
+**Outcome:** physical transfer/readback for the specific five-leaf target and
+payload is **SUCCESS**, but closure against the exact approved frozen
+transaction is **FAILURE / ESCALATION_REQUIRED**. A material authorization
+identity discrepancy needs owner/PM disposition before P18-039 can be marked
+`COMPLETE`, declared merge-ready, or promoted in `CAPABILITY_MATRIX.md`.
+This does not authorize a repeat write. The generalized 1–8-leaf host bounds
+remain host bounds; VNW-V10, nesting, overwrite/merge, deletion, restore,
+multipackage, and arbitrary hierarchy remain outside this validation.
+
+Closure validation used the supported Python 3.12 runtime: 63 focused
+live-adapter/claim-store tests passed; the full portable suite passed 1,014
+tests with 3 established skips. `compileall` and `git diff --check` passed.
+An independent R3 evidence and documentation review found P0=0, P1=0, P2=0
+additional findings and confirmed the unresolved identity mismatch above as
+a material closure blocker. No further hardware write or read was performed
+during this review.
