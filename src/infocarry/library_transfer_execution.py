@@ -190,8 +190,9 @@ class LibraryTransferOperationIntent:
 
     The intent can reach read-only preflight only. It carries no operation ID
     until the fresh sealed preflight exists, and it cannot enter the guarded
-    execution coordinator. The final typed user confirmation converts the
-    preflight-bound intent to a one-shot operation binding.
+    execution coordinator. Separate exact-identity owner approval is required
+    after preflight; the final transaction confirmation then converts the
+    same preflight-bound intent to a one-shot operation binding.
     """
 
     target_folder_name: str
@@ -447,6 +448,87 @@ class LibraryTransferOperationBinding:
 
 
 @dataclass(frozen=True)
+class OwnerAuthorizedOperationIdentity:
+    """Exact sealed identity the owner approved after fresh live preflight.
+
+    The bundle hash covers every field and artifact binding in the operation
+    bundle.  Named safety-critical fields are retained so a mismatch can be
+    diagnosed without treating an opaque digest as sufficient evidence.
+    """
+
+    operation_id: str
+    bundle_sha256: str
+    device_identity: tuple[str, str]
+    baseline_state_identity_sha256: str
+    capacity_response_sha256: str
+    candidate_blob_sha256: str
+    transaction_sha256: str
+    authorization_sha256: str
+    core_preflight_seal_sha256: str
+    preflight_seal_sha256: str
+
+    def __post_init__(self) -> None:
+        _require_phrase(self.operation_id, "owner-authorized operation id")
+        if self.device_identity != ("0x054c", "0x001e"):
+            raise ValueError("owner authorization is not bound to the reviewed VNW-V15")
+        for label, value in (
+            ("bundle", self.bundle_sha256),
+            ("baseline state identity", self.baseline_state_identity_sha256),
+            ("capacity response", self.capacity_response_sha256),
+            ("candidate", self.candidate_blob_sha256),
+            ("transaction", self.transaction_sha256),
+            ("authorization", self.authorization_sha256),
+            ("core preflight seal", self.core_preflight_seal_sha256),
+            ("preflight seal", self.preflight_seal_sha256),
+        ):
+            _require_sha256(value, label)
+
+    @classmethod
+    def from_bundle(
+        cls, bundle: PreparedLibraryPackageOperationBundle
+    ) -> "OwnerAuthorizedOperationIdentity":
+        if not isinstance(bundle, PreparedLibraryPackageOperationBundle):
+            raise ValueError("owner authorization requires an operation bundle")
+        if bundle.operation_id is None:
+            raise ValueError("owner authorization requires a sealed operation id")
+        return cls(
+            operation_id=bundle.operation_id,
+            bundle_sha256=bundle.bundle_sha256,
+            device_identity=bundle.device_identity,
+            baseline_state_identity_sha256=bundle.baseline_state_identity_sha256,
+            capacity_response_sha256=bundle.capacity_response_sha256,
+            candidate_blob_sha256=bundle.candidate_blob_sha256,
+            transaction_sha256=bundle.transaction_sha256,
+            authorization_sha256=bundle.authorization_sha256,
+            core_preflight_seal_sha256=bundle.core_preflight_seal_sha256,
+            preflight_seal_sha256=bundle.preflight_seal_sha256,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": "infocarry-owner-authorized-operation-identity-v1",
+            "operation_id": self.operation_id,
+            "bundle_sha256": self.bundle_sha256,
+            "device_identity": list(self.device_identity),
+            "baseline_state_identity_sha256": self.baseline_state_identity_sha256,
+            "capacity_response_sha256": self.capacity_response_sha256,
+            "candidate_blob_sha256": self.candidate_blob_sha256,
+            "transaction_sha256": self.transaction_sha256,
+            "authorization_sha256": self.authorization_sha256,
+            "core_preflight_seal_sha256": self.core_preflight_seal_sha256,
+            "preflight_seal_sha256": self.preflight_seal_sha256,
+        }
+
+    @property
+    def identity_sha256(self) -> str:
+        return _sha256_json(self.to_dict())
+
+    @property
+    def approval_phrase(self) -> str:
+        return f"APPROVE EXACT OPERATION {self.identity_sha256}"
+
+
+@dataclass(frozen=True)
 class LibraryTransferExecutionRuntime:
     """Injected read-only/live boundaries used by the canonical runner.
 
@@ -513,6 +595,8 @@ def _operation_diagnostic_reason(error: LibraryTransferExecutionError) -> str:
         return "source_changed_since_staging"
     if stage == "confirmation" or "confirmation" in text:
         return "final_confirmation_mismatch"
+    if stage == "owner_authorization" or "owner-authorized identity" in text:
+        return "owner_authorization_identity_mismatch"
     if "profile" in text or stage == "profile":
         return "capability_profile_rejection"
     if "capacity" in text or "readiness" in text:
@@ -548,6 +632,34 @@ class LibraryTransferExecutionFacade:
         self._write_safety_owner: Optional[PersistentWriteSafetyOwner] = None
         self._write_safety_error: Optional[str] = None
         self._prepared_operation: Optional[PreparedLibraryTransferOperation] = None
+        self._owner_authorized_identity: Optional[OwnerAuthorizedOperationIdentity] = None
+
+    @property
+    def owner_authorization_identity(self) -> Optional[OwnerAuthorizedOperationIdentity]:
+        prepared = self._prepared_operation
+        if prepared is None:
+            return None
+        return OwnerAuthorizedOperationIdentity.from_bundle(prepared.operation_bundle)
+
+    def authorize_prepared_operation(
+        self, approval_phrase: str
+    ) -> OwnerAuthorizedOperationIdentity:
+        """Pin explicit owner approval to the current complete sealed bundle."""
+
+        identity = self.owner_authorization_identity
+        if identity is None:
+            raise LibraryTransferExecutionError(
+                "owner approval is blocked until fresh live preflight is sealed",
+                stage="owner_authorization",
+            )
+        if approval_phrase != identity.approval_phrase:
+            self._owner_authorized_identity = None
+            raise LibraryTransferExecutionError(
+                "owner approval identity differs from the current sealed operation",
+                stage="owner_authorization",
+            )
+        self._owner_authorized_identity = identity
+        return identity
 
     @property
     def can_prepare_live(self) -> bool:
@@ -883,6 +995,7 @@ class LibraryTransferExecutionFacade:
             operation_intent=bound_intent if binding is None else None,
         )
         if store:
+            self._owner_authorized_identity = None
             self._prepared_operation = prepared
         return prepared
 
@@ -896,9 +1009,12 @@ class LibraryTransferExecutionFacade:
                 "prepared operation result is malformed"
             )
         previous = self._prepared_operation
+        previous_authorization = self._owner_authorized_identity
         self._prepared_operation = prepared
+        self._owner_authorized_identity = None
         if not prepared.ready or not self.transfer_actionable:
             self._prepared_operation = previous
+            self._owner_authorized_identity = previous_authorization
             raise LibraryTransferExecutionError(
                 "prepared operation does not match the current exact operation intent"
             )
@@ -1098,6 +1214,7 @@ class LibraryTransferExecutionFacade:
                 binding=binding,
             )
             self._prepared_operation = None
+            self._owner_authorized_identity = None
             if clear_binding:
                 self.operation_binding = None
             raise error
@@ -1133,6 +1250,24 @@ class LibraryTransferExecutionFacade:
                 )
             )
 
+        current_owner_identity = OwnerAuthorizedOperationIdentity.from_bundle(
+            prepared.operation_bundle
+        )
+        if self._owner_authorized_identity is None:
+            fail_before_coordinator(
+                LibraryTransferExecutionError(
+                    "the exact sealed operation lacks separate owner identity approval",
+                    stage="owner_authorization",
+                )
+            )
+        if self._owner_authorized_identity != current_owner_identity:
+            fail_before_coordinator(
+                LibraryTransferExecutionError(
+                    "the operation presented for execution differs from the owner-authorized identity",
+                    stage="owner_authorization",
+                )
+            )
+
         consent_interaction = confirmation_interaction
         created_for_this_execution = False
         if binding is None:
@@ -1148,10 +1283,10 @@ class LibraryTransferExecutionFacade:
                     )
                 )
             try:
-                # Collect the final user consent before creating the executable
-                # binding. The canonical coordinator then independently checks
-                # this same phrase against the sealed operation immediately
-                # before claim consumption and execution.
+                # Exact owner identity approval was checked above. Collect the
+                # separate final transaction confirmation before creating the
+                # executable binding. The canonical coordinator independently
+                # checks this same phrase immediately before claim consumption.
                 confirmation = confirmation_interaction(prepared.review.to_dict())
                 binding = intent.authorize(confirmation)
             except Exception as exc:
@@ -1205,6 +1340,7 @@ class LibraryTransferExecutionFacade:
                 **runner_kwargs,
             )
             self._prepared_operation = None
+            self._owner_authorized_identity = None
             if created_for_this_execution:
                 self.operation_binding = None
             return result
@@ -1215,6 +1351,7 @@ class LibraryTransferExecutionFacade:
                 binding=binding,
             )
             self._prepared_operation = None
+            self._owner_authorized_identity = None
             if created_for_this_execution:
                 self.operation_binding = None
             raise
@@ -1235,6 +1372,7 @@ class LibraryTransferExecutionFacade:
                 binding=binding,
             )
             self._prepared_operation = None
+            self._owner_authorized_identity = None
             if created_for_this_execution:
                 self.operation_binding = None
             raise wrapped from exc
@@ -1247,5 +1385,6 @@ __all__ = [
     "LibraryTransferExecutionRuntime",
     "LibraryTransferOperationBinding",
     "LibraryTransferOperationIntent",
+    "OwnerAuthorizedOperationIdentity",
     "PreparedLibraryTransferOperation",
 ]

@@ -4362,7 +4362,45 @@ def launch_ttk_desktop(
                 "Another manager operation started while confirmation was open; Send to InfoCarry remains disabled"
             )
             return
-
+        owner_identity = library_execution_facade.owner_authorization_identity
+        if owner_identity is None:
+            library_status_var.set(
+                "Transfer blocked because the exact sealed owner-authorization identity is unavailable"
+            )
+            library_transfer_once_button.configure(state="disabled")
+            return
+        owner_approval = simpledialog.askstring(
+            "Approve Exact Operation",
+            (
+                "Owner approval must match this exact fresh live operation. The earlier "
+                "Confirm Transfer choice does not authorize a different identity.\n\n"
+                f"Operation: {owner_identity.operation_id}\n"
+                f"Candidate: {owner_identity.candidate_blob_sha256}\n"
+                f"Transaction: {owner_identity.transaction_sha256}\n"
+                f"Preflight seal: {owner_identity.preflight_seal_sha256}\n\n"
+                "Enter this exact approval phrase:\n"
+                f"{owner_identity.approval_phrase}"
+            ),
+            parent=root,
+        )
+        if owner_approval is None:
+            library_status_var.set(
+                "Owner approval cancelled; no claim was consumed and no sender was entered"
+            )
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            library_status_var.set(
+                "Another manager operation started while owner approval was open; Send to InfoCarry remains disabled"
+            )
+            return
+        try:
+            library_execution_facade.authorize_prepared_operation(owner_approval)
+        except LibraryTransferExecutionError as exc:
+            library_status_var.set(
+                "Transfer blocked because owner approval differs from the exact sealed operation"
+            )
+            messagebox.showerror("Owner approval mismatch", str(exc), parent=root)
+            return
         execution_plan_report = dict(library_current_plan_report or {})
 
         def work(

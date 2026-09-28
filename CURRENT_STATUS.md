@@ -1,8 +1,8 @@
 # Current Project Status
 
-Date: 2026-09-28
+Date: 2026-09-29
 
-## P18-039 — PHYSICAL READBACK VERIFIED / EXACT-OPERATION CLOSURE HELD
+## P18-039 — OPEN — PHYSICAL TRANSFER VERIFIED, AUTHORIZATION IDENTITY MISMATCH
 
 The Manager's 2026-09-28 terminal evidence records one real sender call and
 one `0x101b` transaction, native completion `0x0000`, a complete post-write
@@ -23,6 +23,27 @@ owner-authorized frozen transaction was sent. P18-039 is **not COMPLETE or
 merge-ready** pending owner/PM disposition of that material identity mismatch;
 the generalized 1–8-leaf profile remains unpromoted. No further hardware
 write is appropriate. See the [P18-039 evidence closure review](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md#physical-evidence-review-2026-09-28).
+
+Host investigation found that the normal UI deliberately created a new fresh
+preflight immediately before the physical run. The device state and capacity
+were semantically unchanged, but fresh backup/catalog provenance changed and
+the new-record timestamp changed from `1790515721` to `1790595708`. The latter
+changed exactly the seven new record timestamps (plus the backup checksum),
+which changed the candidate and transaction. The new outer preflight seal then
+derived operation `8d901688…`. The software never received the externally
+approved `732d10fb…`/`86eee55c…`/`e52b0212…` identity; its ordinary OK dialog
+was accepted as both owner approval and final transaction confirmation.
+
+The host-only correction separates those two decisions. Fresh preflight now
+exposes one complete owner-authorization identity whose bundle hash covers all
+bound fields and artifacts and whose named fields include the device, baseline,
+capacity, candidate, transaction, authorization, and both seals. A distinct
+exact approval phrase pins that identity before execution. Missing or stale
+approval stops before coordinator entry, claim consumption, marker creation,
+or sender activity; the ordinary Confirm Transfer OK cannot create or replace
+it. The existing coordinator, USB transport, and sender are unchanged. This
+fix remains host-only pending validation and independent R3 review; it does not
+close P18-039 or promote `CAPABILITY_MATRIX.md`.
 
 
 ## P18-039 — HOST IMPLEMENTATION / READY FOR INDEPENDENT REVIEW

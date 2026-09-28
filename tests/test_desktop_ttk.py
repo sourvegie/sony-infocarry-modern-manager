@@ -441,7 +441,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         ):
             self.assertIn(contract, source)
 
-    def test_live_transfer_uses_simple_confirmation_and_background_controller(self):
+    def test_live_transfer_requires_exact_owner_identity_then_uses_background_controller(self):
         source = inspect.getsource(launch_ttk_desktop)
         start = source.index("    def library_transfer_once_action()")
         end = source.index(
@@ -453,8 +453,14 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn('messagebox.askokcancel(', action)
         self.assertIn('"Confirm Transfer"', action)
         self.assertIn("Keep the InfoCarry connected until verification finishes.", action)
-        self.assertNotIn("simpledialog.askstring", action)
-        self.assertNotIn("Type exactly:", action)
+        self.assertIn("simpledialog.askstring", action)
+        self.assertIn('"Approve Exact Operation"', action)
+        self.assertIn("owner_identity.approval_phrase", action)
+        self.assertIn("authorize_prepared_operation(owner_approval)", action)
+        self.assertLess(
+            action.index("authorize_prepared_operation(owner_approval)"),
+            action.index("library_execution_facade.execute_once("),
+        )
 
         self.assertIn("def work(", action)
         self.assertIn("library_execution_facade.execute_once(", action)

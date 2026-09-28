@@ -230,3 +230,87 @@ An independent R3 evidence and documentation review found P0=0, P1=0, P2=0
 additional findings and confirmed the unresolved identity mismatch above as
 a material closure blocker. No further hardware write or read was performed
 during this review.
+
+## Authorization identity mismatch investigation — 2026-09-29
+
+### Field-by-field comparison and first semantic divergence
+
+The authorized `ui-preflight-20260927-222840-976819` bundle and executed
+`ui-preflight-20260928-204148-599694` bundle agree on the Sony VNW-V15
+identity `0x054c:0x001e`, native capacity-response bytes/hash, semantic
+baseline-state identity and backup blob, target absence, prepared-package
+manifest bytes, target name, five ordered leaf names/kinds/payload hashes,
+fixed/auxiliary-state inputs, expected post-operation delta, and safety policy.
+
+The fresh backup manifest byte hash changed from `09556361…` to `11b237a3…`
+because a new complete backup recorded new archive/receipt times; its device
+blob and semantic state identity remained unchanged. The staged catalog hash
+and Library binding also changed because the new operation-owned staging root
+and observation time were recorded. Those are provenance/binding differences,
+not device-content or prepared-payload changes.
+
+The first content-affecting candidate input divergence is
+`new_record_timestamp_be32`: `1790515721` (`0x6ab91a09`) became `1790595708`
+(`0x6aba527c`). The production provider supplies current Unix time whenever
+`refresh_live_preflight()` constructs a candidate. Binary comparison shows
+the two 2,188,536-byte candidates differ in 24 bytes: three checksum bytes and
+three changed low-order timestamp bytes in each of the seven newly inserted
+records. No other candidate bytes differ. That yields candidate
+`86eee55c…` → `60f664f4…` and transaction `e52b0212…` → `bab3787a…`.
+The authorization hash and core preflight seal consequently changed. The
+outer seal also binds the fresh Library/provenance artifacts; operation ID is
+derived from that outer seal, so it changed from `732d10fb…` to `8d901688…`.
+
+The `8d901688…` operation was therefore created by the final fresh preflight
+immediately before the physical run. It was not a mutation of the frozen
+`732d10fb…` operation and the latter was not executed.
+
+### Root cause and authorization gap
+
+Fresh-evidence rebinding is expected: each fresh backup, operation-owned stage,
+timestamped candidate, authorization, and seal intentionally receives a new
+identity. The defect was allowing that newly created identity to inherit
+authorization procedurally. The external owner authorization was never a
+typed input to the Manager. In the no-binding production path,
+`LibraryTransferOperationIntent.authorize()` accepted only the target-derived
+phrase `ADD <target> ONCE`. The ordinary Confirm Transfer OK supplied that
+phrase immediately before coordinator entry, creating an authorized binding
+for whichever fresh preflight was current. No comparison existed against the
+externally authorized operation ID, candidate SHA, transaction SHA, or seals.
+Thus software enforced internal consistency for the new operation, while the
+owner-authorized frozen identity existed only in operating procedure.
+
+### Narrow correction
+
+`OwnerAuthorizedOperationIdentity` now projects the complete sealed operation:
+operation ID, full bundle SHA-256, VNW-V15 identity, semantic baseline identity,
+capacity response, candidate, transaction, authorization hash, and core/outer
+preflight seals. The bundle hash covers every remaining bound bundle field and
+artifact. After fresh preflight, the Manager displays these exact identifiers
+and requires a separate exact approval phrase derived from the complete
+identity. Ordinary Confirm Transfer OK remains the final transaction consent
+but cannot create owner identity approval. The execution facade compares the
+stored approval with the operation presented for execution before it creates
+an executable binding or enters the coordinator. Missing or changed approval
+clears the prepared operation and stops before claim consumption, sender-marker
+creation, or sender entry. A new preflight or adopted operation clears any
+previous approval. The canonical coordinator, USB transport, sender, retry,
+completion, backup, readback, marker, and lock behavior are unchanged.
+
+Regression coverage changes the approved baseline, candidate, transaction,
+and operation ID independently and proves that every mismatch stops with zero
+claims, zero markers, zero backend/sender calls, and no lock mutation. A
+separate regression proves normal UI confirmation cannot substitute for exact
+owner identity approval. Existing success coverage now supplies matching exact
+approval and still reaches one guarded `readback_verified` transaction.
+
+Disposition remains `P18-039 = OPEN — PHYSICAL TRANSFER VERIFIED,
+AUTHORIZATION IDENTITY MISMATCH`. `CAPABILITY_MATRIX.md` remains unpromoted.
+The correction is host-verifiable and changes only the pre-sender authorization
+gate. Another physical write is not needed to establish the fixed comparison:
+host tests can prove all mismatches stop before the claim/sender seam and that
+the matching identity reaches the existing fake guarded path. Any future live
+validation would still require a new operation-specific owner authorization;
+it should be considered only if the owner wants end-to-end UI evidence of the
+new two-step approval UX, not as a prerequisite for accepting the root-cause
+or pre-sender fix.

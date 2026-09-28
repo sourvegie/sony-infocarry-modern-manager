@@ -35,6 +35,7 @@ from infocarry.library_transfer_execution import (
     LibraryTransferExecutionFacade,
     LibraryTransferExecutionRuntime,
     LibraryTransferOperationBinding,
+    OwnerAuthorizedOperationIdentity,
 )
 from infocarry.library_transfer_plan import (
     SELECTION_SELECTED,
@@ -280,7 +281,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             "binding": binding,
         }
 
-    def _prepare(self, setup, *, operation_name="operation"):
+    def _prepare(self, setup, *, operation_name="operation", approve=True):
         self._patch_template_hashes(setup)
         offline_plan = setup["plan"]
         operation_root = setup["root"] / operation_name
@@ -293,6 +294,10 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
         setup["offline_plan"] = offline_plan
         setup["plan"] = dict(prepared.plan_report)
+        if approve:
+            identity = setup["facade"].owner_authorization_identity
+            self.assertIsNotNone(identity)
+            setup["facade"].authorize_prepared_operation(identity.approval_phrase)
         return prepared
 
     @staticmethod
@@ -401,6 +406,9 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
         setup["facade"].adopt_prepared_operation(prepared)
         setup["plan"] = dict(prepared.plan_report)
+        owner_identity = setup["facade"].owner_authorization_identity
+        self.assertIsNotNone(owner_identity)
+        setup["facade"].authorize_prepared_operation(owner_identity.approval_phrase)
         result = setup["facade"].execute_once(
             setup["plan"],
             confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
@@ -457,6 +465,10 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             0,
         )
 
+        owner_identity = facade.owner_authorization_identity
+        self.assertIsNotNone(owner_identity)
+        facade.authorize_prepared_operation(owner_identity.approval_phrase)
+
         result = facade.execute_once(
             setup["plan"],
             confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
@@ -475,6 +487,56 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         )
         self.assertEqual(self._claim_count(setup), 1)
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertIsNone(setup["lock"].read())
+
+    def test_owner_authorization_identity_mismatches_stop_before_claim_and_sender(self):
+        mutations = {
+            "baseline": {"baseline_state_identity_sha256": "0" * 64},
+            "candidate": {"candidate_blob_sha256": "1" * 64},
+            "transaction": {"transaction_sha256": "2" * 64},
+            "operation": {"operation_id": "vnw-v15-library-operation-stale"},
+        }
+        for label, values in mutations.items():
+            with self.subTest(identity=label):
+                setup = self._setup(include_operation_binding=False)
+                self.addCleanup(setup["temporary"].cleanup)
+                prepared = self._prepare(setup, operation_name=f"mismatch-{label}")
+                current = OwnerAuthorizedOperationIdentity.from_bundle(
+                    prepared.operation_bundle
+                )
+                setup["facade"]._owner_authorized_identity = replace(current, **values)
+
+                with self.assertRaisesRegex(
+                    LibraryTransferExecutionError,
+                    "differs from the owner-authorized identity",
+                ):
+                    setup["facade"].execute_once(
+                        setup["plan"],
+                        confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+                    )
+
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertIsNone(setup["lock"].read())
+
+    def test_normal_confirmation_cannot_substitute_for_owner_identity_approval(self):
+        setup = self._setup(include_operation_binding=False)
+        self.addCleanup(setup["temporary"].cleanup)
+        self._prepare(setup, approve=False)
+
+        with self.assertRaisesRegex(
+            LibraryTransferExecutionError,
+            "lacks separate owner identity approval",
+        ):
+            setup["facade"].execute_once(
+                setup["plan"],
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertEqual(setup["backend"].calls, [])
         self.assertIsNone(setup["lock"].read())
 
     def test_missing_operation_owned_package_is_diagnostic_before_claim(self):
@@ -526,6 +588,9 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         )
         setup["facade"].adopt_prepared_operation(prepared)
         setup["plan"] = dict(prepared.plan_report)
+        owner_identity = setup["facade"].owner_authorization_identity
+        self.assertIsNotNone(owner_identity)
+        setup["facade"].authorize_prepared_operation(owner_identity.approval_phrase)
         stage.cleanup()
         Path(prepared.operation_bundle.package_manifest.path).unlink()
 
