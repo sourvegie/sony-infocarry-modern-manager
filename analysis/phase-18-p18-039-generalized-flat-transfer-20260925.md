@@ -332,3 +332,13 @@ entry to the guarded coordinator. Lower-level experimental/test APIs retain
 their existing internal binding and coordinator checks and are not claimed to
 authenticate or ingest external owner approval. No other production caller
 reaches those lower-level entry points.
+
+Host validation passed 138 focused execution/UI/runtime/live-adapter tests and
+the full portable suite passed 1,016 tests with 3 established skips. After the
+bounded review correction, 79 focused execution/UI tests and 42 desktop tests
+passed; `compileall` and `git diff --check` passed. Independent strong R3
+re-review of exact code/documentation head
+`07557b9ca837d7fac77572b181dfab245da9999c` found P0=0, P1=0, P2=0 and
+required no further correction. No USB request, claim consumption, sender
+entry, `0x101b`, hardware retry, or other device access occurred during this
+investigation.

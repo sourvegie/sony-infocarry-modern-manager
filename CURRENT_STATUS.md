@@ -45,9 +45,11 @@ approval stops before coordinator entry, claim consumption, marker creation,
 or sender activity; the ordinary Confirm Transfer OK cannot create or replace
 it. The existing coordinator, USB transport, and sender are unchanged. This
 fix enforces exact identity in software; human owner authentication remains an
-operating-procedure responsibility. It remains host-only pending validation
-and independent R3 review and does not close P18-039 or promote
-`CAPABILITY_MATRIX.md`.
+operating-procedure responsibility. Host validation passed 138 focused tests
+and the 1,016-test portable suite with 3 established skips; follow-up focused
+checks passed 79 and 42 tests, and compile/diff checks passed. Independent
+exact-head R3 review found P0=0, P1=0, P2=0. This does not close P18-039,
+promote `CAPABILITY_MATRIX.md`, or authorize another hardware write.
 
 
 ## P18-039 — HOST IMPLEMENTATION / READY FOR INDEPENDENT REVIEW
