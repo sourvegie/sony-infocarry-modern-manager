@@ -289,7 +289,7 @@ preflight seals. The bundle hash covers every remaining bound bundle field and
 artifact. After fresh preflight, the Manager displays these exact identifiers
 and requires a separate exact approval phrase derived from the complete
 identity. It shows the full fingerprint for the post-preflight authorization
-handoff but deliberately does not display or synthesize the accepted phrase;
+handoff but deliberately does not display or supply the accepted phrase;
 that phrase must be supplied separately by the owner. Ordinary Confirm
 Transfer OK remains the final transaction consent
 but cannot create owner identity approval. The execution facade compares the

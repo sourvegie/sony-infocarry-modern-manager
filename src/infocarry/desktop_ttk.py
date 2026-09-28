@@ -4380,7 +4380,7 @@ def launch_ttk_desktop(
                 f"Preflight seal: {owner_identity.preflight_seal_sha256}\n\n"
                 f"Authorization fingerprint: {owner_identity.identity_sha256}\n\n"
                 "Enter the exact approval phrase supplied separately by the owner. "
-                "The Manager does not display or generate that phrase."
+                "The Manager does not display or supply the accepted phrase."
             ),
             parent=root,
         )
