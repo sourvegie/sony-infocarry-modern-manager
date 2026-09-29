@@ -141,10 +141,12 @@ Device Library destination; validates source freshness and CP932 components;
 and rejects conflicts without overwrite or merge. Its generated offline
 fixture contains 61 directories and 150 mixed TXT/BMP leaves. Those figures
 are host/UI test scale, not device limits. The normal **Transfer** action
-first displays this generic logical plan. Only one explicitly imported and
-revalidated root package with an exact existing VNW-V15 three- or four-leaf
-shape can continue through the existing readiness, fresh-preflight, and typed
-one-shot-confirmation facade; the plan itself never authorizes a device
+first displays this generic logical plan. One explicitly imported and
+revalidated root-level folder with 1–8 ordered direct TXT/BMP leaves can now
+continue through the bounded host profile and the existing readiness,
+fresh-preflight, and authorization seams; exact three-/four-leaf shapes retain
+their prior physical proof, while the generalized profile remains
+host-reviewed and not live-proven. The plan itself never authorizes a device
 operation. Packaged macOS and Windows entry points supply one shared lazy
 runtime provider, but launch creates neither a live runtime nor an operation
 binding and performs no device checks or transaction. After exact-profile
@@ -152,8 +154,10 @@ admission and fresh read-only evidence, the final typed confirmation creates a
 one-shot binding tied to that preflight and enters the canonical guarded route.
 If the external reviewed template or persistent safety configuration is
 unavailable, live transfer fails closed while safe read-only Manager functions
-remain available. Unsupported structures remain host-only, with no candidate
-bytes, generalized live path, or new capability.
+remain available. Nesting, unsupported types, duplicate/conflicting names,
+over-bound selections, existing targets, and arbitrary structures fail closed
+before authorization/claim/marker/sender activity; no generalized physical
+operation is enabled by P18-039.
 Expected semantic path deltas are modeled independently of candidate
 construction. Capacity growth remains unknown when no candidate is built, and
 unresolved device auxiliary state is not treated as verified. P18-037 adds

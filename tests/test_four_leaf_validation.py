@@ -195,7 +195,7 @@ class FourLeafValidationTests(unittest.TestCase):
         self.assertFalse(three.blocked)
         self.assertTrue(three.host_profile_eligible)
 
-    def test_normal_readiness_rejects_reordered_five_nested_and_other_four_leaf_shapes(self):
+    def test_normal_readiness_generalizes_flat_shapes_but_rejects_nested_and_invalid(self):
         _fixture, temporary, _root, _package, artifact, *_ = self._case()
         self.addCleanup(temporary.cleanup)
 
@@ -246,8 +246,12 @@ class FourLeafValidationTests(unittest.TestCase):
         }.items():
             with self.subTest(label=label):
                 readiness = build_library_transfer_readiness(_readiness_plan(value))
-                self.assertTrue(readiness.blocked)
-                self.assertFalse(readiness.host_profile_eligible)
+                if label in {"reordered", "five"}:
+                    self.assertFalse(readiness.blocked)
+                    self.assertTrue(readiness.host_profile_eligible)
+                else:
+                    self.assertTrue(readiness.blocked)
+                    self.assertFalse(readiness.host_profile_eligible)
 
     def test_promoted_profile_reports_supported_shape_but_keeps_host_write_boundary(self):
         profile = four_leaf_validation_profile()

@@ -22,7 +22,7 @@ class WindowsPackagingSupportTests(unittest.TestCase):
         self.assertNotIn("_application_state_root", source)
         self.assertIn('window_state["title"] != "InfoCarry Manager"', source)
 
-    def test_packaged_host_workflow_covers_content_and_keeps_exact_profiles(self):
+    def test_packaged_host_workflow_covers_content_and_keeps_profile_boundaries(self):
         report = _run_host_workflow_checks()
 
         self.assertTrue(report["add_content"])
@@ -45,11 +45,11 @@ class WindowsPackagingSupportTests(unittest.TestCase):
         self.assertFalse(four["blocked"])
         self.assertFalse(four["transfer_enabled"])
 
-        unsupported = report["unsupported_shape_blocked"]
-        self.assertEqual(unsupported["shape"], ["txt", "txt", "bmp", "txt"])
-        self.assertFalse(unsupported["eligible"])
-        self.assertTrue(unsupported["blocked"])
-        self.assertFalse(unsupported["transfer_enabled"])
+        generalized = report["generalized_shape_host_admissible"]
+        self.assertEqual(generalized["shape"], ["txt", "txt", "bmp", "txt"])
+        self.assertTrue(generalized["eligible"])
+        self.assertFalse(generalized["blocked"])
+        self.assertFalse(generalized["transfer_enabled"])
         self.assertFalse(report["vnw_v10_transfer_capable"])
 
     def test_host_workflow_guards_against_device_enumeration_and_sender(self):

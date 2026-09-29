@@ -15,6 +15,7 @@ import json
 from typing import Any, Iterable, Mapping, Optional
 
 from .capability_profile import (
+    GENERALIZED_FLAT_PROFILE_ID,
     CAPABILITY_PROFILE_STATUS,
     CapabilityProfileError,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
@@ -31,6 +32,7 @@ from .device_model_profile import (
 from .prepared_content import PreparedContentArtifact, PreparedContentError
 from .transfer_shape import (
     EXACT_VERIFIED_LIVE_PROFILE,
+    PLAUSIBLE_FUTURE_DIRECT_LEAF_V15,
     FOUR_LEAF_VERIFIED_CHILD_KINDS,
     TransferShapeAssessment,
     assess_transfer_shape,
@@ -650,15 +652,19 @@ def build_library_transfer_readiness(
             reasons.append(f"transfer-shape assessment failed: {exc}")
             exact_package = False
         else:
-            if transfer_shape.classification != EXACT_VERIFIED_LIVE_PROFILE:
+            if transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE:
+                if transfer_shape.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
+                    selected_profile_id = VNW_V15_FOUR_LEAF_PROFILE_ID
+            elif transfer_shape.classification == PLAUSIBLE_FUTURE_DIRECT_LEAF_V15:
+                selected_profile_id = GENERALIZED_FLAT_PROFILE_ID
+                fresh_evidence.extend(transfer_shape.reasons)
+            else:
                 reasons.extend(transfer_shape.reasons)
                 reasons.append(
-                    "exact supported direct-leaf orders are TXT → BMP → TXT "
-                    "and TXT → BMP → TXT → TXT"
+                    "the selected content must be one bounded flat root folder "
+                    "containing 1–8 ordered TXT/BMP leaves"
                 )
                 exact_package = False
-            elif transfer_shape.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
-                selected_profile_id = VNW_V15_FOUR_LEAF_PROFILE_ID
             if paths != [
                 canonical_artifact.root_path,
                 *(child.path for child in canonical_artifact.children),
@@ -681,11 +687,11 @@ def build_library_transfer_readiness(
         if (
             len(children) != len(expected_kinds)
             or transfer_shape is None
-            or transfer_shape.classification != EXACT_VERIFIED_LIVE_PROFILE
+            or not transfer_shape.host_admissible_flat
         ):
             reasons.append(
-                "the selected package must contain exactly three direct children "
-                "or exactly four direct children in a reviewed order"
+                "the selected package must contain 1–8 direct TXT/BMP children "
+                "within the bounded host profile"
             )
             exact_package = False
         if folder_name is None:
@@ -700,8 +706,7 @@ def build_library_transfer_readiness(
             expected_kind = expected_kinds[index] if index < len(expected_kinds) else None
             if child.get("kind") != expected_kind or child.get("order") != index:
                 reasons.append(
-                    "child order/kinds must match one of the two physically verified "
-                    "VNW-V15 direct-leaf shapes"
+                    "child order/kinds must match the canonical prepared flat content"
                 )
                 exact_package = False
             if (
@@ -899,15 +904,13 @@ def build_library_transfer_readiness(
             "device_model_profile_id": VNW_V15_PROFILE_ID,
             "required_child_kinds": (
                 list(transfer_shape.ordered_kinds)
-                if transfer_shape is not None
-                and transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE
+                if transfer_shape is not None and transfer_shape.host_admissible_flat
                 else list(EXPERIMENTAL_CHILD_KINDS)
             ),
             "root_level_only": True,
             "exact_child_count": (
                 transfer_shape.child_count
-                if transfer_shape is not None
-                and transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE
+                if transfer_shape is not None and transfer_shape.host_admissible_flat
                 else None
             ),
             "automatic_grouping": False,

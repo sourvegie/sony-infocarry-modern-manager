@@ -14,6 +14,7 @@ from unittest.mock import patch
 from infocarry.backup_format import parse_backup_blob
 from infocarry.capacity_evidence import NativeCapacityResponse
 from infocarry.capability_profile import (
+    GENERALIZED_FLAT_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
 )
@@ -34,6 +35,7 @@ from infocarry.library_transfer_execution import (
     LibraryTransferExecutionFacade,
     LibraryTransferExecutionRuntime,
     LibraryTransferOperationBinding,
+    OwnerAuthorizedOperationIdentity,
 )
 from infocarry.library_transfer_plan import (
     SELECTION_SELECTED,
@@ -200,6 +202,8 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                         VNW_V15_FOUR_LEAF_PROFILE_ID
                         if tuple(child_kinds) == ("txt", "bmp", "txt", "txt")
                         else INITIAL_EXPERIMENTAL_PROFILE_ID
+                        if tuple(child_kinds) == ("txt", "bmp", "txt")
+                        else GENERALIZED_FLAT_PROFILE_ID
                     )
                 ),
             )
@@ -277,7 +281,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             "binding": binding,
         }
 
-    def _prepare(self, setup, *, operation_name="operation"):
+    def _prepare(self, setup, *, operation_name="operation", approve=True):
         self._patch_template_hashes(setup)
         offline_plan = setup["plan"]
         operation_root = setup["root"] / operation_name
@@ -290,6 +294,10 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
         setup["offline_plan"] = offline_plan
         setup["plan"] = dict(prepared.plan_report)
+        if approve:
+            identity = setup["facade"].owner_authorization_identity
+            self.assertIsNotNone(identity)
+            setup["facade"].authorize_prepared_operation(identity.approval_phrase)
         return prepared
 
     @staticmethod
@@ -398,6 +406,9 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         setup["candidate_holder"]["candidate"] = prepared.preflight.candidate
         setup["facade"].adopt_prepared_operation(prepared)
         setup["plan"] = dict(prepared.plan_report)
+        owner_identity = setup["facade"].owner_authorization_identity
+        self.assertIsNotNone(owner_identity)
+        setup["facade"].authorize_prepared_operation(owner_identity.approval_phrase)
         result = setup["facade"].execute_once(
             setup["plan"],
             confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
@@ -454,6 +465,10 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
             0,
         )
 
+        owner_identity = facade.owner_authorization_identity
+        self.assertIsNotNone(owner_identity)
+        facade.authorize_prepared_operation(owner_identity.approval_phrase)
+
         result = facade.execute_once(
             setup["plan"],
             confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
@@ -472,6 +487,56 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         )
         self.assertEqual(self._claim_count(setup), 1)
         self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertIsNone(setup["lock"].read())
+
+    def test_owner_authorization_identity_mismatches_stop_before_claim_and_sender(self):
+        mutations = {
+            "baseline": {"baseline_state_identity_sha256": "0" * 64},
+            "candidate": {"candidate_blob_sha256": "1" * 64},
+            "transaction": {"transaction_sha256": "2" * 64},
+            "operation": {"operation_id": "vnw-v15-library-operation-stale"},
+        }
+        for label, values in mutations.items():
+            with self.subTest(identity=label):
+                setup = self._setup(include_operation_binding=False)
+                self.addCleanup(setup["temporary"].cleanup)
+                prepared = self._prepare(setup, operation_name=f"mismatch-{label}")
+                current = OwnerAuthorizedOperationIdentity.from_bundle(
+                    prepared.operation_bundle
+                )
+                setup["facade"]._owner_authorized_identity = replace(current, **values)
+
+                with self.assertRaisesRegex(
+                    LibraryTransferExecutionError,
+                    "differs from the owner-authorized identity",
+                ):
+                    setup["facade"].execute_once(
+                        setup["plan"],
+                        confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+                    )
+
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertIsNone(setup["lock"].read())
+
+    def test_normal_confirmation_cannot_substitute_for_owner_identity_approval(self):
+        setup = self._setup(include_operation_binding=False)
+        self.addCleanup(setup["temporary"].cleanup)
+        self._prepare(setup, approve=False)
+
+        with self.assertRaisesRegex(
+            LibraryTransferExecutionError,
+            "lacks separate owner identity approval",
+        ):
+            setup["facade"].execute_once(
+                setup["plan"],
+                confirmation_interaction=lambda _review: FRESH_CONFIRMATION,
+            )
+
+        self.assertEqual(self._claim_count(setup), 0)
+        self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+        self.assertEqual(setup["backend"].calls, [])
         self.assertIsNone(setup["lock"].read())
 
     def test_missing_operation_owned_package_is_diagnostic_before_claim(self):
@@ -523,6 +588,9 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
         )
         setup["facade"].adopt_prepared_operation(prepared)
         setup["plan"] = dict(prepared.plan_report)
+        owner_identity = setup["facade"].owner_authorization_identity
+        self.assertIsNotNone(owner_identity)
+        setup["facade"].authorize_prepared_operation(owner_identity.approval_phrase)
         stage.cleanup()
         Path(prepared.operation_bundle.package_manifest.path).unlink()
 
@@ -783,7 +851,7 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                 self.assertIsNone(setup["claim_store"].read_sender_in_flight())
                 self.assertIsNone(setup["lock"].read())
 
-    def test_production_style_unsupported_shape_is_rejected_before_live_preflight(self):
+    def test_generalized_shapes_reach_host_preflight_without_claim_or_sender(self):
         for kinds in (
             ("txt", "txt", "bmp", "txt"),
             ("txt", "bmp", "txt", "txt", "txt"),
@@ -794,31 +862,84 @@ class LibraryTransferExecutionFacadeTests(unittest.TestCase):
                     include_operation_binding=False,
                 )
                 self.addCleanup(setup["temporary"].cleanup)
+                self._patch_template_hashes(setup)
+                prepared = setup["facade"].refresh_live_preflight(
+                    setup["plan"],
+                    catalog=setup["catalog"],
+                    preflight_report_path=setup["root"] / "host-only" / "sealed.json",
+                    bundle_path=setup["root"] / "host-only" / "bundle.json",
+                )
+                self.assertTrue(prepared.ready)
+                self.assertEqual(
+                    prepared.operation_intent.profile_id,
+                    GENERALIZED_FLAT_PROFILE_ID,
+                )
+                self.assertIsNone(setup["facade"].operation_binding)
+                self.assertEqual(len(setup["captures"]), 1)
+                self.assertEqual(setup["backend"].calls, [])
+                self.assertEqual(self._claim_count(setup), 0)
+                self.assertIsNone(setup["claim_store"].read_sender_in_flight())
+                self.assertIsNone(setup["lock"].read())
+
+    def test_generalized_invalid_shapes_stop_before_authorization_claim_or_marker(self):
+        base_kinds = ("txt", "bmp", "txt", "bmp", "txt")
+        cases = (
+            ("zero leaves", lambda plan: plan["items"][0]["prepared_artifact"].update(
+                ordered_children=[]
+            )),
+            ("nested", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][1].update(
+                path=f"root\\{FRESH_TEST_TARGET}\\nested\\02-page.bmp"
+            )),
+            ("unsupported type", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][1].update(
+                kind="jpg"
+            )),
+            ("duplicate name", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][1].update(
+                name="01-page.txt"
+            )),
+            ("over-bound count", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"].append(
+                {**plan["items"][0]["prepared_artifact"]["ordered_children"][-1], "order": 5, "name": "06-page.txt", "kind": "txt", "path": f"root\\{FRESH_TEST_TARGET}\\06-page.txt"}
+            )),
+            ("over-bound bytes", lambda plan: plan["items"][0]["prepared_artifact"]["ordered_children"][0].update(
+                prepared_payload_bytes=1_048_577
+            )),
+            ("existing target", lambda plan: plan["items"][0].update(
+                conflicts=[{"path": f"root\\{FRESH_TEST_TARGET}", "reason": "exists"}],
+                queue_ready=False,
+                reasons=["one or more destination paths conflict with the verified backup"],
+            )),
+        )
+        for label, mutate in cases:
+            with self.subTest(reason=label):
+                setup = self._setup(
+                    child_kinds=base_kinds, include_operation_binding=False
+                )
+                self.addCleanup(setup["temporary"].cleanup)
+                changed = deepcopy(setup["plan"])
+                mutate(changed)
                 with self.assertRaises(LibraryTransferExecutionError):
                     setup["facade"].refresh_live_preflight(
-                        setup["plan"],
+                        changed,
                         catalog=setup["catalog"],
                         preflight_report_path=setup["root"] / "blocked" / "sealed.json",
                         bundle_path=setup["root"] / "blocked" / "bundle.json",
                     )
-                self.assertIsNone(setup["facade"].operation_binding)
                 self.assertEqual(setup["captures"], [])
                 self.assertEqual(setup["backend"].calls, [])
                 self.assertEqual(self._claim_count(setup), 0)
                 self.assertIsNone(setup["claim_store"].read_sender_in_flight())
                 self.assertIsNone(setup["lock"].read())
 
-    def test_unsupported_package_shapes_remain_host_only(self):
+    def test_generalized_flat_shapes_are_admitted_without_candidate_mutation(self):
         for label, kinds in (
             ("two-leaf", ("txt", "bmp")),
             ("reordered-four-leaf", ("txt", "txt", "bmp", "txt")),
             ("five-leaf", ("txt", "bmp", "txt", "txt", "txt")),
         ):
             with self.subTest(shape=label):
-                setup = self._setup(child_kinds=kinds)
+                setup = self._setup(child_kinds=kinds, include_operation_binding=False)
                 self.addCleanup(setup["temporary"].cleanup)
                 logical_plan = self._generic_exact_plan(setup)
-                self.assertIsNone(
+                self.assertIsNotNone(
                     _exact_live_package_artifact(setup["item"], logical_plan)
                 )
                 self.assertFalse(

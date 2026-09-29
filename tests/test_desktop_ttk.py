@@ -249,9 +249,10 @@ class DesktopTtkMessageTests(unittest.TestCase):
 
         self.assertNotEqual(first, second)
 
-    def test_early_transfer_eligibility_names_exact_supported_shapes(self):
-        self.assertIn("TXT → BMP → TXT", format_early_transfer_eligibility_summary())
-        self.assertIn("TXT → BMP → TXT → TXT", format_early_transfer_eligibility_summary())
+    def test_early_transfer_eligibility_names_bounded_flat_profile(self):
+        summary = format_early_transfer_eligibility_summary()
+        self.assertIn("bounded flat root folder", summary)
+        self.assertIn("1–8 ordered TXT/BMP leaves", summary)
 
         def artifact(kinds):
             children = tuple(
@@ -276,7 +277,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn(f"{display_shape} is transferable for the reviewed VNW-V15 shape", summary)
             self.assertIn("Fresh device checks", summary)
         self.assertIn(
-            "not yet supported for transfer",
+            "host-admissible",
             format_early_transfer_eligibility_summary(artifact(("txt", "txt"))),
         )
 
@@ -440,7 +441,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         ):
             self.assertIn(contract, source)
 
-    def test_live_transfer_uses_simple_confirmation_and_background_controller(self):
+    def test_live_transfer_requires_exact_owner_identity_then_uses_background_controller(self):
         source = inspect.getsource(launch_ttk_desktop)
         start = source.index("    def library_transfer_once_action()")
         end = source.index(
@@ -452,8 +453,16 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn('messagebox.askokcancel(', action)
         self.assertIn('"Confirm Transfer"', action)
         self.assertIn("Keep the InfoCarry connected until verification finishes.", action)
-        self.assertNotIn("simpledialog.askstring", action)
-        self.assertNotIn("Type exactly:", action)
+        self.assertIn("simpledialog.askstring", action)
+        self.assertIn('"Approve Exact Operation"', action)
+        self.assertIn("owner_identity.identity_sha256", action)
+        self.assertNotIn("owner_identity.approval_phrase", action)
+        self.assertIn("supplied separately by the owner", action)
+        self.assertIn("authorize_prepared_operation(owner_approval)", action)
+        self.assertLess(
+            action.index("authorize_prepared_operation(owner_approval)"),
+            action.index("library_execution_facade.execute_once("),
+        )
 
         self.assertIn("def work(", action)
         self.assertIn("library_execution_facade.execute_once(", action)
@@ -671,7 +680,19 @@ class DesktopTtkMessageTests(unittest.TestCase):
             self.assertIn(contract, source)
         self.assertNotIn("prepared_library_package_live_adapter", source)
 
-    def test_visible_add_folder_transfer_path_uses_transient_exact_adapter(self):
+    def test_library_source_directory_pickers_require_existing_directories(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        folder_action_start = source.index("    def library_folder_import_action()")
+        package_action_start = source.index("    def library_package_import_action()")
+        folder_action = source[folder_action_start:package_action_start]
+        package_action_end = source.index("    def library_move_action(", package_action_start)
+        package_action = source[package_action_start:package_action_end]
+        self.assertIn('title="Recursively import folder hierarchy into Library"', folder_action)
+        self.assertIn("mustexist=True", folder_action)
+        self.assertIn('title="Import prepared flat TXT/BMP package"', package_action)
+        self.assertIn("mustexist=True", package_action)
+
+    def test_visible_add_folder_transfer_path_uses_transient_flat_adapter(self):
         source = inspect.getsource(launch_ttk_desktop)
         action_start = source.index("    def library_transfer_action()")
         action_end = source.index("    def library_transfer_once_action()", action_start)
@@ -679,7 +700,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertIn("library_folder_import_action", source)
         self.assertIn("library_folder_import_button.configure(command=library_folder_import_action)", source)
         self.assertIn('label="Add Folder…", command=lambda: library_folder_import_action()', source)
-        self.assertIn("prepare_exact_folder_package(", action)
+        self.assertIn("prepare_flat_folder_package(", action)
         self.assertIn("selected[0].node_kind == NODE_FOLDER", action)
         self.assertIn("catalog_override=catalog_override", action)
         self.assertIn("artifact_override=artifact_override", action)
@@ -691,7 +712,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         self.assertNotIn("execute_once(", action)
         self.assertNotIn("refresh_live_preflight(", action)
 
-    def test_primary_transfer_routes_only_exact_packages_through_existing_guards(self):
+    def test_primary_transfer_routes_only_bounded_packages_through_existing_guards(self):
         source = inspect.getsource(launch_ttk_desktop)
         action_start = source.index("    def library_transfer_action()")
         action_end = source.index("    def library_transfer_once_action()", action_start)

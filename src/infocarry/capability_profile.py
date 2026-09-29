@@ -20,6 +20,8 @@ from typing import Any, Iterable, Mapping, Sequence
 CAPABILITY_PROFILE_FORMAT = "infocarry-capability-profile-v1"
 INITIAL_EXPERIMENTAL_PROFILE_ID = "experimental-flat-root-folder-txt-bmp-v1"
 CAPABILITY_PROFILE_STATUS = "defined_not_live_enabled"
+GENERALIZED_FLAT_PROFILE_ID = "generalized-flat-root-folder-txt-bmp-v1"
+GENERALIZED_FLAT_PROFILE_STATUS = "host_reviewed_not_live_proven"
 HIERARCHICAL_OFFLINE_PROFILE_ID = "host-offline-hierarchical-library-txt-bmp-v1"
 HIERARCHICAL_OFFLINE_PROFILE_STATUS = "host_offline_draft_not_live_enabled"
 # The public capability is the exact physically verified VNW-V15 shape.  The
@@ -155,8 +157,41 @@ _PROFILE_DOCUMENT: dict[str, Any] = {
     },
 }
 
+# Existing conservative host limits, explicitly named for P18-039. These
+# limits are safety/resource envelopes for host admission, not device maxima.
+MAX_FLAT_LEAF_COUNT = 8
+MAX_FLAT_SOURCE_BYTES_PER_CHILD = 1 * 1024 * 1024
+MAX_FLAT_PREPARED_BYTES_PER_CHILD = 1 * 1024 * 1024
+MAX_FLAT_SOURCE_BYTES_TOTAL = 4 * 1024 * 1024
+MAX_FLAT_PREPARED_BYTES_TOTAL = 1 * 1024 * 1024
+
 INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
     _PROFILE_DOCUMENT
+)
+
+# P18-039's generalized host profile keeps the same proven preparation and
+# safety limits while removing the exact child-order/name allowlist. It does
+# not by itself enable physical execution.
+_GENERALIZED_FLAT_PROFILE_DOCUMENT: dict[str, Any] = copy.deepcopy(_PROFILE_DOCUMENT)
+_GENERALIZED_FLAT_PROFILE_DOCUMENT.update(
+    {
+        "profile_id": GENERALIZED_FLAT_PROFILE_ID,
+        "status": GENERALIZED_FLAT_PROFILE_STATUS,
+    }
+)
+_GENERALIZED_FLAT_PROFILE_DOCUMENT["operation"].update(
+    {"name": "add_one_bounded_generalized_flat_root_folder"}
+)
+_GENERALIZED_FLAT_PROFILE_DOCUMENT["exposure"].update(
+    {
+        "host_admission": True,
+        "live_enabled": False,
+        "normal_gui_send_exposed": False,
+        "normal_cli_send_exposed": False,
+    }
+)
+GENERALIZED_FLAT_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
+    _GENERALIZED_FLAT_PROFILE_DOCUMENT
 )
 
 # This is deliberately a separate exact envelope.  It must not widen the
@@ -290,6 +325,7 @@ def validate_capability_profile(value: Mapping[str, Any]) -> dict[str, Any]:
     normalized = _thaw(value)
     if normalized not in (
         _PROFILE_DOCUMENT,
+        _GENERALIZED_FLAT_PROFILE_DOCUMENT,
         _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT,
         _HIERARCHICAL_PROFILE_DOCUMENT,
     ):
@@ -339,6 +375,7 @@ class CapabilityProfile:
 
         if self.profile_id not in {
             INITIAL_EXPERIMENTAL_PROFILE_ID,
+            GENERALIZED_FLAT_PROFILE_ID,
             FOUR_LEAF_VALIDATION_PROFILE_ID,
         }:
             raise CapabilityProfileError("flat package validation requires the exact flat profile")
@@ -612,6 +649,12 @@ def hierarchical_offline_capability_profile() -> CapabilityProfile:
     return CapabilityProfile(HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE)
 
 
+def generalized_flat_capability_profile() -> CapabilityProfile:
+    """Return the bounded P18-039 host-admission profile."""
+
+    return CapabilityProfile(GENERALIZED_FLAT_CAPABILITY_PROFILE)
+
+
 def four_leaf_validation_profile() -> CapabilityProfile:
     """Return the exact physically verified VNW-V15 four-leaf envelope."""
 
@@ -621,6 +664,8 @@ def four_leaf_validation_profile() -> CapabilityProfile:
 def capability_profile_by_id(profile_id: str) -> CapabilityProfile:
     if profile_id == INITIAL_EXPERIMENTAL_PROFILE_ID:
         return initial_capability_profile()
+    if profile_id == GENERALIZED_FLAT_PROFILE_ID:
+        return generalized_flat_capability_profile()
     if profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
         return hierarchical_offline_capability_profile()
     if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
@@ -631,9 +676,17 @@ def capability_profile_by_id(profile_id: str) -> CapabilityProfile:
 __all__ = [
     "CAPABILITY_PROFILE_FORMAT",
     "CAPABILITY_PROFILE_STATUS",
+    "GENERALIZED_FLAT_CAPABILITY_PROFILE",
+    "GENERALIZED_FLAT_PROFILE_ID",
+    "GENERALIZED_FLAT_PROFILE_STATUS",
     "FOUR_LEAF_VALIDATION_CAPABILITY_PROFILE",
     "FOUR_LEAF_VALIDATION_PROFILE_ID",
     "FOUR_LEAF_VALIDATION_PROFILE_STATUS",
+    "MAX_FLAT_LEAF_COUNT",
+    "MAX_FLAT_PREPARED_BYTES_PER_CHILD",
+    "MAX_FLAT_PREPARED_BYTES_TOTAL",
+    "MAX_FLAT_SOURCE_BYTES_PER_CHILD",
+    "MAX_FLAT_SOURCE_BYTES_TOTAL",
     "VNW_V15_FOUR_LEAF_PROFILE_ID",
     "VNW_V15_FOUR_LEAF_PROFILE_STATUS",
     "HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE",
@@ -644,6 +697,7 @@ __all__ = [
     "INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE",
     "INITIAL_EXPERIMENTAL_PROFILE_ID",
     "initial_capability_profile",
+    "generalized_flat_capability_profile",
     "hierarchical_offline_capability_profile",
     "four_leaf_validation_profile",
     "capability_profile_by_id",

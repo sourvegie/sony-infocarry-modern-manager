@@ -1,7 +1,7 @@
 """Isolated guarded Experimental Library transfer entrypoint.
 
-This is the only product-facing integration shim for the exact P17 Library
-profile. The coordinator binds the offline Select/Arrange/Prepare/Preview
+This is the only product-facing integration shim for the bounded P17 Library
+profiles. The coordinator binds the offline Select/Arrange/Prepare/Preview
 review, transaction-specific confirmation, model profile, and persistent
 indeterminate-write lock to the already reviewed P17 runner and P17-019
 reconciler. It is not imported by the normal CLI or ttk GUI import graph.
@@ -194,12 +194,29 @@ class GuardedLibraryExecutionCoordinator:
             if execution_profile.profile_id != self.capability_profile_id:
                 raise ValueError("operation binding profile differs from coordinator profile")
             execution_profile.require_target(binding.target_folder_name)
-            expected_children = tuple(
-                (index, kind, name)
-                for index, (kind, name) in enumerate(
-                    zip(execution_profile.child_kinds, execution_profile.child_names)
+            if execution_profile.generalized_flat:
+                expected_children_list: list[tuple[int, Any, Any]] = []
+                for index, child in enumerate(operation_bundle.package_children):
+                    if not isinstance(child, Mapping) or child.get("order") != index:
+                        raise ValueError(
+                            "operation bundle children must preserve contiguous source order"
+                        )
+                    expected_children_list.append(
+                        (index, child.get("kind"), child.get("name"))
+                    )
+                expected_children = tuple(expected_children_list)
+                if not execution_profile.accepts_children(
+                    tuple(kind for _order, kind, _name in expected_children),
+                    tuple(name for _order, _kind, name in expected_children),
+                ):
+                    raise ValueError("operation bundle children are outside the bounded flat profile")
+            else:
+                expected_children = tuple(
+                    (index, kind, name)
+                    for index, (kind, name) in enumerate(
+                        zip(execution_profile.child_kinds, execution_profile.child_names)
+                    )
                 )
-            )
             actual_children = tuple(
                 (child.get("order"), child.get("kind"), child.get("name"))
                 for child in operation_bundle.package_children
@@ -208,7 +225,7 @@ class GuardedLibraryExecutionCoordinator:
                 f"root\\{binding.target_folder_name}",
                 *[
                     f"root\\{binding.target_folder_name}\\{name}"
-                    for name in execution_profile.child_names
+                    for _order, _kind, name in expected_children
                 ],
             ]
             sealed_report = _strict_json_object(

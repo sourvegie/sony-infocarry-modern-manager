@@ -228,7 +228,10 @@ class ExperimentalLibraryTransferReviewTests(unittest.TestCase):
         ).to_dict()
 
         self.assertEqual(review["eligibility"]["state"], "preview_only")
-        self.assertIn("proven TXT/BMP/TXT", " ".join(review["eligibility"]["reasons"]))
+        self.assertIn(
+            "outside the bounded transfer shape",
+            " ".join(review["eligibility"]["reasons"]),
+        )
 
     def test_sealed_candidate_mismatch_fails_closed_to_preview(self):
         preflight = _preflight()

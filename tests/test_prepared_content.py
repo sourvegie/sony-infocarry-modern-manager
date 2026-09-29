@@ -170,7 +170,7 @@ class PreparedContentArtifactTests(unittest.TestCase):
             artifact.artifact_identity,
         )
 
-    def test_broader_shape_is_prepared_but_live_ineligible(self):
+    def test_broader_flat_shape_is_host_admissible_but_not_enabled(self):
         broader = PreparedContentArtifact(
             "Book",
             (
@@ -181,8 +181,9 @@ class PreparedContentArtifactTests(unittest.TestCase):
         )
         readiness = build_library_transfer_readiness(_readiness_plan(broader))
         self.assertTrue(readiness.prepared_content_valid)
-        self.assertFalse(readiness.live_transfer_eligible)
-        self.assertTrue(readiness.blocked)
+        self.assertTrue(readiness.live_transfer_eligible)
+        self.assertTrue(readiness.host_profile_eligible)
+        self.assertFalse(readiness.transfer_enabled)
 
     def test_stale_canonical_identity_and_target_are_rejected(self):
         artifact = PreparedContentArtifact("Book", _exact_children(), profile_id="typed-media")

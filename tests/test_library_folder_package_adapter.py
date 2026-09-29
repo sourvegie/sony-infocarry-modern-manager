@@ -17,9 +17,16 @@ from infocarry.library_device_transfer import (
     LibraryDeviceTransferPlanError,
     build_library_device_transfer_plan,
 )
-from infocarry.library_folder_package_adapter import prepare_exact_folder_package
+from infocarry.library_folder_package_adapter import (
+    prepare_exact_folder_package,
+    prepare_flat_folder_package,
+)
 from infocarry.prepared_media_package import load_prepared_media_package
-from infocarry.transfer_shape import EXACT_VERIFIED_LIVE_PROFILE, assess_transfer_shape
+from infocarry.transfer_shape import (
+    BOUNDED_GENERALIZED_FLAT_PROFILE,
+    EXACT_VERIFIED_LIVE_PROFILE,
+    assess_transfer_shape,
+)
 
 
 def make_profile_bmp() -> bytes:
@@ -169,6 +176,79 @@ class LibraryFolderPackageAdapterTests(unittest.TestCase):
             tuple(child.source_sha256 for child in stage.artifact.children),
             tuple(node.source_payload_sha256 for node in plan.nodes[1:]),
         )
+
+    def test_generalized_five_leaf_mixed_folder_preserves_order_host_only(self):
+        kinds = ("txt", "bmp", "txt", "bmp", "txt")
+        folder = self._import_folder(kinds, name="Five Leaf Mixed")
+        plan = self._plan(folder)
+
+        stage = prepare_flat_folder_package(
+            self.catalog, folder, plan, staging_parent=self.staging
+        )
+        self.assertIsNotNone(stage)
+        self.addCleanup(stage.cleanup)
+        self.assertEqual(
+            stage.item.prepared_metadata["compatibility_adapter"],
+            "transient_local_folder_to_bounded_flat_package",
+        )
+        self.assertEqual(
+            tuple(child.kind for child in stage.artifact.children),
+            kinds,
+        )
+        self.assertEqual(
+            tuple(child.order for child in stage.artifact.children),
+            tuple(range(5)),
+        )
+        self.assertEqual(
+            tuple(child.name for child in stage.artifact.children),
+            tuple(f"{index + 1:02}-page.{kind}" for index, kind in enumerate(kinds)),
+        )
+        self.assertEqual(stage.item.prepared_artifact["root_name"], "Five Leaf Mixed")
+        self.assertEqual(
+            assess_transfer_shape(stage.artifact).classification,
+            BOUNDED_GENERALIZED_FLAT_PROFILE,
+        )
+
+    def test_generalized_flat_adapter_rejects_invalid_boundary_shapes(self):
+        cases = (
+            ("zero", (), {}),
+            ("nested", ("txt", "bmp", "txt"), {"nested": True}),
+            ("unsupported", ("txt", "jpg", "txt"), {}),
+            ("overbound", ("txt",) * 9, {}),
+        )
+        for label, kinds, options in cases:
+            with self.subTest(shape=label):
+                folder = self._import_folder(
+                    kinds, name=f"Invalid {label}", **options
+                )
+                if label == "unsupported":
+                    with self.assertRaisesRegex(
+                        LibraryDeviceTransferPlanError, "unsupported source type"
+                    ):
+                        self._plan(folder)
+                    continue
+                plan = self._plan(folder)
+                self.assertIsNone(
+                    prepare_flat_folder_package(
+                        self.catalog, folder, plan, staging_parent=self.staging
+                    )
+                )
+
+    def test_generalized_flat_accepts_all_txt_and_all_bmp_sequences(self):
+        for index, kinds in enumerate(
+            (("txt", "txt", "txt"), ("bmp", "bmp", "bmp")),
+            start=1,
+        ):
+            with self.subTest(kinds=kinds):
+                folder = self._import_folder(kinds, name=f"Uniform {index}")
+                stage = prepare_flat_folder_package(
+                    self.catalog, folder, self._plan(folder), staging_parent=self.staging
+                )
+                self.assertIsNotNone(stage)
+                self.addCleanup(stage.cleanup)
+                self.assertEqual(
+                    tuple(child.kind for child in stage.artifact.children), kinds
+                )
 
     def test_operation_owned_package_survives_transient_cleanup(self):
         folder = self._import_folder(("txt", "bmp", "txt"))

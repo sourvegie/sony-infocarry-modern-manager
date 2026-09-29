@@ -327,15 +327,11 @@ def _validate_selected_package(
     execution_profile = guarded_execution_profile(profile_id)
     execution_profile.require_target(imported.package.folder_name)
     items = tuple(imported.package.items)
-    if len(items) != len(execution_profile.child_names) or tuple(
-        item.name for item in items
-    ) != execution_profile.child_names:
+    item_names = tuple(item.name for item in items)
+    item_kinds = tuple(item.kind for item in items)
+    if not execution_profile.accepts_children(item_kinds, item_names):
         raise PreparedLibraryPackageBridgeError(
-            "selected package child names differ from its exact execution profile"
-        )
-    if tuple(item.kind for item in items) != execution_profile.child_kinds:
-        raise PreparedLibraryPackageBridgeError(
-            "selected package child kinds differ from its exact execution profile"
+            "selected package children differ from their execution profile"
         )
     try:
         prepared_content = imported.package.to_prepared_content_artifact()
