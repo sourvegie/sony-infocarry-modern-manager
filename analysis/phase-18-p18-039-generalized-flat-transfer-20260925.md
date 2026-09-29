@@ -342,3 +342,32 @@ re-review of exact code/documentation head
 required no further correction. No USB request, claim consumption, sender
 entry, `0x101b`, hardware retry, or other device access occurred during this
 investigation.
+
+## Final closure disposition — 2026-09-30
+
+The owner directed final closure and merge of the corrected P18-039 branch.
+This supersedes the earlier OPEN disposition; it does not revise the historical
+fact that the physical run used `8d901688…` / `60f664f4…` / `bab3787a…`
+instead of the earlier authorized frozen `732d10fb…` / `86eee55c…` /
+`e52b0212…`. Fresh preflight rebinding caused the identity change; allowing
+ordinary OK to serve as external owner approval was the software defect. The
+separate post-preflight exact-identity approval gate resolves that defect for
+future execution. It was verified by host regressions and independent R3
+review; no second physical write is required to prove a pre-sender comparison.
+
+The preserved 2026-09-28 terminal evidence proves one actual five-leaf VNW-V15
+transfer for `root\IC_P18_039_FLAT_20260925_01`: one sender call, one real
+`0x101b`, zero retries, native completion `0x0000`, complete post-transfer
+backup, independent `readback_verified`, the five ordered TXT/BMP/TXT/BMP/TXT
+leaves and exact payloads, and preservation of shared/unrelated state. The
+executed claim is consumed, its marker is resolved, and the installation-wide
+indeterminate-write lock is clear. It does not prove the whole 1–8 flat
+envelope, other payloads/targets, nesting, overwrite/merge, deletion, restore,
+multipackage transfer, arbitrary hierarchy, or VNW-V10.
+
+P18-039 is `COMPLETE`. Final documentation-head tests and PR CI are required
+as the merge gate. The reviewed code-bearing head is
+`07557b9ca837d7fac77572b181dfab245da9999c`, with independent R3 findings
+P0=0, P1=0, P2=0. The corrected checkpoint
+`10bbbd6c2b61b2350e2cb769560e8fafb538d76c` adds only documentation.
+No hardware write is authorized or performed in this closure.

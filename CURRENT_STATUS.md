@@ -1,8 +1,8 @@
 # Current Project Status
 
-Date: 2026-09-29
+Date: 2026-09-30
 
-## P18-039 — OPEN — PHYSICAL TRANSFER VERIFIED, AUTHORIZATION IDENTITY MISMATCH
+## P18-039 — COMPLETE — EXACT FIVE-LEAF PHYSICAL PROOF AND OWNER-IDENTITY FIX
 
 The Manager's 2026-09-28 terminal evidence records one real sender call and
 one `0x101b` transaction, native completion `0x0000`, a complete post-write
@@ -13,16 +13,18 @@ payload hashes and order, no removed paths, and preserved shared state. The
 executed claim remains consumed, the sender marker was resolved with terminal
 evidence, and the installation-wide lock is cleared. No retry is recorded.
 
-**Closure hold:** the executed operation was a newly sealed 2026-09-28
+**Historical identity mismatch:** the executed operation was a newly sealed 2026-09-28
 operation (`8d901688…`), candidate `60f664f4…`, transaction `bab3787a…`.
 It does not match the expressly frozen P18-039 operation (`732d10fb…`),
 candidate `86eee55c…`, or transaction `e52b0212…`. The frozen preflight has
 no consumed claim or terminal result. This is genuine physical proof for this
 specific five-leaf payload and target, but it is not proof that the exact
-owner-authorized frozen transaction was sent. P18-039 is **not COMPLETE or
-merge-ready** pending owner/PM disposition of that material identity mismatch;
-the generalized 1–8-leaf profile remains unpromoted. No further hardware
-write is appropriate. See the [P18-039 evidence closure review](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md#physical-evidence-review-2026-09-28).
+owner-authorized frozen transaction was sent. The owner subsequently directed
+closure with the corrected authorization-identity gate. The mismatch remains
+in the historical evidence as a resolved software defect; the physical run is
+proof only for its actual exact five-leaf payload and target. The generalized
+1–8-leaf envelope is not physically promoted as a whole. No further hardware
+write was performed for closure. See the [P18-039 evidence and decision record](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md).
 
 Host investigation found that the normal UI deliberately created a new fresh
 preflight immediately before the physical run. The device state and capacity
@@ -48,11 +50,12 @@ fix enforces exact identity in software; human owner authentication remains an
 operating-procedure responsibility. Host validation passed 138 focused tests
 and the 1,016-test portable suite with 3 established skips; follow-up focused
 checks passed 79 and 42 tests, and compile/diff checks passed. Independent
-exact-head R3 review found P0=0, P1=0, P2=0. This does not close P18-039,
-promote `CAPABILITY_MATRIX.md`, or authorize another hardware write.
+exact-head R3 review found P0=0, P1=0, P2=0. The owner authorized final
+documentation closure and merge after exact-head validation. This does not
+authorize another hardware write.
 
 
-## P18-039 — HOST IMPLEMENTATION / READY FOR INDEPENDENT REVIEW
+### Host profile and implementation boundary
 
 P18-039 is implemented on branch
 `task/P18-039-generalized-flat-transfer`, created from canonical `main` at
@@ -80,19 +83,19 @@ panel enabled `Choose` for that same existing folder. Evidence and the
 follow-up risk assessment are recorded in the
 [picker-gate follow-up](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md#follow-up-macos-existing-directory-picker-gate).
 
-No physical device operation occurred: no USB sender, `0x101b`, live claim
-consumption, or device mutation. Fresh review of the prior code-bearing head
+The earlier host implementation phase had no physical device operation. Fresh
+review of the prior code-bearing head
 `f05190e8dcb509ce01f23b4d07c3ea5030654b8a` found zero P0/P1/P2 findings.
 The picker-only follow-up passed 42 focused desktop tests and 1,014 portable
 tests with 3 skipped; compilation and `git diff --check` passed. Local Windows host
 workflow/package smoke passed with USB enumeration, sender calls, claim
-consumption, and marker activity guarded at zero. The pull request and
-macOS/Windows CI all passed on PR [#67](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/67): Python 3.12 offline suites on macOS and Windows, Apple Silicon macOS package, and Windows x64 package. The PR remains unmerged; its final documentation tip is the current branch head recorded in the final handoff. See the
+consumption, and marker activity guarded at zero. The earlier PR head passed
+macOS/Windows CI on PR [#67](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/67): Python 3.12 offline suites on macOS and Windows, Apple Silicon macOS package, and Windows x64 package. The corrected documentation head uses the same four exact-head checks as its merge gate. See the
 [P18-039 decision record](analysis/phase-18-p18-039-generalized-flat-transfer-20260925.md).
 
-Disposition: `READY_FOR_HARDWARE_TEST`. This is not a physical-operation
-authorization and does not promote generalized shapes to proven device
-capability.
+Disposition: `COMPLETE` for P18-039. The
+exact TXT → BMP → TXT → BMP → TXT target is physically readback verified;
+other generalized flat shapes are not physically proven by this result.
 
 
 ## P18-038 — COMPLETE / merged
