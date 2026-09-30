@@ -234,6 +234,11 @@ and passed package signature verification. The packaged runtime smoke could
 not be completed on this host: direct launch aborted and LaunchServices
 returned `kLSNoExecutableErr` despite the executable existing in the bundle.
 Windows package CI was not run locally. None of these checks accessed hardware.
+The existing PR's passing CI belongs to the earlier `48720d2` head. Current-head
+remote CI remains unrun: automatic approval review rejected pushing this
+checkpoint because `origin` is a public repository and the task did not
+explicitly authorize exporting this payload there. The local branch is ahead
+of `origin` by the documentation checkpoint and this correction commit.
 
 ### Actual terminal, backup, and safety evidence
 
