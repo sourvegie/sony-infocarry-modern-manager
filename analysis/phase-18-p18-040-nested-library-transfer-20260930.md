@@ -3,7 +3,8 @@
 Date: 2026-09-30
 Base: canonical `main` `8c970263edf365c32671ccdce2a0da4bcb1c4496`
 Branch: `task/P18-040-nested-library-transfer`
-Disposition: **READY_FOR_HARDWARE_TEST** (host implementation only; no physical proof)
+Disposition at the host checkpoint: **READY_FOR_HARDWARE_TEST**. The
+2026-10-01 physical-evidence review below supersedes that checkpoint.
 
 ## Scope and evidence labels
 
@@ -14,11 +15,12 @@ claim/marker/lock owner, post-backup verifier, and Device Library model. It
 does not add a planner, sender, authorization path, synchronization, deletion,
 overwrite, merge, Restore, VNW-V10, multiple roots, or arbitrary hierarchy.
 
-All P18-040 transfer results in this record are synthetic host fixtures or
-fake transport results. They are **not** physical-device evidence. Hardware
-writes, real sender entries, real `0x101b` requests, and real claim consumption
-for P18-040 are zero. A future physical attempt requires a separately approved
-exact procedure and fresh operation-specific owner authorization.
+At the host checkpoint documented in this section, all P18-040 transfer
+results were synthetic host fixtures or fake transport results, with zero
+hardware writes, real sender entries, real `0x101b` requests, or real claim
+consumption. The later physical-evidence review below supersedes those
+historical counters. A physical attempt required a separately approved exact
+procedure and fresh operation-specific owner authorization.
 
 ## Prepared tree and staging
 
@@ -77,7 +79,7 @@ payload, and the reviewed template paths while adding the requested root.
 
 ## Fixtures and host checks
 
-The exact small fixture has **3 directories including the root and 5 leaves**:
+The exact small fixture has **4 directories including the root and 5 leaves**:
 `01-intro.txt`, `Section-A/{02-page.bmp,03-notes.txt}`,
 `Section-B/Detail/{04-page.bmp,05-ending.txt}`. It covers exact candidate
 paths, ordering, payloads, independent readback, guarded fake execution,
@@ -136,3 +138,98 @@ still conflict in the planner, and the delta's snapshot enforces contiguous
 destination order. This changes no owner-authorization, coordinator, sender,
 or recovery code. The exact prior preflight remains unsealed; any later
 physical attempt needs a fresh frozen operation and separate owner approval.
+
+## Physical-evidence review — 2026-10-01
+
+The owner observed “Transfer complete — content verified on the InfoCarry.”
+The image shows that terminal message only. Findings below use the excluded
+live records in `~/Library/Application Support/SonyInfoCarryModernManager/Evidence/Library Transfer Operations/`.
+Raw backups, application-state databases, and bundles remain outside Git.
+
+### Identity and disposition
+
+The dialog identified operation
+`vnw-v15-library-operation-a784e9d213585b46acb3c92774c4e75616e2c83eab68c01172e154ce28ca4d53`,
+candidate `735fe632576728dafb4d91a2f1e1cb0606b21341ac7e606f5a2c1b781ccc377c`,
+transaction `39696705b9ba2cb6aad4cb1da663d8d8d68fcc774eebedb8d408108d1c40b349`,
+seal `f948210ddd9608c80efe000b4396375b268e55a80c6ec978797b1e0586c3d440`,
+and authorization fingerprint
+`94e194f3a68162ad7c41305f82de5dbe7dc84b45e1d23d2c9ba1bbb58b0412d2`.
+The matching `ui-preflight-20260930-235735-920041` is host-ready with zero
+sender calls. The claim database has **no row** for that seal, and no terminal
+manifest has its candidate, transaction, or seal.
+
+The actual terminal result belongs to later preflight
+`ui-preflight-20261001-000041-313292`: operation
+`vnw-v15-library-operation-914f4f0ae89d6c8b5d9c296affb33ef2864d646b87cc8b9c0f360fff38793dc5`,
+candidate `6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8`,
+transaction `e5831e0e363cab494c3f4aa859763808fa5a7676b01c6fd4ddb15edd4d58c452`,
+and seal `c280a9cf797f7d0097871e594432753335217193de3e134b751aa66a4b361519`.
+Both preflights bind prepared manifest
+`faccb4026d356349d0554b3ff18d238648420117d09cb4bb3ff0e0cad575786f`,
+but their operation identities are not interchangeable. The terminal result
+proves the actual nested content physically transferred; it does not prove
+execution of the specified owner-authorized transaction. No independent
+evidence here establishes owner authorization of the later identity.
+**P18-040 is not COMPLETE or merge-ready** pending review of this discrepancy
+and owner disposition. No further write is proposed to resolve it.
+
+### Actual terminal, backup, and safety evidence
+
+The actual attempt is `p17-017-attempt-b9e02330d4c74ed98b7017f3e44a9dd5`.
+Its `result-manifest-0001.json` SHA-256 is
+`dcaf3d9134a0df3073c571a41dd1b20d8d2945204a5def3e9637c46ad07e80e7`.
+The audit reports `state=readback_verified`, transmission and device change
+performed, one sender call, one `single_0x101b_transaction`, completion
+`0x0000`, and no automatic retry. The independent verifier itself reports
+`success=true` and `state=readback_verified`. Production records therefore
+support one real sender call, one real `0x101b` step, and zero retries; there
+is no separate USB bus capture counting packets.
+
+Before and after backup manifests each say `state=complete` and contain eight
+objects. A separate read-only check matched every object length and SHA-256
+to its manifest. The post-transfer manifest SHA-256 is
+`b458d839d0c312caa78556ee442477f45dce44ba2ad33496a8e7cba322567b9a`;
+the post-transfer blob SHA-256 is
+`6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8`.
+The pre-transfer blob SHA-256 is
+`60f664f4a2a37b1b89f377fa83bef9e8bc8d14a482361b821314f812d9c1b106`.
+
+Claim `baf632f1855a41d6acf9e646b2db0450` is durably `consumed` for the
+actual seal; the earlier expected seal has no claim. The sender marker began
+`in_flight`; `sender-marker-resolution-0001.json` records
+`verified_terminal_success`, `terminal_state=readback_verified`, and zero
+active markers. The read-only claim database currently has zero active marker
+rows. The installation-wide indeterminate-write lock is `cleared`.
+
+### Exact nested result and limits
+
+Independent readback reports the following exact preorder additions with
+`ordered_children_verified=true`; the actual sealed operation binds these
+prepared payload hashes:
+
+| Path below `root/IC_P18_040_NESTED_20260930_01` | Kind | Prepared payload SHA-256 |
+| --- | --- | --- |
+| `.` | directory | — |
+| `01-intro.txt` | TXT | `1294cace32343fd906b4f103c2c23d7ccd4f86ee2c4c2eb105406a160d8fdbb2` |
+| `Section-A` | directory | — |
+| `Section-A/02-page.bmp` | BMP | `d3f03cf2b000e38d06825353033fe1f2a64a3e50b58c1b407d4433fffd7a3ccb` |
+| `Section-A/03-notes.txt` | TXT | `779aab99368e6eb963b34fa16b66240f76991a228624d2db59fb041cbef163f9` |
+| `Section-B` | directory | — |
+| `Section-B/Detail` | directory | — |
+| `Section-B/Detail/04-page.bmp` | BMP | `d3f03cf2b000e38d06825353033fe1f2a64a3e50b58c1b407d4433fffd7a3ccb` |
+| `Section-B/Detail/05-ending.txt` | TXT | `835e7cec6de800b5f59cf0e2195caf5b89c267a275d01e4a4f4e1372331724d7` |
+
+The verifier reports no removed pre-existing paths; 366 shared paths retain
+their payloads and timestamps, fixed state is exact, and display-history and
+bookmark references follow the reviewed semantic rebase while opaque bookmark
+values remain preserved. The Manager emits the exact observed terminal message
+only after `refresh_device_library_from_verified_transfer`, `refresh_tree`,
+and `update_device_home_display` return without a caught error. Thus its
+programmatic Device Library refresh succeeded; the retained image does not
+independently show the refreshed tree.
+
+This physical result supports this exact four-directory/five-leaf target
+and payload set only. It does not validate arbitrary nested trees, the
+41-directory/120-leaf planning fixture, other counts or depths, VNW-V10,
+overwrite, merge, delete, restore, multiple packages, or synchronization.
