@@ -194,7 +194,7 @@ class GuardedLibraryExecutionCoordinator:
             if execution_profile.profile_id != self.capability_profile_id:
                 raise ValueError("operation binding profile differs from coordinator profile")
             execution_profile.require_target(binding.target_folder_name)
-            if execution_profile.generalized_flat:
+            if execution_profile.generalized_flat or execution_profile.nested_host:
                 expected_children_list: list[tuple[int, Any, Any]] = []
                 for index, child in enumerate(operation_bundle.package_children):
                     if not isinstance(child, Mapping) or child.get("order") != index:
@@ -224,8 +224,11 @@ class GuardedLibraryExecutionCoordinator:
             expected_paths = [
                 f"root\\{binding.target_folder_name}",
                 *[
-                    f"root\\{binding.target_folder_name}\\{name}"
-                    for _order, _kind, name in expected_children
+                    child.get("target_path") if execution_profile.nested_host
+                    else f"root\\{binding.target_folder_name}\\{name}"
+                    for child, (_order, _kind, name) in zip(
+                        operation_bundle.package_children, expected_children
+                    )
                 ],
             ]
             sealed_report = _strict_json_object(

@@ -18,6 +18,7 @@ from typing import Any, Mapping, Optional
 from .experimental_transfer_contract import experimental_safety_contract
 from .capability_profile import (
     INITIAL_EXPERIMENTAL_PROFILE_ID,
+    NESTED_HOST_PROFILE_ID,
 )
 from .execution_profile import guarded_execution_profile
 
@@ -84,8 +85,16 @@ def _expected_paths(
     *,
     profile_id: str = INITIAL_EXPERIMENTAL_PROFILE_ID,
     child_names: Optional[tuple[str, ...]] = None,
+    child_paths: Optional[tuple[str, ...]] = None,
 ) -> list[str]:
     profile = guarded_execution_profile(profile_id)
+    if profile.nested_host:
+        if child_paths is None:
+            raise ExperimentalLibraryTransferReviewError("nested child paths are required")
+        root = f"root\\{target_folder_name}"
+        if not child_paths or any(not path.startswith(root + "\\") for path in child_paths):
+            raise ExperimentalLibraryTransferReviewError("nested child paths escape the selected root")
+        return [root, *child_paths]
     names = profile.child_names if child_names is None else tuple(child_names)
     return [
         f"root\\{target_folder_name}",
@@ -100,7 +109,7 @@ def _children_for_profile(
     profile_id: str, *, item: Optional[Mapping[str, Any]] = None
 ) -> tuple[tuple[int, str, str], ...]:
     profile = guarded_execution_profile(profile_id)
-    if profile.generalized_flat:
+    if profile.generalized_flat or profile.nested_host:
         artifact = item.get("prepared_artifact") if isinstance(item, Mapping) else None
         raw_children = artifact.get("ordered_children") if isinstance(artifact, Mapping) else None
         if not isinstance(raw_children, list) or not raw_children:
@@ -197,12 +206,18 @@ def _package_is_exact(
         target_folder_name,
         profile_id=profile_id,
         child_names=tuple(name for _order, _kind, name in expected_children),
+        child_paths=tuple(
+            child.get("path") for child in item.get("prepared_artifact", {}).get("ordered_children", [])
+        ) if profile_id == NESTED_HOST_PROFILE_ID else None,
     )
     reasons: list[str] = []
-    if item.get("operation_type") != "prepared_flat_typed_package":
+    nested = profile_id == NESTED_HOST_PROFILE_ID
+    if item.get("operation_type") != ("prepared_content_artifact" if nested else "prepared_flat_typed_package"):
         reasons.append("the selected item is not an explicitly imported prepared package")
     artifact = item.get("prepared_artifact")
-    if not isinstance(artifact, Mapping) or artifact.get("contract") != PREPARED_MEDIA_PACKAGE_FORMAT:
+    if not isinstance(artifact, Mapping) or artifact.get("contract") != (
+        "infocarry-prepared-content-v1" if nested else PREPARED_MEDIA_PACKAGE_FORMAT
+    ):
         reasons.append("the package is not the versioned P17-002 typed-media contract")
     children = artifact.get("ordered_children") if isinstance(artifact, Mapping) else None
     if not isinstance(children, list) or len(children) != len(expected_children):
@@ -263,6 +278,9 @@ def _sealed_ready_bindings(
         target_folder_name,
         profile_id=profile_id,
         child_names=tuple(name for _order, _kind, name in expected_children),
+        child_paths=tuple(
+            child.get("path") for child in item.get("prepared_artifact", {}).get("ordered_children", [])
+        ) if profile_id == NESTED_HOST_PROFILE_ID else None,
     )
 
     if bundle.get("format") != "infocarry-p17-017-library-package-operation-bundle-v1":
@@ -424,7 +442,7 @@ def _sealed_ready_bindings(
             child.get("order"),
             child.get("kind"),
             child.get("path"),
-        ) != (order, kind, expected_paths[order + 1]):
+        ) != (order, "directory" if kind == "folder" else kind, expected_paths[order + 1]):
             raise ExperimentalLibraryTransferReviewError("candidate ordered child summary differs")
         candidate_payload_sha256 = child.get(
             "payload_sha256", child.get("prepared_payload_sha256")
@@ -760,6 +778,9 @@ def build_experimental_library_transfer_review(
                     for child in package_children
                     if isinstance(child, Mapping)
                 ),
+                child_paths=tuple(
+                    child.get("path") for child in package_children if isinstance(child, Mapping)
+                ) if profile_id == NESTED_HOST_PROFILE_ID else None,
             ),
             "audit_location": audit_location,
         },

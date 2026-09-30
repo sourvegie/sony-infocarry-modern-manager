@@ -22,6 +22,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping, Optional
 
+from .capability_profile import NESTED_HOST_PROFILE_ID
+
 
 OPERATION_BUNDLE_FORMAT = "infocarry-p17-017-library-package-operation-bundle-v1"
 EVIDENCE_OUTPUT_POLICY = MappingProxyType(
@@ -366,6 +368,11 @@ class PreparedLibraryPackageOperationBundle:
             raise OperationBundleError("sealed report candidate/authorization is malformed")
         if not isinstance(library_binding, Mapping) or not isinstance(before_backup, Mapping):
             raise OperationBundleError("sealed report Library/baseline binding is malformed")
+        if (
+            library_binding.get("profile_id") == NESTED_HOST_PROFILE_ID
+            and operation_owned_staging_path is None
+        ):
+            raise OperationBundleError("nested operation requires operation-owned staging binding")
         if not isinstance(capacity, Mapping) or not isinstance(package, Mapping):
             raise OperationBundleError("sealed report capacity/package binding is malformed")
         baseline_path = _absolute_path(before_backup.get("directory"), "baseline backup")
@@ -505,6 +512,15 @@ class PreparedLibraryPackageOperationBundle:
             self.package_manifest,
         ):
             artifact.verify()
+        report = _strict_object(Path(self.sealed_report.path))
+        candidate = report.get("candidate")
+        binding = candidate.get("library_binding") if isinstance(candidate, Mapping) else None
+        if (
+            isinstance(binding, Mapping)
+            and binding.get("profile_id") == NESTED_HOST_PROFILE_ID
+            and self.operation_owned_staging is None
+        ):
+            raise OperationBundleError("nested operation lacks operation-owned staging binding")
         if self.operation_owned_staging is not None:
             self.operation_owned_staging.verify()
             self._verify_operation_owned_staging()

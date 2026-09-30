@@ -2,6 +2,30 @@
 
 Date: 2026-09-30
 
+## P18-040 — NESTED LIBRARY TRANSFER — HOST IMPLEMENTATION AWAITING PLATFORM CI
+
+Branch `task/P18-040-nested-library-transfer` starts at canonical main
+`8c970263edf365c32671ccdce2a0da4bcb1c4496`. The bounded host profile
+extends the existing Local Library plan and canonical VNW-V15 candidate,
+operation bundle, exact owner-identity approval, guarded fake execution, and
+independent readback seams to one absent nested TXT/BMP root. The Manager
+reloads the verified post-transfer backup into Device Library without restart.
+The prepared semantic identity binds names, types, parent paths, sibling order,
+and payload hashes; sealed operations use durable operation-owned source and
+prepared bytes, independent of the original import path. A 3-directory,
+5-leaf exact fixture and a 41-directory, 120-leaf planning-only fixture are
+host-tested. The scale fixture establishes no device limit or physical fit.
+
+No P18-040 hardware write, real sender call, real `0x101b`, or claim consumption
+has occurred. Nested physical behavior is unproven. The historical P18-039
+owner-authorization fix remains mandatory, and ordinary confirmation does
+not replace exact owner approval. Independent R3 worktree review found
+P0=0, P1=0, P2=0; the 1,039-test portable suite, compileall, and diff check
+pass. macOS/Windows exact-head CI/package checks remain pending before
+`READY_FOR_HARDWARE_TEST`.
+See the [P18-040 host decision record](analysis/phase-18-p18-040-nested-library-transfer-20260930.md)
+and [capability row](CAPABILITY_MATRIX.md).
+
 ## P18-039 — COMPLETE — EXACT FIVE-LEAF PHYSICAL PROOF AND OWNER-IDENTITY FIX
 
 The Manager's 2026-09-28 terminal evidence records one real sender call and

@@ -21,6 +21,7 @@ from .capability_profile import (
     GENERALIZED_FLAT_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     MAX_FLAT_LEAF_COUNT,
+    NESTED_HOST_PROFILE_ID,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
 )
 from .execution_profile import guarded_execution_profile
@@ -38,6 +39,8 @@ from .library import (
 )
 from .library_device_transfer import LibraryDeviceTransferPlan
 from .prepared_content import PreparedContentArtifact
+from .library_prepare import prepare_library_hierarchy
+from .prepared_hierarchy_source import load_prepared_hierarchy_source
 from .prepared_media_package import (
     PreparedMediaPackageError,
     PreparedTextSourceItem,
@@ -47,6 +50,7 @@ from .prepared_media_package import (
     load_prepared_media_package,
 )
 from .transfer_shape import EXACT_VERIFIED_LIVE_PROFILE, assess_transfer_shape
+from .text_authoring import encode_cp932_text
 
 
 class LibraryFolderPackageAdapterError(ValueError):
@@ -54,6 +58,144 @@ class LibraryFolderPackageAdapterError(ValueError):
 
 
 OPERATION_STAGING_BINDING_FORMAT = "infocarry-p18-037-operation-owned-package-v1"
+
+
+@dataclass
+class LibraryHierarchyStage:
+    """One logical nested plan staged through the existing operation boundary."""
+
+    catalog: LibraryCatalog
+    item: LibraryItem
+    artifact: PreparedContentArtifact
+    plan: LibraryDeviceTransferPlan
+    operation_owned_root: Optional[Path] = None
+    operation_binding_path: Optional[Path] = None
+
+    def verify_source_bindings(self) -> None:
+        try:
+            current = prepare_library_hierarchy(
+                self.catalog, self.item.item_id, profile_id=NESTED_HOST_PROFILE_ID
+            )
+        except (OSError, ValueError) as exc:
+            raise LibraryFolderPackageAdapterError(
+                f"nested Local Library source changed after planning: {exc}"
+            ) from exc
+        if current.artifact.artifact_identity != self.artifact.artifact_identity:
+            raise LibraryFolderPackageAdapterError(
+                "nested Local Library tree changed after planning"
+            )
+
+    def cleanup(self) -> None:
+        """The operation-owned copy survives the preflight worker lifecycle."""
+
+    def materialize_operation_artifact(self, operation_root: Path) -> LibraryCatalog:
+        if self.operation_owned_root is not None:
+            if self.operation_owned_root.parent != Path(operation_root).expanduser().resolve():
+                raise LibraryFolderPackageAdapterError("nested operation is bound elsewhere")
+            return self.catalog
+        self.verify_source_bindings()
+        parent = Path(operation_root).expanduser().resolve()
+        package_root = parent / "prepared-package"
+        source_root = package_root / "source"
+        payload_root = package_root / "prepared"
+        catalog_path = parent / "library-catalog.json"
+        if parent.is_symlink() or package_root.exists() or package_root.is_symlink() or catalog_path.exists():
+            raise LibraryFolderPackageAdapterError("refusing to reuse nested operation evidence")
+        try:
+            parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(Path(self.item.source_path), source_root, symlinks=True)
+            stable_catalog = copy(self.catalog)
+            stable_items: dict[str, LibraryItem] = {}
+            old_root = Path(self.item.source_path)
+            for item_id, item in self.catalog._items.items():
+                source_path = Path(item.source_path)
+                if item_id == self.item.item_id or old_root in source_path.parents:
+                    relative = source_path.relative_to(old_root)
+                    stable_path = source_root / relative
+                    stable_items[item_id] = replace(item, source_path=str(stable_path))
+                else:
+                    stable_items[item_id] = item
+            stable_catalog._items = stable_items
+            hierarchy = prepare_library_hierarchy(
+                stable_catalog, self.item.item_id, profile_id=NESTED_HOST_PROFILE_ID
+            )
+            if hierarchy.artifact.artifact_identity != self.artifact.artifact_identity:
+                raise LibraryFolderPackageAdapterError("operation-owned hierarchy identity differs")
+            payload_root.mkdir()
+            for child in hierarchy.artifact.children:
+                if child.kind == "folder":
+                    continue
+                relative = Path(*child.path.split("\\")[2:])
+                source = (source_root / relative).read_bytes()
+                prepared = (
+                    encode_cp932_text(source.decode("utf-8", errors="strict")).payload
+                    if child.kind == "txt" else source
+                )
+                destination = payload_root / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(prepared)
+            manifest_path = package_root / "manifest.json"
+            with manifest_path.open("x", encoding="utf-8") as stream:
+                json.dump(hierarchy.to_dict(), stream, ensure_ascii=True, indent=2, sort_keys=True)
+                stream.write("\n")
+            loaded = load_prepared_hierarchy_source(package_root)
+            if loaded.artifact.artifact_identity != self.artifact.artifact_identity:
+                raise LibraryFolderPackageAdapterError("operation-owned hierarchy reload differs")
+            root_item = stable_catalog.get(self.item.item_id)
+            stable_root = replace(
+                root_item,
+                state=STATE_READY,
+                preparation_state=PREPARATION_PREPARED,
+                target_folder_name=loaded.folder_name,
+                prepared_manifest_sha256=loaded.prepared_manifest_sha256,
+                prepared_manifest_path=str(manifest_path),
+                prepared_artifact=loaded.artifact.to_dict(),
+                prepared_metadata={"canonical_artifact_identity": loaded.artifact.artifact_identity},
+                source_status=SOURCE_PRESENT,
+                supported=True,
+                last_validation_error=None,
+            )
+            stable_catalog._items[self.item.item_id] = stable_root
+            stable_catalog.path = catalog_path
+            stable_catalog.previous_path = catalog_path.with_name(
+                f"{catalog_path.stem}.previous{catalog_path.suffix}"
+            )
+            with catalog_path.open("x", encoding="utf-8") as stream:
+                json.dump(stable_catalog.to_dict(), stream, ensure_ascii=True, indent=2, sort_keys=True)
+                stream.write("\n")
+        except Exception as exc:
+            shutil.rmtree(package_root, ignore_errors=True)
+            raise LibraryFolderPackageAdapterError(
+                f"nested operation-owned staging failed: {exc}"
+            ) from exc
+        self.catalog = stable_catalog
+        self.item = stable_root
+        self.artifact = loaded.artifact
+        self.operation_owned_root = package_root
+        return stable_catalog
+
+    def bind_operation_identity(
+        self, *, operation_id: str, preflight_seal_sha256: str
+    ) -> Path:
+        if self.operation_owned_root is None or self.operation_binding_path is not None:
+            raise LibraryFolderPackageAdapterError("nested operation staging is not ready to bind")
+        manifest_path = self.operation_owned_root / "manifest.json"
+        path = self.operation_owned_root / "operation-binding.json"
+        value = {
+            "format": OPERATION_STAGING_BINDING_FORMAT,
+            "operation_id": operation_id,
+            "preflight_seal_sha256": preflight_seal_sha256,
+            "package_root": str(self.operation_owned_root),
+            "package_manifest_path": str(manifest_path),
+            "package_manifest_file_sha256": _sha256(manifest_path.read_bytes()),
+            "prepared_manifest_sha256": self.item.prepared_manifest_sha256,
+            "prepared_artifact_identity": self.artifact.artifact_identity,
+        }
+        with path.open("x", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=True, indent=2, sort_keys=True)
+            stream.write("\n")
+        self.operation_binding_path = path
+        return path
 
 
 @dataclass
@@ -609,6 +751,73 @@ def prepare_flat_folder_package(
     )
 
 
+def prepare_nested_folder_package(
+    catalog: LibraryCatalog,
+    folder: LibraryItem,
+    plan: LibraryDeviceTransferPlan,
+) -> Optional[LibraryHierarchyStage]:
+    """Bind one new nested root to the existing logical plan and source tree."""
+
+    if (
+        not isinstance(catalog, LibraryCatalog)
+        or not isinstance(folder, LibraryItem)
+        or not isinstance(plan, LibraryDeviceTransferPlan)
+        or folder.node_kind != NODE_FOLDER
+        or folder.parent_id is not None
+        or plan.selected_item_ids != (folder.item_id,)
+        or plan.destination_path != ("root",)
+        or plan.expected_delta.removed_paths
+    ):
+        return None
+    if not any(node.kind == "directory" for node in plan.nodes[1:]):
+        return None
+    try:
+        hierarchy = prepare_library_hierarchy(
+            catalog, folder.item_id, profile_id=NESTED_HOST_PROFILE_ID
+        )
+    except (OSError, ValueError) as exc:
+        raise LibraryFolderPackageAdapterError(
+            f"nested Local Library preparation failed: {exc}"
+        ) from exc
+    nodes = hierarchy.nodes
+    if len(plan.nodes) != len(nodes) or tuple(plan.expected_delta.added_paths) != tuple(
+        tuple(str(node["path"]).split("\\")) for node in nodes
+    ):
+        raise LibraryFolderPackageAdapterError("nested plan paths differ from preparation")
+    for planned, node in zip(plan.nodes, nodes):
+        if (
+            planned.source_item_id != node["node_id"]
+            or planned.source_path != catalog.get(node["node_id"]).source_path
+            or planned.destination_path != tuple(str(node["path"]).split("\\"))
+            or planned.kind != ("directory" if node["kind"] == "folder" else "file")
+            or planned.sibling_order != node["order"]
+            or (
+                node["kind"] != "folder"
+                and (
+                    planned.file_type != node["kind"]
+                    or planned.source_payload_sha256 != node["source_sha256"]
+                    or planned.source_payload_bytes != node["source_bytes"]
+                )
+            )
+        ):
+            raise LibraryFolderPackageAdapterError("nested plan differs from prepared source/order")
+    transient_catalog = copy(catalog)
+    transient_root = replace(
+        folder,
+        state=STATE_READY,
+        preparation_state=PREPARATION_PREPARED,
+        target_folder_name=hierarchy.artifact.root_name,
+        prepared_manifest_sha256=hierarchy.prepared_manifest_sha256,
+        prepared_artifact=hierarchy.artifact.to_dict(),
+        prepared_metadata={"canonical_artifact_identity": hierarchy.artifact.artifact_identity},
+        source_status=SOURCE_PRESENT,
+        supported=True,
+        last_validation_error=None,
+    )
+    transient_catalog._items = {**catalog._items, folder.item_id: transient_root}
+    return LibraryHierarchyStage(transient_catalog, transient_root, hierarchy.artifact, plan)
+
+
 def prepare_exact_folder_package(
     catalog: LibraryCatalog,
     folder: LibraryItem,
@@ -626,7 +835,9 @@ def prepare_exact_folder_package(
 __all__ = [
     "LibraryFolderPackageAdapterError",
     "LibraryFolderPackageStage",
+    "LibraryHierarchyStage",
     "OPERATION_STAGING_BINDING_FORMAT",
     "prepare_flat_folder_package",
+    "prepare_nested_folder_package",
     "prepare_exact_folder_package",
 ]

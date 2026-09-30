@@ -20,6 +20,7 @@ from .capability_profile import (
     CapabilityProfile,
     CapabilityProfileError,
     HIERARCHICAL_OFFLINE_PROFILE_ID,
+    NESTED_HOST_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
     capability_profile_by_id,
@@ -113,7 +114,7 @@ class PreparedItem:
                     children=self.children,
                 )
             else:
-                if self.profile_id != HIERARCHICAL_OFFLINE_PROFILE_ID:
+                if self.profile_id not in {HIERARCHICAL_OFFLINE_PROFILE_ID, NESTED_HOST_PROFILE_ID}:
                     raise CapabilityProfileError("hierarchy is bound to the wrong profile")
                 normalized = profile.validate_hierarchy(self.children)
                 if not normalized or normalized[0]["name"] != self.folder_name:
@@ -145,7 +146,7 @@ class PreparedItem:
             if grouping_contract is None:
                 grouping_contract = (
                     "explicit_prepared_hierarchy"
-                    if artifact.profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID
+                    if artifact.profile_id in {HIERARCHICAL_OFFLINE_PROFILE_ID, NESTED_HOST_PROFILE_ID}
                     else "explicit_prepared_package"
                 )
             if package_manifest_sha256 is None:
@@ -153,7 +154,11 @@ class PreparedItem:
             if grouping_contract == "explicit_prepared_hierarchy":
                 children = artifact.to_hierarchy_nodes(library_item_id)
                 folder_name = artifact.root_name
-                profile_id = HIERARCHICAL_OFFLINE_PROFILE_ID
+                profile_id = (
+                    NESTED_HOST_PROFILE_ID
+                    if artifact.profile_id == NESTED_HOST_PROFILE_ID
+                    else HIERARCHICAL_OFFLINE_PROFILE_ID
+                )
             else:
                 children = artifact.to_legacy_children()
                 folder_name = artifact.root_name
@@ -253,9 +258,9 @@ class PreparedItem:
         value = _copy(manifest)
         if value.get("format") != "infocarry-prepared-library-hierarchy-v1":
             raise TransferFoundationError("prepared hierarchy manifest format is unsupported")
-        if value.get("profile_id") != HIERARCHICAL_OFFLINE_PROFILE_ID:
+        if value.get("profile_id") not in {HIERARCHICAL_OFFLINE_PROFILE_ID, NESTED_HOST_PROFILE_ID}:
             raise TransferFoundationError("prepared hierarchy profile is unsupported")
-        profile = capability_profile_by_id(HIERARCHICAL_OFFLINE_PROFILE_ID)
+        profile = capability_profile_by_id(value["profile_id"])
         required = {
             "format",
             "version",

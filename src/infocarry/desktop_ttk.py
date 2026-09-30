@@ -54,7 +54,9 @@ from .library import (
 from .library_folder_package_adapter import (
     LibraryFolderPackageAdapterError,
     LibraryFolderPackageStage,
+    LibraryHierarchyStage,
     prepare_flat_folder_package,
+    prepare_nested_folder_package,
 )
 from .device_library_semantics import (
     AuxiliaryStateSnapshot,
@@ -1698,6 +1700,23 @@ def _initial_device_home_status() -> tuple[str, str]:
         "Device status not checked",
         "Refresh Device Home to check for a connected Sony InfoCarry VNW-V15.",
     )
+
+
+def refresh_device_library_from_verified_transfer(
+    model: DesktopWorkflowModel, result: Any
+) -> BackupSnapshotSummary:
+    """Load the verified post-transfer backup into the current Device Library model."""
+
+    if getattr(result, "state", None) != "readback_verified":
+        raise DesktopWorkflowError("only a verified transfer may refresh Device Library")
+    runner = getattr(result, "runner_result", None)
+    after = getattr(runner, "after_backup", None)
+    directory = getattr(after, "directory", None)
+    if not isinstance(directory, Path):
+        raise DesktopWorkflowError("verified post-transfer backup is unavailable")
+    summary = summarize_complete_backup(directory)
+    model.load_backup(directory)
+    return summary
 
 
 def launch_ttk_desktop(
@@ -3893,7 +3912,7 @@ def launch_ttk_desktop(
         continue_to_preflight: bool = False,
         catalog_override: Optional[LibraryCatalog] = None,
         artifact_override: Optional[PreparedContentArtifact] = None,
-        transfer_stage: Optional[LibraryFolderPackageStage] = None,
+        transfer_stage: Optional[LibraryFolderPackageStage | LibraryHierarchyStage] = None,
     ) -> None:
         """Show one prepared item's supported shape and review requirements."""
 
@@ -4047,7 +4066,7 @@ def launch_ttk_desktop(
         *,
         continue_to_confirmation: bool = False,
         catalog_override: Optional[LibraryCatalog] = None,
-        transfer_stage: Optional[LibraryFolderPackageStage] = None,
+        transfer_stage: Optional[LibraryFolderPackageStage | LibraryHierarchyStage] = None,
     ) -> None:
         """Refresh read-only evidence through the product facade only."""
 
@@ -4235,7 +4254,7 @@ def launch_ttk_desktop(
             details += "\n\nExpected additions:\n" + (
                 "\n".join(preview_lines) if preview_lines else "  None"
             )
-            folder_stage: Optional[LibraryFolderPackageStage] = None
+            folder_stage: Optional[LibraryFolderPackageStage | LibraryHierarchyStage] = None
             catalog_override: Optional[LibraryCatalog] = None
             artifact_override: Optional[PreparedContentArtifact] = None
             live_artifact: Optional[PreparedContentArtifact] = None
@@ -4247,6 +4266,10 @@ def launch_ttk_desktop(
                         plan,
                         staging_parent=application_paths().prepared_content_root,
                     )
+                    if folder_stage is None:
+                        folder_stage = prepare_nested_folder_package(
+                            library_catalog, selected[0], plan
+                        )
                     if folder_stage is not None:
                         catalog_override = folder_stage.catalog
                         artifact_override = folder_stage.artifact
@@ -4267,12 +4290,12 @@ def launch_ttk_desktop(
 
             details += (
                 "\n\n"
-                "This selection matches the bounded flat transfer profile. "
+                "This selection matches a bounded transfer profile. "
                 "Continuing through the existing readiness and safety checks; this plan itself "
                 "does not authorize or perform a device change."
             )
             library_status_var.set(
-                "Bounded flat transfer mapping found; continuing through existing guarded readiness checks"
+                "Bounded transfer mapping found; continuing through existing guarded readiness checks"
             )
             messagebox.showinfo("Transfer plan", details, parent=root)
             library_single_transfer_review_action(
@@ -4291,7 +4314,7 @@ def launch_ttk_desktop(
         )
 
     def library_transfer_once_action() -> None:
-        """Confirm simply, then run one guarded transfer away from Tk's main thread."""
+        """Approve the sealed identity, then confirm one guarded transfer."""
 
         nonlocal library_prepared_operation, library_current_readiness
         nonlocal library_device_change_in_progress
@@ -4334,34 +4357,6 @@ def launch_ttk_desktop(
             library_transfer_once_button.configure(state="disabled")
             return
 
-        report = library_prepared_operation.readiness.report
-        package = report.get("package", {}) if isinstance(report, Mapping) else {}
-        children = (
-            package.get("ordered_children", [])
-            if isinstance(package, Mapping)
-            else []
-        )
-        item_count = len(children) if isinstance(children, list) else 0
-        item_label = f"{item_count} item(s)" if item_count else "the selected content"
-        confirmed = messagebox.askokcancel(
-            "Confirm Transfer",
-            (
-                f"Transfer {item_label} to /{target_name} on the connected Sony VNW-V15?\n\n"
-                "The Manager will perform final safety checks, create a fresh backup, "
-                "transfer once, and verify the result on the device.\n\n"
-                "After the device-changing transfer begins, it cannot be cancelled or "
-                "automatically retried. Keep the InfoCarry connected until verification finishes."
-            ),
-            parent=root,
-        )
-        if not confirmed:
-            library_status_var.set("Transfer cancelled; no device-changing transaction attempted")
-            return
-        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
-            library_status_var.set(
-                "Another manager operation started while confirmation was open; Send to InfoCarry remains disabled"
-            )
-            return
         owner_identity = library_execution_facade.owner_authorization_identity
         if owner_identity is None:
             library_status_var.set(
@@ -4372,8 +4367,8 @@ def launch_ttk_desktop(
         owner_approval = simpledialog.askstring(
             "Approve Exact Operation",
             (
-                "Owner approval must match this exact fresh live operation. The earlier "
-                "Confirm Transfer choice does not authorize a different identity.\n\n"
+                "Owner approval must match this exact fresh live operation. "
+                "The following Confirm Transfer choice is not owner authorization.\n\n"
                 f"Operation: {owner_identity.operation_id}\n"
                 f"Candidate: {owner_identity.candidate_blob_sha256}\n"
                 f"Transaction: {owner_identity.transaction_sha256}\n"
@@ -4401,6 +4396,30 @@ def launch_ttk_desktop(
                 "Transfer blocked because owner approval differs from the exact sealed operation"
             )
             messagebox.showerror("Owner approval mismatch", str(exc), parent=root)
+            return
+        report = library_prepared_operation.readiness.report
+        package = report.get("package", {}) if isinstance(report, Mapping) else {}
+        children = package.get("ordered_children", []) if isinstance(package, Mapping) else []
+        item_count = len(children) if isinstance(children, list) else 0
+        item_label = f"{item_count} item(s)" if item_count else "the selected content"
+        confirmed = messagebox.askokcancel(
+            "Confirm Transfer",
+            (
+                f"Transfer {item_label} to /{target_name} on the connected Sony VNW-V15?\n\n"
+                "The Manager will perform final safety checks, create a fresh backup, "
+                "transfer once, and verify the result on the device.\n\n"
+                "After the device-changing transfer begins, it cannot be cancelled or "
+                "automatically retried. Keep the InfoCarry connected until verification finishes."
+            ),
+            parent=root,
+        )
+        if not confirmed:
+            library_status_var.set("Transfer cancelled; no device-changing transaction attempted")
+            return
+        if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+            library_status_var.set(
+                "Another manager operation started while confirmation was open; Send to InfoCarry remains disabled"
+            )
             return
         execution_plan_report = dict(library_current_plan_report or {})
 
@@ -4447,8 +4466,16 @@ def launch_ttk_desktop(
 
         def success(result: Any) -> None:
             nonlocal library_prepared_operation, library_current_readiness
+            nonlocal loaded_backup_summary
             library_prepared_operation = None
             library_current_readiness = None
+            refresh_error = None
+            try:
+                loaded_backup_summary = refresh_device_library_from_verified_transfer(model, result)
+                refresh_tree()
+                update_device_home_display()
+            except (DesktopWorkflowError, BackupHistoryError, OSError, ValueError) as exc:
+                refresh_error = str(exc)
             _set_readonly_text(
                 library_report,
                 format_library_transfer_execution_result(result.to_dict()),
@@ -4456,6 +4483,8 @@ def launch_ttk_desktop(
             library_transfer_once_button.configure(state="disabled")
             library_status_var.set(
                 "Transfer complete — content verified on the InfoCarry"
+                if refresh_error is None
+                else f"Transfer verified; Device Library refresh failed: {refresh_error}"
             )
 
         def terminal() -> None:

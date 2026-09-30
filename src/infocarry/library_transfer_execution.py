@@ -18,6 +18,7 @@ from .capability_profile import (
     INITIAL_EXPERIMENTAL_PROFILE_ID,
 )
 from .capacity_evidence import NativeCapacityResponse
+from .capability_profile import NESTED_HOST_PROFILE_ID
 from .device_model_profile import VNW_V15_PROFILE_ID
 from .execution_profile import (
     guarded_execution_profile,
@@ -217,8 +218,8 @@ class LibraryTransferOperationIntent:
             raise ValueError("only the reviewed VNW-V15 model profile is supported")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
-        if profile.generalized_flat and self.child_kinds is None:
-            raise ValueError("the generalized flat operation requires ordered child kinds")
+        if (profile.generalized_flat or profile.nested_host) and self.child_kinds is None:
+            raise ValueError("the operation requires ordered child kinds")
         child_kinds = profile.child_kinds if self.child_kinds is None else tuple(self.child_kinds)
         if not profile.accepts_children(child_kinds):
             raise ValueError("the operation intent differs from its execution profile")
@@ -334,8 +335,8 @@ class LibraryTransferOperationBinding:
             raise ValueError("only the reviewed VNW-V15 model profile is supported")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("only the reviewed Sony VNW-V15 identity is supported")
-        if execution_profile.generalized_flat and self.child_kinds is None:
-            raise ValueError("the generalized flat operation requires ordered child kinds")
+        if (execution_profile.generalized_flat or execution_profile.nested_host) and self.child_kinds is None:
+            raise ValueError("the operation requires ordered child kinds")
         child_kinds = (
             execution_profile.child_kinds
             if self.child_kinds is None
@@ -863,6 +864,11 @@ class LibraryTransferExecutionFacade:
         binding = self.operation_binding
         readiness = self.review_readiness(plan_report)
         intent = self._operation_intent(readiness)
+        if intent.profile_id == NESTED_HOST_PROFILE_ID and operation_stage is None:
+            raise LibraryTransferExecutionError(
+                "nested preflight requires operation-owned source and payload staging",
+                stage="operation_staging",
+            )
         runtime = self._ensure_runtime()
         if binding is not None:
             binding.require_authorized()

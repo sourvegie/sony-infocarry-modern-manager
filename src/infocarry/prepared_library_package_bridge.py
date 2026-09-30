@@ -36,10 +36,15 @@ from .prepared_media_package import (
     load_prepared_media_package,
 )
 from .prepared_content import PreparedContentError
+from .prepared_hierarchy_source import (
+    PreparedHierarchySource,
+    PreparedHierarchySourceError,
+    load_prepared_hierarchy_source,
+)
 from .execution_profile import (
     guarded_execution_profile,
 )
-from .capability_profile import INITIAL_EXPERIMENTAL_PROFILE_ID
+from .capability_profile import INITIAL_EXPERIMENTAL_PROFILE_ID, NESTED_HOST_PROFILE_ID
 from .prepared_multi_package_gate import (
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_EXPLICIT,
     PREPARED_MULTI_PACKAGE_CONFIRMATION_POLICY_FIXED,
@@ -267,6 +272,8 @@ def _validate_selected_package(
         item = catalog.get(selected_item_id)
     except Exception as exc:
         raise PreparedLibraryPackageBridgeError(str(exc)) from exc
+    if profile_id == NESTED_HOST_PROFILE_ID:
+        return _validate_nested_selected(catalog, item)
     if item.package is None:
         raise PreparedLibraryPackageBridgeError(
             "selected Library item is not an explicitly imported prepared package"
@@ -352,6 +359,82 @@ def _validate_selected_package(
         profile_id=profile_id,
         prepared_content=prepared_content,
     )
+    return item, imported, binding
+
+
+def _validate_nested_selected(
+    catalog: LibraryCatalog, item: LibraryItem
+) -> tuple[LibraryItem, PreparedHierarchySource, dict[str, Any]]:
+    """Reload the operation-owned hierarchy through the canonical bridge."""
+
+    if (
+        item.package is not None
+        or item.state != STATE_READY
+        or item.preparation_state != PREPARATION_PREPARED
+        or item.source_status != SOURCE_PRESENT
+        or not item.supported
+        or not item.prepared_manifest_path
+    ):
+        raise PreparedLibraryPackageBridgeError("nested Library selection is not prepared")
+    manifest_path = Path(item.prepared_manifest_path)
+    if manifest_path.name != "manifest.json" or not manifest_path.is_absolute():
+        raise PreparedLibraryPackageBridgeError("nested prepared manifest path is malformed")
+    try:
+        imported = load_prepared_hierarchy_source(manifest_path.parent)
+    except (OSError, PreparedHierarchySourceError) as exc:
+        raise PreparedLibraryPackageBridgeError(f"nested operation-owned artifact differs: {exc}") from exc
+    artifact = imported.artifact
+    if (
+        item.prepared_manifest_sha256 != imported.prepared_manifest_sha256
+        or item.prepared_artifact != artifact.to_dict()
+        or (item.prepared_metadata or {}).get("canonical_artifact_identity") != artifact.artifact_identity
+        or item.source_path != str(imported.root / "source")
+        or item.target_folder_name != artifact.root_name
+        or str(imported.manifest_path) != item.prepared_manifest_path
+    ):
+        raise PreparedLibraryPackageBridgeError("nested Library catalog binding differs")
+    execution_profile = guarded_execution_profile(NESTED_HOST_PROFILE_ID)
+    kinds = tuple(node.kind for node in imported.items)
+    names = tuple(node.name for node in imported.items)
+    if not execution_profile.accepts_children(kinds, names):
+        raise PreparedLibraryPackageBridgeError("nested hierarchy exceeds its host profile")
+    children = [
+        {
+            "order": node.order,
+            "kind": node.kind,
+            "name": node.name,
+            "target_path": node.path,
+            "source_path": str(node.source_path),
+            "source_sha256": node.source_sha256,
+            "source_bytes": len(node.source_bytes),
+            "prepared_payload_sha256": node.payload_sha256,
+            "prepared_payload_bytes": len(node.payload),
+        }
+        for node in imported.items
+    ]
+    binding = {
+        "format": P17_003_BRIDGE_FORMAT,
+        "library_format": LIBRARY_FORMAT,
+        "library_version": LIBRARY_VERSION,
+        "catalog_path": str(catalog.path.expanduser().resolve()),
+        "catalog_sha256": _sha256(_canonical_json(catalog.to_dict())),
+        "catalog_item_id": item.item_id,
+        "catalog_item_sha256": _sha256(_canonical_json(item.to_dict())),
+        "package_contract": "infocarry-prepared-library-hierarchy-v1",
+        "package_root": str(imported.root),
+        "manifest_path": str(imported.manifest_path),
+        "manifest_sha256": imported.prepared_manifest_sha256,
+        "folder_name": imported.folder_name,
+        "prepared_content_identity": artifact.artifact_identity,
+        "prepared_content_aggregate_size": artifact.aggregate_size,
+        "profile": "one_new_nested_root_ordered_txt_bmp",
+        "ordered_children": children,
+        "grouping_policy": "one_selected_root_existing_library_plan",
+        "ownership_policy": "operation_owned_copy_original_files_unchanged",
+        "profile_id": NESTED_HOST_PROFILE_ID,
+        "profile_sha256": execution_profile.profile_sha256,
+        "artifact_identity": artifact.artifact_identity,
+    }
     return item, imported, binding
 
 
@@ -585,7 +668,7 @@ def build_prepared_library_package_candidate(
         )
     try:
         core = build_prepared_multi_package_candidate(
-            imported.package,
+            imported if isinstance(imported, PreparedHierarchySource) else imported.package,
             backup,
             template,
             new_record_timestamp_be32=new_record_timestamp_be32,

@@ -25,6 +25,11 @@ from .prepared_media_package import (
 )
 from .prepared_multi_text import PreparedTextPackageSet, PreparedTextSourceItem
 from .prepared_folder import PreparedFolderError, _aligned_segment_length, _encode_component, _raw_record, _replace_name
+from .prepared_hierarchy_source import (
+    PreparedHierarchySource,
+    PreparedHierarchySourceError,
+    load_prepared_hierarchy_source,
+)
 from .write_artifact import ProspectiveWriteTransaction, WriteArtifactError, build_staging_range
 from .write_gate import VerifiedBackup
 
@@ -46,7 +51,7 @@ class PreparedMultiCandidateError(ValueError):
     """Raised when the narrow ordered package candidate is unsafe."""
 
 
-PreparedPackageInput = PreparedTextPackageSet | PreparedMediaPackage
+PreparedPackageInput = PreparedTextPackageSet | PreparedMediaPackage | PreparedHierarchySource
 
 
 def _sha256(data: bytes) -> str:
@@ -395,6 +400,17 @@ def build_prepared_multi_package_candidate(
 ) -> PreparedMultiPackageCandidate:
     """Build one ordered multi-child candidate using only native capacity evidence."""
 
+    if isinstance(package, PreparedHierarchySource):
+        return _build_prepared_hierarchy_candidate(
+            package, backup, template,
+            new_record_timestamp_be32=new_record_timestamp_be32,
+            native_capacity_response=native_capacity_response,
+            template_folder_path=template_folder_path,
+            template_item_paths=template_item_paths,
+            template_subset_policy_sha256=template_subset_policy_sha256,
+            allow_verified_bookmarks=allow_verified_bookmarks,
+        )
+
     if not isinstance(backup, VerifiedBackup) or not isinstance(template, ParsedBackupBlob):
         raise PreparedMultiCandidateError("backup and template must be verified parsed values")
     if not isinstance(native_capacity_response, NativeCapacityResponse):
@@ -667,6 +683,287 @@ def build_prepared_multi_package_candidate(
         "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "existing_timestamps": "preserve_exactly", "legacy_global_timestamp_rewrite_reproduced": False, "fixed_state": fixed.to_dict()["policy"], "manager_sidecars": "not part of device transaction"},
         "expected_post_operation": {"added_paths": added_paths, "removed_paths": [], "ordered_kinds": ["directory", *[item.kind for item in values]], "new_payload_sha256": [_sha256(_item_payload(item)) for item in values], "shared_payloads_preserved": True, "shared_timestamps_preserved": True},
         "assumptions": ["The folder and each child wrapper are copied from explicitly supplied validated native templates.", "The captured root insertion geometry is reused for this offline candidate only.", "This is not proof of arbitrary package or nested-folder compatibility."],
+    }
+    return PreparedMultiPackageCandidate(package, backup, baseline, candidate, candidate_blob, fixed, fixed_assessment, transaction, capacity.capacity_limit_bytes, capacity.baseline_model_bytes, capacity.candidate_model_bytes, capacity.remaining_growth_bytes, evidence, audit)
+
+
+def _build_prepared_hierarchy_candidate(
+    package: PreparedHierarchySource,
+    backup: VerifiedBackup,
+    template: ParsedBackupBlob,
+    *,
+    new_record_timestamp_be32: int,
+    native_capacity_response: NativeCapacityResponse,
+    template_folder_path: tuple[str, ...],
+    template_item_paths: Optional[Mapping[str, tuple[str, ...]]],
+    template_subset_policy_sha256: Optional[str],
+    allow_verified_bookmarks: bool,
+) -> PreparedMultiPackageCandidate:
+    """Extend the canonical repacker with child tables for one nested root."""
+
+    if not isinstance(backup, VerifiedBackup) or not isinstance(template, ParsedBackupBlob):
+        raise PreparedMultiCandidateError("nested candidate needs verified backup and template")
+    if not isinstance(native_capacity_response, NativeCapacityResponse):
+        raise PreparedMultiCandidateError("nested candidate needs parsed native 0x0019 capacity")
+    if isinstance(new_record_timestamp_be32, bool) or not isinstance(new_record_timestamp_be32, int) or not 0 <= new_record_timestamp_be32 <= 0xFFFFFFFF:
+        raise PreparedMultiCandidateError("nested timestamp must fit uint32")
+    if template_subset_policy_sha256 is not None and (
+        template_subset_policy_sha256 != REVIEWED_TEMPLATE_SUBSET_POLICY_SHA256
+        or _sha256(template.data) != template_subset_policy_sha256
+    ):
+        raise PreparedMultiCandidateError("nested candidate requires the reviewed template identity")
+    try:
+        current_package = load_prepared_hierarchy_source(package.root)
+    except PreparedHierarchySourceError as exc:
+        raise PreparedMultiCandidateError(str(exc)) from exc
+    if current_package != package:
+        raise PreparedMultiCandidateError("operation-owned hierarchy changed after loading")
+    items = package.items
+    if not items or not any(item.kind == "folder" for item in items):
+        raise PreparedMultiCandidateError("nested candidate requires at least one nested directory")
+    template_item_paths = dict(template_item_paths or {})
+    kinds = tuple(dict.fromkeys(item.kind for item in items if item.kind != "folder"))
+    folder_template, leading_template, prefix_templates = _template_records(
+        template, template_folder_path, template_item_paths, kinds
+    )
+    baseline_blob = _read_verified_blob(backup)
+    try:
+        baseline = parse_backup_blob(baseline_blob)
+    except BackupFormatError as exc:
+        raise PreparedMultiCandidateError("fresh baseline blob is malformed") from exc
+    if native_capacity_response.device_identity != tuple(int(value, 16) for value in backup.device_identity):
+        raise PreparedMultiCandidateError("native capacity identity differs from backup")
+    template_validation = _compare_template_shared(
+        baseline, template, template_folder_path, template_item_paths,
+        allow_template_path_subset=template_subset_policy_sha256 is not None,
+    )
+    root = baseline.record_at(baseline.header.metadata_start)
+    if root.kind != "directory" or root.name != "root":
+        raise PreparedMultiCandidateError("fresh baseline has no supported root")
+    root_path = ("root", package.folder_name)
+    by_display: dict[str, tuple[str, ...]] = {package.target_folder_path: root_path}
+    for item in items:
+        parts = item.path.split("\\")
+        if item.kind == "folder":
+            native_path = tuple(parts)
+        else:
+            suffix = "." + item.kind
+            if not item.name.casefold().endswith(suffix) or not item.name[:-len(suffix)] or "." in item.name[:-len(suffix)]:
+                raise PreparedMultiCandidateError("nested leaf name cannot be represented natively")
+            native_path = tuple(parts[:-1] + [item.name[:-len(suffix)]])
+        by_display[item.path] = native_path
+    added = set(by_display.values())
+    folded_added = {tuple(part.casefold() for part in path) for path in added}
+    if len(added) != len(by_display) or len(folded_added) != len(by_display):
+        raise PreparedMultiCandidateError("nested native paths collide after extension projection")
+    existing = {tuple(part.casefold() for part in path) for path in baseline.paths.values()}
+    if folded_added & existing:
+        raise PreparedMultiCandidateError("nested target conflicts with the fresh baseline")
+    try:
+        root_marker_offset = root.field_04_be32 + _RECORD_SIZE + root.field_08_be32
+        root_marker = baseline.record_at(root_marker_offset)
+    except BackupFormatError as exc:
+        raise PreparedMultiCandidateError("baseline root insertion boundary is unavailable") from exc
+    if root_marker.kind != "directory" or root_marker.name != "..":
+        raise PreparedMultiCandidateError("baseline root marker is unsupported")
+    content = baseline.data[baseline.header.content_start:baseline.header.content_start + baseline.header.content_length]
+    content_insert_at = 0
+    for offset, path in baseline.paths.items():
+        record = baseline.record_at(offset)
+        if len(path) == 2 and record.kind == "file":
+            prefix, payload = baseline.payload_parts(record)
+            content_insert_at = max(content_insert_at, record.field_04_be32 + _aligned_segment_length(prefix, payload))
+    later_files = [
+        baseline.record_at(offset).field_04_be32
+        for offset, path in baseline.paths.items()
+        if len(path) > 2 and baseline.record_at(offset).kind == "file"
+    ]
+    if later_files and min(later_files) != content_insert_at:
+        raise PreparedMultiCandidateError("baseline nested content has an unproven insertion gap")
+    segments: list[bytes] = []
+    content_offsets: dict[str, int] = {}
+    content_cursor = content_insert_at
+    for item in items:
+        if item.kind == "folder":
+            continue
+        prefix, _ = template.payload_parts(prefix_templates[item.kind])
+        aligned = _aligned_segment_length(prefix, item.payload)
+        segments.append(prefix + item.payload + b"\xff" * (aligned - len(prefix) - len(item.payload)))
+        content_offsets[item.path] = content_cursor
+        content_cursor += aligned
+    content_delta = content_cursor - content_insert_at
+
+    children_by_parent: dict[str, list[Any]] = {}
+    for item in items:
+        children_by_parent.setdefault(item.path.rsplit("\\", 1)[0], []).append(item)
+    directory_paths = [package.target_folder_path, *(item.path for item in items if item.kind == "folder")]
+    inserted: list[bytearray] = []
+    record_index: dict[str, int] = {}
+
+    def append_record(raw: bytearray) -> int:
+        index = len(inserted)
+        inserted.append(raw)
+        return index
+
+    root_raw = _raw_record(folder_template)
+    _replace_name(root_raw, _encode_component(package.folder_name, "nested root name"))
+    record_index[package.target_folder_path] = append_record(root_raw)
+    for directory_path in directory_paths:
+        children = children_by_parent.get(directory_path, [])
+        if not children:
+            raise PreparedMultiCandidateError("nested hierarchy contains an empty directory")
+        directory_index = record_index[directory_path]
+        directory_offset = root_marker_offset + directory_index * _RECORD_SIZE
+        table_start = root_marker_offset + len(inserted) * _RECORD_SIZE
+        directory_raw = inserted[directory_index]
+        directory_raw[0x04:0x08] = (table_start - _RECORD_SIZE).to_bytes(4, "big")
+        directory_raw[0x08:0x0C] = ((1 + len(children)) * _RECORD_SIZE).to_bytes(4, "big")
+        directory_raw[0x0C:0x10] = new_record_timestamp_be32.to_bytes(4, "big")
+        parent_path = directory_path.rsplit("\\", 1)[0]
+        parent_offset = (
+            root.offset if directory_path == package.target_folder_path
+            else root_marker_offset + record_index[parent_path] * _RECORD_SIZE
+        )
+        leading = _raw_record(leading_template)
+        leading[0x04:0x08] = parent_offset.to_bytes(4, "big")
+        leading[0x08:0x0C] = directory_offset.to_bytes(4, "big")
+        leading[0x0C:0x10] = new_record_timestamp_be32.to_bytes(4, "big")
+        append_record(leading)
+        for item in children:
+            raw = _raw_record(folder_template if item.kind == "folder" else prefix_templates[item.kind])
+            if item.kind == "folder":
+                name = item.name
+            else:
+                name = item.name[: -(len(item.kind) + 1)]
+                raw[0x04:0x08] = content_offsets[item.path].to_bytes(4, "big")
+                raw[0x08:0x0C] = len(item.payload).to_bytes(4, "big")
+            raw[0x0C:0x10] = new_record_timestamp_be32.to_bytes(4, "big")
+            _replace_name(raw, _encode_component(name, "nested node name"))
+            record_index[item.path] = append_record(raw)
+        trailing = _raw_record(root_marker)
+        trailing[0x04:0x08] = directory_offset.to_bytes(4, "big")
+        trailing[0x08:0x0C] = ((1 + len(children)) * _RECORD_SIZE).to_bytes(4, "big")
+        trailing[0x0C:0x10] = new_record_timestamp_be32.to_bytes(4, "big")
+        append_record(trailing)
+    metadata_delta = len(inserted) * _RECORD_SIZE
+    shifted: list[bytes] = []
+    for record in baseline.records:
+        raw = _raw_record(record)
+        if record.offset == root.offset:
+            raw[0x08:0x0C] = (record.field_08_be32 + _RECORD_SIZE).to_bytes(4, "big")
+        elif record.offset in {root.field_04_be32 + _RECORD_SIZE, root_marker_offset}:
+            raw[0x08:0x0C] = (record.field_08_be32 + _RECORD_SIZE).to_bytes(4, "big")
+        if record.kind == "directory" and record.field_04_be32 + _RECORD_SIZE >= root_marker_offset:
+            raw[0x04:0x08] = (record.field_04_be32 + metadata_delta).to_bytes(4, "big")
+        elif record.kind == "file" and record.field_04_be32 >= content_insert_at:
+            raw[0x04:0x08] = (record.field_04_be32 + content_delta).to_bytes(4, "big")
+        shifted.append(bytes(raw))
+    insertion_index = (root_marker_offset - baseline.header.metadata_start) // _RECORD_SIZE
+    shifted[insertion_index:insertion_index] = [bytes(raw) for raw in inserted]
+    metadata = b"".join(shifted)
+    rebuilt_content = content[:content_insert_at] + b"".join(segments) + content[content_insert_at:]
+    header = bytearray(baseline.data[:baseline.header.metadata_start])
+    total_length = len(header) + len(metadata) + len(rebuilt_content) + 4
+    header[0x2C:0x30] = len(metadata).to_bytes(4, "big")
+    header[0x30:0x34] = (baseline.header.content_start + metadata_delta).to_bytes(4, "big")
+    header[0x34:0x38] = len(rebuilt_content).to_bytes(4, "big")
+    header[0x18:0x1C] = (total_length - 1).to_bytes(4, "big")
+    header[0x38:0x3C] = total_length.to_bytes(4, "big")
+    output = bytearray(bytes(header) + metadata + rebuilt_content + baseline.data[-4:])
+    output[0x1C:0x20] = b"\x00" * 4
+    output[0x1C:0x20] = calculate_backup_checksum(bytes(output)).to_bytes(4, "big")
+    candidate_blob = bytes(output)
+    try:
+        candidate = parse_backup_blob(candidate_blob)
+    except BackupFormatError as exc:
+        raise PreparedMultiCandidateError(f"nested candidate failed structural validation: {exc}") from exc
+    preservation = _preserve_shared(baseline, candidate, added)
+    item_reports: list[dict[str, Any]] = []
+    for item in items:
+        path = by_display[item.path]
+        record = _record_for_path(candidate, path)
+        if record.timestamp_be32 != new_record_timestamp_be32:
+            raise PreparedMultiCandidateError("nested record timestamp differs")
+        if item.kind == "folder":
+            if record.kind != "directory":
+                raise PreparedMultiCandidateError("nested folder was not serialized as a directory")
+            prefix_sha = _sha256(b"")
+        else:
+            prefix, payload = candidate.payload_parts(record)
+            expected_prefix, _ = template.payload_parts(prefix_templates[item.kind])
+            if payload != item.payload or prefix != expected_prefix:
+                raise PreparedMultiCandidateError("nested payload differs after serialization")
+            prefix_sha = _sha256(prefix)
+        item_reports.append({
+            "order": item.order,
+            "kind": "directory" if item.kind == "folder" else item.kind,
+            "path": item.path,
+            "source_path": str(item.source_path),
+            "record_offset": _hex(record.offset),
+            "payload_length": len(item.payload),
+            "source_sha256": item.source_sha256,
+            "payload_sha256": item.payload_sha256,
+            "native_prefix_sha256": prefix_sha,
+        })
+    fixed_assessment = assess_prepared_fixed_state(
+        backup, allow_verified_display_history=True,
+        allow_verified_bookmarks=allow_verified_bookmarks,
+    )
+    try:
+        fixed = fixed_assessment.require_supported()
+        fixed, display_history_validation, bookmark_validation = fixed.rebase_auxiliary_state(
+            baseline, candidate,
+            insertion_offset=root_marker_offset - baseline.header.metadata_start,
+            metadata_delta=metadata_delta,
+        )
+    except PreparedFixedStateError as exc:
+        raise PreparedMultiCandidateError(f"nested auxiliary state cannot be preserved: {exc}") from exc
+    fixed_assessment = replace(fixed_assessment, snapshot=fixed)
+    try:
+        evidence = native_capacity_response.bind_model_lengths(len(baseline_blob), len(candidate_blob))
+        capacity = assess_total_capacity(
+            evidence.capacity_limit_bytes, evidence.baseline_model_bytes,
+            evidence.candidate_model_bytes, source=evidence.evidence_source,
+        )
+    except (NativeCapacityEvidenceError, CapacitySemanticsError) as exc:
+        raise PreparedMultiCandidateError(str(exc)) from exc
+    transaction = _transaction(candidate_blob, fixed)
+    paths = [package.target_folder_path, *(item.path for item in items)]
+    offsets = [_hex(_record_for_path(candidate, by_display[path]).offset) for path in paths]
+    expected_kinds = ["directory", *("directory" if item.kind == "folder" else item.kind for item in items)]
+    template_report = {
+        "blob_sha256": _sha256(template.data),
+        "folder_path": _display_path(template_folder_path),
+        "folder_record_offset": _hex(folder_template.offset),
+        "item_paths": {kind: _display_path(path) for kind, path in sorted(template_item_paths.items())},
+        "item_record_offsets": {kind: _hex(prefix_templates[kind].offset) for kind in sorted(prefix_templates)},
+        "prefix_sha256": {kind: _sha256(template.payload_parts(prefix_templates[kind])[0]) for kind in sorted(prefix_templates)},
+    }
+    audit = {
+        "format": PREPARED_MULTI_CANDIDATE_FORMAT,
+        "state": "offline_only", "usb_transmission_performed": False,
+        "device_identity": {"vendor_id": backup.device_identity[0], "product_id": backup.device_identity[1]},
+        "package": {
+            "folder_path": package.target_folder_path,
+            "paths": paths,
+            "record_offsets": offsets,
+            "ordered_items": item_reports,
+            "prepared_manifest_sha256": package.prepared_manifest_sha256,
+            "prepared_artifact_identity": package.artifact.artifact_identity,
+        },
+        "baseline": {"manifest_sha256": backup.manifest_sha256, "blob_sha256": _sha256(baseline_blob), "blob_length": len(baseline_blob), "record_count": len(baseline.records)},
+        "candidate": {"blob_sha256": _sha256(candidate_blob), "blob_length": len(candidate_blob), "record_count": len(candidate.records), "added_paths": paths, "new_record_timestamp_be32": _hex(new_record_timestamp_be32)},
+        "allocation": {"metadata_records_added": len(inserted), "metadata_growth_bytes": metadata_delta, "aligned_content_growth_bytes": content_delta, "candidate_growth_bytes": len(candidate_blob) - len(baseline_blob), "capacity_limit_bytes": capacity.capacity_limit_bytes, "baseline_model_bytes": capacity.baseline_model_bytes, "candidate_model_bytes": capacity.candidate_model_bytes, "remaining_growth_bytes": capacity.remaining_growth_bytes, "capacity_result": "sufficient", "source_bytes": package.source_bytes_total, "prepared_payload_bytes": package.prepared_payload_bytes_total, "remaining_after_transfer_bytes": capacity.capacity_limit_bytes - capacity.candidate_model_bytes},
+        "capacity_evidence": evidence.to_dict(),
+        "fixed_state": fixed_assessment.to_dict(),
+        "transaction": {"command": "0x101b", "sha256": transaction.concatenated_sha256, "payload_length": transaction.payload_length, "range_lengths": [len(value) for value in transaction.ranges], "fixed_state_hashes": [_sha256(value) for value in fixed.candidate_raw_blocks]},
+        "template": template_report, "template_validation": template_validation,
+        "preservation": preservation,
+        "display_history_validation": {**display_history_validation, "insertion_offset_absolute": _hex(root_marker_offset) if display_history_validation.get("insertion_offset") is not None else None},
+        "bookmark_validation": {**bookmark_validation, "insertion_offset_absolute": _hex(root_marker_offset) if bookmark_validation.get("insertion_offset") is not None else None},
+        "policy": {"timestamp": "one_explicit_frozen_value_for_new_records_only", "existing_timestamps": "preserve_exactly", "fixed_state": fixed.to_dict()["policy"], "manager_sidecars": "not part of device transaction"},
+        "expected_post_operation": {"added_paths": paths, "removed_paths": [], "ordered_kinds": expected_kinds, "new_payload_sha256": [item.payload_sha256 for item in items], "shared_payloads_preserved": True, "shared_timestamps_preserved": True},
+        "assumptions": ["New nested directory child tables use the observed parent-marker grammar and reviewed folder/file record templates; this is host construction only pending physical validation."],
     }
     return PreparedMultiPackageCandidate(package, backup, baseline, candidate, candidate_blob, fixed, fixed_assessment, transaction, capacity.capacity_limit_bytes, capacity.baseline_model_bytes, capacity.candidate_model_bytes, capacity.remaining_growth_bytes, evidence, audit)
 
