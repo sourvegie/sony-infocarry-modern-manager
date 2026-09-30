@@ -2759,6 +2759,7 @@ def launch_ttk_desktop(
             library_current_plan_report = None
             library_current_readiness = None
             library_prepared_operation = None
+            library_execution_facade.discard_prepared_operation()
             library_current_revision = None
             library_technical_details_open = False
             library_technical_details_button.configure(
@@ -2980,6 +2981,7 @@ def launch_ttk_desktop(
         library_current_plan_report = None
         library_current_readiness = None
         library_prepared_operation = None
+        library_execution_facade.discard_prepared_operation()
         library_current_preview = None
         library_current_revision = None
         library_technical_details_open = False
@@ -2994,6 +2996,17 @@ def launch_ttk_desktop(
         library_cancel_button.configure(state="disabled")
         if invalidated:
             restore_device_manager_controls()
+
+    def stop_rebuild_after_owner_approval() -> bool:
+        """End an approved attempt before any action can begin another review."""
+
+        if not library_execution_facade.stop_approved_rebuild():
+            return False
+        clear_library_review_for_input_change()
+        library_status_var.set(
+            "Approved operation stopped. Review and approve a new operation before transfer."
+        )
+        return True
 
     def visible_library_tree_items(parent: str = "") -> list[str]:
         result: list[str] = []
@@ -3361,6 +3374,7 @@ def launch_ttk_desktop(
             library_current_plan_report = None
             library_current_readiness = None
             library_prepared_operation = None
+            library_execution_facade.discard_prepared_operation()
         current_revision = None if item is None else library_item_revision(item)
         if (
             library_current_revision is not None
@@ -3370,6 +3384,7 @@ def launch_ttk_desktop(
             library_current_plan_report = None
             library_current_readiness = None
             library_prepared_operation = None
+            library_execution_facade.discard_prepared_operation()
             library_current_preview = None
             library_current_revision = None
             library_technical_details_open = False
@@ -3826,6 +3841,8 @@ def launch_ttk_desktop(
         """Render an offline queue review; this handler has no USB path."""
 
         nonlocal library_current_plan_report, library_current_revision
+        if stop_rebuild_after_owner_approval():
+            return
         if library_catalog is None:
             return
         selected_item_ids = None
@@ -3918,6 +3935,11 @@ def launch_ttk_desktop(
 
         nonlocal library_current_plan_report, library_current_readiness
         nonlocal library_prepared_operation, library_current_revision
+
+        if stop_rebuild_after_owner_approval():
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
+            return
 
         if library_catalog is None:
             if transfer_stage is not None:
@@ -4072,6 +4094,10 @@ def launch_ttk_desktop(
 
         nonlocal library_current_plan_report, library_current_readiness, library_prepared_operation
         nonlocal library_current_revision
+        if stop_rebuild_after_owner_approval():
+            if transfer_stage is not None:
+                transfer_stage.cleanup()
+            return
         preflight_catalog = catalog_override or library_catalog
         if (
             preflight_catalog is None
@@ -4151,6 +4177,9 @@ def launch_ttk_desktop(
 
     def library_transfer_action() -> None:
         """Plan one selection, then hand exact packages to the guarded facade."""
+
+        if stop_rebuild_after_owner_approval():
+            return
 
         if library_catalog is None:
             library_status_var.set("Local Library is unavailable; no device action was started")

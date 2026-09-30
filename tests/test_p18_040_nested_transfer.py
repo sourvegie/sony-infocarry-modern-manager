@@ -551,7 +551,7 @@ class NestedTransferHostTests(unittest.TestCase):
         )
         self.assertEqual(result.state, "readback_verified")
 
-    def test_new_preflight_invalidates_previous_owner_approval(self):
+    def test_approved_operation_cannot_be_refreshed_before_confirm_transfer(self):
         setup, first = self._sealed_fake_preflight()
         prior = setup["facade"].owner_authorization_identity
         setup["facade"].authorize_prepared_operation(prior.approval_phrase)
@@ -562,14 +562,75 @@ class NestedTransferHostTests(unittest.TestCase):
             selected_item_ids=[self.item.item_id], backup=setup["baseline"],
             available_capacity_bytes=10_000_000,
         ).to_dict()
+        with self.assertRaisesRegex(Exception, "owner-approved operation cannot be rebuilt"):
+            setup["facade"].refresh_live_preflight(
+                second_plan, catalog=second_stage.catalog,
+                preflight_report_path=setup["root"] / "second-operation" / "sealed-preflight.json",
+                bundle_path=setup["root"] / "second-operation" / "operation-bundle.json",
+                operation_stage=second_stage,
+            )
+        self.assertFalse(setup["facade"].owner_approval_accepted)
+        with self.assertRaises(Exception):
+            setup["facade"].execute_once(
+                first.plan_report,
+                confirmation_interaction=lambda _review: first.operation_intent.confirmation_phrase,
+            )
+        self._assert_no_sender_or_claim(setup)
+
+    def test_late_worker_preflight_cannot_replace_approved_operation(self):
+        setup, first = self._sealed_fake_preflight()
+        second_stage = prepare_nested_folder_package(self.catalog, self.item, self.plan)
+        self.assertIsNotNone(second_stage)
+        second_plan = build_library_transfer_queue_plan(
+            second_stage.catalog, selection_mode=SELECTION_SELECTED,
+            selected_item_ids=[self.item.item_id], backup=setup["baseline"],
+            available_capacity_bytes=10_000_000,
+        ).to_dict()
         second = setup["facade"].refresh_live_preflight(
             second_plan, catalog=second_stage.catalog,
-            preflight_report_path=setup["root"] / "second-operation" / "sealed-preflight.json",
-            bundle_path=setup["root"] / "second-operation" / "operation-bundle.json",
+            preflight_report_path=setup["root"] / "late-operation" / "sealed-preflight.json",
+            bundle_path=setup["root"] / "late-operation" / "operation-bundle.json",
+            operation_stage=second_stage, store=False,
+        )
+        prior = setup["facade"].owner_authorization_identity
+        self.assertNotEqual(prior.identity_sha256,
+                            type(prior).from_bundle(second.operation_bundle).identity_sha256)
+        setup["facade"].authorize_prepared_operation(prior.approval_phrase)
+        with self.assertRaisesRegex(Exception, "owner-approved operation cannot be replaced"):
+            setup["facade"].adopt_prepared_operation(second)
+        self.assertFalse(setup["facade"].owner_approval_accepted)
+        for operation in (first, second):
+            with self.assertRaises(Exception):
+                setup["facade"].execute_once(
+                    operation.plan_report,
+                    confirmation_interaction=lambda _review: operation.operation_intent.confirmation_phrase,
+                )
+        self._assert_no_sender_or_claim(setup)
+
+    def test_ui_rebuild_stop_requires_new_owner_approval_for_operation_b(self):
+        setup, first = self._sealed_fake_preflight()
+        owner_a = setup["facade"].owner_authorization_identity
+        setup["facade"].authorize_prepared_operation(owner_a.approval_phrase)
+        self.assertTrue(setup["facade"].stop_approved_rebuild())
+        self.assertFalse(setup["facade"].owner_approval_accepted)
+
+        second_stage = prepare_nested_folder_package(self.catalog, self.item, self.plan)
+        second_plan = build_library_transfer_queue_plan(
+            second_stage.catalog, selection_mode=SELECTION_SELECTED,
+            selected_item_ids=[self.item.item_id], backup=setup["baseline"],
+            available_capacity_bytes=10_000_000,
+        ).to_dict()
+        second = setup["facade"].refresh_live_preflight(
+            second_plan, catalog=second_stage.catalog,
+            preflight_report_path=setup["root"] / "new-review" / "sealed-preflight.json",
+            bundle_path=setup["root"] / "new-review" / "operation-bundle.json",
             operation_stage=second_stage,
         )
-        self.assertNotEqual(prior.identity_sha256, setup["facade"].owner_authorization_identity.identity_sha256)
-        with self.assertRaises(Exception):
+        self.assertNotEqual(
+            owner_a.identity_sha256,
+            setup["facade"].owner_authorization_identity.identity_sha256,
+        )
+        with self.assertRaisesRegex(Exception, "lacks separate owner identity approval"):
             setup["facade"].execute_once(
                 second.plan_report,
                 confirmation_interaction=lambda _review: second.operation_intent.confirmation_phrase,

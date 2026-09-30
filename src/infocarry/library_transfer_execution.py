@@ -642,6 +642,10 @@ class LibraryTransferExecutionFacade:
             return None
         return OwnerAuthorizedOperationIdentity.from_bundle(prepared.operation_bundle)
 
+    @property
+    def owner_approval_accepted(self) -> bool:
+        return self._owner_authorized_identity is not None
+
     def authorize_prepared_operation(
         self, approval_phrase: str
     ) -> OwnerAuthorizedOperationIdentity:
@@ -661,6 +665,20 @@ class LibraryTransferExecutionFacade:
             )
         self._owner_authorized_identity = identity
         return identity
+
+    def discard_prepared_operation(self) -> None:
+        """Invalidate a reviewed operation and its owner approval together."""
+
+        self._prepared_operation = None
+        self._owner_authorized_identity = None
+
+    def stop_approved_rebuild(self) -> bool:
+        """End an approved attempt instead of starting a replacement preflight."""
+
+        if not self.owner_approval_accepted:
+            return False
+        self.discard_prepared_operation()
+        return True
 
     @property
     def can_prepare_live(self) -> bool:
@@ -861,6 +879,12 @@ class LibraryTransferExecutionFacade:
         state after its result has become stale.
         """
 
+        if self._owner_authorized_identity is not None:
+            self.discard_prepared_operation()
+            raise LibraryTransferExecutionError(
+                "owner-approved operation cannot be rebuilt; discard it and obtain new owner approval",
+                stage="owner_authorization",
+            )
         binding = self.operation_binding
         readiness = self.review_readiness(plan_report)
         intent = self._operation_intent(readiness)
@@ -1013,6 +1037,12 @@ class LibraryTransferExecutionFacade:
         if not isinstance(prepared, PreparedLibraryTransferOperation):
             raise LibraryTransferExecutionError(
                 "prepared operation result is malformed"
+            )
+        if self._owner_authorized_identity is not None:
+            self.discard_prepared_operation()
+            raise LibraryTransferExecutionError(
+                "owner-approved operation cannot be replaced; discard it and obtain new owner approval",
+                stage="owner_authorization",
             )
         previous = self._prepared_operation
         previous_authorization = self._owner_authorized_identity

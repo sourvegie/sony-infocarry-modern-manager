@@ -441,6 +441,27 @@ class DesktopTtkMessageTests(unittest.TestCase):
         ):
             self.assertIn(contract, source)
 
+    def test_ui_stops_approved_attempt_before_starting_another_preflight(self):
+        source = inspect.getsource(launch_ttk_desktop)
+        helper = source.split("    def stop_rebuild_after_owner_approval()", 1)[1].split("\n    def ", 1)[0]
+        self.assertLess(
+            helper.index("stop_approved_rebuild()"),
+            helper.index("clear_library_review_for_input_change()"),
+        )
+        for name in (
+            "library_transfer_review_action",
+            "library_single_transfer_review_action",
+            "library_live_preflight_action",
+            "library_transfer_action",
+        ):
+            action = source.split(f"    def {name}(", 1)[1].split("\n    def ", 1)[0]
+            self.assertIn("if stop_rebuild_after_owner_approval():", action)
+            if "clear_library_review_for_input_change()" in action:
+                self.assertLess(
+                    action.index("if stop_rebuild_after_owner_approval():"),
+                    action.index("clear_library_review_for_input_change()"),
+                )
+
     def test_live_transfer_requires_exact_owner_identity_then_uses_background_controller(self):
         source = inspect.getsource(launch_ttk_desktop)
         start = source.index("    def library_transfer_once_action()")

@@ -174,6 +174,67 @@ evidence here establishes owner authorization of the later identity.
 **P18-040 is not COMPLETE or merge-ready** pending review of this discrepancy
 and owner disposition. No further write is proposed to resolve it.
 
+### Post-approval identity investigation — 2026-10-01
+
+Read-only comparison of the two preserved `operation-bundle.json` and
+`sealed-preflight.json` files shows the same device, target, selected item,
+prepared hierarchy manifest, five payloads, baseline raw-state identity
+`f3f9aeb5…`, and byte-identical native capacity response. All eight raw
+preflight backup objects are byte-identical. Backup capture timestamps and
+manifest provenance differ. The first **content-bearing** divergence is the
+new-record timestamp, `1790780256` (`0x6abd2360`) versus `1790780441`
+(`0x6abd2419`), 185 seconds later. That changes the candidate
+`735fe632…` to `6d50eb4c…`, transaction `39696705…` to `e5831e0e…`,
+core/outer seals, and operation ID `a784e9d2…` to `914f4f0a…`.
+
+The creation point is `library_live_preflight_action` calling
+`LibraryTransferExecutionFacade.refresh_live_preflight`, then its success
+callback calling `adopt_prepared_operation`. The facade obtains a new record
+timestamp, native capacity, and full fresh backup and constructs a new sealed
+bundle. `library_transfer_once_action` accepts owner approval and opens the
+ordinary Confirm Transfer dialog; its worker calls `execute_once` on the
+stored bundle. The coordinator does not replace that bundle. After claim
+consumption, the live adapter rechecks device/capacity and captures a fresh
+backup, then reconstructs the candidate with the **sealed** timestamp and
+requires exact equality before sender entry. Those checks cannot explain a
+new operation ID. The saved files prove a second UI preflight happened; they
+do not record the dialog sequence or independently prove whether the in-app
+approval for the second identity was supplied. The first seal has no claim.
+
+Before this correction, `refresh_live_preflight(store=True)` and
+`adopt_prepared_operation` cleared `_owner_authorized_identity` and installed
+the new prepared operation. The ordinary UI preflight action also cleared
+the facade's approval before calling the refresh, which is why a guard only
+inside the refresh could not catch the UI route. That is approval invalidation, but permits a
+new operation to be presented and approved without enforcing the earlier
+external approval boundary. `execute_once` compares the in-memory approval
+against the **current** bundle only; it cannot compare against an earlier
+external dialog once its identity has been discarded. The defect combines a
+missing freeze of the accepted owner approval with a late preflight path that
+could seal a new operation. The confirmation and sender paths themselves do
+not rebuild identity.
+
+The host correction makes an accepted approval a one-operation boundary:
+refresh and late worker adoption reject and discard the approved operation.
+UI transfer/review/preflight actions stop an approved attempt before clearing
+state, and UI review invalidation clears the facade's prepared operation and
+approval together. A new preflight requires an explicit new review and new exact owner
+approval; ordinary Confirm Transfer can only execute the retained bundle.
+Regression tests cover an attempted post-approval refresh, a late worker
+result for a different identity, the UI stop followed by a new B that cannot
+execute with ordinary confirmation alone, zero claims/sender calls after
+these attempts, and successful exact-match fake guarded execution. Independent
+strong R3 review of the final correction found P0=0, P1=0, P2=0. This host fix
+does not retroactively establish approval of the physical second identity.
+
+Final host validation: 109 focused tests passed; 1,046 portable tests passed
+with three established skips; `compileall` and `git diff --check` passed.
+The Apple Silicon package built with the supported Python 3.12/Tk 9 runtime
+and passed package signature verification. The packaged runtime smoke could
+not be completed on this host: direct launch aborted and LaunchServices
+returned `kLSNoExecutableErr` despite the executable existing in the bundle.
+Windows package CI was not run locally. None of these checks accessed hardware.
+
 ### Actual terminal, backup, and safety evidence
 
 The actual attempt is `p17-017-attempt-b9e02330d4c74ed98b7017f3e44a9dd5`.

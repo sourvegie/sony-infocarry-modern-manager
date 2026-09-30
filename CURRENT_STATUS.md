@@ -2,7 +2,7 @@
 
 Date: 2026-10-01
 
-## P18-040 — PHYSICAL NESTED READBACK VERIFIED; EXACT-OPERATION CLOSURE BLOCKED
+## P18-040 — OPEN — PHYSICAL TRANSFER VERIFIED, POST-APPROVAL IDENTITY REBIND DEFECT
 
 The owner observed “Transfer complete — content verified on the InfoCarry.”
 The preserved terminal result independently records `readback_verified` for
@@ -24,8 +24,14 @@ candidate `735fe632…`, transaction `39696705…`, seal `f948210d…`. That exa
 seal has no consumed claim or terminal result. The physical readback proves
 only the actual five-leaf nested shape and target; it does not prove execution
 of the specified owner-authorized transaction. P18-040 is **not COMPLETE or
-merge-ready** pending review of the identity discrepancy and explicit owner
-disposition. No further hardware write is authorized by this finding. See the
+merge-ready**. Host investigation found that a second UI preflight generated
+the executed identity. Its raw baseline and capacity bytes match the first,
+but the new-record timestamp changed and so did the candidate and transaction.
+The facade now rejects a preflight refresh or late worker adoption after
+approval, invalidates stale UI approval with its prepared operation, and
+requires new owner approval for a new operation. Host validation and R3 review
+are recorded in the evidence record. No further hardware write is authorized
+by this finding. See the
 [evidence and decision record](analysis/phase-18-p18-040-nested-library-transfer-20260930.md)
 and [capability row](CAPABILITY_MATRIX.md).
 
