@@ -3,7 +3,7 @@
 Date: 2026-09-30
 Base: canonical `main` `8c970263edf365c32671ccdce2a0da4bcb1c4496`
 Branch: `task/P18-040-nested-library-transfer`
-Disposition while review/CI is pending: **HOST IMPLEMENTED; NOT YET READY FOR HARDWARE TEST**
+Disposition: **READY_FOR_HARDWARE_TEST** (host implementation only; no physical proof)
 
 ## Scope and evidence labels
 
@@ -102,7 +102,15 @@ remain regression gates.
 
 The focused P18-040 suite passes 23 tests. The full portable suite passes
 1,039 tests with 3 established skips. `compileall` and `git diff --check`
-pass. Independent R3 worktree review found **P0=0, P1=0, P2=0**, after one
-staging-bypass finding was fixed and retested. Final committed-head review
-and macOS/Windows CI/package checks remain required before changing the
-disposition to `READY_FOR_HARDWARE_TEST`.
+pass. Independent exact-head R3 review of implementation commit
+`18c97ab2716f4018ef719141331d946ac4fe9936` found **P0=0, P1=0,
+P2=0**, after one staging-bypass finding was fixed and retested. Its parent is
+the requested canonical base `8c970263edf365c32671ccdce2a0da4bcb1c4496`.
+
+Pull request [#68](https://github.com/sourvegie/sony-infocarry-modern-manager/pull/68)
+ran all required checks on the implementation commit: macOS and Windows
+Python 3.12 portable suites, macOS Apple Silicon package and runtime smoke,
+and Windows x64 package and runtime smoke all **passed**. The package jobs
+exercise frozen application startup without making a device write. The final
+status update is documentation-only; no nested physical capability is
+promoted by this record.

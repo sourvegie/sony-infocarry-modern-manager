@@ -2,7 +2,7 @@
 
 Date: 2026-09-30
 
-## P18-040 — NESTED LIBRARY TRANSFER — HOST IMPLEMENTATION AWAITING PLATFORM CI
+## P18-040 — NESTED LIBRARY TRANSFER — READY_FOR_HARDWARE_TEST
 
 Branch `task/P18-040-nested-library-transfer` starts at canonical main
 `8c970263edf365c32671ccdce2a0da4bcb1c4496`. The bounded host profile
@@ -21,8 +21,10 @@ has occurred. Nested physical behavior is unproven. The historical P18-039
 owner-authorization fix remains mandatory, and ordinary confirmation does
 not replace exact owner approval. Independent R3 worktree review found
 P0=0, P1=0, P2=0; the 1,039-test portable suite, compileall, and diff check
-pass. macOS/Windows exact-head CI/package checks remain pending before
-`READY_FOR_HARDWARE_TEST`.
+pass. Both macOS and Windows portable CI suites and package smoke builds pass
+on the reviewed implementation commit `18c97ab2716f4018ef719141331d946ac4fe9936`.
+This is a host-only readiness disposition. A nested physical transfer still
+requires a separately approved exact procedure and owner authorization.
 See the [P18-040 host decision record](analysis/phase-18-p18-040-nested-library-transfer-20260930.md)
 and [capability row](CAPABILITY_MATRIX.md).
 
