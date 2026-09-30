@@ -16,9 +16,10 @@ from infocarry.capacity_evidence import NativeCapacityResponse
 from infocarry.device_info import RawInfoResponse
 from infocarry.desktop import DesktopWorkflowModel
 from infocarry.desktop_ttk import refresh_device_library_from_verified_transfer
+from infocarry.device_library_semantics import DeviceLibraryNode, DeviceLibrarySnapshot
 from infocarry.library import LibraryCatalog
-from infocarry.library_device_transfer import build_library_device_transfer_plan
-from infocarry.library_folder_package_adapter import prepare_nested_folder_package
+from infocarry.library_device_transfer import LibraryDeviceTransferPlanError, build_library_device_transfer_plan
+from infocarry.library_folder_package_adapter import LibraryFolderPackageAdapterError, prepare_nested_folder_package
 from infocarry.library_prepare import prepare_library_hierarchy
 from infocarry.capability_profile import NESTED_HOST_PROFILE_ID
 from infocarry.library_transfer_plan import build_library_transfer_queue_plan, SELECTION_SELECTED
@@ -142,8 +143,71 @@ class NestedTransferHostTests(unittest.TestCase):
         connection = sqlite3.connect(setup["claim_store"].path)
         try:
             self.assertEqual(connection.execute("SELECT count(*) FROM execution_claims").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT count(*) FROM sender_in_flight").fetchone()[0], 0)
         finally:
             connection.close()
+
+    def test_nested_root_appends_after_22_existing_siblings_without_rebasing_children(self):
+        baseline = DeviceLibrarySnapshot((
+            *empty_device().nodes,
+            *(DeviceLibraryNode(("root", f"Existing-{index:02}"), "directory", index)
+              for index in range(22)),
+        ))
+        plan = build_library_device_transfer_plan(
+            self.catalog, [self.item.item_id], ("root",), baseline
+        )
+        self.assertEqual(plan.nodes[0].sibling_order, 22)
+        stage = prepare_nested_folder_package(self.catalog, self.item, plan)
+        self.assertIsNotNone(stage)
+        hierarchy = prepare_library_hierarchy(
+            self.catalog, self.item.item_id, profile_id=NESTED_HOST_PROFILE_ID
+        )
+        self.assertEqual(hierarchy.nodes[0]["order"], 0)
+        self.assertEqual(
+            tuple((node.path, node.sibling_order) for node in plan.expected_delta.additions),
+            tuple((node.destination_path, node.sibling_order) for node in plan.nodes),
+        )
+        self.assertEqual(
+            tuple(node.sibling_order for node in plan.nodes[1:]),
+            tuple(node["order"] for node in hierarchy.nodes[1:]),
+        )
+        self.assertEqual(
+            tuple(node.path[-1] for node in plan.expected_delta.expected_snapshot().children(("root",))),
+            (*tuple(f"Existing-{index:02}" for index in range(22)), self.item.source_filename),
+        )
+
+    def test_nested_plan_rejects_stale_root_and_internal_order(self):
+        baseline = DeviceLibrarySnapshot((
+            *empty_device().nodes,
+            DeviceLibraryNode(("root", "Existing"), "directory", 0),
+        ))
+        plan = build_library_device_transfer_plan(
+            self.catalog, [self.item.item_id], ("root",), baseline
+        )
+        for index, wrong_order in ((0, 0), (1, 1)):
+            changed = list(plan.nodes)
+            changed[index] = replace(changed[index], sibling_order=wrong_order)
+            with self.subTest(index=index), self.assertRaises(LibraryFolderPackageAdapterError):
+                prepare_nested_folder_package(
+                    self.catalog, self.item, replace(plan, nodes=tuple(changed))
+                )
+        changed = list(plan.nodes)
+        changed[1] = replace(changed[1], sibling_order=1)
+        with self.assertRaises(ValueError):
+            replace(plan.expected_delta, additions=tuple(
+                replace(node, sibling_order=1) if index == 1 else node
+                for index, node in enumerate(plan.expected_delta.additions)
+            ))
+
+    def test_existing_target_rejects_before_nested_preparation(self):
+        baseline = DeviceLibrarySnapshot((
+            *empty_device().nodes,
+            DeviceLibraryNode(("root", self.item.source_filename), "directory", 0),
+        ))
+        with self.assertRaisesRegex(LibraryDeviceTransferPlanError, "destination conflict"):
+            build_library_device_transfer_plan(
+                self.catalog, [self.item.item_id], ("root",), baseline
+            )
 
     def test_exact_small_candidate_and_independent_readback(self):
         candidate, fixed = self._candidate()
@@ -440,6 +504,21 @@ class NestedTransferHostTests(unittest.TestCase):
         identity = setup["facade"].owner_authorization_identity
         setup["facade"].authorize_prepared_operation(identity.approval_phrase)
         (self.stage.operation_owned_root / "prepared" / "Section-B" / "Detail" / "05-ending.txt").unlink()
+        with self.assertRaises(Exception):
+            setup["facade"].execute_once(
+                prepared.plan_report,
+                confirmation_interaction=lambda _review: prepared.operation_intent.confirmation_phrase,
+            )
+        self._assert_no_sender_or_claim(setup)
+
+    def test_tampered_sealed_order_stops_before_claim_marker_lock_and_backend(self):
+        setup, prepared = self._sealed_fake_preflight()
+        identity = setup["facade"].owner_authorization_identity
+        setup["facade"].authorize_prepared_operation(identity.approval_phrase)
+        manifest_path = self.stage.operation_owned_root / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["nodes"][0]["order"] = 1
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         with self.assertRaises(Exception):
             setup["facade"].execute_once(
                 prepared.plan_report,

@@ -114,3 +114,25 @@ and Windows x64 package and runtime smoke all **passed**. The package jobs
 exercise frozen application startup without making a device write. The final
 status update is documentation-only; no nested physical capability is
 promoted by this record.
+
+## Read-only physical preflight blocker and host correction
+
+The 2026-09-30 read-only preflight for `IC_P18_040_NESTED_20260930_01`
+confirmed that the target root was absent in the fresh complete backup. The
+logical planner would append it at device-root sibling position **22**.
+Preparation stopped before sealing because the nested adapter compared that
+destination insertion position with the prepared hierarchy root's local
+ordinal **0**. These numbers describe different parent lists. No operation
+identity, candidate hash, transaction hash, or approval phrase was issued.
+The attempt recorded zero sender calls, real `0x101b` requests, device-changing
+writes, and consumed claims.
+
+The adapter now checks the planned root position against the fresh logical
+baseline's device-root child count, while requiring the prepared root's
+tree-relative ordinal to remain zero. Descendant orders still match the
+prepared hierarchy exactly. Planned additions must also match the expected
+delta's paths, kinds, and destination sibling orders. Existing target names
+still conflict in the planner, and the delta's snapshot enforces contiguous
+destination order. This changes no owner-authorization, coordinator, sender,
+or recovery code. The exact prior preflight remains unsealed; any later
+physical attempt needs a fresh frozen operation and separate owner approval.

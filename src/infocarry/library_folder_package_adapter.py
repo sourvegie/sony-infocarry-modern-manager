@@ -784,13 +784,25 @@ def prepare_nested_folder_package(
         tuple(str(node["path"]).split("\\")) for node in nodes
     ):
         raise LibraryFolderPackageAdapterError("nested plan paths differ from preparation")
-    for planned, node in zip(plan.nodes, nodes):
+    if any(
+        planned.destination_path != added.path
+        or planned.kind != added.kind
+        or planned.sibling_order != added.sibling_order
+        for planned, added in zip(plan.nodes, plan.expected_delta.additions)
+    ):
+        raise LibraryFolderPackageAdapterError("nested plan differs from expected destination order")
+    root_insertion_order = len(plan.expected_delta.baseline.children(plan.destination_path))
+    for index, (planned, node) in enumerate(zip(plan.nodes, nodes)):
+        # The prepared root is ordinal zero within its new tree. Its planned
+        # order is instead the append position among existing device roots.
+        expected_order = root_insertion_order if index == 0 else node["order"]
         if (
             planned.source_item_id != node["node_id"]
             or planned.source_path != catalog.get(node["node_id"]).source_path
             or planned.destination_path != tuple(str(node["path"]).split("\\"))
             or planned.kind != ("directory" if node["kind"] == "folder" else "file")
-            or planned.sibling_order != node["order"]
+            or planned.sibling_order != expected_order
+            or (index == 0 and node["order"] != 0)
             or (
                 node["kind"] != "folder"
                 and (

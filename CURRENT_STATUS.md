@@ -4,6 +4,17 @@ Date: 2026-09-30
 
 ## P18-040 — NESTED LIBRARY TRANSFER — READY_FOR_HARDWARE_TEST
 
+The first read-only physical preflight for `IC_P18_040_NESTED_20260930_01`
+stopped before sealing: the absent root would append at device sibling
+position 22, but the adapter incorrectly required equality with the prepared
+root's tree-relative ordinal 0. The host correction compares the planned root
+with the destination baseline child count, preserves exact internal prepared
+order, and cross-checks the expected delta. The failed preflight produced no
+operation identity or owner authorization and made no device-changing write.
+The target remains absent per that backup; a new fresh read-only preflight and
+exact operation-specific owner approval are still required before any physical
+test. See the [P18-040 decision record](analysis/phase-18-p18-040-nested-library-transfer-20260930.md).
+
 Branch `task/P18-040-nested-library-transfer` starts at canonical main
 `8c970263edf365c32671ccdce2a0da4bcb1c4496`. The bounded host profile
 extends the existing Local Library plan and canonical VNW-V15 candidate,
