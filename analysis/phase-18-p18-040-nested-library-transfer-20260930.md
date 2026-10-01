@@ -4,7 +4,9 @@ Date: 2026-09-30
 Base: canonical `main` `8c970263edf365c32671ccdce2a0da4bcb1c4496`
 Branch: `task/P18-040-nested-library-transfer`
 Disposition at the host checkpoint: **READY_FOR_HARDWARE_TEST**. The
-2026-10-01 physical-evidence review below supersedes that checkpoint.
+physical-evidence review and final owner disposition below supersede that checkpoint.
+Final disposition: **COMPLETE / MERGE-READY**, limited to the exact physically
+observed target, hierarchy, order, and bound payload set.
 
 ## Scope and evidence labels
 
@@ -171,8 +173,10 @@ but their operation identities are not interchangeable. The terminal result
 proves the actual nested content physically transferred; it does not prove
 execution of the specified owner-authorized transaction. No independent
 evidence here establishes owner authorization of the later identity.
-**P18-040 is not COMPLETE or merge-ready** pending review of this discrepancy
-and owner disposition. No further write is proposed to resolve it.
+**Disposition at the initial physical-evidence review:** P18-040 was not
+COMPLETE or merge-ready pending investigation and owner disposition. The final
+owner disposition below supersedes that status; the mismatch evidence remains.
+No further write was proposed to resolve it.
 
 ### Post-approval identity investigation — 2026-10-01
 
@@ -234,11 +238,58 @@ and passed package signature verification. The packaged runtime smoke could
 not be completed on this host: direct launch aborted and LaunchServices
 returned `kLSNoExecutableErr` despite the executable existing in the bundle.
 Windows package CI was not run locally. None of these checks accessed hardware.
-The existing PR's passing CI belongs to the earlier `48720d2` head. Current-head
-remote CI remains unrun: automatic approval review rejected pushing this
-checkpoint because `origin` is a public repository and the task did not
-explicitly authorize exporting this payload there. The local branch is ahead
-of `origin` by the documentation checkpoint and this correction commit.
+At that local checkpoint, the existing PR's passing CI belonged to the earlier
+`48720d2` head. Remote CI for the correction was then unrun: automatic approval
+review rejected pushing the checkpoint because `origin` is public and the task
+did not explicitly authorize exporting the payload there. The local branch was
+ahead of `origin`. Explicit publication authorization and the passing CI below
+subsequently resolved this distribution blocker.
+
+### Final owner disposition and CI closure
+
+The owner accepts the successful physical transfer as proof for exactly
+`IC_P18_040_NESTED_20260930_01` with this ordered hierarchy and the five bound
+payloads:
+
+- `01-intro.txt`
+- `Section-A/02-page.bmp`
+- `Section-A/03-notes.txt`
+- `Section-B/Detail/04-page.bmp`
+- `Section-B/Detail/05-ending.txt`
+
+The accepted evidence establishes one sender call, one real `0x101b`, zero
+retries, native completion `0x0000`, a complete post-transfer backup,
+independent `readback_verified`, exact hierarchy/order/payloads, no removed
+pre-existing paths, preserved shared/unrelated content, a consumed claim,
+resolved sender marker, and cleared installation-wide lock.
+
+The owner also accepts the identity mismatch as a historical authorization
+defect discovered by this validation and subsequently corrected. This
+acceptance does not rewrite the two identities or retroactively establish
+approval of operation B. The correction fails closed if an approved operation
+would be replaced, refreshed, or adopted as another identity before claim
+consumption or sender entry. Focused regression testing, the full portable
+suite, and independent strong R3 review (P0=0, P1=0, P2=0) passed.
+
+After explicit owner authorization to publish the existing commits, PR #68
+reached `f113d72768f8cd5b555aaf29de061a7e207947d1`. All four current-head CI
+checks passed, superseding the historical distribution/CI blocker above:
+
+- [macOS and Windows Python 3.12 portable suites](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/36872343388)
+- [macOS Apple Silicon package and runtime validation](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/36872343418)
+- [Windows x64 package and runtime validation](https://github.com/sourvegie/sony-infocarry-modern-manager/actions/runs/36872343456)
+
+**P18-040 = COMPLETE / MERGE-READY.** A second physical transfer is not
+required to validate this pre-sender fail-closed correction. No additional
+hardware write is authorized or required for closure.
+
+Physical capability promotion applies strictly to the exact observed target,
+five-leaf hierarchy, order, and bound payload set. It establishes no physical
+proof for arbitrary nested trees, the 41-directory/120-leaf scale fixture,
+other depths/counts/payloads, overwrite/merge, synchronization, deletion,
+Restore, multiple roots, or VNW-V10. The broader nested profile remains host
+reviewed only; future writes still require fresh operation-specific owner
+approval and the normal guarded gates.
 
 ### Actual terminal, backup, and safety evidence
 
