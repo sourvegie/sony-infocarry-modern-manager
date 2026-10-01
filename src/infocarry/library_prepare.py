@@ -16,7 +16,8 @@ from typing import Any, Callable, Mapping, Optional
 
 from .capability_profile import (
     HIERARCHICAL_OFFLINE_PROFILE_ID,
-    hierarchical_offline_capability_profile,
+    NESTED_HOST_PROFILE_ID,
+    capability_profile_by_id,
 )
 from .library import (
     PREPARATION_BLOCKED,
@@ -108,10 +109,13 @@ class PreparedLibraryHierarchy:
         }
         if set(value) != required:
             raise LibraryPreparationError("prepared hierarchy manifest schema differs")
-        profile = hierarchical_offline_capability_profile()
+        profile_id = value.get("profile_id")
+        if profile_id not in {HIERARCHICAL_OFFLINE_PROFILE_ID, NESTED_HOST_PROFILE_ID}:
+            raise LibraryPreparationError("prepared hierarchy profile is unsupported")
+        profile = capability_profile_by_id(profile_id)
         if value["format"] != HIERARCHICAL_PREPARED_MANIFEST_FORMAT:
             raise LibraryPreparationError("prepared hierarchy manifest format is unsupported")
-        if value["version"] != 1 or value["profile_id"] != HIERARCHICAL_OFFLINE_PROFILE_ID:
+        if value["version"] != 1:
             raise LibraryPreparationError("prepared hierarchy manifest profile/version is unsupported")
         if value["profile_sha256"] != profile.sha256:
             raise LibraryPreparationError("prepared hierarchy profile hash differs")
@@ -184,11 +188,15 @@ class PreparedLibraryHierarchy:
 def prepare_library_hierarchy(
     catalog: LibraryCatalog,
     item_id: str,
+    *,
+    profile_id: str = HIERARCHICAL_OFFLINE_PROFILE_ID,
 ) -> PreparedLibraryHierarchy:
     """Prepare exactly one selected Library root and its descendants offline."""
 
     root = catalog.get(item_id)
-    profile = hierarchical_offline_capability_profile()
+    if profile_id not in {HIERARCHICAL_OFFLINE_PROFILE_ID, NESTED_HOST_PROFILE_ID}:
+        raise LibraryPreparationError("prepared hierarchy profile is unsupported")
+    profile = capability_profile_by_id(profile_id)
     prepared_nodes: list[dict[str, Any]] = []
     total_source = 0
     total_prepared = 0

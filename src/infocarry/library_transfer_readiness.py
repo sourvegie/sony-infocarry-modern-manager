@@ -16,6 +16,7 @@ from typing import Any, Iterable, Mapping, Optional
 
 from .capability_profile import (
     GENERALIZED_FLAT_PROFILE_ID,
+    NESTED_HOST_PROFILE_ID,
     CAPABILITY_PROFILE_STATUS,
     CapabilityProfileError,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
@@ -584,10 +585,17 @@ def build_library_transfer_readiness(
         "prepared_content_artifact",
         "prepared_epub_content",
     }
+    nested_contract = (
+        generic_artifact
+        and isinstance(artifact, Mapping)
+        and isinstance(artifact.get("canonical"), Mapping)
+        and artifact["canonical"].get("profile_id") == NESTED_HOST_PROFILE_ID
+    )
     if item.get("operation_type") != "prepared_flat_typed_package":
         if not generic_artifact:
             reasons.append("the selected item is not an explicitly imported prepared Library package")
-        exact_package = False
+        if not nested_contract:
+            exact_package = False
     if item.get("execution_eligible") is not False:
         reasons.append("the selected package cannot advertise execution eligibility")
     if not isinstance(artifact, Mapping):
@@ -645,14 +653,28 @@ def build_library_transfer_readiness(
             reasons.append(f"canonical preparation/profile validation failed: {exc}")
             exact_package = False
 
+    nested_artifact = (
+        canonical_artifact is not None
+        and canonical_artifact.profile_id == NESTED_HOST_PROFILE_ID
+    )
     if canonical_artifact is not None:
         try:
-            transfer_shape = assess_transfer_shape(canonical_artifact)
+            if nested_artifact:
+                selected_profile_id = NESTED_HOST_PROFILE_ID
+                capability_profile_by_id(NESTED_HOST_PROFILE_ID).validate_hierarchy(
+                    canonical_artifact.to_hierarchy_nodes(
+                        canonical_artifact.children[0].parent_id or "readiness-root"
+                    )
+                )
+            else:
+                transfer_shape = assess_transfer_shape(canonical_artifact)
         except (TypeError, ValueError) as exc:
             reasons.append(f"transfer-shape assessment failed: {exc}")
             exact_package = False
         else:
-            if transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE:
+            if nested_artifact:
+                fresh_evidence.append("nested hierarchy has host proof only; physical validation is still required")
+            elif transfer_shape.classification == EXACT_VERIFIED_LIVE_PROFILE:
                 if transfer_shape.ordered_kinds == FOUR_LEAF_VERIFIED_CHILD_KINDS:
                     selected_profile_id = VNW_V15_FOUR_LEAF_PROFILE_ID
             elif transfer_shape.classification == PLAUSIBLE_FUTURE_DIRECT_LEAF_V15:
@@ -680,14 +702,13 @@ def build_library_transfer_readiness(
         exact_package = False
     else:
         expected_kinds = (
-            transfer_shape.ordered_kinds
-            if transfer_shape is not None
-            else ()
+            tuple(child.kind for child in canonical_artifact.children)
+            if nested_artifact
+            else transfer_shape.ordered_kinds if transfer_shape is not None else ()
         )
         if (
             len(children) != len(expected_kinds)
-            or transfer_shape is None
-            or not transfer_shape.host_admissible_flat
+            or (not nested_artifact and (transfer_shape is None or not transfer_shape.host_admissible_flat))
         ):
             reasons.append(
                 "the selected package must contain 1–8 direct TXT/BMP children "
@@ -709,10 +730,12 @@ def build_library_transfer_readiness(
                     "child order/kinds must match the canonical prepared flat content"
                 )
                 exact_package = False
-            if (
-                folder_path is not None
-                and child.get("path") != f"{folder_path}\\{child.get('name', '')}"
-            ):
+            expected_path = (
+                canonical_artifact.children[index].path
+                if nested_artifact and index < len(canonical_artifact.children)
+                else f"{folder_path}\\{child.get('name', '')}"
+            )
+            if folder_path is not None and child.get("path") != expected_path:
                 reasons.append(
                     "prepared package child path is nested, missing, or outside the root folder"
                 )
@@ -745,7 +768,7 @@ def build_library_transfer_readiness(
         reasons.append("prepared package destination paths are malformed")
         exact_package = False
 
-    if exact_package and folder_name is not None:
+    if exact_package and folder_name is not None and not nested_artifact:
         try:
             normalized_children = list(
                 capability_profile_by_id(selected_profile_id).validate_package(
@@ -903,7 +926,9 @@ def build_library_transfer_readiness(
             "status": capability_profile_by_id(selected_profile_id).document["status"],
             "device_model_profile_id": VNW_V15_PROFILE_ID,
             "required_child_kinds": (
-                list(transfer_shape.ordered_kinds)
+                [child.kind for child in canonical_artifact.children]
+                if nested_artifact
+                else list(transfer_shape.ordered_kinds)
                 if transfer_shape is not None and transfer_shape.host_admissible_flat
                 else list(EXPERIMENTAL_CHILD_KINDS)
             ),

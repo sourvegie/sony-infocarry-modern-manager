@@ -14,6 +14,7 @@ from .prepared_package_multi_candidate import (
     PreparedMultiPackageCandidate,
     _display_path,
 )
+from .prepared_hierarchy_source import PreparedHierarchySource
 from .prepared_fixed_state import PreparedFixedStateError, assess_prepared_fixed_state
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, verify_fresh_backup
 
@@ -180,6 +181,69 @@ class PreparedMultiPackageReadback:
         }
 
 
+def _verify_nested_hierarchy(
+    parsed: ParsedBackupBlob,
+    before: ParsedBackupBlob,
+    package: PreparedHierarchySource,
+) -> list[str]:
+    """Independently derive paths, sibling tables, and hashes from the tree."""
+
+    root_display = package.artifact.root_path
+    root_path = ("root", package.artifact.root_name)
+    expected: dict[str, tuple[str, ...]] = {root_display: root_path}
+    by_path = {child.path: child for child in package.artifact.children}
+    for child in package.artifact.children:
+        parts = child.path.split("\\")
+        if child.kind == "folder":
+            native = tuple(parts)
+        else:
+            suffix = "." + child.kind
+            if not child.name.casefold().endswith(suffix):
+                raise PreparedMultiVerificationError("nested leaf type/name differs")
+            native = tuple(parts[:-1] + [child.name[:-len(suffix)]])
+        expected[child.path] = native
+    if len(set(expected.values())) != len(expected):
+        raise PreparedMultiVerificationError("nested expected native paths collide")
+    before_paths = set(before.paths.values())
+    if any(path in before_paths for path in expected.values()):
+        raise PreparedMultiVerificationError("nested target was not absent from the baseline")
+    actual_paths = set(parsed.paths.values())
+    target_paths = set(expected.values())
+    if actual_paths != before_paths | target_paths:
+        raise PreparedMultiVerificationError("nested readback has a missing, removed, or unexpected path")
+    for display, native in expected.items():
+        child = by_path.get(display)
+        record = _path_record(parsed, native)
+        if child is None or child.kind == "folder":
+            if record.kind != "directory":
+                raise PreparedMultiVerificationError("nested readback directory type differs")
+            direct = [
+                expected[value.path]
+                for value in package.artifact.children
+                if value.path.rsplit("\\", 1)[0] == display
+            ]
+            table_start = record.field_04_be32 + 0x40
+            table_end = table_start + record.field_08_be32
+            seen: list[tuple[str, ...]] = []
+            for offset in range(table_start, table_end, 0x40):
+                candidate = parsed.record_at(offset)
+                if candidate.kind == "directory" and candidate.name == "..":
+                    continue
+                path = parsed.paths.get(offset)
+                if path is None:
+                    raise PreparedMultiVerificationError("nested readback child table is unreachable")
+                seen.append(path)
+            if seen != direct:
+                raise PreparedMultiVerificationError("nested readback sibling order differs")
+        else:
+            if record.kind != "file" or record.extension.lower() != child.kind:
+                raise PreparedMultiVerificationError("nested readback leaf type differs")
+            _prefix, payload = parsed.payload_parts(record)
+            if len(payload) != child.payload_bytes or _sha256(payload) != child.payload_sha256:
+                raise PreparedMultiVerificationError("nested readback payload hash differs")
+    return [root_display, *(child.path for child in package.artifact.children)]
+
+
 def verify_prepared_multi_package_readback(
     candidate: PreparedMultiPackageCandidate,
     post_directory: Path,
@@ -212,42 +276,46 @@ def verify_prepared_multi_package_readback(
         parsed = parse_backup_blob(actual_blob)
     except BackupFormatError as exc:
         raise PreparedMultiVerificationError("post-operation dynamic blob is malformed") from exc
-    before_paths = set(candidate.baseline.paths.values())
-    items = tuple(candidate.package.items)
-    folder_path = ("root", candidate.package.folder_name)
-    child_paths = tuple(folder_path + (item.name.rsplit(".", 1)[0],) for item in items)
-    expected_paths = before_paths | {folder_path, *child_paths}
-    if set(parsed.paths.values()) != expected_paths:
-        removed = sorted(_display_path(path) for path in expected_paths - set(parsed.paths.values()))
-        added = sorted(_display_path(path) for path in set(parsed.paths.values()) - expected_paths)
-        raise PreparedMultiVerificationError(f"unexpected path delta; removed={removed}, added={added}")
-    folder = _path_record(parsed, folder_path)
-    if folder.kind != "directory" or folder.field_08_be32 != (len(items) + 1) * 0x40:
-        raise PreparedMultiVerificationError("post-operation folder record is malformed")
-    try:
-        child_offsets = range(
-            folder.offset + 0x80,
-            folder.offset + folder.field_08_be32 + 0x40,
-            0x40,
-        )
-        ordered = [parsed.record_at(offset) for offset in child_offsets]
-    except BackupFormatError as exc:
-        raise PreparedMultiVerificationError("post-operation child table is malformed") from exc
-    expected_kinds = [item.kind for item in items]
-    if [record.extension.lower() for record in ordered] != expected_kinds:
-        raise PreparedMultiVerificationError("post-operation child order or type differs from package")
-    for item, record in zip(items, ordered):
-        expected_payload = item.authored.payload if item.kind == "txt" else item.source_bytes
-        prefix, payload = parsed.payload_parts(record)
-        if payload != expected_payload:
-            raise PreparedMultiVerificationError(
-                f"post-operation payload differs at "
-                f"{_display_path(folder_path + (record.name,), item.kind)}"
+    if isinstance(candidate.package, PreparedHierarchySource):
+        added_paths = _verify_nested_hierarchy(parsed, candidate.baseline, candidate.package)
+    else:
+        before_paths = set(candidate.baseline.paths.values())
+        items = tuple(candidate.package.items)
+        folder_path = ("root", candidate.package.folder_name)
+        child_paths = tuple(folder_path + (item.name.rsplit(".", 1)[0],) for item in items)
+        expected_paths = before_paths | {folder_path, *child_paths}
+        if set(parsed.paths.values()) != expected_paths:
+            removed = sorted(_display_path(path) for path in expected_paths - set(parsed.paths.values()))
+            added = sorted(_display_path(path) for path in set(parsed.paths.values()) - expected_paths)
+            raise PreparedMultiVerificationError(f"unexpected path delta; removed={removed}, added={added}")
+        folder = _path_record(parsed, folder_path)
+        if folder.kind != "directory" or folder.field_08_be32 != (len(items) + 1) * 0x40:
+            raise PreparedMultiVerificationError("post-operation folder record is malformed")
+        try:
+            child_offsets = range(
+                folder.offset + 0x80,
+                folder.offset + folder.field_08_be32 + 0x40,
+                0x40,
             )
-        if record.timestamp_be32 != int(candidate.audit["candidate"]["new_record_timestamp_be32"], 16):
-            raise PreparedMultiVerificationError("new record timestamp differs from candidate policy")
-        if _sha256(prefix) != candidate.audit["package"]["ordered_items"][ordered.index(record)]["native_prefix_sha256"]:
-            raise PreparedMultiVerificationError("new record native prefix differs from candidate")
+            ordered = [parsed.record_at(offset) for offset in child_offsets]
+        except BackupFormatError as exc:
+            raise PreparedMultiVerificationError("post-operation child table is malformed") from exc
+        expected_kinds = [item.kind for item in items]
+        if [record.extension.lower() for record in ordered] != expected_kinds:
+            raise PreparedMultiVerificationError("post-operation child order or type differs from package")
+        for item, record in zip(items, ordered):
+            expected_payload = item.authored.payload if item.kind == "txt" else item.source_bytes
+            prefix, payload = parsed.payload_parts(record)
+            if payload != expected_payload:
+                raise PreparedMultiVerificationError(
+                    f"post-operation payload differs at "
+                    f"{_display_path(folder_path + (record.name,), item.kind)}"
+                )
+            if record.timestamp_be32 != int(candidate.audit["candidate"]["new_record_timestamp_be32"], 16):
+                raise PreparedMultiVerificationError("new record timestamp differs from candidate policy")
+            if _sha256(prefix) != candidate.audit["package"]["ordered_items"][ordered.index(record)]["native_prefix_sha256"]:
+                raise PreparedMultiVerificationError("new record native prefix differs from candidate")
+        added_paths = [_display_path(folder_path), *[_display_path(path, item.kind) for path, item in zip(child_paths, items)]]
     shared_count = _compare_shared(candidate.baseline, parsed)
     fixed_hashes = _compare_fixed(candidate, after)
     allow_verified_bookmarks = _allow_verified_bookmarks_from_candidate(candidate)
@@ -311,7 +379,7 @@ def verify_prepared_multi_package_readback(
         shared_path_count=shared_count,
         fixed_state_sha256=fixed_hashes,
         details={
-            "added_paths": [_display_path(folder_path), *[_display_path(path, item.kind) for path, item in zip(child_paths, items)]],
+            "added_paths": added_paths,
             "removed_paths": [],
             "ordered_children_verified": True,
             "shared_payloads_unchanged": True,

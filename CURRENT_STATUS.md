@@ -1,6 +1,66 @@
 # Current Project Status
 
-Date: 2026-09-30
+Date: 2026-10-01
+
+## P18-040 — COMPLETE / MERGE-READY — EXACT NESTED PHYSICAL PROOF
+
+The owner observed “Transfer complete — content verified on the InfoCarry.”
+The preserved terminal result independently records `readback_verified` for
+`IC_P18_040_NESTED_20260930_01`: one sender call, one real `0x101b` step,
+zero retries, native `0x0000`, a complete eight-object post-transfer backup,
+and the exact ordered four-directory/five-leaf hierarchy. No pre-existing
+path was removed; 366 shared paths retained their payloads and timestamps,
+and reviewed shared auxiliary state was preserved. The actual claim is
+consumed, its sender marker resolved as `verified_terminal_success`, and the
+installation-wide lock is cleared. The exact terminal message is emitted only
+after the Manager loads the verified backup and refreshes the Device Library
+tree without a caught error; the image does not show the tree itself.
+
+**Historical authorization defect:** the executed operation was freshly sealed as
+`vnw-v15-library-operation-914f4f0a…`, candidate `6d50eb4c…`, transaction
+`e5831e0e…`, seal `c280a9cf…`. The owner-authorization dialog identity
+specified for this task was operation `vnw-v15-library-operation-a784e9d2…`,
+candidate `735fe632…`, transaction `39696705…`, seal `f948210d…`. That exact
+seal has no consumed claim or terminal result. The physical readback proves
+only the actual five-leaf nested shape and target; it does not prove execution
+of the specified owner-authorized transaction. Host investigation found that
+a second UI preflight generated the executed identity. Its raw baseline and
+capacity bytes match the first,
+but the new-record timestamp changed and so did the candidate and transaction.
+The facade now rejects a preflight refresh or late worker adoption after
+approval, invalidates stale UI approval with its prepared operation, and
+requires new owner approval for a new operation.
+
+The owner accepts the actual physical result for this exact target and bound
+payload set, and accepts the mismatch as a corrected historical authorization
+defect. **P18-040 is COMPLETE / MERGE-READY.** The correction passed 109 focused
+tests, the 1,046-test portable suite with three established skips, compileall,
+diff checks, macOS and Windows portable CI and package/runtime validation at
+`f113d72768f8cd5b555aaf29de061a7e207947d1`, and independent strong R3 review
+with P0=0, P1=0, P2=0. A second physical transfer is not required for the
+pre-sender fail-closed correction, and no additional hardware write is authorized.
+
+Capability promotion is limited to `01-intro.txt`,
+`Section-A/{02-page.bmp,03-notes.txt}`, and
+`Section-B/Detail/{04-page.bmp,05-ending.txt}` in that order under the exact
+observed root. Other nested trees, depths, counts, payloads, the
+41-directory/120-leaf planning fixture, overwrite/merge, synchronization,
+deletion, Restore, multiple roots, and VNW-V10 remain unproven. See the
+[evidence and decision record](analysis/phase-18-p18-040-nested-library-transfer-20260930.md)
+and [capability row](CAPABILITY_MATRIX.md).
+
+## P18-040 host implementation and earlier preflight — historical snapshot
+
+Branch `task/P18-040-nested-library-transfer` started from canonical main
+`8c970263edf365c32671ccdce2a0da4bcb1c4496`. The bounded host profile,
+operation-owned staging, exact owner-identity gate, candidate, guarded fake
+execution, independent readback, and Device Library model refresh passed the
+host tests and independent R3 review. The 41-directory/120-leaf fixture tested
+planning only. An earlier read-only physical preflight stopped before sealing
+because it compared the destination root position 22 with the prepared root's
+local ordinal 0; the host correction was validated at head
+`48720d26958ca7c07755eea03473db0f13b786ed`. These are historical host
+results; the later physical result and identity discrepancy are above.
 
 ## P18-039 — COMPLETE — EXACT FIVE-LEAF PHYSICAL PROOF AND OWNER-IDENTITY FIX
 

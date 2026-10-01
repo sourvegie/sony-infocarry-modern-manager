@@ -12,6 +12,7 @@ from typing import Any, Mapping, Optional
 from .capacity_evidence import NATIVE_CAPACITY_EVIDENCE_SOURCE, NATIVE_CAPACITY_EVIDENCE_VERSION, NATIVE_CAPACITY_FIELD_OFFSET
 from .prepared_fixed_state import assess_prepared_fixed_state
 from .prepared_package_multi_candidate import PreparedMultiPackageCandidate, PreparedMultiCandidateError, _display_path
+from .prepared_hierarchy_source import PreparedHierarchySource, load_prepared_hierarchy_source
 from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, verify_fresh_backup
 
 
@@ -420,9 +421,19 @@ def _candidate_binding(candidate: PreparedMultiPackageCandidate) -> dict[str, An
     ):
         raise PreparedMultiPackageGateError("candidate native capacity evidence binding does not match parsed evidence")
     folder_path = ("root", candidate.package.folder_name)
-    child_paths = tuple(folder_path + (item.name.rsplit(".", 1)[0],) for item in candidate.package.items)
-    actual_paths = (_display_path(folder_path), *(_display_path(path, item.kind) for path, item in zip(child_paths, candidate.package.items)))
-    actual_kinds = ("directory", *(item.kind for item in candidate.package.items))
+    if isinstance(candidate.package, PreparedHierarchySource):
+        actual_paths = (candidate.package.target_folder_path, *(item.path for item in candidate.package.items))
+        child_paths = tuple(
+            tuple(item.path.split("\\"))
+            if item.kind == "folder"
+            else tuple(item.path.split("\\")[:-1] + [item.name[: -(len(item.kind) + 1)]])
+            for item in candidate.package.items
+        )
+        actual_kinds = ("directory", *("directory" if item.kind == "folder" else item.kind for item in candidate.package.items))
+    else:
+        child_paths = tuple(folder_path + (item.name.rsplit(".", 1)[0],) for item in candidate.package.items)
+        actual_paths = (_display_path(folder_path), *(_display_path(path, item.kind) for path, item in zip(child_paths, candidate.package.items)))
+        actual_kinds = ("directory", *(item.kind for item in candidate.package.items))
     actual_offsets = tuple(
         candidate.candidate.record_at(offset).offset
         for offset, path in candidate.candidate.paths.items()
@@ -679,13 +690,21 @@ class PreparedMultiPackageAuthorization:
 
     def revalidate(self, candidate: PreparedMultiPackageCandidate, *, now: Optional[datetime] = None, max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS) -> VerifiedBackup:
         self.require_same_candidate(candidate)
-        for item, expected in zip(candidate.package.items, self.source_sha256):
+        if isinstance(candidate.package, PreparedHierarchySource):
             try:
-                data = item.source_path.read_bytes()
-            except OSError as exc:
-                raise PreparedMultiPackageGateError(f"bound package source could not be reread: {exc}") from exc
-            if data != item.source_bytes or _sha256(data) != expected:
-                raise PreparedMultiPackageGateError("bound package source bytes changed")
+                current = load_prepared_hierarchy_source(candidate.package.root)
+            except ValueError as exc:
+                raise PreparedMultiPackageGateError(f"bound hierarchy changed: {exc}") from exc
+            if current != candidate.package:
+                raise PreparedMultiPackageGateError("bound hierarchy changed after authorization")
+        else:
+            for item, expected in zip(candidate.package.items, self.source_sha256):
+                try:
+                    data = item.source_path.read_bytes()
+                except OSError as exc:
+                    raise PreparedMultiPackageGateError(f"bound package source could not be reread: {exc}") from exc
+                if data != item.source_bytes or _sha256(data) != expected:
+                    raise PreparedMultiPackageGateError("bound package source bytes changed")
         try:
             backup = verify_fresh_backup(candidate.backup.directory, now=now, max_age_seconds=max_age_seconds)
         except Exception as exc:

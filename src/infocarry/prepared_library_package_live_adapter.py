@@ -1888,6 +1888,12 @@ def _resolve_prepared_library_package_operation_bundle(
                     "profile_id", INITIAL_EXPERIMENTAL_PROFILE_ID
                 ),
             }
+            binding_profile = guarded_execution_profile(binding_values["profile_id"])
+            if binding_profile.generalized_flat or binding_profile.nested_host:
+                ordered = binding.get("ordered_children")
+                if not isinstance(ordered, list):
+                    raise OperationBundleError("dynamic operation children are missing")
+                binding_values["child_kinds"] = tuple(child.get("kind") for child in ordered)
             unsealed_binding = LibraryTransferOperationBinding(**binding_values)
             if unsealed_binding.operation_id == bundle.operation_id:
                 bundle_operation_binding = unsealed_binding

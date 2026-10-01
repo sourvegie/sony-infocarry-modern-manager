@@ -13,6 +13,7 @@ from typing import Optional
 
 from .capability_profile import (
     GENERALIZED_FLAT_PROFILE_ID,
+    NESTED_HOST_PROFILE_ID,
     INITIAL_EXPERIMENTAL_PROFILE_ID,
     MAX_FLAT_LEAF_COUNT,
     VNW_V15_FOUR_LEAF_PROFILE_ID,
@@ -45,6 +46,7 @@ class GuardedExecutionProfile:
     exact_target: Optional[str] = None
     operation_specific: bool = False
     generalized_flat: bool = False
+    nested_host: bool = False
 
     @property
     def profile_sha256(self) -> str:
@@ -73,6 +75,12 @@ class GuardedExecutionProfile:
             if any(kind not in {"txt", "bmp"} for kind in kinds):
                 return False
             return names is None or len(names) == len(kinds)
+        if self.nested_host:
+            if not kinds or len(kinds) > 64 or any(kind not in {"folder", "txt", "bmp"} for kind in kinds):
+                return False
+            if sum(kind in {"txt", "bmp"} for kind in kinds) > MAX_FLAT_LEAF_COUNT:
+                return False
+            return names is None or len(names) == len(kinds)
         return kinds == self.child_kinds and (
             names is None or names == self.child_names
         )
@@ -96,6 +104,12 @@ _PROFILES = {
         child_kinds=(),
         child_names=(),
         generalized_flat=True,
+    ),
+    NESTED_HOST_PROFILE_ID: GuardedExecutionProfile(
+        profile_id=NESTED_HOST_PROFILE_ID,
+        child_kinds=(),
+        child_names=(),
+        nested_host=True,
     ),
 }
 

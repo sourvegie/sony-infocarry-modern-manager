@@ -24,6 +24,8 @@ GENERALIZED_FLAT_PROFILE_ID = "generalized-flat-root-folder-txt-bmp-v1"
 GENERALIZED_FLAT_PROFILE_STATUS = "host_reviewed_not_live_proven"
 HIERARCHICAL_OFFLINE_PROFILE_ID = "host-offline-hierarchical-library-txt-bmp-v1"
 HIERARCHICAL_OFFLINE_PROFILE_STATUS = "host_offline_draft_not_live_enabled"
+NESTED_HOST_PROFILE_ID = "host-reviewed-nested-root-folder-txt-bmp-v1"
+NESTED_HOST_PROFILE_STATUS = "host_reviewed_not_live_proven"
 # The public capability is the exact physically verified VNW-V15 shape.  The
 # historical validation constant names remain as compatibility aliases for
 # persisted host artifacts and older callers; they do not describe the
@@ -291,6 +293,29 @@ HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
     _HIERARCHICAL_PROFILE_DOCUMENT
 )
 
+# P18-040 extends the existing hierarchy contract through host candidate and
+# guarded preflight. These are host safety limits, not inferred device limits.
+_NESTED_HOST_PROFILE_DOCUMENT: dict[str, Any] = copy.deepcopy(_HIERARCHICAL_PROFILE_DOCUMENT)
+_NESTED_HOST_PROFILE_DOCUMENT.update(
+    {"profile_id": NESTED_HOST_PROFILE_ID, "status": NESTED_HOST_PROFILE_STATUS}
+)
+_NESTED_HOST_PROFILE_DOCUMENT["operation"].update(
+    {
+        "name": "add_one_new_nested_root_folder",
+        "candidate_construction_allowed": True,
+        "authorization_allowed": True,
+        "execution_allowed": True,
+        "device_write_allowed": False,
+    }
+)
+_NESTED_HOST_PROFILE_DOCUMENT["hierarchy"]["maximum_directory_depth_below_device_root"] = 4
+_NESTED_HOST_PROFILE_DOCUMENT["exposure"].update(
+    {"host_preflight": True, "live_enabled": False, "normal_gui_send_exposed": False}
+)
+NESTED_HOST_CAPABILITY_PROFILE: Mapping[str, Any] = _freeze(
+    _NESTED_HOST_PROFILE_DOCUMENT
+)
+
 
 def _is_digest(value: Any) -> bool:
     if not isinstance(value, str) or len(value) != _DIGEST_LENGTH:
@@ -328,6 +353,7 @@ def validate_capability_profile(value: Mapping[str, Any]) -> dict[str, Any]:
         _GENERALIZED_FLAT_PROFILE_DOCUMENT,
         _FOUR_LEAF_VALIDATION_PROFILE_DOCUMENT,
         _HIERARCHICAL_PROFILE_DOCUMENT,
+        _NESTED_HOST_PROFILE_DOCUMENT,
     ):
         raise CapabilityProfileError(
             "capability profile differs from every reviewed built-in envelope"
@@ -507,7 +533,7 @@ class CapabilityProfile:
     ) -> tuple[dict[str, Any], ...]:
         """Validate one immutable pre-order host hierarchy for offline preview."""
 
-        if self.profile_id != HIERARCHICAL_OFFLINE_PROFILE_ID:
+        if self.profile_id not in {HIERARCHICAL_OFFLINE_PROFILE_ID, NESTED_HOST_PROFILE_ID}:
             raise CapabilityProfileError("hierarchy validation requires the host/offline profile")
         if not isinstance(nodes, Sequence) or isinstance(nodes, (str, bytes)):
             raise CapabilityProfileError("prepared hierarchy nodes must be an ordered sequence")
@@ -604,6 +630,16 @@ class CapabilityProfile:
             names = [str(child["name"]).casefold() for child in children]
             if len(names) != len(set(names)):
                 raise CapabilityProfileError("prepared hierarchy sibling names are duplicated")
+            if self.profile_id == NESTED_HOST_PROFILE_ID:
+                native_names = [
+                    (str(child["name"]) if child["kind"] == "folder"
+                    else str(child["name"])[: -(len(str(child["kind"])) + 1)]).casefold()
+                    for child in children
+                ]
+                if len(native_names) != len(set(native_names)):
+                    raise CapabilityProfileError(
+                        "prepared hierarchy sibling names collide after native extension projection"
+                    )
             if parent_id is not None and by_id[parent_id]["kind"] != "folder":
                 raise CapabilityProfileError("prepared hierarchy file node cannot contain children")
         for node in normalized:
@@ -649,6 +685,12 @@ def hierarchical_offline_capability_profile() -> CapabilityProfile:
     return CapabilityProfile(HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE)
 
 
+def nested_host_capability_profile() -> CapabilityProfile:
+    """Return the bounded nested host candidate/preflight profile."""
+
+    return CapabilityProfile(NESTED_HOST_CAPABILITY_PROFILE)
+
+
 def generalized_flat_capability_profile() -> CapabilityProfile:
     """Return the bounded P18-039 host-admission profile."""
 
@@ -668,6 +710,8 @@ def capability_profile_by_id(profile_id: str) -> CapabilityProfile:
         return generalized_flat_capability_profile()
     if profile_id == HIERARCHICAL_OFFLINE_PROFILE_ID:
         return hierarchical_offline_capability_profile()
+    if profile_id == NESTED_HOST_PROFILE_ID:
+        return nested_host_capability_profile()
     if profile_id == FOUR_LEAF_VALIDATION_PROFILE_ID:
         return four_leaf_validation_profile()
     raise CapabilityProfileError(f"unsupported capability profile: {profile_id}")
@@ -692,6 +736,9 @@ __all__ = [
     "HIERARCHICAL_OFFLINE_CAPABILITY_PROFILE",
     "HIERARCHICAL_OFFLINE_PROFILE_ID",
     "HIERARCHICAL_OFFLINE_PROFILE_STATUS",
+    "NESTED_HOST_CAPABILITY_PROFILE",
+    "NESTED_HOST_PROFILE_ID",
+    "NESTED_HOST_PROFILE_STATUS",
     "CapabilityProfile",
     "CapabilityProfileError",
     "INITIAL_EXPERIMENTAL_CAPABILITY_PROFILE",
@@ -699,6 +746,7 @@ __all__ = [
     "initial_capability_profile",
     "generalized_flat_capability_profile",
     "hierarchical_offline_capability_profile",
+    "nested_host_capability_profile",
     "four_leaf_validation_profile",
     "capability_profile_by_id",
     "validate_capability_profile",
