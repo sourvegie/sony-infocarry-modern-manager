@@ -56,7 +56,7 @@ A complete fresh pre-write backup was captured and independently verified:
   `a6ea8922c0a1fa3231b04cbcf5de9791acf7536329b4eaf8d65a64352cacf9b9`;
 - 8 raw objects; parsed record count 399; no orphan records;
 - raw evidence root:
-  `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-009-v15-validation-20260906-01`.
+  `/external/local-path`.
 
 The first read-only capacity capture directory was rejected before persistence
 because the harness had pre-created it. It contains no raw response and was not

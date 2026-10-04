@@ -23,7 +23,7 @@ they were not requested or supplied during P17-011.
 
 The new non-overwriting external evidence root is:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-011-library-package-fresh-preflight-20260901-01/`
+`/external/local-path`
 
 The authorized physical sequence completed in order:
 

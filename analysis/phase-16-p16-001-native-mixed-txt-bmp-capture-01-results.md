@@ -34,10 +34,10 @@ and the conclusion is not generalized beyond this exact package shape.
 
 ## External preservation and post-operation backup
 
-The supplied source was /Users/stardust/Desktop/capture12. It is preserved
+The supplied source was /external/local-path It is preserved
 byte-for-byte at:
 
-/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/08-supplied-capture12-raw/
+/external/local-path
 
 The source and preserved trees each contain 20 files and their SHA-256 trees
 match. The raw USB log is preserved with SHA-256

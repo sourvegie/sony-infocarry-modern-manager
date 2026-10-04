@@ -267,7 +267,7 @@ reconcile it away or produce a modern smoke dossier.
 ## Capture 01 intake result
 
 The owner-supplied Capture 01 was preserved outside Git at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/`.
+`/external/local-path`.
 The preservation manifest covers 119 files and records the owner-supplied event
 mapping, Project Lead timestamp decision, offline completion-tail investigation,
 and derived modern candidate artifacts. The raw source remains unchanged under

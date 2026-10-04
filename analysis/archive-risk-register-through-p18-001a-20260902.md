@@ -217,7 +217,7 @@ unresolved.
 ## P17-010 freshness-clock correction (R3)
 
 P17-010 attempt 01 is preserved outside Git under the non-overwriting root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+`/external/local-path`.
 The exact Sony `054c:001e` detection, native `0x0019` capacity response, and
 complete eight-object backup succeeded, but the host harness incorrectly used
 a freshness reference sampled before backup finalization. It stopped safely
@@ -578,7 +578,7 @@ host-side binding/setup failure, not evidence of a device discrepancy.
 
 The external non-overwriting failure record and its preservation manifest are
 under
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+`/external/local-path`.
 The audit proves `write_started=false`, `sender_calls=0`,
 `backend_write_calls=0`, `approval_consumed=false`, no completion, no
 `0x101b`, no device access, no mutation, and no retry. The supplied approval

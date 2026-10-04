@@ -2,6 +2,28 @@
 
 Date: 2026-10-01
 
+## P18-041F — ROOT-LEAF DELETE EVIDENCE INSUFFICIENT — STOPPED BEFORE EXECUTION PATH
+
+Date: 2026-10-04 (Asia/Tokyo)
+
+The exact historical root-level TXT calibration was run from the canonical
+`origin/main` checkpoint `5bca280ffbd673fa56a2646a65b0329a4dc496f2` on local
+branch `task/P18-041F-guarded-root-leaf-delete`. The current host model removed
+exactly `root\\IC_E_ADD_20260822_04.txt` at metadata offset `0x2c0`, preserved
+the 253 surviving payloads and all non-timestamp metadata bytes, and produced
+2,050,848 bytes. It did **not** reproduce the required historical candidate:
+the modern candidate SHA-256 was
+`dc099dca21169054c4643ed346fc617f3e991e9ae9f93e7c3b07fedb57895df9`, while
+the authoritative native/post-backup SHA-256 is
+`88b95f8bc158ab89253faea8c9085799cebba76abf0a3f416afa62df8b55f287`.
+
+The 737 residual bytes are 734 opaque surviving-record timestamp bytes across
+367 records plus the derived header checksum. The timestamp-generation rule is
+not established; the historical opaque timestamp map is not a derivation from
+a fresh baseline and is not substituted. No production delete profile, sender,
+claim, marker, lock, or UI exposure was added. Generalized subtree-marker
+ownership remains unresolved. See the [P18-041F calibration report](analysis/phase-18-p18-041f-root-leaf-calibration-20261004.md).
+
 ## P18-040 — COMPLETE / MERGE-READY — EXACT NESTED PHYSICAL PROOF
 
 The owner observed “Transfer complete — content verified on the InfoCarry.”
@@ -424,7 +446,7 @@ P18-033 is the R2 host-only capability promotion on
 `a57a1ec2bbe3bfcfef5633d58136aeb48ff443a4`. It codifies the exact physically
 verified VNW-V15 direct-leaf shape `TXT → BMP → TXT → TXT` from the preserved
 P18-032 evidence namespace
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-032-v15-four-leaf-physical-validation-20260920-75FHwI`.
+`/external/local-path`.
 The built-in profile is now
 `verified-vnw-v15-four-leaf-direct-v1` with profile SHA-256
 `74159694d370665a0055030c6091f564293af1a7e97a4ac5af35280bc21e5a39` and
@@ -634,8 +656,8 @@ paths. The durable terminal result records independently verified success.
 
 The preserved external evidence is at:
 
-- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/terminal-summary.json`
-- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/attempts/p17-017-attempt-e3a8a272d06d461fa0ca0c1c2ad39964/result-manifest-0001.json`
+- `/external/local-path`
+- `/external/local-path`
 
 The attempt directory retains the older `p17-017` label from the canonical
 evidence allocator; it is preserved and is not renamed or rewritten.
@@ -997,7 +1019,7 @@ P18-013 is **COMPLETE** for the exact P18-011 host recovery state on
 `6bc0c046312400ed28fc4bef543522d250eb469c`. The original P18-012 diagnostic
 was copied byte-for-byte from temporary storage into durable external evidence
 at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-012-readonly-diagnostic-20260907-01`.
+`/external/local-path`.
 The complete diagnostic was independently revalidated against the preserved
 immediate post-write backup, sealed candidate, exact target contents,
 baseline-path preservation, display history, bookmarks, opaque bookmark

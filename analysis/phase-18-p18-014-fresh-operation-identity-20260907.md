@@ -62,7 +62,7 @@ expose this operation, and no standing Send path was added.
 The read-only evidence root used by the host reconstruction is:
 
 ```text
-/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-012-readonly-diagnostic-20260907-01
+/external/local-path
 ```
 
 The evidence identities are:

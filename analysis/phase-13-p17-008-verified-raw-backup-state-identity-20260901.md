@@ -85,7 +85,7 @@ than silently ignored.
 ### Verified
 
 - P17-007’s external failure evidence is complete and remains immutable at
-  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-007-library-package-live-smoke-20260901-01/`.
+  `/external/local-path`.
 - P17-007 proved the relevant fresh archives have equal raw objects and
   capture-generated provenance differences; its sender call count remained
   zero.

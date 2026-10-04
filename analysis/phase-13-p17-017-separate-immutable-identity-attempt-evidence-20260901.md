@@ -15,7 +15,7 @@ before device access because one immutable output path was already occupied.
 This was an orchestration defect, not device-state evidence.
 
 The P17-016 failed-attempt evidence remains unchanged outside Git at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-016-library-package-live-attempt-20260901-01/`.
+`/external/local-path`.
 The preserved audit records `device_accessed=false`,
 `write_started=false`, `sender_calls=0`, `backend_write_calls=0`,
 `approval_consumed=false`, no completion, no `0x101b`, no mutation, and no

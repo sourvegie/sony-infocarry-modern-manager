@@ -43,10 +43,10 @@ listed hash. SQLite integrity was `ok`.
 ## Durable diagnostic evidence
 
 The original P18-012 evidence under
-`/private/tmp/p18-012-readonly-diagnostic.JcWSYs` was copied without changing
+`/external/local-path` was copied without changing
 its source, filenames, or bytes to:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-012-readonly-diagnostic-20260907-01`
+`/external/local-path`
 
 All 15 original files matched byte-for-byte after copying. The canonical
 sorted original-file inventory SHA-256 is

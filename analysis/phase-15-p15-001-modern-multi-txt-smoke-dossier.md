@@ -90,7 +90,7 @@ reports a 3,145,728-byte limit; candidate growth is 992 bytes.
 The candidate, exact authorization binding, fake-before/fake-after backups,
 and workflow audit are preserved outside Git under:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/07-analysis/`
+`/external/local-path`
 
 The guarded workflow made one fake transport call, simulated completion
 `0x0000`, and passed independent read-back verification for the exact four

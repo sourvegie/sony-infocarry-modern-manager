@@ -31,7 +31,7 @@ The error occurred before the new live-attempt directory was created and
 before the detection callback. No hardware callback ran. A separate
 non-overwriting audit was then created to preserve this outcome:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`
+`/external/local-path`
 
 The failure audit is
 `03-result/offline-loader-failure.json`, SHA-256

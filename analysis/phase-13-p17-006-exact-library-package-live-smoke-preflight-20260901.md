@@ -15,7 +15,7 @@ readiness for this exact Library package, not a physical compatibility claim.
 
 The authoritative session root is:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-006-library-package-live-smoke-20260901-03/`
+`/external/local-path`
 
 The first reserved `...-01` root stopped during an offline report-field
 mapping error before device access. The second `...-02` root completed a

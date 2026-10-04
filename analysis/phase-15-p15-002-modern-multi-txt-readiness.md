@@ -128,7 +128,7 @@ post-readback mismatch, and second-transaction refusal. Derived candidate,
 transaction, fake archives, audits, and their preservation manifest are
 outside Git at:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-002-modern-multi-txt-20260830-02/07-analysis/p15-002-offline-binding-01/`
+`/external/local-path`
 
 Those artifacts are not physical-device evidence. Capture 01 remains in its
 original external session and was not deleted, overwritten, restored, or

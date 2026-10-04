@@ -8,7 +8,7 @@
   "operation": "one_additive_root_folder_with_four_ordered_txt_children",
   "scope": {"root_level_only": true, "child_count": 4, "txt_only": true, "nested_folders": false, "bmp_children": false, "batch": false, "retry": false},
   "native_basis": {
-    "external_session": "/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/",
+    "external_session": "/external/local-path",
     "post_blob_sha256": "08d8eead50a177b2dc143e7f1d3274b45fe2a45f81d43c5d21cf98f33e25ac99",
     "exact_structure_verified": true,
     "path_order_payload_prefix_and_alignment_verified": true,

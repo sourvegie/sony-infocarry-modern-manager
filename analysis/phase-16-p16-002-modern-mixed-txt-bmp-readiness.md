@@ -174,7 +174,7 @@ The generated package, candidate blob, prospective transaction ranges,
 candidate audit, preflight bindings, reconciliation audit, and versioned
 preservation manifest are preserved outside Git at:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-002-modern-mixed-txt-bmp-20260830-01/`
+`/external/local-path`
 
 The external artifact manifest v4 records 34 derived package, candidate,
 transaction, audit, and reconciliation files; the versioned audit supplements

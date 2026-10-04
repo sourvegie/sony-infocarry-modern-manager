@@ -115,7 +115,7 @@ Create one new, non-overwriting session outside Git only for the approved
 operation, at:
 
 ```text
-/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/
+/external/local-path
 ```
 
 Use this role layout:

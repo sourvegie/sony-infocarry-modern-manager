@@ -23,7 +23,7 @@ Normal package and fixed-state paths remain all-zero-state only.
 
 Raw evidence remains outside Git and was not modified:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-003-modern-mixed-txt-bmp-20260831-02/`
+`/external/local-path`
 
 The preserved fresh evidence records:
 

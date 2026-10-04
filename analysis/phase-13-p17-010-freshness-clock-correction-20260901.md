@@ -11,7 +11,7 @@ sender, transmit `0x101b`, consume approval, or reuse the prior operation
 phrases. The prior P17-010 attempt remains the only live attempt and its raw
 evidence is preserved outside Git at:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`
+`/external/local-path`
 
 That root and its verified 13-entry preservation manifest were not modified.
 

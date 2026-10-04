@@ -11,7 +11,7 @@ claimed.
 The preserved `-07` validation attempt remains permanently stopped and was
 not edited, retried, or relabeled. Its disposable source, evidence, package,
 and negative-test artifacts remain outside this repository. The source
-workspace `/Users/stardust/Projects/InfoCarry-Toolkit` was not modified.
+workspace `/external/local-path` was not modified.
 
 ## Exact host reproduction
 

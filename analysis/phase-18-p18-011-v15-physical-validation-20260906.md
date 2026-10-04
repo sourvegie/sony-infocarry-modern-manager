@@ -61,7 +61,7 @@ resolved.
 ## Fresh device preflight and live attempt
 
 The authoritative restart used the new external namespace
-`/private/tmp/p18-011-authoritative.RjFTQ4`. The adapter's host-level USB
+`/external/local-path`. The adapter's host-level USB
 preflight enumerated the exact device shown by the owner: VID `0x054c`, PID
 `0x001e` (Sony InfoCarry VNW-V15; bus 2, address 3 in the host observation).
 Every gate was rebuilt from fresh session data; no previous capacity, backup,

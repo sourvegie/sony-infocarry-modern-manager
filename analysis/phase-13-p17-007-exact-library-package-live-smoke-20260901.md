@@ -25,7 +25,7 @@ package or transfer scope was authorized.
 All P17-007 evidence is preserved outside Git, without overwriting prior
 evidence, at:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-007-library-package-live-smoke-20260901-01/`
+`/external/local-path`
 
 The final version-2 preservation manifest contains 73 entries, replays with
 zero hash/size mismatches, and has SHA-256

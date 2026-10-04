@@ -75,7 +75,7 @@ captured and verified all eight backup objects. Bus/address were not used as a
 binding identity.
 
 Diagnostic evidence was preserved outside Git under the new namespace
-`/private/tmp/p18-012-readonly-diagnostic.JcWSYs` and bound to the exact
+`/external/local-path` and bound to the exact
 P18-011 incident, attempt, claim, marker, and active lock. The post-capture
 marker and lock records were byte-for-byte unchanged.
 

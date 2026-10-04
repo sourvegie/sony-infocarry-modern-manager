@@ -9,7 +9,7 @@ package. It does not broaden the supported transfer scope. The complete raw
 evidence, backups, USB transaction audit, and preservation manifest remain
 outside Git at:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-003-modern-four-txt-20260830-01/`
+`/external/local-path`
 
 Capture 01 and its `_01` package were not modified. The preserved Capture 01
 bundle was independently checked against its existing manifest: 119 of 119

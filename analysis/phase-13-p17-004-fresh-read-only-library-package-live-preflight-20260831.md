@@ -15,7 +15,7 @@ claim.
 
 The external session root is:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-004-fresh-library-package-20260831-02/`
+`/external/local-path`
 
 The first reserved `...-01` session root was left non-overwritten after its
 initial one-line source selection failed the short-excerpt validation. It was
@@ -60,7 +60,7 @@ canonical catalog binding is
 | 2 | `03-ending.txt` | `779a3850b1fb782ee7dc6cd943b34f43e4d762879d5301adc731a0c6b3ad95f8` | 2,036 | `1dcafec84c06a52c24d898f389bb94fefea1c0569457ae92476c86a906fb5151` |
 
 The TXT sources were short UTF-8 excerpts copied read-only from the owner-
-designated `/Users/stardust/Documents/InfoCarry` source pool and prepared as
+designated `/external/local-path` source pool and prepared as
 strict CP932/CRLF payloads without replacements. The BMP is the repository-
 generated validated 237 x 320, 1-bit, uncompressed profile. The original
 source-pool file hash and extraction rule are preserved in the external

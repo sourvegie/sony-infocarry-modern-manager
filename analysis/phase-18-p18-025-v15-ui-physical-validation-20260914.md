@@ -78,8 +78,8 @@ The durable terminal result records independently verified success.
 
 Preserved external evidence:
 
-- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/terminal-summary.json`
-- `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-025-v15-ui-physical-validation-20260914-02/attempts/p17-017-attempt-e3a8a272d06d461fa0ca0c1c2ad39964/result-manifest-0001.json`
+- `/external/local-path`
+- `/external/local-path`
 
 The attempt directory retains the older `p17-017` label from the evidence
 allocator. It is historical evidence and must not be renamed or rewritten.

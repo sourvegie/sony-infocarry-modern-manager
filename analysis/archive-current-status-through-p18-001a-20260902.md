@@ -273,7 +273,7 @@ in P18-001. Physical opening of the exact P17-018 package remains pending.
   `analysis/phase-13-p17-010-exact-library-package-live-execution-preflight-20260901.md`.
 - P17-010 attempt 01 is preserved as a safe, fail-closed pre-send result under
   the external, non-overwriting root
-  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+  `/external/local-path`.
   Exact Sony `054c:001e` detection, the native `0x0019` capacity response, and
   the complete eight-object backup succeeded; the target was absent. The
   harness then rejected the backup because it compared the finalized backup
@@ -295,7 +295,7 @@ in P18-001. Physical opening of the exact P17-018 package remains pending.
   correction and the prior phrases are not reusable.
 - P17-011 completed the separately authorized corrected-clock read-only
   preflight for the preserved P17-004 Library item. The new external root is
-  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-011-library-package-fresh-preflight-20260901-01`.
+  `/external/local-path`.
   In order, exactly one Sony `054c:001e` was detected at bus 2/address 3, a
   64-byte native `0x0019` response reported 3,145,728 bytes, and one complete
   eight-object backup was captured. Its manifest SHA-256 is
@@ -321,7 +321,7 @@ in P18-001. Physical opening of the exact P17-018 package remains pending.
 - P17-012 completed the separately authorized final read-only revalidation for
   the exact P17-011 Library-package operation after merging PR #18 at
   `be4703c252f8a3f6bf7d40effdbc0b567fad9ad4`. The new external root is
-  `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-012-library-package-live-preflight-20260901-01`.
+  `/external/local-path`.
   A second numbered sequence was used because the first complete backup became
   stale during host-side sealing; both sequences remain preserved and the
   second is authoritative. It detected exactly one Sony `054c:001e` at bus
@@ -443,7 +443,7 @@ manifest template are included. No backup, capture, candidate, transaction,
 or private device data is in the repository.
 
 Capture 01 was supplied from the approved owner path and preserved at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/`.
+`/external/local-path`.
 The four child payloads, folder/parent-marker relationships, capacity fit,
 fixed-state objects, and native range-to-post-blob equality are verified in
 `analysis/phase-15-p15-001-native-multi-chapter-txt-capture-01-results.md`.
@@ -465,7 +465,7 @@ are tested offline. The procedure requires a fresh complete pre-operation
 backup, exact Manager/SnoopyPro before/after evidence, native USB capture,
 complete post-operation backup, three mapped timestamps, and a preservation
 manifest under the non-overwriting external root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`.
+`/external/local-path`.
 
 The owner supplied `capture12`, which is preserved byte-for-byte under
 `08-supplied-capture12-raw/`. The parsed native `0x101b` contains the exact
@@ -493,7 +493,7 @@ the local loader expected a top-level `transaction_sha256`, while the
 canonical sealed-preflight schema binds the prospective transaction at
 `authorization.candidate_transaction_sha256`. The preserved external
 evidence root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-012-library-package-live-execution-20260901-03/`
+`/external/local-path`
 and its `offline-loader-failure.json` remain unchanged. That record states
 `write_started=false`, `sender_calls=0`, `backend_write_calls=0`,
 `approval_consumed=false`, no completion, no `0x101b`, no mutation, and no
@@ -530,7 +530,7 @@ reported `core_preflight_seal_sha256 does not match the reconstructed core`.
 This is a host preparation failure, not device-state evidence.
 
 The non-overwriting external abort record is at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+`/external/local-path`.
 It records no device detection, capacity query, backup capture, sender
 construction, approval consumption, backend write, or `0x101b`; the device was
 not accessed and no state changed. The failure audit SHA-256 is
@@ -651,7 +651,7 @@ SHA-256 is
 `1d1adc02cee8b856e2e8281ff623e84e681ec893793bebacb247a82c788749d5`.
 
 The external evidence is preserved at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-018-library-package-live-execution-20260901-01/p17-018-attempt-151c253bd93d4635bf159fd4e081b18f/`.
+`/external/local-path`.
 Its 29-entry `preservation-manifest-v1.json` replays with zero mismatches.
 A surrounding post-run wrapper emitted a misleading local failure record
 after the production runner had already returned `readback_verified`: its

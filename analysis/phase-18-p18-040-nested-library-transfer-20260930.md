@@ -145,7 +145,7 @@ physical attempt needs a fresh frozen operation and separate owner approval.
 
 The owner observed “Transfer complete — content verified on the InfoCarry.”
 The image shows that terminal message only. Findings below use the excluded
-live records in `~/Library/Application Support/SonyInfoCarryModernManager/Evidence/Library Transfer Operations/`.
+live records in `/external/app-evidence`.
 Raw backups, application-state databases, and bundles remain outside Git.
 
 ### Identity and disposition

@@ -25,7 +25,7 @@ GUI/CLI operation, or device-changing action was authorized.
 ## Fresh gates and bindings
 
 The production entrypoint allocated the new direct-child attempt root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-018-library-package-live-execution-20260901-01/p17-018-attempt-151c253bd93d4635bf159fd4e081b18f/`.
+`/external/local-path`.
 It then performed its final immediate revalidation in order:
 
 - exactly one Sony `054c:001e` was detected at bus 2/address 3;

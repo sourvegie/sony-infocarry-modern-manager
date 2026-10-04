@@ -16,7 +16,7 @@ TXT → BMP → TXT → TXT
 
 The evidence namespace supplied for this task is preserved read-only at:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-032-v15-four-leaf-physical-validation-20260920-75FHwI`
+`/external/local-path`
 
 The codified profile is:
 

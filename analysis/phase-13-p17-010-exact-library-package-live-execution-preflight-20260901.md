@@ -4,7 +4,7 @@ Date: 2026-09-01
 Risk: R3 — device-state candidate and one-shot execution boundary
 Status: **READY_FOR_HARDWARE_TEST** at the final owner-approval boundary
 Canonical merge base: `98ae3e14b36073f5bb41c30c4ae4ee6a85c9b390`
-External evidence root: `/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-01/`
+External evidence root: `/external/local-path`
 
 ## Scope and authorization boundary
 
@@ -169,7 +169,7 @@ may be reused.
 ## P17-010 attempt 01 and freshness-clock correction
 
 The authorized attempt-01 read-only sequence used the external evidence root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-010-library-package-live-execution-20260901-02`.
+`/external/local-path`.
 It detected exactly one Sony `054c:001e`, captured the native `0x0019`
 response with SHA-256
 `c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662`, parsed

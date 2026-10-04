@@ -29,7 +29,7 @@ path is in scope.
 
 The new non-overwriting evidence root is:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-012-library-package-live-preflight-20260901-01/`
+`/external/local-path`
 
 The first numbered sequence completed detection, capacity, and backup, but its
 backup became older than the 300-second freshness limit while host-side

@@ -148,7 +148,7 @@ hardware-facing risk was introduced.
 The owner reported the Manager UI message “Transfer complete — content verified
 on the InfoCarry.” That message prompted inspection; it is not the basis of
 this result. The actual terminal record is the excluded external evidence at
-`~/Library/Application Support/SonyInfoCarryModernManager/Evidence/Library Transfer Operations/p17-017-attempt-ef18b96b487d4ba99a858e4fb3635f5a/`.
+`/external/app-evidence`.
 Its `result-manifest-0001.json` has SHA-256
 `c22fb9672268cc03fa6a628901e2edae41ab6cc4dd4e990a06c608334f0057aa`.
 The paired preflight is `ui-preflight-20260928-204148-599694` in the same

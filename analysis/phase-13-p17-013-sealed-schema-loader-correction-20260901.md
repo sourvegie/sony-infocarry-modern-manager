@@ -14,7 +14,7 @@ the prospective transaction at the exact nested path
 `authorization.candidate_transaction_sha256`.
 
 The external non-overwriting evidence root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-012-library-package-live-execution-20260901-03/`
+`/external/local-path`
 is preserved outside Git. Its `offline-loader-failure.json` records the safe
 pre-hardware outcome: `write_started=false`, `sender_calls=0`,
 `backend_write_calls=0`, `approval_consumed=false`, no completion, no

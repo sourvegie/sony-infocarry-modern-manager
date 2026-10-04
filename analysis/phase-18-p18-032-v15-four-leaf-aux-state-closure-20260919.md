@@ -12,7 +12,7 @@ Scope: narrow auxiliary-state policy binding correction; no physical operation.
 - Validation profile: `experimental-vnw-v15-four-leaf-direct-validation-v1`
 - Exact shape: `TXT → BMP → TXT → TXT`
 - Historical evidence consulted read-only:
-  `/Users/stardust/Projects/InfoCarry-Evidence/phase-18-p18-031-v15-four-leaf-physical-validation-20260919-t3D9X8`
+  `/external/local-path`
 
 ## Root cause
 

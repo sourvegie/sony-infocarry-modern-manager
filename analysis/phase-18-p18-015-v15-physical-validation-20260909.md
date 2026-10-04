@@ -243,7 +243,7 @@ The execution environment was independently recorded as:
 
 | Field | Result |
 | --- | --- |
-| `sys.executable` | `/Users/stardust/Projects/sony-infocarry-modern-manager/.venv/bin/python` |
+| `sys.executable` | `/external/local-path` |
 | Python | `3.12.14` |
 | machine architecture | `arm64` |
 | PyUSB | `1.3.1` |

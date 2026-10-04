@@ -16,15 +16,15 @@ from infocarry.write_gate import verify_fresh_backup
 
 
 EVIDENCE_ROOT = Path(
-    "/Users/stardust/Projects/InfoCarry-Evidence/"
+    "/external/local-path"
     "phase-18-p18-012-readonly-diagnostic-20260907-01"
 )
 SOURCE_ROOT = Path(
-    "/Users/stardust/Projects/InfoCarry-Evidence/"
+    "/external/local-path"
     "phase-17-p17-004-fresh-library-package-20260831-02/00-package/source"
 )
 TEMPLATE_BLOB = Path(
-    "/Users/stardust/Projects/InfoCarry-Evidence/"
+    "/external/local-path"
     "phase-17-p17-012-library-package-live-preflight-20260901-01/"
     "00-inputs/template/object-08-command-8004.bin"
 )
@@ -108,11 +108,11 @@ class P18014FreshOperationIdentityTests(unittest.TestCase):
 
     def test_recovered_lock_is_read_only_clear_and_old_claim_remains_untouched(self):
         lock_path = Path(
-            "/Users/stardust/Library/Application Support/"
+            "/external/local-path Support/"
             "SonyInfoCarryModernManager/indeterminate-write-lock.json"
         )
         db_path = Path(
-            "/Users/stardust/Library/Application Support/"
+            "/external/local-path Support/"
             "SonyInfoCarryModernManager/execution-claims.sqlite3"
         )
         lock = PersistentIndeterminateWriteLock(lock_path).read(

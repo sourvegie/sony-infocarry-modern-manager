@@ -8,7 +8,7 @@ Physical device activity: none
 ## Pre-publication anomaly resolution
 
 The earlier report used the absolute path
-`/Users/stardust/Projects/InfoCarry-Toolkit/analysis/phase-18-p18-029-epub-transfer-shape-preparation-20260917.md`.
+`/external/local-path`.
 This checkout is the canonical development checkout for the
 `sony-infocarry-modern-manager` remote, and the expected record is present and
 tracked at this repository-relative path:

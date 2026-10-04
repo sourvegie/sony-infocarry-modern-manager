@@ -10,7 +10,7 @@ Disposition: **PASS for fail-closed handling; not a hardware result**
 The review independently checked the clean canonical baseline at
 `9043c2db712fb6384b3769f549126fd004cb8b4c`, the canonical strict loader, the
 P17-014 sealed-report path, and the external abort record at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+`/external/local-path`.
 The failure audit SHA-256 is
 `f59801c1b582a820c985a03663395ed8e9123dff911b68579a9b30940d7554d2`; the
 preservation manifest SHA-256 is

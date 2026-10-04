@@ -1670,7 +1670,7 @@ candidate, transaction, or device data is included.
 The operation-specific procedure is
 `analysis/phase-16-p16-001-native-mixed-txt-bmp-evidence-protocol-20260830.md`.
 It defines the new external non-overwriting session root
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-001-native-mixed-txt-bmp-20260830-01/`,
+`/external/local-path`,
 the complete source/Manager/backup/USB/timestamp/preservation evidence set,
 the three required timestamp observations, and explicit abort conditions.
 The owner supplied Capture 01 after the operation-specific approval. The raw
@@ -1920,7 +1920,7 @@ resolve to the same preserved records, while `0x001c`–`0x001f` remain the
 supported zero state.
 
 The external P17-004 session is
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-004-fresh-library-package-20260831-02/`.
+`/external/local-path`.
 Its authoritative 72-entry `preservation-manifest-v4.json` was replayed with
 zero mismatches; the superseded `preservation-manifest-v1.json`,
 `preservation-manifest-v2.json`, and `preservation-manifest-v3.json` plus
@@ -2297,7 +2297,7 @@ detection, capacity query, backup, sender construction, approval consumption,
 backend write, `0x101b`, or mutation occurred. No retry was made.
 
 The non-overwriting external audit is preserved at
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-014-library-package-canonical-loader-preflight-20260901-01/04-live-attempt-0001/`.
+`/external/local-path`.
 It records the failure audit SHA-256
 `f59801c1b582a820c985a03663395ed8e9123dff911b68579a9b30940d7554d2` and
 preservation-manifest SHA-256

@@ -16,7 +16,7 @@ path; no modern `0x101b` transaction was performed.
 
 The external session is:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-15-p15-001-native-multi-txt-20260828-01/`
+`/external/local-path`
 
 Its preservation manifest covers 119 files. The supplied raw tree remains
 unchanged under `08-supplied-capture11-raw/`; raw evidence, private content,

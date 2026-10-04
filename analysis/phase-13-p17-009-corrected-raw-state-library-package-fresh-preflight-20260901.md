@@ -23,7 +23,7 @@ operation phrase was requested or consumed.
 
 The new non-overwriting external evidence root is:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-17-p17-009-corrected-raw-state-preflight-20260901-01/`
+`/external/local-path`
 
 The fresh detection observed exactly Sony `054c:001e` at bus 2/address 3.
 The preserved native `0x0019` response is 64 bytes with SHA-256

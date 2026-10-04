@@ -117,7 +117,7 @@ unresolved observations; they were not normalized into the result.
 
 Raw and derived evidence remains outside Git under:
 
-`/Users/stardust/Projects/InfoCarry-Evidence/phase-16-p16-003b-modern-mixed-txt-bmp-20260831-01/`
+`/external/local-path`
 
 The versioned `preservation-manifest-v3.json` covers 65 files and verifies with
 zero hash or size mismatches. The initial fresh capture, re-verification copy,
