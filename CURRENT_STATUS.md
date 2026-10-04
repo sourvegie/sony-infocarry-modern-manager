@@ -2,6 +2,22 @@
 
 Date: 2026-10-01
 
+## P18-041G — TIMESTAMP RULE UNRECOVERABLE FROM ARCHIVES — BOUNDED PHYSICAL EXPERIMENT JUSTIFIED
+
+Date: 2026-10-04 (Asia/Tokyo)
+
+Offline characterization compared the exact P18-041F root-level TXT delete
+against five independent preserved native add/delete transactions. Every
+shared native record was rewritten into a short operation-specific timestamp
+window, but preserved clock/event evidence does not identify a non-circular
+rule that can be applied to a fresh baseline. The P18-041F residual is exactly
+367 two-byte low-field rewrites (734 bytes) plus the derived checksum; no
+four-byte timestamp fields or payloads differ. No production path or physical
+experiment was performed. A single disposable, owner-authorized
+root-level-TXT experiment is justified only to capture the missing timestamp
+event mapping, with a complete pre-backup and no retry. See the [P18-041G
+characterization report](analysis/phase-18-p18-041g-timestamp-rule-characterization-20261004.md) The private machine-readable timestamp comparison is omitted from this publication..
+
 ## P18-041F — ROOT-LEAF DELETE EVIDENCE INSUFFICIENT — STOPPED BEFORE EXECUTION PATH
 
 Date: 2026-10-04 (Asia/Tokyo)
