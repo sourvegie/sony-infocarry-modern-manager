@@ -2,6 +2,38 @@
 
 Date: 2026-10-01
 
+## P18-041H — PREPARATION COMPLETE / FIXTURE PRE-STAGING REQUIRED
+
+Date: 2026-10-04 (Asia/Tokyo)
+
+P18-041H prepared an offline-only bounded physical experiment package for one
+ordinary root-level TXT delete on the verified VNW-V15 boundary, but it is
+blocked before owner identity generation. The exact fixture is
+`root\\IC_P18_041G_CLOCK_01.txt`, 29 bytes, SHA-256
+`9541c1b9d09ee7d4ab91c704755c4bea8b2022c3bb8f50aa15c1a990bf80c35d`, and it
+must be placed in a separate independently authorized operation before a new
+sealed delete session begins. Repository read-only evidence does not show the
+fixture as present, and no device observation was performed. The package also
+refuses to mint an owner identity until a stable physical-unit identity beyond
+VID/PID, a typed hash-bound stable identity artifact, and a pre-execution native
+candidate/transaction identity are captured and independently verified.
+
+The host-only package records the exact four event-time observations, rejects
+zero or multiple native `0x101b` captures, preserves command/range/candidate
+hashes offline, verifies the exact one-path removal and all surviving record
+timestamp fields, requires exact target-operation binding and a pre-execution
+candidate/transaction identity before it will generate the future owner-approval
+fingerprint, and independently re-verifies evidence before sealing. It requires
+the canonical separate fixture-placement report and exact reviewed capture and
+recovery plans before generating an owner identity. It does not add
+or enable a production Delete path, UI control, sender, claim, marker, lock,
+USB session, or recovery route. The exact future phrase format is
+`AUTHORIZE P18-041H PHYSICAL ROOT DELETE <fingerprint_sha256>`; this task does
+not authorize it. Final independent R3 review passed with P0=0, P1=0, P2=0.
+See the [P18-041H experiment report](analysis/phase-18-p18-041h-bounded-physical-root-delete-timestamp-experiment-20261004.md),
+[manifest](analysis/phase-18-p18-041h-experiment-manifest-20261004.json), and
+[recovery plan](analysis/phase-18-p18-041h-recovery-plan-20261004.json).
+
 ## P18-041G — TIMESTAMP RULE UNRECOVERABLE FROM ARCHIVES — BOUNDED PHYSICAL EXPERIMENT JUSTIFIED
 
 Date: 2026-10-04 (Asia/Tokyo)

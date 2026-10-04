@@ -1,0 +1,35 @@
+{
+  "format": "infocarry-p18-041h-recovery-plan-v1",
+  "plan_id": "P18-041H-recovery-plan-v1",
+  "status": "prepared_no_recovery_authorized",
+  "scope": "the exact VNW-V15 unit and the exact fresh pre-delete eight-object backup for P18-041H",
+  "preconditions": [
+    "preserve the complete fresh pre-delete backup immutably before Delete",
+    "record and independently verify its manifest, all eight object hashes, and dynamic blob hash",
+    "seal the complete delete evidence before any recovery or restoration attempt",
+    "establish a separately reviewed recovery candidate from the retained pre-delete backup",
+    "establish exact VNW-V15 device identity and fresh read-only state/capacity evidence",
+    "obtain a new operation-specific owner authorization bound to the recovery candidate and transaction",
+    "use one sender invocation and no automatic retry",
+    "take a complete post-recovery eight-object backup and independently verify it"
+  ],
+  "not_assumed": [
+    "modern Delete path",
+    "modern Restore path",
+    "unproven reconstruction of native recovery semantics",
+    "recovery from an ambiguous or interrupted write"
+  ],
+  "operator_rule": "If no reviewed recovery path can be frozen and separately authorized, stop after sealing evidence and report the device as requiring owner-directed recovery.",
+  "automatic_recovery": false,
+  "separate_owner_authorization_required": true,
+  "hardware_write_performed_by_preparation": false,
+  "safety_counters": {
+    "hardware_usb_sessions": 0,
+    "hardware_writes": 0,
+    "real_0x101b": 0,
+    "production_sender_calls": 0,
+    "claims_consumed": 0,
+    "sender_marker_mutations": 0,
+    "installation_wide_lock_mutations": 0
+  }
+}

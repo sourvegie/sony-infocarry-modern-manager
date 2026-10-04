@@ -1,0 +1,130 @@
+{
+  "backup_contract": {
+    "object_count": 8,
+    "post_delete": "complete eight-object readback before any recovery",
+    "pre_delete": "fresh complete immutable copy after fixture is present"
+  },
+  "device_boundary": {
+    "model": "VNW-V15",
+    "product_id": "0x001e",
+    "usb_identity_boundary": "USB\\Vid_054c&Pid_001e",
+    "vendor_id": "0x054c"
+  },
+  "disposition": "FIXTURE PRE-STAGING REQUIRED \u2014 PREPARE SEPARATE AUTHORIZED PLACEMENT FIRST",
+  "evidence_contract": {
+    "native_terminal_result": "separate immutable artifact bound to the post-execution transaction-report hash",
+    "outputs_are_non_overwriting": true,
+    "seal_before_recovery": true,
+    "verification": "candidate/post normalized comparison is mandatory; unexplained metadata is fatal"
+  },
+  "exactly_one_physical_operation": true,
+  "experiment_id": "P18-041H",
+  "fixture": {
+    "content_encoding": "ASCII subset / CP932-compatible",
+    "content_length": 29,
+    "device_path": "root\\IC_P18_041G_CLOCK_01.txt",
+    "filename": "IC_P18_041G_CLOCK_01.txt",
+    "kind": "ordinary_root_level_txt",
+    "line_ending": "CRLF",
+    "sha256": "9541c1b9d09ee7d4ab91c704755c4bea8b2022c3bb8f50aa15c1a990bf80c35d"
+  },
+  "fixture_prestage_contract": {
+    "canonical_report": "01-fixture-prestage/placement-readback-or-backup-report.json",
+    "must_be_completed_before_delete": true,
+    "must_be_separate_operation": true,
+    "report_format": "infocarry-p18-041h-separate-fixture-placement-v1",
+    "required": true
+  },
+  "forbidden_in_experiment": [
+    "add",
+    "retry",
+    "subtree_operation",
+    "directory_selection",
+    "second_target",
+    "unrelated_manager_mutation",
+    "automatic_recovery"
+  ],
+  "format": "infocarry-p18-041h-bounded-physical-root-delete-v1",
+  "identity_contract": {
+    "binds": [
+      "device identity/model boundary",
+      "typed hash-bound stable physical-unit identity artifact beyond VID/PID",
+      "fresh pre-delete backup identity",
+      "target path",
+      "fixture identity",
+      "candidate hash when available before execution",
+      "transaction hash when available before execution",
+      "pre-execution candidate artifact and report",
+      "candidate structural delete against the fresh fixture baseline",
+      "exact one-delete target operation binding and sidecar",
+      "capture plan hash",
+      "no-retry policy",
+      "recovery plan reference"
+    ],
+    "missing_or_post_execution_candidate": "reject approval identity; do not accept procedural approval",
+    "must_be_frozen_before_owner_approval": true,
+    "current_blockers": [
+      "exact fixture is not present in read-only repository evidence and device presence is unobserved",
+      "stable physical-unit identity beyond VID/PID has not been captured",
+      "pre-execution candidate/transaction identity has not been captured"
+    ],
+    "requires_independent_artifacts": [
+      "complete eight-object backup",
+      "exact fixture source",
+      "pre-execution candidate/transaction report and preserved artifact",
+      "capture plan",
+      "recovery plan",
+      "read-only stable device-boundary observation"
+    ]
+  },
+  "native_capture_contract": {
+    "completion": "normal native terminal success required",
+    "malformed_or_ambiguous": "stop; no retry",
+    "ordinary_0x101b_count": 1,
+    "post_execution_transaction_report_required_for_verification": true,
+    "pre_execution_candidate_required_for_owner_identity": true,
+    "sender_invocations": 1
+  },
+  "no_retry": true,
+  "physical_operation": "delete",
+  "physical_operation_count": 1,
+  "plan_id": "P18-041H-capture-plan-v1",
+  "required_stages": [
+    "00-identity",
+    "01-fixture-prestage",
+    "02-pre-delete-backup",
+    "03-manager-before",
+    "04-time-observations",
+    "05-native-delete-capture",
+    "06-manager-after",
+    "07-post-delete-backup",
+    "08-sealed-evidence",
+    "09-recovery-decision",
+    "10-analysis"
+  ],
+  "required_time_events": [
+    "before_manager_initialization",
+    "after_initialization_idle",
+    "immediately_before_delete",
+    "immediately_after_delete_return"
+  ],
+  "safety_counters": {
+    "claims_consumed": 0,
+    "hardware_usb_sessions": 0,
+    "hardware_writes": 0,
+    "installation_wide_lock_mutations": 0,
+    "production_sender_calls": 0,
+    "real_0x101b": 0,
+    "sender_marker_mutations": 0
+  },
+  "target_operation": "one legacy/native root-level ordinary TXT Delete Selected",
+  "time_observation_contract": {
+    "device_clock": "record only through an already-safe/read-only path; never queried by this package",
+    "epoch_milliseconds": true,
+    "event_mapping_separate_from_raw_observations": true,
+    "fixture_creation_and_last_write": true,
+    "host_local_time": true,
+    "timezone_offset": true,
+    "utc": true
+  }
+}
