@@ -67,14 +67,7 @@ class PersistentWriteSafetyOwner:
         self.device_model_profile = device_model_profile
 
     def assert_execution_boundary_available(self) -> None:
-        """Reject locks/markers and validate the durable claim-store schema.
-
-        An abandoned marker is promoted to the existing global lock.  A
-        marker paired with a separately cleared, incident-bound lock can be
-        resolved after diagnostic recovery, matching the canonical Library
-        behavior.
-        """
-
+        """Reject unresolved sender state at the mutable claim boundary."""
         self.indeterminate_write_lock.assert_unlocked(
             self.device_model_profile.lock_key
         )
@@ -92,8 +85,7 @@ class PersistentWriteSafetyOwner:
             and lock_record.incident_id == marker.incident_id
         ):
             self.execution_claim_store.resolve_sender_after_diagnostic(
-                marker,
-                lock_record=lock_record,
+                marker, lock_record=lock_record
             )
             return
         self.indeterminate_write_lock.record_indeterminate(

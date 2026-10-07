@@ -351,17 +351,34 @@ class GuardedLibraryExecutionCoordinator:
         plan_report: Optional[Mapping[str, Any]],
         confirmation_interaction: Optional[ConfirmationInteraction],
         low_level_bulk_write_calls: int | None = None,
+        owner_authorized_identity: Any = None,
         **runner_kwargs: Any,
     ) -> PreparedLibraryPackageLiveResult | PreparedLibraryPackageLiveWrapperResult:
         """Run one confirmed operation through the canonical P17 lifecycle."""
 
-        self._assert_execution_boundary_available()
-        if not isinstance(operation_bundle, PreparedLibraryPackageOperationBundle):
+        # Root-TXT H2 performs a read-only execution-equivalence check before
+        # the mutable guarded boundary.  This keeps claim/marker/lock state
+        # untouched when a reconnect no longer matches the approved state.
+        from .root_txt_placement import RootTxtPlacementBundle, CONFIRMATION
+        from .library_transfer_execution import OwnerAuthorizedOperationIdentity
+        root_placement = isinstance(operation_bundle, RootTxtPlacementBundle)
+        if not root_placement:
+            self._assert_execution_boundary_available()
+        if root_placement:
+            operation_bundle.verify_seal()
+            if self.operation_binding is not None:
+                raise GuardedLibraryExecutionError("root placement cannot adopt a package binding", stage="operation_bundle")
+            if not isinstance(owner_authorized_identity, OwnerAuthorizedOperationIdentity) or owner_authorized_identity != OwnerAuthorizedOperationIdentity.from_bundle(operation_bundle):
+                raise GuardedLibraryExecutionError("exact root placement lacks owner approval", stage="owner_authorization")
+            if dict(plan_report or {}) != operation_bundle.review_dict():
+                raise GuardedLibraryExecutionError("root placement review differs from frozen bundle", stage="plan")
+        if not isinstance(operation_bundle, (PreparedLibraryPackageOperationBundle, RootTxtPlacementBundle)):
             raise GuardedLibraryExecutionError(
                 "the guarded lifecycle requires one immutable prepared Library operation bundle",
                 stage="operation_bundle",
             )
-        self._validate_operation_binding(operation_bundle)
+        if not root_placement:
+            self._validate_operation_binding(operation_bundle)
         if runner_kwargs.get("preflight_only", False):
             raise GuardedLibraryExecutionError(
                 "the guarded integration does not expose a sender-adjacent preflight mode",
@@ -397,9 +414,12 @@ class GuardedLibraryExecutionCoordinator:
             )
 
         attempt_id = uuid4().hex
-        bindings = _report_from_bundle(operation_bundle)
+        bindings = None if root_placement else _report_from_bundle(operation_bundle)
         audit_location = str(runner_kwargs.get("evidence_namespace", ""))
-        review = self._review(
+        class RootReview:
+            def to_dict(self):
+                return operation_bundle.review_dict()
+        review = RootReview() if root_placement else self._review(
             plan_report,
             bindings=bindings,
             audit_location=audit_location,
@@ -421,7 +441,7 @@ class GuardedLibraryExecutionCoordinator:
                 stage="confirmation",
                 audit={"review_sha256": review_digest},
             )
-        if (
+        if (root_placement and confirmation != CONFIRMATION) or (
             self.operation_binding is not None
             and confirmation != self.operation_binding.confirmation_phrase
         ):
@@ -444,8 +464,12 @@ class GuardedLibraryExecutionCoordinator:
                     "Library plan changed after confirmation; no transaction attempted",
                     stage="pre_send_revalidation",
                 )
-            current_bindings = _report_from_bundle(operation_bundle)
-            current_review = self._review(
+            if root_placement:
+                operation_bundle.verify_seal()
+                if owner_authorized_identity != OwnerAuthorizedOperationIdentity.from_bundle(operation_bundle):
+                    raise GuardedLibraryExecutionError("owner identity changed before sender", stage="pre_send_revalidation")
+            current_bindings = None if root_placement else _report_from_bundle(operation_bundle)
+            current_review = RootReview() if root_placement else self._review(
                 plan_report,
                 bindings=current_bindings,
                 audit_location=audit_location,
@@ -457,7 +481,7 @@ class GuardedLibraryExecutionCoordinator:
                     stage="pre_send_revalidation",
                 )
 
-        runner_kwargs["owner_approval"] = (
+        runner_kwargs["owner_approval"] = owner_authorized_identity.approval_phrase if root_placement else (
             self.operation_binding.owner_approval_phrase
             if self.operation_binding is not None
             else P17_005_OWNER_APPROVAL
@@ -467,6 +491,7 @@ class GuardedLibraryExecutionCoordinator:
         runner_kwargs["execution_claim_store"] = self.execution_claim_store
         runner_kwargs["indeterminate_write_lock"] = self.indeterminate_write_lock
         runner_kwargs["attempt_id"] = attempt_id
+        result = None
         try:
             result = execute_prepared_library_package_live(operation_bundle, **runner_kwargs)
             reconciliation_kwargs: dict[str, Any] = {
@@ -475,7 +500,7 @@ class GuardedLibraryExecutionCoordinator:
             for name in ("now", "max_age_seconds"):
                 if name in runner_kwargs:
                     reconciliation_kwargs[name] = runner_kwargs[name]
-            reconciled = reconcile_prepared_library_package_live_result(
+            reconciled = operation_bundle.reconcile_result(result) if root_placement else reconcile_prepared_library_package_live_result(
                 result,
                 **reconciliation_kwargs,
             )
@@ -486,7 +511,7 @@ class GuardedLibraryExecutionCoordinator:
                     attempt_id=attempt_id,
                     evidence_root=Path(audit_location or "."),
                 )
-            elif isinstance(exc, PreparedLibraryPackageLiveResultReconciliationError):
+            elif isinstance(exc, PreparedLibraryPackageLiveResultReconciliationError) or (root_placement and result is not None):
                 self._record_indeterminate(
                     exc,
                     attempt_id=attempt_id,

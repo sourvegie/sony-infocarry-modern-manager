@@ -1,6 +1,31 @@
 # Current Project Status
 
-Date: 2026-10-01
+Date: 2026-10-07
+
+## P18-041H2 — FIXTURE PLACEMENT READY_FOR_HARDWARE_TEST — RECONNECT-SAFE OWNER AUTHORIZATION
+
+P18-041H2 integrates the exact one-root-TXT fixture placement with the existing
+P18-039/P18-040 hardened write framework. Owner approval binds the frozen
+operation and VNW-V15 device state: fresh complete baseline identity, target
+absence, exact fixture, candidate, transaction, no-retry policy, and
+post-write verification. A USB handle is not part of the owner fingerprint and
+may be disconnected and re-established after approval.
+
+Immediately before claim/sender, a read-only execution-equivalence check compares
+the current VNW-V15 boundary, complete baseline state, capacity, target absence,
+frozen candidate and transaction, and persistent claim/marker/lock state. Any
+mismatch stops before claim and sender without candidate regeneration, transaction
+rebinding, preflight adoption, fingerprint replacement, or safety-state mutation.
+The existing durable claim, sender marker, installation-wide lock, one sender,
+one `0x101b`, no automatic retry, native `0x0000`, complete post-backup/readback,
+and independent verification protections remain in force.
+
+Focused H2 validation passes 17 root-placement tests and 7 runtime-provider
+tests; the full portable suite passes 1,074 tests with 3 established intentional
+skips. No physical USB/write was performed
+and all physical-operation counters remain zero. See the [P18-041H2 reconnect-safe
+owner-authorization record](analysis/phase-18-p18-041h2-reconnect-safe-owner-authorization-20261007.md).
+
 
 ## P18-041H — PREPARATION COMPLETE / FIXTURE PRE-STAGING REQUIRED
 
@@ -30,6 +55,11 @@ or enable a production Delete path, UI control, sender, claim, marker, lock,
 USB session, or recovery route. The exact future phrase format is
 `AUTHORIZE P18-041H PHYSICAL ROOT DELETE <fingerprint_sha256>`; this task does
 not authorize it. Final independent R3 review passed with P0=0, P1=0, P2=0.
+This paragraph records the earlier H1 preparation posture. P18-041H2 supersedes
+its continuous-session and separate-unit-identity assumptions for the exact
+fixture-placement operation by binding owner approval to the frozen operation and
+verified VNW-V15 device state, with a read-only execution-equivalence check after
+any reconnect.
 See the [P18-041H experiment report](analysis/phase-18-p18-041h-bounded-physical-root-delete-timestamp-experiment-20261004.md),
 [manifest](analysis/phase-18-p18-041h-experiment-manifest-20261004.json), and
 [recovery plan](analysis/phase-18-p18-041h-recovery-plan-20261004.json).

@@ -488,7 +488,8 @@ class OwnerAuthorizedOperationIdentity:
     def from_bundle(
         cls, bundle: PreparedLibraryPackageOperationBundle
     ) -> "OwnerAuthorizedOperationIdentity":
-        if not isinstance(bundle, PreparedLibraryPackageOperationBundle):
+        from .root_txt_placement import RootTxtPlacementBundle
+        if not isinstance(bundle, (PreparedLibraryPackageOperationBundle, RootTxtPlacementBundle)):
             raise ValueError("owner authorization requires an operation bundle")
         if bundle.operation_id is None:
             raise ValueError("owner authorization requires a sealed operation id")

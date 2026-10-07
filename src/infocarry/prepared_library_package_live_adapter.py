@@ -24,8 +24,11 @@ import os
 from pathlib import Path
 import time
 from types import MappingProxyType
-from typing import Any, Callable, Mapping, NoReturn, Optional
+from typing import TYPE_CHECKING, Any, Callable, Mapping, NoReturn, Optional
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from .root_txt_placement import RootTxtPlacementBundle
 
 from .backup_format import ParsedBackupBlob, parse_backup_blob
 from .backup_state_identity import (
@@ -2442,7 +2445,7 @@ def prepare_prepared_library_package_live_preflight(
 
 
 def execute_prepared_library_package_live(
-    operation_bundle: PreparedLibraryPackageOperationBundle,
+    operation_bundle: PreparedLibraryPackageOperationBundle | RootTxtPlacementBundle,
     *,
     owner_approval: str,
     confirmation: str,
@@ -2482,12 +2485,19 @@ def execute_prepared_library_package_live(
     path.
     """
 
-    resolved = _resolve_prepared_library_package_operation_bundle(operation_bundle)
-    bundle = resolved.bundle
-    preflight = resolved.preflight
-    catalog = resolved.catalog
-    template = resolved.template
-    selected_item_id = bundle.selected_item_id
+    from .root_txt_placement import RootTxtPlacementBundle, ROOT_TXT_PLACEMENT_PROFILE
+    root_txt_placement = isinstance(operation_bundle, RootTxtPlacementBundle)
+    if root_txt_placement:
+        operation_bundle.verify_seal()
+        bundle = operation_bundle
+        preflight = bundle
+    else:
+        resolved = _resolve_prepared_library_package_operation_bundle(operation_bundle)
+        bundle = resolved.bundle
+        preflight = resolved.preflight
+        catalog = resolved.catalog
+        template = resolved.template
+        selected_item_id = bundle.selected_item_id
     evidence_outputs = _reserve_attempt_evidence(
         evidence_namespace,
         evidence_root_allocator,
@@ -2540,6 +2550,7 @@ def execute_prepared_library_package_live(
     claim_record: Optional[ExecutionClaimRecord] = None
     claim_audit: Optional[dict[str, Any]] = None
     sender_marker: Optional[SenderInFlightHandle] = None
+    execution_equivalence_audit: Optional[dict[str, Any]] = None
     try:
         preflight.verify_seal()
     except PreparedLibraryPackageLiveAdapterError:
@@ -2575,7 +2586,7 @@ def execute_prepared_library_package_live(
     # callback.  Preflight-only mode deliberately does not consume the claim;
     # safe cancellation above is the only live path that may exit without
     # expiring the approval after it has been accepted.
-    if not preflight_only:
+    if not preflight_only and not root_txt_placement:
         try:
             if write_safety_owner is None:
                 raise ExecutionClaimStoreError(
@@ -2600,6 +2611,10 @@ def execute_prepared_library_package_live(
             ) from exc
 
     try:
+        if root_txt_placement and bundle.runtime.reconnect_read_session is not None:
+            # A physical unplug may leave the old PyUSB object looking open;
+            # force a fresh read session before any execution-time reads.
+            bundle.runtime.reconnect_read_session()
         detected = detect_device()
         if detected != P17_005_DEVICE_IDENTITY:
             raise ValueError("detected device is not Sony 0x054c:0x001e")
@@ -2646,27 +2661,32 @@ def execute_prepared_library_package_live(
         ) from exc
 
     try:
-        candidate = build_prepared_library_package_candidate(
-            catalog,
-            selected_item_id,
-            before,
-            template,
-            new_record_timestamp_be32=preflight.core.new_record_timestamp_be32,
-            native_capacity_response=capacity,
-            template_folder_path=preflight.core.template_folder_path,
-            template_item_paths=preflight.core._paths(),
-            profile_id=_profile_id_from_candidate(preflight.candidate),
-        )
-        if candidate.library_binding.get("folder_name") != preflight.expected_folder_name:
-            raise ValueError("selected Library destination differs from sealed preflight")
-        _require_reconstructed_candidate_matches(preflight.candidate, candidate)
-        authorization = authorize_prepared_library_package(
-            candidate,
-            confirmation=confirmation,
-            confirmation_policy=preflight.authorization.core.confirmation_policy,
-        )
-        authorization.require_same_candidate(candidate)
-        sequence.extend(["library_candidate_reconstructed", "authorization_revalidated"])
+        if root_txt_placement:
+            candidate, authorization = bundle.revalidate_frozen_candidate(before, capacity)
+            authorization.require_same_candidate(candidate)
+            sequence.extend(["frozen_candidate_revalidated", "authorization_revalidated"])
+        else:
+            candidate = build_prepared_library_package_candidate(
+                catalog,
+                selected_item_id,
+                before,
+                template,
+                new_record_timestamp_be32=preflight.core.new_record_timestamp_be32,
+                native_capacity_response=capacity,
+                template_folder_path=preflight.core.template_folder_path,
+                template_item_paths=preflight.core._paths(),
+                profile_id=_profile_id_from_candidate(preflight.candidate),
+            )
+            if candidate.library_binding.get("folder_name") != preflight.expected_folder_name:
+                raise ValueError("selected Library destination differs from sealed preflight")
+            _require_reconstructed_candidate_matches(preflight.candidate, candidate)
+            authorization = authorize_prepared_library_package(
+                candidate,
+                confirmation=confirmation,
+                confirmation_policy=preflight.authorization.core.confirmation_policy,
+            )
+            authorization.require_same_candidate(candidate)
+            sequence.extend(["library_candidate_reconstructed", "authorization_revalidated"])
     except Exception as exc:
         raise _failure(
             f"P17-005 Library candidate revalidation failed: {exc}",
@@ -2716,6 +2736,26 @@ def execute_prepared_library_package_live(
                 evidence_outputs=evidence_outputs,
                 approval_consumed=approval_consumed,
                 execution_claim=claim_audit,
+            ) from exc
+
+    if not preflight_only and root_txt_placement:
+        try:
+            # This is the only execution-time state gate. It is read-only,
+            # compares the reconnect's state to the approved baseline, and
+            # arms the sender only after all frozen inputs still match.
+            execution_equivalence_audit = bundle.verify_execution_equivalence(before, capacity)
+            if write_safety_owner is None:
+                raise ExecutionClaimStoreError("application-wide write safety owner is unavailable")
+            write_safety_owner.assert_execution_boundary_available()
+            claim_record = preflight._consume_execution_claim(write_safety_owner)
+            claim_audit = _execution_claim_audit(claim_record)
+            approval_consumed = True
+        except Exception as exc:
+            raise _failure(
+                f"P17-005 durable execution claim was not committed; live execution safety state could not be validated: {exc}",
+                stage="write_guard", state="failed", sequence=sequence, sender_calls=sender_calls,
+                candidate=candidate, authorization=authorization, evidence_outputs=evidence_outputs,
+                primary_error=str(exc), approval_consumed=False, execution_claim=_execution_claim_audit(None),
             ) from exc
 
     try:
@@ -3000,20 +3040,28 @@ def execute_prepared_library_package_live(
         if after.device_identity != _expected_device_hex():
             raise ValueError("post-operation backup identity differs from Sony 0x054c:0x001e")
         sequence.append("fresh_post_operation_backup_verified")
-        verification = _verify_profile_readback(
-            candidate,
-            after.directory,
-            completion=completion,
-            now=None,
-            max_age_seconds=max_age_seconds,
-        )
+        if root_txt_placement:
+            verification = bundle.verify_readback(
+                after, completion=completion, now=None, max_age_seconds=max_age_seconds
+            )
+        else:
+            verification = _verify_profile_readback(
+                candidate,
+                after.directory,
+                completion=completion,
+                now=None,
+                max_age_seconds=max_age_seconds,
+            )
         sequence.append("independent_readback_verification")
 
         sequence.append("versioned_before_after_evidence_manifest_verified")
         audit = {
             "format": P17_005_RUNNER_FORMAT,
             "state": "readback_verified",
-            "profile": _runner_profile_label(_profile_id_from_candidate(candidate)),
+            "profile": (
+                ROOT_TXT_PLACEMENT_PROFILE if root_txt_placement
+                else _runner_profile_label(_profile_id_from_candidate(candidate))
+            ),
             "device_identity": list(_expected_device_hex()),
             "expected_folder_name": preflight.expected_folder_name,
             "usb_transmission_performed": True,
@@ -3037,15 +3085,19 @@ def execute_prepared_library_package_live(
                 "operation_sequence": sequence,
             },
         }
-        write_prepared_library_package_evidence_manifest(
-            evidence_outputs.manifest,
-            preflight=preflight,
-            before_backup=before,
-            after_backup=after,
-            result_audit=audit,
-            now=None,
-            max_age_seconds=max_age_seconds,
-        )
+        if root_txt_placement:
+            audit["execution_equivalence"] = execution_equivalence_audit
+            bundle.write_success_evidence(evidence_outputs.manifest, before, after, audit)
+        else:
+            write_prepared_library_package_evidence_manifest(
+                evidence_outputs.manifest,
+                preflight=preflight,
+                before_backup=before,
+                after_backup=after,
+                result_audit=audit,
+                now=None,
+                max_age_seconds=max_age_seconds,
+            )
         if write_safety_owner is None:
             raise ExecutionClaimStoreError(
                 "application-wide write safety owner is unavailable"
@@ -3061,16 +3113,24 @@ def execute_prepared_library_package_live(
             sender_marker_resolved=True,
         )
         audit["execution_claim"] = claim_audit
-        write_sender_marker_terminal_resolution_evidence(
-            evidence_outputs.root / "sender-marker-resolution-0001.json",
-            preflight=preflight,
-            claim=claim_record,
-            sender_marker=sender_marker.record,
-            execution_claim_store=execution_claim_store,
-            result_manifest=evidence_outputs.manifest,
-            resolution="verified_terminal_success",
-            now=None,
-        )
+        if root_txt_placement:
+            bundle.write_terminal_evidence(
+                evidence_outputs.root / "sender-marker-resolution-0001.json",
+                claim_record, sender_marker.record, execution_claim_store,
+                evidence_outputs.manifest,
+            )
+            bundle.write_placement_report(evidence_outputs.root, audit, after)
+        else:
+            write_sender_marker_terminal_resolution_evidence(
+                evidence_outputs.root / "sender-marker-resolution-0001.json",
+                preflight=preflight,
+                claim=claim_record,
+                sender_marker=sender_marker.record,
+                execution_claim_store=execution_claim_store,
+                result_manifest=evidence_outputs.manifest,
+                resolution="verified_terminal_success",
+                now=None,
+            )
     except Exception as exc:
         raise _failure(
             f"P17-005 post-operation backup/read-back failed: {exc}",

@@ -13,6 +13,7 @@ from infocarry.indeterminate_write_lock import PersistentIndeterminateWriteLock
 from infocarry.library_transfer_execution import LibraryTransferExecutionFacade
 from infocarry.library_transfer_runtime_provider import (
     LibraryTransferRuntimeConfigurationError,
+    _PinnedOperationSession,
     ProductionLibraryTransferRuntimeProvider,
     create_production_library_transfer_facade,
     launch_production_manager,
@@ -132,6 +133,33 @@ class ProductionLibraryTransferRuntimeProviderTests(unittest.TestCase):
             ):
                 provider.create_runtime(write_safety_owner=alternate_owner)
             self.assertEqual(device_calls, [])
+
+    def test_execution_reconnect_forces_fresh_handle_even_when_old_handle_looks_open(self):
+        devices = [type("Device", (), {"idVendor": 0x054C, "idProduct": 0x001E})(),
+                   type("Device", (), {"idVendor": 0x054C, "idProduct": 0x001E})()]
+        opened = []
+
+        class Session:
+            def __init__(self, device):
+                self.device = device
+                self.closed = False
+                opened.append(self)
+
+            def close(self):
+                self.closed = True
+
+        def discover():
+            return devices.pop(0)
+
+        pinned = _PinnedOperationSession(discover, lambda device: Session(device))
+        first = pinned.get()
+        # Simulate a physical unplug that leaves the old object reporting open.
+        self.assertFalse(first.closed)
+        second = pinned.reconnect()
+        self.assertIsNot(first, second)
+        self.assertTrue(first.closed)
+        self.assertIs(second.device, devices[0] if devices else opened[-1].device)
+        self.assertEqual(pinned.generation, 2)
 
     def test_valid_reviewed_template_builds_canonical_runtime_without_device_access(self):
         try:
