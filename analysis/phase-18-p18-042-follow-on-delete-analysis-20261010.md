@@ -147,3 +147,15 @@ Reproduction script and sanitized host results remain outside Git at
 `/external/local-path` and
 `/external/local-path`. No raw candidates were
 saved. All probes completed; none are reported from an interrupted run.
+
+## General root-TXT admission assessment
+
+Additional executor host checks of all four surviving root TXT files in this
+same preserved post-delete archive passed the existing pure structural model
+and complete protected-state candidate derivation (4/4). No saved historical
+output or private payload was substituted. External sanitized count report:
+`/external/local-path`. Independent R3 assessed
+this as host corroboration, not proof for arbitrary physical content/prefix
+geometry, marker placement or auxiliary associations. It agreed to retain the
+exact fixture gate. General root TXT remains prepared by existing host helpers
+only and unavailable for GUI execution until scoped extension/validation.

@@ -87,19 +87,20 @@ only injected fake USB backends and temporary safety stores.
   clicks, cancel before execution, refresh/error separation, disconnect,
   nonzero completion, post-result evidence corruption, close protection and
   teardown suppression. No GUI visual observation is claimed.
-- Focused Delete/integration/planning: **39 tests passed**; existing desktop
+- Focused Delete/integration/planning: **40 tests passed**; existing desktop
   regressions: **43 passed**. Existing exact experimental sender/lifecycle,
   transfer, backup, reconnect and guarded-write tests remain in the portable
   suite.
 - Initial full portable run: **1,128 run, OK, 3 established intentional skips**.
-  After additional regressions/guard fixes, final full run is pending at this
-  checkpoint. Log: `/external/local-path`.
+  Corrected final portable run: **1,133 run / 1,130 passed / 3 established
+  skips**, 124.777s, exit 0. Log: `/external/local-path`.
 - `compileall src tests` and `git diff --check` pass.
-- Strong independent exact-head R3 review is pending. Review must inspect the
-  base-to-head diff, applicable instructions/task, relevant source/tests,
-  original physical evidence/closeout inventory, full test log and admission
-  boundary independently. Executor summary is navigation only. At most two
-  material correction rounds. Report P0/P1/P2 and exact reviewed commit.
+- Strong independent exact-code-head R3 **PASS, P0/P1/P2=0/0/0** after one
+  material correction round at `300bd0cdd5b5faf15fac96e403de32225d0948be`.
+  [Canonical independent report](phase-18-p18-042-independent-r3-review-20261010.md)
+  records independent diff/source/test/evidence inspection, 40 corrected
+  integration tests, 121 dependency regressions and full-log verification.
+  No production readiness or physical GUI validation is implied.
 
 ## Follow-on work / remaining validation
 
@@ -137,7 +138,8 @@ transfer-review invalidator, preserving terminal messages in both places and
 proving that a stale transfer review cannot discard the shared controller's
 active Delete result. Focused integration/planning now **40 passed**.
 Pre-correction final code-head suite: **1,132 run / 1,129 passed / 3 established
-skips**, 116.749s. Corrected full run and exact-head re-review are pending.
+skips**, 116.749s. Corrected full run passed 1,133 tests with the same three
+established skips; exact-code-head re-review passed P0/P1/P2=0/0/0.
 External independent report: `/external/local-path`.
 
 Additional host check: all four actual surviving root TXT files in the
@@ -146,3 +148,30 @@ protected-state candidate derivation. This corroborates host modeling, but
 does not establish a physical class-level envelope; independent review agrees
 the exact fixture execution gate must remain. Result record is outside Git:
 `/external/local-path`.
+
+## Final disposition
+
+**READY_FOR_HARDWARE_TEST** for the implemented, host-tested, independently
+reviewed exact Device Library UI path. Authorized offline work packages A–F
+are complete; G improved callback coverage and completed the bounded follow-on
+investigation. Only the original P18-041 exact observed operation is physically
+demonstrated. Arbitrary root TXT/BMP/nested/directory/subtree execution remains
+unavailable. No production readiness, GUI visual observation, packaged
+cross-platform validation, independent USB trace or new physical behavior is
+claimed. Further hardware use needs separate operation-specific owner approval;
+this task performed none. Do not repeat the original experiment by inference.
+
+Local checkpoints: `4d79453` evidence closeout, `0f4dded` integration,
+`300bd0c` reviewed correction. A documentation-only closure follows; final
+exact-head acknowledgment is in `/external/local-path`.
+No source/test changes follow the reviewed correction. Branch is
+`task/P18-042-device-library-delete`; no push/merge. Recommendation: establish
+an ordinary root-TXT class envelope using the existing host model and scoped
+physical evidence, then reuse the same seams for one root BMP. Directory and
+subtree work stays behind unresolved serialized-marker ownership.
+
+Validation log `p18-042-r3-correction-full-tests.log` SHA-256: `e83d7cea6251650d5958c2ce98ed9cf828b7e3005ac3f8fbf5339ffc2c68c186`.
+
+Validation log `p18-042-r3-correction-focused.log` SHA-256: `4a4bd368c13b311b00af197ace4e07820ca2a3f3052c091581050ba826b221ba`.
+
+Validation log `p18-042-desktop-tests.log` SHA-256: `5f9020d751c8e646bb196c5a6579bc07fbeb3817cb5de4c7aa6b84c953d0e549`.

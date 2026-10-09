@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 
-## P18-042 — Device Library Delete integration — host validation/review in progress
+## P18-042 — Device Library Delete integration — READY_FOR_HARDWARE_TEST
 
 Device Library now connects its Delete toolbar/menu to the existing exact
 P18-041 guarded facade. A selected file is bound to its displayed complete
@@ -25,8 +25,13 @@ P18-041 evidence closeout is complete and committed. Follow-on host probes of
 BMP/nested files and directory-marker boundaries are recorded in the
 [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
 No new USB request, physical write, production claim, marker or lock mutation
-has occurred; no push or merge. Full-suite and exact-head independent R3
-results will be recorded in the
+has occurred; no push or merge. The full corrected Python 3.12 suite passed **1,133 run / 1,130 passed / three
+established evidence skips**. Independent exact-code-head R3 review passed
+**P0=0 / P1=0 / P2=0** after one corrected P2 footer-message finding; 40
+focused integration/planning and 43 desktop regressions passed. The
+[canonical independent review](analysis/phase-18-p18-042-independent-r3-review-20261010.md)
+records the exact reviewed code commit. UI visual/packaging and physical
+validation remain outstanding; this task authorizes no hardware use. See the
 [P18-042 delivery record](analysis/phase-18-p18-042-device-library-delete-integration-20261010.md).
 
 ## P18-041 — COMPLETE — EXACT MODERN ROOT-TXT DELETE PHYSICALLY DEMONSTRATED
