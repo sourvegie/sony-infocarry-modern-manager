@@ -2,7 +2,7 @@
 
 Date: 2026-10-09
 
-## P18-041 — MODERN EXACT ROOT-TXT DELETE — READY_FOR_HARDWARE_TEST
+## P18-041 — COMPLETE — EXACT MODERN ROOT-TXT DELETE PHYSICALLY DEMONSTRATED
 
 The exact VNW-V15 `root\IC_P18_041G_CLOCK_01.txt` experiment now reuses
 H2's frozen operation, reconnect-safe device-state equivalence, canonical
@@ -10,19 +10,22 @@ single-use claim, sender marker, installation-wide lock and guarded sender.
 The modern candidate preserves survivor timestamps and protected unrelated
 auxiliary associations. Normal Device Library Delete remains disabled.
 
-The October 9 complete backup is used offline only. Its derived candidate and
-five auxiliary blocks exactly match the independently captured pre-placement
-state. Eventual execution obtains a new fresh complete backup and capacity
-response and accepts only `DELETE IC_P18_041G_CLOCK_01.txt ONCE`.
-No real device access, physical write, production claim or marker occurred.
-Host validation passes 130 focused and 1,098 full portable tests with three
-established skips. Independent R3 review corrected one audit-binding defect;
-final exact-head review and the checkpoint are recorded in the
-[P18-041 implementation record](analysis/phase-18-p18-041-modern-root-txt-delete-20261009.md).
-The [operator procedure](analysis/phase-18-p18-041-modern-root-txt-delete-procedure-20261009.md)
-requires separate operation-specific owner approval before physical use.
-This modern direction supersedes H1's serial/native-preexecution assumptions
-for this experiment; it makes no new claim about legacy-native equivalence.
+One separately owner-authorized physical operation at reviewed commit
+`5966933388137138230140deca7b244d5bb74a8b` completed on October 10 JST:
+native `0x0000`, launcher exit 0, one sender/transaction and no retry.
+Complete independent before/post backup verification confirms only the exact
+fixture removed, all 300 surviving payloads and 454 survivor timestamps
+preserved, protected state and checksum valid, and frozen candidate matched.
+Claim remains consumed, terminal marker resolved, installation-wide lock
+cleared in the preserved independent review. No independent USB bus trace
+exists. The [physical closeout and hash inventory](analysis/phase-18-p18-041-physical-delete-closeout-20261010.md)
+preserve this precise proof without copying raw/private evidence into Git.
+P18-042 independently re-verifies all 43 referenced artifacts offline without
+new USB or production safety-state mutations. Arbitrary files/directories,
+VNW-V10 and recovery remain unproven; see `CAPABILITY_MATRIX.md`.
+The [implementation record](analysis/phase-18-p18-041-modern-root-txt-delete-20261009.md)
+retains host validation (130 focused / 1,098 portable tests, three established
+skips) and corrected independent R3 review. This closure authorizes no repeat.
 
 ## P18-041H2 — FIXTURE PLACEMENT READY_FOR_HARDWARE_TEST — RECONNECT-SAFE OWNER AUTHORIZATION
 

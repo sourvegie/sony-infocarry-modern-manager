@@ -1,0 +1,344 @@
+{
+  "after_backup_manifest_sha256": "b6005c9dc85b74574cc6adea2d543f4db0c4c35d30b3d958e474bcd8e94e48d4",
+  "after_capture_completed_jst": "2026-10-10T00:12:28.613160+09:00",
+  "after_checksum_hex": "f57a2c50",
+  "artifact_hashes": [
+    {
+      "bytes": 29,
+      "relative_path": "IC_P18_041G_CLOCK_01.txt",
+      "root": "prepared",
+      "sha256": "9541c1b9d09ee7d4ab91c704755c4bea8b2022c3bb8f50aa15c1a990bf80c35d"
+    },
+    {
+      "bytes": 3197,
+      "relative_path": "backup-baseline/manifest.json",
+      "root": "prepared",
+      "sha256": "b1e4e77034d6ee5ce24ccbf112b081029dee8078a19f372bd7508a09fea3f6c2"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-01-command-0024.bin",
+      "root": "prepared",
+      "sha256": "b6a0a3eb73d15a53cda0026da8227fe3689307984def223fb21ac5bb213f339e"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-02-command-001b.bin",
+      "root": "prepared",
+      "sha256": "b494f1c17c1cda34766c91acd40ab9bb7267d86b645393461fa82450556971f0"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-03-command-001c.bin",
+      "root": "prepared",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-04-command-001d.bin",
+      "root": "prepared",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-05-command-001e.bin",
+      "root": "prepared",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-06-command-001f.bin",
+      "root": "prepared",
+      "sha256": "3170e003b23fe9044340da01d04d8506de6b91290b9a799b0769005dca23b366"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-baseline/object-07-command-8004.bin",
+      "root": "prepared",
+      "sha256": "8adb475d89775cbd9aa9fc5b97ff7abce4ed149add4ea9a288e808946ed0f64d"
+    },
+    {
+      "bytes": 2210560,
+      "relative_path": "backup-baseline/object-08-command-8004.bin",
+      "root": "prepared",
+      "sha256": "8d0fb9acc094fcb1e20fb44a410d26ec7715fc76dc54c08176b367d2cf60e76a"
+    },
+    {
+      "bytes": 2210432,
+      "relative_path": "candidate.bin",
+      "root": "prepared",
+      "sha256": "6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "capacity-0019.bin",
+      "root": "prepared",
+      "sha256": "c33328b686dee7fdc005731a5ded428d76415e91ced03edad63646063394662a"
+    },
+    {
+      "bytes": 2370,
+      "relative_path": "operation-bundle.json",
+      "root": "prepared",
+      "sha256": "b857d4b5c13d7eb9f83f08aff397a6bb31c68f9ab2c9524217fcb06e53bfbc50"
+    },
+    {
+      "bytes": 1786,
+      "relative_path": "transaction/manifest.json",
+      "root": "prepared",
+      "sha256": "f04b349370a58a5d5fdba60fc30be9898f3bd66c78a261b29eefd9efc1b5e61d"
+    },
+    {
+      "bytes": 256,
+      "relative_path": "transaction/range-01.bin",
+      "root": "prepared",
+      "sha256": "0029e9c0e8bde70e116c5f453a4adb11855e0e41d866e2ccf2516135f9386b5f"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "transaction/range-02.bin",
+      "root": "prepared",
+      "sha256": "1ea26ee6b56c771d47ea902c4f7b6af145781d7d22732097d822d20d377035eb"
+    },
+    {
+      "bytes": 65216,
+      "relative_path": "transaction/range-03.bin",
+      "root": "prepared",
+      "sha256": "cea665287de6c041c457cb8ee214b36dba1c65751d7d89c38bba0c06d6b30f3d"
+    },
+    {
+      "bytes": 0,
+      "relative_path": "transaction/range-04.bin",
+      "root": "prepared",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "transaction/range-05.bin",
+      "root": "prepared",
+      "sha256": "c4ec295ac754a9ae63c8f2958169bc66c1e238280d41c1998e4bb3bc9ed63724"
+    },
+    {
+      "bytes": 0,
+      "relative_path": "transaction/range-06.bin",
+      "root": "prepared",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "relative_path": "transaction/range-07.bin",
+      "root": "prepared",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2210368,
+      "relative_path": "transaction/range-08.bin",
+      "root": "prepared",
+      "sha256": "a0ba5f1e5153f7f01a519cf5c81e709b7f5579f7876aee6ca65ad5c3941d27a7"
+    },
+    {
+      "bytes": 3197,
+      "relative_path": "backup-after-0001/manifest.json",
+      "root": "execution",
+      "sha256": "b6005c9dc85b74574cc6adea2d543f4db0c4c35d30b3d958e474bcd8e94e48d4"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-01-command-0024.bin",
+      "root": "execution",
+      "sha256": "781bf5be3f07e5299b28139d82e6922f5331d4d6b791d8ce4c9f6ead9150043e"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-02-command-001b.bin",
+      "root": "execution",
+      "sha256": "4ce9a1114cead9382ed4f202c7991cfa6e0d5f4743538970896432a9380696cb"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-03-command-001c.bin",
+      "root": "execution",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-04-command-001d.bin",
+      "root": "execution",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-05-command-001e.bin",
+      "root": "execution",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-06-command-001f.bin",
+      "root": "execution",
+      "sha256": "1ea26ee6b56c771d47ea902c4f7b6af145781d7d22732097d822d20d377035eb"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-after-0001/object-07-command-8004.bin",
+      "root": "execution",
+      "sha256": "c4ec295ac754a9ae63c8f2958169bc66c1e238280d41c1998e4bb3bc9ed63724"
+    },
+    {
+      "bytes": 2210432,
+      "relative_path": "backup-after-0001/object-08-command-8004.bin",
+      "root": "execution",
+      "sha256": "6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8"
+    },
+    {
+      "bytes": 3197,
+      "relative_path": "backup-before-0001/manifest.json",
+      "root": "execution",
+      "sha256": "21aff3a61913d3eb81901a4319ffa4dfbe3ecf02711a4633e4c43d3863fbf9a6"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-01-command-0024.bin",
+      "root": "execution",
+      "sha256": "b6a0a3eb73d15a53cda0026da8227fe3689307984def223fb21ac5bb213f339e"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-02-command-001b.bin",
+      "root": "execution",
+      "sha256": "b494f1c17c1cda34766c91acd40ab9bb7267d86b645393461fa82450556971f0"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-03-command-001c.bin",
+      "root": "execution",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-04-command-001d.bin",
+      "root": "execution",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-05-command-001e.bin",
+      "root": "execution",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-06-command-001f.bin",
+      "root": "execution",
+      "sha256": "3170e003b23fe9044340da01d04d8506de6b91290b9a799b0769005dca23b366"
+    },
+    {
+      "bytes": 64,
+      "relative_path": "backup-before-0001/object-07-command-8004.bin",
+      "root": "execution",
+      "sha256": "8adb475d89775cbd9aa9fc5b97ff7abce4ed149add4ea9a288e808946ed0f64d"
+    },
+    {
+      "bytes": 2210560,
+      "relative_path": "backup-before-0001/object-08-command-8004.bin",
+      "root": "execution",
+      "sha256": "8d0fb9acc094fcb1e20fb44a410d26ec7715fc76dc54c08176b367d2cf60e76a"
+    },
+    {
+      "bytes": 21568,
+      "relative_path": "result-manifest-0001.json",
+      "root": "execution",
+      "sha256": "98d25ede8d7d7322bcf5a38954b19cca9095f82af85578122723a35dd24eda41"
+    },
+    {
+      "bytes": 3698,
+      "relative_path": "root-txt-delete-report.json",
+      "root": "execution",
+      "sha256": "d8cd99a645cbf18b07e133191c34ca2fcb08567eb8e41d66bdb60ab7d4d727e2"
+    },
+    {
+      "bytes": 2604,
+      "relative_path": "sender-marker-resolution-0001.json",
+      "root": "execution",
+      "sha256": "d86a1cd744c947126bfff83f732f3b485147a32dc869a77e8f15f025260610bd"
+    }
+  ],
+  "automatic_retry_allowed": false,
+  "before_backup_manifest_sha256": "21aff3a61913d3eb81901a4319ffa4dfbe3ecf02711a4633e4c43d3863fbf9a6",
+  "before_capture_completed_jst": "2026-10-10T00:11:27.511610+09:00",
+  "before_checksum_hex": "cf6b02e4",
+  "candidate_sha256": "6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8",
+  "claim_recorded_state": "consumed",
+  "complete_backup_object_count_each": 8,
+  "current_production_safety_state_inspected": false,
+  "date_jst": "2026-10-10",
+  "format": "p18-042-p18-041-physical-closeout-v1",
+  "frozen_operation_sha256": "b857d4b5c13d7eb9f83f08aff397a6bb31c68f9ab2c9524217fcb06e53bfbc50",
+  "historical_independent_active_marker_count": 0,
+  "historical_independent_global_lock_state": "cleared",
+  "implementation_commit": "5966933388137138230140deca7b244d5bb74a8b",
+  "independent_usb_trace_available": false,
+  "native_completion_recorded": "0x0000",
+  "original_evidence_unchanged": true,
+  "physical_writes": 0,
+  "production_claim_marker_lock_mutations": 0,
+  "records_after": 454,
+  "records_before": 455,
+  "referenced_artifacts_verified": 43,
+  "report_hashes": [
+    {
+      "bytes": 4954,
+      "relative_path": "INDEPENDENT_POST_DELETE.md",
+      "sha256": "660589752482526714f9b4928d27b66c2d9189a943831caab2d888c6e5152852"
+    },
+    {
+      "bytes": 4158,
+      "relative_path": "INDEPENDENT_PREFLIGHT.md",
+      "sha256": "620dc80e6554fb332f808879ee0df7b17e579af7b1caf6832c354d8028ce3705"
+    },
+    {
+      "bytes": 5203,
+      "relative_path": "PHYSICAL_EXPERIMENT_REPORT.md",
+      "sha256": "fd28928ab4c442dbd6e44a94fcaf8bf8800dba789895b3aa3b1556a9a1f3656f"
+    },
+    {
+      "bytes": 3562,
+      "relative_path": "independent-post-delete-verification.json",
+      "sha256": "30a03910794698b124d9498af3610bdf808ae60ad51f55cc339a5eaf32e13dd3"
+    },
+    {
+      "bytes": 233,
+      "relative_path": "launcher-final-output.txt",
+      "sha256": "9ffe9b4bbf8b9e605a9b4a36ad3a478fb8ca707ff88c55ff1a704cb6ed053959"
+    },
+    {
+      "bytes": 327,
+      "relative_path": "owner-confirmation-release.json",
+      "sha256": "37b87364e15269b86659de53be03aded17c92f233bef536e002e08ec8b5a2813"
+    },
+    {
+      "bytes": 18896,
+      "relative_path": "physical-experiment-verification.json",
+      "sha256": "cc2eec77172d6c34cc769b563d46b9628c12cb9180f6f4305d08694c96b0b6de"
+    },
+    {
+      "bytes": 8130,
+      "relative_path": "preflight.json",
+      "sha256": "e252860362e1206562e6aa5219106ff083851157bf05e2dd6763812772bcbe50"
+    }
+  ],
+  "scope": "Only exact fixture and observed before/post state; no wider admission.",
+  "sender_invocations_recorded": 1,
+  "source_roots": {
+    "execution": "/external/local-path Support/SonyInfoCarryModernManager/Evidence/Library Transfer Operations/p17-017-attempt-c3352e9ff38e48d2a3c5fe43c35bc6be",
+    "prepared": "/external/local-path Support/SonyInfoCarryModernManager/Evidence/Library Transfer Operations/prepared-root-txt-delete-f1217b1834624f4f895cfd82c3506a01",
+    "reports": "/external/local-path"
+  },
+  "status": "PASS_OFFLINE_REVERIFICATION_OF_PRESERVED_PHYSICAL_EVIDENCE",
+  "surviving_payloads_preserved": 300,
+  "surviving_serialized_timestamps_preserved": 454,
+  "target": "root\\IC_P18_041G_CLOCK_01.txt",
+  "terminal_resolution": "verified_terminal_success",
+  "transaction_sha256": "e5831e0e363cab494c3f4aa859763808fa5a7676b01c6fd4ddb15edd4d58c452",
+  "transactions_recorded": 1,
+  "usb_requests": 0
+}
