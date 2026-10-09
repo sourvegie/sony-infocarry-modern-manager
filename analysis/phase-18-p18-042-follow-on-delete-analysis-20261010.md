@@ -182,9 +182,21 @@ overlap/ambiguity, before/after survivor auxiliary references and target
 reference refusal, deterministic source preservation, and continued rejection
 by existing TXT candidate and Device Library execution admission. All nine
 pass; 89 existing Delete/model/state/exact-facade/UI regressions pass.
-The full portable run and independent strong review are pending at this
-checkpoint, since the shared model is reused by the reviewed TXT path.
+The full portable run passes **1,142 run / 1,139 passed / three established
+skips**, 119.630s. Independent strong R3 review passes P0/P1/P2=0/0/0 at
+`ba0d36c20385678a08f9c9854ef9e85097a7a72d`, with 107 focused tests and
+273 old/new TXT candidate/audit comparisons across all actual 137 pre-delete
+and 136 post-delete TXT files. Original exact physical candidate, transaction
+and saved readback are unchanged. See the
+[canonical continuation review](phase-18-p18-042-root-bmp-independent-r3-review-20261010.md).
 
 This is IMPLEMENTED / TESTED OFFLINE only. It is not a complete runnable BMP
 operation or physical evidence, and it does not change the exact TXT fixture
 execution scope. No additional physical operation is authorized.
+
+Continuation checkpoint: **COMPLETE for the bounded pure host BMP model**;
+not a runnable BMP operation or hardware-ready full BMP workflow. No code
+connects it to final transactions, authorization or Device Library execution.
+The integrated exact TXT UI remains READY_FOR_HARDWARE_TEST, conditional on
+new operation-specific owner authorization; all other class execution remains
+unavailable. Final continuation closure changes documentation only.

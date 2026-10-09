@@ -25,7 +25,7 @@ P18-041 evidence closeout is complete and committed. Follow-on host probes of
 BMP/nested files and directory-marker boundaries are recorded in the
 [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
 No new USB request, physical write, production claim, marker or lock mutation
-has occurred; no push or merge. The full corrected Python 3.12 suite passed **1,133 run / 1,130 passed / three
+has occurred; no push or merge. The full corrected Python 3.12 suite passed **1,142 run / 1,139 passed / three
 established evidence skips**. Independent exact-code-head R3 review passed
 **P0=0 / P1=0 / P2=0** after one corrected P2 footer-message finding; 40
 focused integration/planning and 43 desktop regressions passed. The
@@ -45,9 +45,12 @@ no transaction or authorization and remains disconnected from all execution
 and UI admission. General root TXT/BMP execution scope is unchanged.
 
 Nine new host model tests and 89 existing Delete/UI regressions pass.
-Full portable validation and independent review of the shared TXT refactor
-are pending at this checkpoint; original actual P18-041 candidate/readback
-must remain exact. See the [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+Full portable validation is 1,142 run / 1,139 passed / three established skips.
+[Independent continuation R3 review](analysis/phase-18-p18-042-root-bmp-independent-r3-review-20261010.md)
+passes P0/P1/P2=0/0/0 at `ba0d36c`: 107 focused tests and 273 actual
+pre/post TXT candidate/audit comparisons pass; original physical candidate,
+transaction and readback remain exact. See the
+[follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
 No hardware, production safety-state mutation, push or merge.
 
 ## P18-041 — COMPLETE — EXACT MODERN ROOT-TXT DELETE PHYSICALLY DEMONSTRATED

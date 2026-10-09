@@ -385,3 +385,9 @@ unavailable. UI integration is host-tested; further UI/hardware validation
 requires separate owner authorization. Backup is not undo; Restore remains
 unavailable. See the [delivery record](analysis/phase-18-p18-042-device-library-delete-integration-20261010.md)
 and [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+
+The existing pure deletion model also has a host-only root-BMP helper for one
+ordinary 237×320 monochrome image. It validates structural survivor effects
+and remains disconnected from transaction construction, authorization and the
+Device Library Delete action. Its review and limits are in the
+[follow-on record](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).

@@ -185,3 +185,33 @@ The original Device Library UI and live admission are unchanged. Additional
 full validation and independent review cover the shared TXT model refactor;
 the earlier exact-head R3 PASS remains evidence for the original checkpoint,
 not a substitute for review of this continuation.
+
+### Continued development final result
+
+The pure host-only root-BMP model is **IMPLEMENTED / TESTED OFFLINE / REVIEWED**.
+Full suite at continuation code head `ba0d36c` is **1,142 run / 1,139 passed /
+three established skips**, exit 0, 119.630s. Nine BMP tests and 89 existing
+Delete/UI regressions pass; independent reviewer ran 107 focused tests and
+compared all 273 preserved before/post TXT candidates and complete audits
+against the prior `67d029b` implementation. Every comparison matches exactly;
+the original physical candidate, transaction and saved independent readback
+remain unchanged. No material continuation finding: **P0/P1/P2=0/0/0**.
+[Canonical continuation review](phase-18-p18-042-root-bmp-independent-r3-review-20261010.md)
+records scope and exact code head. The final documentation-only closure is
+acknowledged externally in `/external/local-path`.
+
+Completed task work packages: A evidence closeout; B–D exact Device Library
+integration and UX; E automated validation; F independent R3 and one corrected
+UI finding; G callback robustness, implemented root-BMP host model, nested
+TXT/BMP probes, and documented empty-directory/subtree marker blockers.
+General root TXT and BMP live execution, directories/subtrees, VNW-V10,
+physical GUI validation, atomicity and recovery remain unsupported/unproven.
+The original exact fixture is absent in current preserved state, so no Delete
+is enabled for surviving ordinary files. No further physical operation,
+production safety-state mutation, push or merge occurred.
+
+Continuation log `p18-042-root-bmp-tests.log` SHA-256: `9ada545899249422593ecbb58acae1db9f3c3112d69ea7ce6559aa4a575ec7e6`.
+
+Continuation log `p18-042-root-bmp-regressions.log` SHA-256: `bf57463200975f7540e8c6343be78f06908246f94a15fc4400d75b5cfc5731f8`.
+
+Continuation log `p18-042-root-bmp-full-tests.log` SHA-256: `d4dbe3a2ec789deccd08868b25a9e977245d05073e7b231c203537a1cec16ff2`.
