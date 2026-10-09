@@ -34,6 +34,22 @@ records the exact reviewed code commit. UI visual/packaging and physical
 validation remain outstanding; this task authorizes no hardware use. See the
 [P18-042 delivery record](analysis/phase-18-p18-042-device-library-delete-integration-20261010.md).
 
+### Authorized continuation — host-only root-BMP model
+
+After the reviewed UI checkpoint `67d029b`, the owner's “continue” instruction
+adds `build_one_root_bmp_delete_model` to the existing pure structural model.
+It reuses TXT survivor/pointer checks and the existing 237×320 monochrome BMP
+validator. First/middle/last files, read/unread flags and 16/32-byte prefixes
+are covered; malformed, nested and ambiguous BMP targets refuse. This builds
+no transaction or authorization and remains disconnected from all execution
+and UI admission. General root TXT/BMP execution scope is unchanged.
+
+Nine new host model tests and 89 existing Delete/UI regressions pass.
+Full portable validation and independent review of the shared TXT refactor
+are pending at this checkpoint; original actual P18-041 candidate/readback
+must remain exact. See the [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+No hardware, production safety-state mutation, push or merge.
+
 ## P18-041 — COMPLETE — EXACT MODERN ROOT-TXT DELETE PHYSICALLY DEMONSTRATED
 
 The exact VNW-V15 `root\IC_P18_041G_CLOCK_01.txt` experiment now reuses

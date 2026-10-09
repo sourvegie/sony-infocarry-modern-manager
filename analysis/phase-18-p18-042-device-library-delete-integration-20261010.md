@@ -175,3 +175,13 @@ Validation log `p18-042-r3-correction-full-tests.log` SHA-256: `e83d7cea6251650d
 Validation log `p18-042-r3-correction-focused.log` SHA-256: `4a4bd368c13b311b00af197ace4e07820ca2a3f3052c091581050ba826b221ba`.
 
 Validation log `p18-042-desktop-tests.log` SHA-256: `5f9020d751c8e646bb196c5a6579bc07fbeb3817cb5de4c7aa6b84c953d0e549`.
+
+## Owner-authorized continuation after initial closure
+
+The owner instructed “continue” after local checkpoint `67d029b`. Follow-on
+work now implements the pure host-only root-BMP structural model described in
+[the follow-on record](phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+The original Device Library UI and live admission are unchanged. Additional
+full validation and independent review cover the shared TXT model refactor;
+the earlier exact-head R3 PASS remains evidence for the original checkpoint,
+not a substitute for review of this continuation.

@@ -1,4 +1,4 @@
-"""Pure offline deletion modeling for one existing ordinary TXT record.
+"""Pure offline deletion modeling for an ordinary TXT or bounded root BMP.
 
 This module deliberately does not know about USB, backup directories, fixed
 state response objects, or authorization.  It transforms one already parsed
@@ -145,7 +145,7 @@ def _expected_survivor_raw(
 
 @dataclass(frozen=True)
 class OfflineDeleteModel:
-    """Deterministic candidate for one existing ordinary TXT leaf."""
+    """Deterministic structural candidate; it confers no execution authority."""
 
     source_blob_sha256: str
     candidate_blob: bytes
@@ -169,6 +169,32 @@ def build_one_txt_delete_model(
 ) -> OfflineDeleteModel:
     """Build and independently validate a one-record TXT deletion candidate."""
 
+    return _build_one_file_delete_model(parsed, target_path, target_record_offset, extension="txt")
+
+
+def build_one_root_bmp_delete_model(
+    parsed: ParsedBackupBlob,
+    target_path: str,
+    target_record_offset: int,
+) -> OfflineDeleteModel:
+    """Host-only structural model for one root-level 237x320 monochrome BMP.
+
+    Reuses the exact TXT survivor/pointer checks and existing BMP validator.
+    No fixed-state transaction, authorization, sender, or GUI admission is
+    created. Physical BMP deletion and recovery remain unproven.
+    """
+
+    return _build_one_file_delete_model(parsed, target_path, target_record_offset, extension="bmp")
+
+
+def _build_one_file_delete_model(
+    parsed: ParsedBackupBlob,
+    target_path: str,
+    target_record_offset: int,
+    *,
+    extension: str,
+) -> OfflineDeleteModel:
+
     if not isinstance(parsed, ParsedBackupBlob):
         raise DeleteModelError("parsed backup model is required")
     if not isinstance(target_path, str) or not target_path or "\x00" in target_path:
@@ -191,12 +217,20 @@ def build_one_txt_delete_model(
         raise DeleteModelError("target path is ambiguous")
     if target.name == "root" and target.kind == "directory":
         raise DeleteModelError("root record cannot be deleted")
-    if target.kind != "file":
-        raise DeleteModelError("only an existing ordinary TXT file can be deleted")
-    if target.extension.lower() != "txt":
-        raise DeleteModelError("only an existing ordinary TXT file can be deleted")
+    if target.kind != "file" or target.extension.lower() != extension:
+        raise DeleteModelError(f"only an existing ordinary {extension.upper()} file can be deleted")
     if target.name in {".", ".."}:
         raise DeleteModelError("directory marker cannot be deleted")
+    if extension == "bmp":
+        if len(parsed.paths[target.offset]) != 2 or parsed.paths[target.offset][0] != "root":
+            raise DeleteModelError("offline BMP deletion requires a root-level file")
+        if target.read_state not in {"read", "unread"} or target.payload_prefix_length not in {16, 32}:
+            raise DeleteModelError("offline BMP target has unsupported state or prefix geometry")
+        from .prepared_media_package import PreparedMediaPackageError, validate_bmp_payload
+        try:
+            validate_bmp_payload(parsed.payload_parts(target)[1])
+        except (BackupFormatError, PreparedMediaPackageError) as exc:
+            raise DeleteModelError(f"offline BMP target payload is unsupported: {exc}") from exc
 
     before_payloads = _payloads(parsed)
     if target_path not in before_payloads:
@@ -277,7 +311,7 @@ def build_one_txt_delete_model(
         "format": DELETE_MODEL_FORMAT,
         "state": "offline_candidate",
         "usb_transmission_performed": False,
-        "operation": "delete_one_existing_txt",
+        "operation": f"delete_one_existing_{extension}",
         "target": {
             "path": target_path,
             "record_offset_hex": f"0x{target_record_offset:08x}",
@@ -337,6 +371,11 @@ def build_one_txt_delete_model(
             "automatic_retry_allowed": False,
         },
     }
+    if extension == "bmp":
+        audit["host_profile"] = "host-offline-one-root-bmp-delete-v1"
+        audit["capability_status"] = "host_offline_not_live_enabled"
+        audit["safety"].update({"authorization_created": False, "transaction_constructed": False,
+                               "execution_available": False, "physical_behavior_proven": False})
     return OfflineDeleteModel(
         source_blob_sha256=source_blob_sha256,
         candidate_blob=candidate_blob,
@@ -352,4 +391,5 @@ __all__ = [
     "DeleteModelError",
     "OfflineDeleteModel",
     "build_one_txt_delete_model",
+    "build_one_root_bmp_delete_model",
 ]

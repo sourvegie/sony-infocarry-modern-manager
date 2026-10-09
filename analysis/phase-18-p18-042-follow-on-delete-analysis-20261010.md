@@ -159,3 +159,32 @@ this as host corroboration, not proof for arbitrary physical content/prefix
 geometry, marker placement or auxiliary associations. It agreed to retain the
 exact fixture gate. General root TXT remains prepared by existing host helpers
 only and unavailable for GUI execution until scoped extension/validation.
+
+## Authorized continuation: root-BMP structural model
+
+The owner instructed “continue” after reviewed UI checkpoint `67d029b`.
+`delete_model.build_one_root_bmp_delete_model` now exposes a pure host model
+for exactly one ordinary root-level 237×320 uncompressed 1-bit BMP. The
+existing one-TXT body is factored into a private shared one-file validator;
+`build_one_txt_delete_model` still fixes admission to TXT and retains its
+candidate/audit behavior. BMP uses the existing `validate_bmp_payload`, known
+read/unread flags and native 16/32-byte prefixes. The common repacker/checks
+prove sole path removal, every survivor record's permitted pointer changes,
+exact payloads/prefixes/timestamps/unknown bytes and parsed checksum. Its audit
+explicitly says `host_offline_not_live_enabled`; no complete fixed-state
+transaction, authorization, sealed bundle, sender or Device Library gate is
+added. Protected-state derivation is exercised independently in tests.
+
+Nine new portable tests cover 12 first/middle/last × prefix × read-state
+combinations, sole files/top-down images, invalid BMP headers and profiles,
+nested/root/directory/identity rejection, unsupported native geometry/state,
+overlap/ambiguity, before/after survivor auxiliary references and target
+reference refusal, deterministic source preservation, and continued rejection
+by existing TXT candidate and Device Library execution admission. All nine
+pass; 89 existing Delete/model/state/exact-facade/UI regressions pass.
+The full portable run and independent strong review are pending at this
+checkpoint, since the shared model is reused by the reviewed TXT path.
+
+This is IMPLEMENTED / TESTED OFFLINE only. It is not a complete runnable BMP
+operation or physical evidence, and it does not change the exact TXT fixture
+execution scope. No additional physical operation is authorized.
