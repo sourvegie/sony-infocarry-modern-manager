@@ -4892,6 +4892,7 @@ def launch_ttk_desktop(
             show_selection()
             show_library_selection()
             device_delete_status_var.set(message)
+            status_var.set(message)
         def prepare(cancelled: threading.Event, report: Any) -> Any:
             return device_delete_service.prepare(selection, cancelled=cancelled.is_set,
                 progress=lambda label, done, total: report(

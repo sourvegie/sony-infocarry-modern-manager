@@ -37,6 +37,15 @@ class Tree:
         self.items.clear()
 
 
+class Widget:
+    def configure(self, **_kwargs):
+        pass
+    def pack(self, **_kwargs):
+        pass
+    def pack_forget(self):
+        pass
+
+
 def callback_harness(env):
     source = ast.parse(inspect.getsource(desktop_ttk.launch_ttk_desktop))
     functions = {node.name: node for node in source.body[0].body if isinstance(node, ast.FunctionDef)}
@@ -44,8 +53,8 @@ def callback_harness(env):
                    ast.Subscript(ast.Name('env', ast.Load()), ast.Constant(key), ast.Load())) for key in env]
     # Use the actual callback bodies with their original lexical/nonlocal scopes.
     getter = ast.parse("def state():\n    return device_delete_active, library_device_change_in_progress, device_delete_evidence, loaded_backup_summary").body[0]
-    body = assignments + [functions[name] for name in ('start_library_operation', 'device_delete_action', 'close_action')] + [getter]
-    body += ast.parse('return device_delete_action, close_action, state').body
+    body = assignments + [functions[name] for name in ('start_library_operation', 'device_delete_action', 'close_action', 'show_selection', 'invalidate_library_transfer_review_if_stale')] + [getter]
+    body += ast.parse('return device_delete_action, close_action, state, show_selection, invalidate_library_transfer_review_if_stale').body
     wrapper = ast.FunctionDef('create', ast.arguments(posonlyargs=[], args=[ast.arg('env')], kwonlyargs=[], kw_defaults=[], defaults=[]), body, [], None)
     module = ast.fix_missing_locations(ast.Module([wrapper], []))
     globals_ = vars(desktop_ttk).copy()
@@ -72,6 +81,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         main_status = Var()
         library_status = Var()
         tree = Tree()
+        widget = Widget()
         dialogs, refreshes, controls, notices = [], [], [], []
         refresh_failure = {'fail': False}
         root = SimpleNamespace(destroy=lambda: notices.append('closed'))
@@ -83,6 +93,8 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
             worker=None, device_delete_active=False, device_delete_evidence=None,
             library_device_change_in_progress=False, library_operation_token=None,
             library_current_readiness=None, loaded_backup_summary=None,
+            library_current_plan_report=None, library_prepared_operation=None,
+            library_current_revision=None, library_technical_details_open=False,
             library_operation_controller=controller, device_delete_service=service,
             device_delete_status_var=statuses, status_var=main_status,
             library_status_var=library_status, library_operation_activity_var=Var(),
@@ -92,6 +104,14 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
             show_selection=lambda: statuses.set('Selection state'),
             show_library_selection=lambda: None,
             clear_library_review_for_input_change=lambda: None,
+            preview_image=None, export_button=widget, device_delete_button=widget,
+            replacement_button=widget, write_button=widget, details_var=Var(),
+            device_menu=SimpleNamespace(entryconfigure=lambda *_args, **_kwargs: None),
+            replacement_safety_owner=None, replacement_safety_configuration_error=None,
+            delete_service=service, image_preview=widget, preview=widget,
+            _set_readonly_text=lambda *_args: None,
+            update_transfer_footer=lambda: None,
+            invalidate_library_transfer_review_if_stale=lambda: None,
             refresh_tree=lambda: (_ for _ in ()).throw(OSError('disk')) if refresh_failure['fail'] else refreshes.append(tuple(r.display_name for r in model.rows())),
             update_device_home_display=lambda: None,
             set_library_operation_busy=lambda busy, **kwargs: controls.append(busy),
@@ -99,7 +119,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
             cancel_event=threading.Event(),
             messagebox=SimpleNamespace(showinfo=lambda *a, **kw: notices.append(a), askyesno=lambda *a, **kw: True),
         )
-        action, close, state = callback_harness(env)
+        action, close, state, show_selection, invalidate_review = callback_harness(env)
         def drain():
             # Each callback is delivered on this test's main thread, as with Tk.
             while controller.busy or not posted.empty():
@@ -110,7 +130,8 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
                 callback()
         return SimpleNamespace(data=data, action=action, close=close, state=state, controller=controller,
             drain=drain, dialogs=dialogs, refreshes=refreshes, controls=controls, notices=notices,
-            tree=tree, statuses=statuses, main_status=main_status, posted=posted, refresh_failure=refresh_failure)
+            tree=tree, statuses=statuses, main_status=main_status, posted=posted, refresh_failure=refresh_failure,
+            show_selection=show_selection, invalidate_review=invalidate_review)
 
     def test_delete_confirm_verify_refresh_in_one_dialog(self):
         ui = self.setup_ui(reconnect=True)
@@ -119,6 +140,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         self.assertEqual(len(ui.dialogs), 1)
         self.assertEqual(len(ui.refreshes), 1)
         self.assertIn('Delete complete', ui.statuses.get())
+        self.assertEqual(ui.statuses.get(), ui.main_status.get())
         self.assertEqual(ui.tree.items, [])
         self.assertEqual(ui.state()[:2], (False, False))
         self.assertEqual(ui.state()[2].audit['workflow']['sender_calls'], 1)
@@ -134,6 +156,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         self.assertEqual(ui.data[0][3].calls, [])
         self.assertEqual(ui.state()[:2], (False, False))
         self.assertIn('cancelled', ui.statuses.get())
+        self.assertEqual(ui.statuses.get(), ui.main_status.get())
         self.assertTrue(ui.data[0][2]['closed'])
 
     def test_stale_selection_before_review_discards_without_dialog(self):
@@ -163,6 +186,23 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         self.assertEqual(len(ui.dialogs), 1)
         self.assertEqual(ui.data[0][3].calls, [])
 
+    def test_stale_transfer_review_cannot_discard_active_delete(self):
+        ui = self.setup_ui()
+        ui.action()
+        cells = dict(zip(ui.invalidate_review.__code__.co_freevars, ui.invalidate_review.__closure__))
+        cells['library_current_revision'].cell_contents = ('transfer-review', (), 'stale')
+        cells['library_selection_matches'].cell_contents = lambda _revision: False
+        # The actual selection callback calls the actual stale-review callback.
+        # Without its ownership guard, the shared controller is invalidated and
+        # the terminal Delete callback is silently discarded.
+        ui.show_selection()
+        ui.invalidate_review()
+        self.assertTrue(ui.controller.busy)
+        cells['library_current_revision'].cell_contents = None
+        ui.drain()
+        self.assertIn('Delete complete', ui.main_status.get())
+        self.assertEqual(len(ui.refreshes), 1)
+
     def test_preparation_cancel_never_opens_confirmation(self):
         ui = self.setup_ui()
         ui.action()
@@ -189,6 +229,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         ui.action()
         ui.drain()
         self.assertIn('transfer failed', ui.statuses.get())
+        self.assertEqual(ui.statuses.get(), ui.main_status.get())
         self.assertEqual(ui.refreshes, [])
         self.assertEqual(ui.state()[:2], (False, False))
 

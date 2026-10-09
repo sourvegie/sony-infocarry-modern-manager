@@ -119,3 +119,30 @@ mutations **0**, production global-lock mutations **0**. Fake counters exist
 only in temporary tests. GUI visual/packaged cross-platform smoke and any
 physical validation require further evidence; no CI is claimed. Physical
 atomicity and interrupted-write recovery remain unresolved.
+
+## Independent review correction round 1
+
+Independent R3 inspected exact integration head
+`0f4dded047112c3aee45415a7c1df830e2f099b3`, independently verified the 43
+artifacts and eight report hashes, reran actual before/post verification, and
+ran 39 integration tests plus 121 dependency/desktop regressions. Initial
+findings: **P0=0 / P1=0 / P2=1**. The only P2 was an actual UI interaction:
+`show_selection()` overwrote the main footer's terminal Delete warning with a
+read-only text-preview message. The dedicated Delete status retained the
+warning, but the main footer could obscure the indeterminate/locked outcome.
+
+Correction restores both status variables after selection/control refresh.
+The callback harness now executes the real `show_selection()` and real stale
+transfer-review invalidator, preserving terminal messages in both places and
+proving that a stale transfer review cannot discard the shared controller's
+active Delete result. Focused integration/planning now **40 passed**.
+Pre-correction final code-head suite: **1,132 run / 1,129 passed / 3 established
+skips**, 116.749s. Corrected full run and exact-head re-review are pending.
+External independent report: `/external/local-path`.
+
+Additional host check: all four actual surviving root TXT files in the
+preserved post-delete backup pass the existing pure structural model and
+protected-state candidate derivation. This corroborates host modeling, but
+does not establish a physical class-level envelope; independent review agrees
+the exact fixture execution gate must remain. Result record is outside Git:
+`/external/local-path`.
