@@ -1,6 +1,28 @@
 # Current Project Status
 
-Date: 2026-10-07
+Date: 2026-10-09
+
+## P18-041 — MODERN EXACT ROOT-TXT DELETE — READY_FOR_HARDWARE_TEST
+
+The exact VNW-V15 `root\IC_P18_041G_CLOCK_01.txt` experiment now reuses
+H2's frozen operation, reconnect-safe device-state equivalence, canonical
+single-use claim, sender marker, installation-wide lock and guarded sender.
+The modern candidate preserves survivor timestamps and protected unrelated
+auxiliary associations. Normal Device Library Delete remains disabled.
+
+The October 9 complete backup is used offline only. Its derived candidate and
+five auxiliary blocks exactly match the independently captured pre-placement
+state. Eventual execution obtains a new fresh complete backup and capacity
+response and accepts only `DELETE IC_P18_041G_CLOCK_01.txt ONCE`.
+No real device access, physical write, production claim or marker occurred.
+Host validation passes 130 focused and 1,098 full portable tests with three
+established skips. Independent R3 review corrected one audit-binding defect;
+final exact-head review and the checkpoint are recorded in the
+[P18-041 implementation record](analysis/phase-18-p18-041-modern-root-txt-delete-20261009.md).
+The [operator procedure](analysis/phase-18-p18-041-modern-root-txt-delete-procedure-20261009.md)
+requires separate operation-specific owner approval before physical use.
+This modern direction supersedes H1's serial/native-preexecution assumptions
+for this experiment; it makes no new claim about legacy-native equivalence.
 
 ## P18-041H2 — FIXTURE PLACEMENT READY_FOR_HARDWARE_TEST — RECONNECT-SAFE OWNER AUTHORIZATION
 

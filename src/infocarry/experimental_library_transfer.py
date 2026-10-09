@@ -441,7 +441,7 @@ class GuardedLibraryExecutionCoordinator:
                 stage="confirmation",
                 audit={"review_sha256": review_digest},
             )
-        if (root_placement and confirmation != CONFIRMATION) or (
+        if (root_placement and confirmation != operation_bundle.authorization.core.confirmation_phrase) or (
             self.operation_binding is not None
             and confirmation != self.operation_binding.confirmation_phrase
         ):

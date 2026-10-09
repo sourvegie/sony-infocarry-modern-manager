@@ -1,0 +1,66 @@
+{
+  "baseline_blob_sha256": "8d0fb9acc094fcb1e20fb44a410d26ec7715fc76dc54c08176b367d2cf60e76a",
+  "baseline_bytes": 2210560,
+  "candidate_blob_sha256": "6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8",
+  "candidate_byte_exact_captured_preplacement_state": true,
+  "candidate_bytes": 2210432,
+  "candidate_checksum_valid": true,
+  "fixed_state_byte_exact_captured_preplacement_state": [
+    {
+      "byte_exact_preplacement_state": true,
+      "command": "0x001b",
+      "sha256": "4ce9a1114cead9382ed4f202c7991cfa6e0d5f4743538970896432a9380696cb"
+    },
+    {
+      "byte_exact_preplacement_state": true,
+      "command": "0x001c",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "byte_exact_preplacement_state": true,
+      "command": "0x001d",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "byte_exact_preplacement_state": true,
+      "command": "0x001e",
+      "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "byte_exact_preplacement_state": true,
+      "command": "0x001f",
+      "sha256": "1ea26ee6b56c771d47ea902c4f7b6af145781d7d22732097d822d20d377035eb"
+    }
+  ],
+  "format": "p18-041-modern-exact-root-txt-delete-offline-validation-v1",
+  "global_lock_mutations": 0,
+  "opaque_fixed_state_bytes_unchanged": true,
+  "ordinary_command": "1b1080ba2200",
+  "physical_writes": 0,
+  "production_claims_consumed": 0,
+  "profile": "vnw-v15-experimental-exact-root-txt-delete-v1",
+  "protected_references_rebased": 8,
+  "reclaimed_bytes": 128,
+  "records_after": 454,
+  "records_before": 455,
+  "sender_marker_mutations": 0,
+  "surviving_payload_count": 300,
+  "surviving_serialized_timestamps_preserved": 454,
+  "target_offset": "0x680",
+  "target_only_removed": true,
+  "target_path": "root\\IC_P18_041G_CLOCK_01.txt",
+  "target_payload_length": 29,
+  "target_payload_sha256": "9541c1b9d09ee7d4ab91c704755c4bea8b2022c3bb8f50aa15c1a990bf80c35d",
+  "transaction_range_lengths": [
+    256,
+    64,
+    65216,
+    0,
+    64,
+    0,
+    0,
+    2210368
+  ],
+  "transaction_sha256": "e5831e0e363cab494c3f4aa859763808fa5a7676b01c6fd4ddb15edd4d58c452",
+  "usb_operations": 0
+}

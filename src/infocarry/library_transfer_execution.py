@@ -527,6 +527,9 @@ class OwnerAuthorizedOperationIdentity:
 
     @property
     def approval_phrase(self) -> str:
+        if self.operation_id == "root-txt-delete-" + self.bundle_sha256:
+            from .p18_041h_experiment import FIXTURE_FILENAME
+            return f"DELETE {FIXTURE_FILENAME} ONCE"
         return f"APPROVE EXACT OPERATION {self.identity_sha256}"
 
 

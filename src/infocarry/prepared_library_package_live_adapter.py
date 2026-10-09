@@ -3059,7 +3059,7 @@ def execute_prepared_library_package_live(
             "format": P17_005_RUNNER_FORMAT,
             "state": "readback_verified",
             "profile": (
-                ROOT_TXT_PLACEMENT_PROFILE if root_txt_placement
+                bundle.operation_profile if root_txt_placement
                 else _runner_profile_label(_profile_id_from_candidate(candidate))
             ),
             "device_identity": list(_expected_device_hex()),
@@ -3119,7 +3119,7 @@ def execute_prepared_library_package_live(
                 claim_record, sender_marker.record, execution_claim_store,
                 evidence_outputs.manifest,
             )
-            bundle.write_placement_report(evidence_outputs.root, audit, after)
+            bundle.write_operation_report(evidence_outputs.root, audit, after)
         else:
             write_sender_marker_terminal_resolution_evidence(
                 evidence_outputs.root / "sender-marker-resolution-0001.json",

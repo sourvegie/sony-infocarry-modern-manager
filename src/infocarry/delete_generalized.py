@@ -23,6 +23,7 @@ from .delete_state import (
     DeleteStateCandidate,
     DeleteStateError,
     derive_supported_delete_state,
+    derive_preserved_delete_state,
 )
 from .write_artifact import (
     ProspectiveWriteTransaction,
@@ -216,6 +217,7 @@ def build_generalized_delete_candidate(
     *,
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+    preserve_unreferenced_auxiliary_state: bool = False,
 ) -> GeneralizedDeleteCandidate:
     """Build and validate one supported deletion from a fresh backup.
 
@@ -223,6 +225,8 @@ def build_generalized_delete_candidate(
     candidate never uses attempt-specific timestamps or fixed-state blocks.
     """
 
+    if type(preserve_unreferenced_auxiliary_state) is not bool:
+        raise GeneralizedDeleteError("auxiliary-state preservation opt-in must be boolean")
     try:
         backup = verify_fresh_backup(
             backup_directory,
@@ -235,12 +239,18 @@ def build_generalized_delete_candidate(
         if model.source_blob_sha256 != backup.blob_sha256:
             raise GeneralizedDeleteError("fresh backup blob hash differs from parsed baseline")
         fixed_state_before = _fixed_state_from_backup(backup)
-        state = derive_supported_delete_state(
-            fixed_state_before,
-            target_record_offset=target_record_offset,
-            metadata_start=baseline.header.metadata_start,
-            record_size=baseline.header.record_size,
-        )
+        if preserve_unreferenced_auxiliary_state:
+            state = derive_preserved_delete_state(
+                backup, baseline, parse_backup_blob(model.candidate_blob),
+                target_record_offset=target_record_offset,
+            )
+        else:
+            state = derive_supported_delete_state(
+                fixed_state_before,
+                target_record_offset=target_record_offset,
+                metadata_start=baseline.header.metadata_start,
+                record_size=baseline.header.record_size,
+            )
         transaction = _build_transaction(model.candidate_blob, state)
     except (BackupFormatError, DeleteModelError, DeleteStateError, WriteGateError, OSError) as exc:
         raise GeneralizedDeleteError(f"could not build generalized delete candidate: {exc}") from exc
@@ -253,7 +263,8 @@ def build_generalized_delete_candidate(
         "operation": "delete_one_existing_txt",
         "policy": {
             "timestamps": "preserve_surviving_timestamps",
-            "fixed_state": "derive_from_fresh_backup_and_clear_only_proven_target_references",
+            "fixed_state": (state.audit["policy"] if preserve_unreferenced_auxiliary_state
+                            else "derive_from_fresh_backup_and_clear_only_proven_target_references"),
             "legacy_timestamp_rule": "unresolved",
         },
         "device": {

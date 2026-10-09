@@ -203,6 +203,18 @@ class RootTxtPlacementBundle:
         return "root-txt-placement-" + self.seal_sha256
 
     @property
+    def operation_profile(self) -> str:
+        return ROOT_TXT_PLACEMENT_PROFILE
+
+    @property
+    def result_format(self) -> str:
+        return "infocarry-exact-root-txt-placement-result-v1"
+
+    @property
+    def terminal_format(self) -> str:
+        return "infocarry-exact-root-txt-terminal-resolution-v1"
+
+    @property
     def bundle_sha256(self) -> str:
         return self.seal_sha256
 
@@ -380,7 +392,7 @@ class RootTxtPlacementBundle:
                 expected_verification["independent_complete_backup_verification"][label].pop("verified_at_utc", None)
         if audit.get("state") != "readback_verified" or audit.get("completion") != "0x0000" or audit.get("workflow", {}).get("sender_calls") != 1 or audit_verification != expected_verification:
             raise ValueError("success audit is not the verified one-shot result")
-        _write_json(destination, {"format": "infocarry-exact-root-txt-placement-result-v1",
+        _write_json(destination, {"format": self.result_format,
                                  "bundle": json.loads(self.envelope_json),
                                  "before_backup": before.to_dict(), "after_backup": after.to_dict(),
                                  "result_audit": audit})
@@ -389,7 +401,7 @@ class RootTxtPlacementBundle:
         current = store.read_sender_in_flight()
         if current is not None:
             raise ValueError("sender marker remains unresolved")
-        _write_json(destination, {"format": "infocarry-exact-root-txt-terminal-resolution-v1",
+        _write_json(destination, {"format": self.terminal_format,
                                  "claim": claim.to_dict(), "sender_marker": marker.to_dict(),
                                  "resolution": "verified_terminal_success",
                                  "result_manifest": OperationArtifact.file(result_manifest).to_dict()})
@@ -416,6 +428,10 @@ class RootTxtPlacementBundle:
             "result_manifest": OperationArtifact.file(Path(root) / "result-manifest-0001.json").to_dict()})
         _validate_fixture_prestage_report(path)
         return path
+
+    def write_operation_report(self, root, audit, after) -> Path:
+        """Canonical runner hook; the established placement report is unchanged."""
+        return self.write_placement_report(root, audit, after)
 
     def reconcile_result(self, result):
         if result.preflight is not self or result.candidate is not self.candidate or result.authorization is not self.authorization or result.audit.get("workflow", {}).get("sender_calls") != 1:
@@ -524,7 +540,7 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
         if self.owner_approval_accepted:
             self.discard_prepared_operation()
             raise LibraryTransferExecutionError("approved operation cannot adopt a replacement", stage="owner_authorization")
-        if not isinstance(prepared, RootTxtPlacementBundle) or prepared.runtime is not self.runtime:
+        if type(prepared) is not RootTxtPlacementBundle or prepared.runtime is not self.runtime:
             raise ValueError("placement can adopt only its own pinned bundle")
         prepared.verify_seal()
         self._prepared_operation = prepared

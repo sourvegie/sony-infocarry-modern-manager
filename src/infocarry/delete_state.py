@@ -170,6 +170,78 @@ def derive_supported_delete_state(
     )
 
 
+def derive_preserved_delete_state(backup, baseline, candidate, *, target_record_offset):
+    """Preserve established history/bookmark associations across one removal.
+
+    Unlike the historical target-clear policy, this opt-in refuses to delete
+    an auxiliary-referenced target. Only the already supported history and
+    bookmark pointer fields may move; Mark state and opaque bytes stay exact.
+    """
+    from .prepared_fixed_state import assess_prepared_fixed_state
+
+    try:
+        snapshot = assess_prepared_fixed_state(
+            backup, allow_verified_display_history=True,
+            allow_verified_bookmarks=True,
+        ).require_supported()
+        size = baseline.header.record_size
+        if size != 0x40 or candidate.header.metadata_start != baseline.header.metadata_start:
+            raise DeleteStateError("unsupported delete metadata geometry")
+        if len(candidate.records) != len(baseline.records) - 1:
+            raise DeleteStateError("auxiliary rebase requires exactly one removed record")
+        target_ref = target_record_offset - baseline.header.metadata_start
+        if target_ref < 0 or target_ref % size:
+            raise DeleteStateError("delete target metadata reference is not aligned")
+        after = [bytearray(raw) for raw in snapshot.raw_blocks]
+        references = []
+
+        def preserve(relative, path, block_index, byte_offset):
+            if relative == target_ref:
+                raise DeleteStateError("delete target is referenced by protected auxiliary state")
+            new_ref = relative - size if relative > target_ref else relative
+            old_offset = baseline.header.metadata_start + relative
+            new_offset = candidate.header.metadata_start + new_ref
+            if baseline.paths.get(old_offset) != path or candidate.paths.get(new_offset) != path:
+                raise DeleteStateError("auxiliary reference no longer resolves to the same survivor")
+            old_record, new_record = baseline.record_at(old_offset), candidate.record_at(new_offset)
+            old_raw, new_raw = bytes.fromhex(old_record.raw_hex), bytes.fromhex(new_record.raw_hex)
+            if old_record.kind != "file" or new_record.kind != "file":
+                raise DeleteStateError("protected auxiliary reference is not an ordinary file")
+            if old_raw[:4] + old_raw[8:] != new_raw[:4] + new_raw[8:]:
+                raise DeleteStateError("protected survivor bytes changed outside its payload pointer")
+            if baseline.payload_parts(old_record) != candidate.payload_parts(new_record):
+                raise DeleteStateError("protected survivor prefix or payload changed")
+            after[block_index][byte_offset:byte_offset + 4] = new_ref.to_bytes(4, "big")
+            references.append({"command": f"0x{FIXED_STATE_COMMANDS[block_index]:04x}",
+                "byte_offset": byte_offset, "before_relative": relative,
+                "after_relative": new_ref, "path": "\\".join(path)})
+
+        for index, (relative, path) in enumerate(snapshot.display_history_paths):
+            preserve(relative, path, 0, 8 + index * 4)
+        for group_index, relative, path in snapshot.bookmark_group_paths:
+            preserve(relative, path, 4, group_index * 20)
+        after = tuple(bytes(raw) for raw in after)
+        # Independently prove that no byte outside a resolved pointer moved.
+        allowed = {(entry["command"], entry["byte_offset"] + i)
+                   for entry in references for i in range(4)}
+        for command, old, new in zip(FIXED_STATE_COMMANDS, snapshot.raw_blocks, after):
+            for offset, (left, right) in enumerate(zip(old, new)):
+                if left != right and (f"0x{command:04x}", offset) not in allowed:
+                    raise DeleteStateError("delete rebase changed opaque fixed-state bytes")
+        changed = tuple(c for c, old, new in zip(FIXED_STATE_COMMANDS, snapshot.raw_blocks, after)
+                        if old != new)
+        return DeleteStateCandidate(snapshot.raw_blocks, after, target_ref, changed,
+            {"format": DELETE_STATE_FORMAT,
+             "policy": "preserve_supported_auxiliary_associations_across_one_removal",
+             "target_referenced": False, "metadata_delta": -size,
+             "references": references, "opaque_bytes_preserved_exactly": True,
+             "usb_transmission_performed": False})
+    except DeleteStateError:
+        raise
+    except Exception as exc:
+        raise DeleteStateError(f"protected delete-state derivation failed: {exc}") from exc
+
+
 __all__ = [
     "DELETE_STATE_FORMAT",
     "FIXED_STATE_COMMANDS",
@@ -177,4 +249,5 @@ __all__ = [
     "DeleteStateCandidate",
     "DeleteStateError",
     "derive_supported_delete_state",
+    "derive_preserved_delete_state",
 ]

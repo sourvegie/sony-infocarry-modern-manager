@@ -350,3 +350,17 @@ This project's own source code is released under the MIT License; see
 [`LICENSE`](LICENSE). The license does not grant rights to Sony proprietary
 software, firmware, documentation, trademarks, captures, backups, private
 evidence, or the separate `InfoCarry-Toolkit` and reference archives.
+
+## Exact P18-041 developer experiment
+
+Normal Device Library Delete remains disabled. The isolated exact VNW-V15
+fixture experiment is documented in the
+[operator procedure](analysis/phase-18-p18-041-modern-root-txt-delete-procedure-20261009.md).
+Default script use is offline and never opens USB or installation safety state:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/experimental_root_txt_delete.py --backup /absolute/complete-backup --output /absolute/new-directory-outside-repository
+```
+
+`--allow-write` is reserved for a separately owner-approved hardware experiment;
+it refuses archived offline inputs and collects a new complete backup.
