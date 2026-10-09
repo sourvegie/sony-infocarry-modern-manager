@@ -26,6 +26,10 @@ from .backup_history import (
 )
 from .capture import CaptureError
 from .desktop import DesktopWorkflowError, DesktopWorkflowModel
+from .device_library_delete_execution import (
+    DeviceLibraryDeleteError, DeviceLibraryDeleteService, select_device_library_delete,
+    load_verified_delete_result, delete_failure_message,
+)
 from .app_paths import ApplicationPaths, application_paths
 from .device_home import (
     DeviceHomeService,
@@ -1719,8 +1723,37 @@ def refresh_device_library_from_verified_transfer(
     return summary
 
 
+def confirm_device_library_delete(parent: Any, message: str) -> bool:
+    """One readable Delete/Cancel dialog, with Cancel as the default action."""
+    import tkinter as tk
+    from tkinter import ttk
+    dialog = tk.Toplevel(parent)
+    dialog.title("Confirm Delete")
+    dialog.transient(parent)
+    dialog.resizable(False, False)
+    answer = False
+    def finish(confirmed: bool) -> None:
+        nonlocal answer
+        answer = confirmed
+        dialog.destroy()
+    ttk.Label(dialog, text=message, wraplength=460, justify="left", padding=20).pack()
+    buttons = ttk.Frame(dialog, padding=(20, 0, 20, 20))
+    buttons.pack(fill="x")
+    cancel = ttk.Button(buttons, text="Cancel", command=lambda: finish(False))
+    cancel.pack(side="right")
+    ttk.Button(buttons, text="Delete", command=lambda: finish(True)).pack(side="right", padx=(0, 8))
+    dialog.protocol("WM_DELETE_WINDOW", lambda: finish(False))
+    dialog.bind("<Escape>", lambda _event: finish(False))
+    dialog.bind("<Return>", lambda _event: finish(False))
+    cancel.focus_set()
+    dialog.grab_set()
+    parent.wait_window(dialog)
+    return answer
+
+
 def launch_ttk_desktop(
     execution_facade: Optional[LibraryTransferExecutionFacade] = None,
+    delete_service: Optional[DeviceLibraryDeleteService] = None,
 ) -> None:
     """Launch the ttk manager with the guarded Library facade."""
 
@@ -1783,6 +1816,17 @@ def launch_ttk_desktop(
             replacement_safety_owner,
             replacement_safety_configuration_error,
         )
+    def create_delete_runtime() -> Any:
+        # Lazy and shared: startup opens no USB session, and Delete never creates
+        # a second persistent safety owner when configuration is unavailable.
+        if replacement_safety_owner is None:
+            raise DeviceLibraryDeleteError("Delete is blocked because write-safety state is unavailable.", stage="write_guard")
+        from .library_transfer_runtime_provider import ProductionLibraryTransferRuntimeProvider
+        return ProductionLibraryTransferRuntimeProvider.for_current_application().create_root_txt_runtime(
+            write_safety_owner=replacement_safety_owner)
+    device_delete_service = delete_service or DeviceLibraryDeleteService(create_delete_runtime)
+    device_delete_evidence: Optional[Any] = None
+    device_delete_active = False
     events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
     cancel_event = threading.Event()
     worker: Optional[threading.Thread] = None
@@ -2352,6 +2396,15 @@ def launch_ttk_desktop(
         invalidate_library_transfer_review_if_stale()
 
     def show_technical_details_action() -> None:
+        if device_delete_evidence is not None:
+            value = device_delete_evidence
+            if isinstance(value, BaseException):
+                report = {"error": str(value), "stage": getattr(value, "stage", None),
+                          "audit": getattr(value, "audit", {})}
+            else:
+                report = dict(value.audit)
+            messagebox.showinfo("Delete Technical Details", json.dumps(report, indent=2, default=str), parent=root)
+            return
         details = device_technical_details or "No USB session details are available yet."
         messagebox.showinfo("Technical Details", details, parent=root)
 
@@ -2748,6 +2801,8 @@ def launch_ttk_desktop(
         nonlocal library_current_plan_report, library_current_readiness
         nonlocal library_prepared_operation, library_current_revision
         nonlocal library_technical_details_open
+        if device_delete_active or library_device_change_in_progress:
+            return
         revision = library_current_revision
         if (
             isinstance(revision, tuple)
@@ -2822,6 +2877,7 @@ def launch_ttk_desktop(
                 backup_button,
                 open_button,
                 export_button,
+                device_delete_button,
                 replacement_button,
                 write_button,
             ):
@@ -2857,6 +2913,8 @@ def launch_ttk_desktop(
             show_library_selection()
 
     def library_cancel_action() -> None:
+        if library_device_change_in_progress:
+            return
         if library_operation_controller.cancel():
             library_status_var.set(
                 "Stopping the host-only operation… no device-changing action was started"
@@ -2892,6 +2950,8 @@ def launch_ttk_desktop(
         *,
         validate_revision: bool = True,
         on_terminal: Any = None,
+        on_failure: Any = None,
+        on_activity: Any = None,
     ) -> None:
         """Start a Library operation and apply only current main-thread results."""
 
@@ -2907,6 +2967,8 @@ def launch_ttk_desktop(
 
         def on_progress(update: OperationProgress) -> None:
             library_operation_activity_var.set(update.label)
+            if on_activity is not None:
+                on_activity(update)
 
         def finish_terminal() -> None:
             if on_terminal is not None:
@@ -2932,10 +2994,18 @@ def launch_ttk_desktop(
                 finish_terminal()
                 return
             set_library_operation_busy(False)
+            if on_failure is not None and outcome.status is not OperationStatus.SUCCEEDED:
+                on_failure(outcome)
+                finish_terminal()
+                return
             if outcome.status is OperationStatus.SUCCEEDED:
                 try:
                     on_success(outcome.value)
                 except BaseException as error:
+                    if on_failure is not None:
+                        on_failure(OperationOutcome(outcome.token, OperationStatus.FAILED, error=error))
+                        finish_terminal()
+                        return
                     state = readiness_state_from_error(error)
                     library_current_readiness = state
                     _set_readonly_text(
@@ -3258,6 +3328,10 @@ def launch_ttk_desktop(
                 library_cancel_button,
             ):
                 button.configure(state="disabled")
+            return
+        if device_delete_active:
+            # Local selection must not invalidate the shared controller while
+            # it owns a Delete preparation/review. Terminal restores controls.
             return
         item = selected_library_item()
         enabled = item is not None and library_catalog is not None
@@ -4679,6 +4753,7 @@ def launch_ttk_desktop(
             show_library_selection()
         export_button.configure(state="disabled" if busy or not tree.selection() else "normal")
         if busy:
+            device_delete_button.configure(state="disabled")
             replacement_button.configure(state="disabled")
             write_button.configure(state="disabled")
         if busy:
@@ -4776,17 +4851,130 @@ def launch_ttk_desktop(
         update_transfer_footer()
         show_selection()
 
+    def device_delete_action() -> None:
+        nonlocal device_delete_active, device_delete_evidence
+        if device_delete_active or library_operation_controller.busy or library_device_change_in_progress or (worker is not None and worker.is_alive()):
+            return
+        offsets = tuple(tree_items[item] for item in tree.selection() if item in tree_items)
+        try:
+            selection = select_device_library_delete(model, offsets)
+        except DeviceLibraryDeleteError as exc:
+            device_delete_status_var.set(str(exc))
+            return
+        clear_library_review_for_input_change()
+        device_delete_active = True
+        device_delete_evidence = None
+        device_delete_status_var.set("Preparing backup…")
+        def selected_matches() -> bool:
+            current = tuple(tree_items[item] for item in tree.selection() if item in tree_items)
+            try:
+                return select_device_library_delete(model, current) == selection
+            except DeviceLibraryDeleteError:
+                return False
+        def activity(update: OperationProgress) -> None:
+            device_delete_status_var.set(update.label)
+            status_var.set(update.label)
+        def failure(outcome: OperationOutcome[Any]) -> None:
+            nonlocal device_delete_evidence
+            device_delete_service.discard()
+            if outcome.cancelled:
+                message = "Delete cancelled before execution; device storage was not changed."
+            else:
+                device_delete_evidence = outcome.error
+                message = delete_failure_message(outcome.error or RuntimeError("Delete failed"))
+            device_delete_status_var.set(message)
+            status_var.set(message)
+        def terminal() -> None:
+            nonlocal device_delete_active, library_device_change_in_progress
+            message = device_delete_status_var.get()
+            device_delete_active = False
+            library_device_change_in_progress = False
+            show_selection()
+            show_library_selection()
+            device_delete_status_var.set(message)
+        def prepare(cancelled: threading.Event, report: Any) -> Any:
+            return device_delete_service.prepare(selection, cancelled=cancelled.is_set,
+                progress=lambda label, done, total: report(
+                    "Validating operation" if label == "Validating operation" else "Preparing backup", done, total))
+        def reviewed(prepared: Any) -> None:
+            nonlocal library_device_change_in_progress
+            if not selected_matches():
+                device_delete_service.discard()
+                device_delete_status_var.set("Selection changed. Review Delete again; no device change was started.")
+                terminal()
+                return
+            confirmed = confirm_device_library_delete(root, prepared.confirmation_message)
+            if not confirmed or not selected_matches():
+                device_delete_service.discard()
+                device_delete_status_var.set("Delete cancelled or selection changed; device storage was not changed.")
+                terminal()
+                return
+            if library_operation_controller.busy or (worker is not None and worker.is_alive()):
+                device_delete_service.discard()
+                terminal()
+                return
+            def execute(_cancelled: threading.Event, report: Any) -> Any:
+                sender_seen = False
+                def live_progress(label: str, done: Any, total: Any) -> None:
+                    nonlocal sender_seen
+                    if label in {"Write authorized", "Header sent", "Sending payload", "Write complete"}:
+                        sender_seen = True
+                        message = "Transferring — keep the InfoCarry connected"
+                    elif sender_seen:
+                        message = "Verifying result — keep the InfoCarry connected"
+                    else:
+                        message = "Preparing fresh backup and validating operation"
+                    report(message, done, total)
+                report("Validating operation")
+                return device_delete_service.execute_once(prepared, confirmed=True, progress=live_progress)
+            def success(result: Any) -> None:
+                nonlocal loaded_backup_summary, device_delete_evidence
+                device_delete_evidence = result
+                loaded_backup_summary = load_verified_delete_result(model, result)
+                try:
+                    tree.selection_remove(tree.selection())
+                    refresh_tree()
+                    update_device_home_display()
+                except Exception:
+                    device_delete_status_var.set("Delete verified; Device Library refresh failed. Open the saved post-delete backup.")
+                    status_var.set(device_delete_status_var.get())
+                    return
+                device_delete_status_var.set("Delete complete — removal and surviving content verified.")
+                status_var.set(device_delete_status_var.get())
+            library_device_change_in_progress = True
+            start_library_operation("Delete from InfoCarry", (), execute, success,
+                validate_revision=False, on_terminal=terminal, on_failure=failure, on_activity=activity)
+            library_cancel_button.configure(state="disabled")
+        # The shared background controller handles preparation cancellation and
+        # Tk handoff. After confirmation it is exclusively owned by the sealed
+        # one-shot operation; selection changes cannot discard a terminal result.
+        def preparation_terminal() -> None:
+            if not library_operation_controller.busy:
+                terminal()
+        start_library_operation("Prepare Delete", (), prepare, reviewed,
+            validate_revision=False, on_terminal=preparation_terminal, on_failure=failure, on_activity=activity)
+
     def show_selection(_event: Any = None) -> None:
         nonlocal preview_image
         update_transfer_footer()
         invalidate_library_transfer_review_if_stale()
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         export_button.configure(state="normal" if selected and worker is None else "disabled")
-        device_delete_status_var.set(
-            "Delete is not enabled for this selection."
-            if selected
-            else "Select device files or folders; Delete is currently unavailable."
-        )
+        delete_message = "Select one supported root-level TXT file."
+        delete_allowed = False
+        try:
+            select_device_library_delete(model, selected)
+            delete_allowed = replacement_safety_owner is not None or delete_service is not None
+            if delete_service is None and replacement_safety_owner is not None:
+                delete_allowed = _application_safety_notice(replacement_safety_owner, replacement_safety_configuration_error) is None
+            delete_message = "Experimental Delete is available for this exact file." if delete_allowed else "Delete is blocked because write-safety state is unavailable."
+        except DeviceLibraryDeleteError as exc:
+            delete_message = str(exc)
+        manager_busy = library_operation_controller.busy or library_device_change_in_progress or (worker is not None and worker.is_alive())
+        device_delete_button.configure(state="normal" if delete_allowed and not manager_busy else "disabled")
+        device_menu.entryconfigure("Delete…", state="normal" if delete_allowed and not manager_busy else "disabled")
+        if not device_delete_active:
+            device_delete_status_var.set(delete_message)
         if not selected:
             replacement_button.configure(state="disabled")
             write_button.configure(state="disabled")
@@ -4799,7 +4987,7 @@ def launch_ttk_desktop(
         if len(selected) > 1:
             replacement_button.configure(state="disabled")
             write_button.configure(state="disabled")
-            details_var.set(f"{len(selected)} items selected\nDelete is not enabled for this selection")
+            details_var.set(f"{len(selected)} items selected\n{delete_message}")
             image_preview.pack_forget()
             preview.pack(fill="both", expand=True)
             _set_readonly_text(preview, "Multiple items selected. Choose Download selected… to export them.")
@@ -4819,7 +5007,7 @@ def launch_ttk_desktop(
         details_var.set(
             f"{row.display_name}\n\nType: {row.kind}\nSize: {size}\n"
             f"Path: {_device_path_label(device_path_parts)}\n"
-            "Delete is not enabled for this selection."
+            f"{delete_message}"
         )
         if row.kind == "file" and row.extension.lower() == "txt":
             image_preview.pack_forget()
@@ -5305,8 +5493,8 @@ def launch_ttk_desktop(
         library_busy = library_operation_controller.busy
         if library_device_change_in_progress:
             messagebox.showinfo(
-                "Transfer in progress",
-                "The transfer is still running. Keep the InfoCarry connected and leave "
+                "Device operation in progress",
+                "The device operation is still running. Keep the InfoCarry connected and leave "
                 "this window open until the Manager reports a terminal result.",
                 parent=root,
             )
@@ -5323,6 +5511,7 @@ def launch_ttk_desktop(
                 library_operation_controller.close()
         else:
             library_operation_controller.close()
+        device_delete_service.close_preparation()
         root.destroy()
 
     tree.bind("<<TreeviewSelect>>", show_selection)
@@ -5346,6 +5535,7 @@ def launch_ttk_desktop(
     library_technical_details_action_button.configure(
         command=library_technical_details_action
     )
+    device_delete_button.configure(command=device_delete_action)
     device_details_button.configure(command=toggle_device_inspector)
     library_transfer_button.configure(command=library_transfer_action)
 
@@ -5357,7 +5547,7 @@ def launch_ttk_desktop(
             "then choose Transfer. Existing items are never overwritten. A transfer may be "
             "planned offline even when that selection is not enabled for device transfer.\n\n"
             "Back Up saves a read-only snapshot. Backup is not Restore, and Restore is unavailable. "
-            "Delete is not enabled for general selections yet.",
+            "Delete is Experimental for the exact demonstrated root TXT file only; other files and folders remain unavailable.",
             parent=root,
         )
 
@@ -5399,7 +5589,7 @@ def launch_ttk_desktop(
     )
     device_menu.add_command(label="Export Selected…", command=export_action)
     device_menu.add_separator()
-    device_menu.add_command(label="Delete…", state="disabled")
+    device_menu.add_command(label="Delete…", state="disabled", command=device_delete_action)
     menu_bar.add_cascade(label="Device", menu=device_menu)
 
     view_menu = tk.Menu(menu_bar, tearoff=False)

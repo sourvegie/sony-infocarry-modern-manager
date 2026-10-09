@@ -523,7 +523,7 @@ class DesktopTtkMessageTests(unittest.TestCase):
         )
         close_action = source[close_start:close_end]
         self.assertIn("if library_device_change_in_progress:", close_action)
-        self.assertIn('"Transfer in progress"', close_action)
+        self.assertIn('"Device operation in progress"', close_action)
         self.assertIn("return", close_action)
 
         # Clicking OK authorizes the existing exact sealed operation; it does

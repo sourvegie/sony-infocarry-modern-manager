@@ -353,8 +353,8 @@ evidence, or the separate `InfoCarry-Toolkit` and reference archives.
 
 ## Exact P18-041 developer experiment
 
-Normal Device Library Delete remains disabled. The isolated exact VNW-V15
-fixture experiment is documented in the
+Device Library Delete now uses the exact P18-041 VNW-V15 fixture gate. General
+selections remain disabled. The separately authorized developer experiment is documented in the
 [operator procedure](analysis/phase-18-p18-041-modern-root-txt-delete-procedure-20261009.md).
 Default script use is offline and never opens USB or installation safety state:
 
@@ -364,3 +364,24 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/experimental_r
 
 `--allow-write` is reserved for a separately owner-approved hardware experiment;
 it refuses archived offline inputs and collects a new complete backup.
+
+## Device Library Delete
+
+Select the exact demonstrated root TXT file, choose **Delete**, then review
+one **Delete / Cancel** dialog. The Manager obtains a fresh complete backup,
+validates the selected state, freezes the operation and performs final fresh
+backup/state checks before one guarded send. Completion requires native zero,
+a complete independent post-backup, survivor/protected-state verification and
+terminal resolution before Device Library refresh. Progress stays responsive;
+preparation can be cancelled, while confirmed execution keeps the window open
+and offers no mid-write cancel or automatic retry. Technical evidence remains
+under **More → Technical Details**.
+
+Currently admitted: only VNW-V15 `root\IC_P18_041G_CLOCK_01.txt`, exact 29-byte
+fixture and payload, under the existing protected-state gate. That fixture is
+already absent from the preserved successful post-delete library. General root
+TXT, BMP, nested files, directories, multiple selections and VNW-V10 are
+unavailable. UI integration is host-tested; further UI/hardware validation
+requires separate owner authorization. Backup is not undo; Restore remains
+unavailable. See the [delivery record](analysis/phase-18-p18-042-device-library-delete-integration-20261010.md)
+and [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).

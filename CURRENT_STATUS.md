@@ -1,6 +1,33 @@
 # Current Project Status
 
-Date: 2026-10-09
+Date: 2026-10-10
+
+## P18-042 — Device Library Delete integration — host validation/review in progress
+
+Device Library now connects its Delete toolbar/menu to the existing exact
+P18-041 guarded facade. A selected file is bound to its displayed complete
+backup; a new complete backup must match before the frozen review. One readable
+Delete/Cancel dialog binds the internal owner identity without a fingerprint or
+second confirmation. Background progress, safe preparation cancellation,
+post-confirmation close protection, native completion, independent readback,
+terminal evidence and automatic Device Library refresh use the existing
+controller and canonical safety lifecycle. The low-level sender is unchanged.
+
+Admission remains the exact VNW-V15 `IC_P18_041G_CLOCK_01.txt` 29-byte fixture,
+with unreferenced target and the established protected-state rules. General
+root TXT, BMP, nested files, directories/subtrees, multi-selection, VNW-V10,
+Restore and recovery are unavailable. The fixture is absent in the preserved
+current post-delete backup, so Delete is correctly disabled for that library.
+No repeat placement/deletion is authorized. The GUI path is IMPLEMENTED and
+TESTED OFFLINE; physical validation of that UI path remains outstanding.
+
+P18-041 evidence closeout is complete and committed. Follow-on host probes of
+BMP/nested files and directory-marker boundaries are recorded in the
+[follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+No new USB request, physical write, production claim, marker or lock mutation
+has occurred; no push or merge. Full-suite and exact-head independent R3
+results will be recorded in the
+[P18-042 delivery record](analysis/phase-18-p18-042-device-library-delete-integration-20261010.md).
 
 ## P18-041 — COMPLETE — EXACT MODERN ROOT-TXT DELETE PHYSICALLY DEMONSTRATED
 
@@ -8,7 +35,8 @@ The exact VNW-V15 `root\IC_P18_041G_CLOCK_01.txt` experiment now reuses
 H2's frozen operation, reconnect-safe device-state equivalence, canonical
 single-use claim, sender marker, installation-wide lock and guarded sender.
 The modern candidate preserves survivor timestamps and protected unrelated
-auxiliary associations. Normal Device Library Delete remains disabled.
+auxiliary associations. P18-042 integrates this exact guarded operation into
+Device Library; arbitrary Delete selections remain disabled.
 
 One separately owner-authorized physical operation at reviewed commit
 `5966933388137138230140deca7b244d5bb74a8b` completed on October 10 JST:

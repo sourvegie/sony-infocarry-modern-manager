@@ -545,7 +545,7 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
         prepared.verify_seal()
         self._prepared_operation = prepared
 
-    def execute_once(self, *, confirmation_interaction, **runner_overrides):
+    def execute_once(self, *, confirmation_interaction, progress=None, **runner_overrides):
         prepared = self._prepared_operation
         try:
             if prepared is None or self._owner_authorized_identity is None:
@@ -565,6 +565,6 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
                 detect_device=self.runtime.detect_device, query_capacity=self.runtime.query_capacity,
                 backend=self.runtime.backend, capture=self.runtime.capture,
                 evidence_namespace=self.runtime.evidence_namespace,
-                max_age_seconds=None)
+                max_age_seconds=None, progress=progress)
         finally:
             self.discard_prepared_operation()

@@ -1,0 +1,121 @@
+# P18-042 Device Library Delete integration — 2026-10-10
+
+Approved owner task: Device Library integration, evidence closeout, tests,
+independent R3 review and related host-only follow-on work. Risk: **R3**.
+Starting commit `5966933388137138230140deca7b244d5bb74a8b`; branch
+`task/P18-042-device-library-delete`; isolated development checkout
+`/external/local-path`. The older reference
+checkouts and original P18-041 checkout remain untouched. No push or merge.
+
+## Delivered behavior and boundary
+
+**IMPLEMENTED / TESTED OFFLINE:** Device Library toolbar and Device menu
+Delete callbacks, one readable Delete/Cancel dialog, responsive shared
+background controller, progress and error messages, safe preparation
+cancellation, post-confirmation close/cancel protection, and automatic refresh
+from the independently verified complete post-delete archive. Cancel is the
+default keyboard/window-close decision. Normal review exposes filename,
+model, operation, storage-change warning and backup/no-retry guidance; no
+fingerprint or protocol details. Detailed result/error evidence stays under
+More → Technical Details. A widget refresh failure is reported separately
+from evidence verification failure; neither is hidden as successful refresh.
+
+`device_library_delete_execution.py` binds the exact row/offset/path/payload
+and displayed blob to its immutable complete archive, re-admits it before
+opening the lazy runtime, and requires fresh complete raw-state equivalence
+before review. One explicit Delete choice pins the complete frozen owner
+identity and uses the existing canonical confirmation internally. Candidate,
+audit, source, capacity, transaction and baseline are sealed by P18-041;
+approval cannot authorize a second bundle. The service discards authorization
+and closes its runtime at every terminal boundary. Teardown cancels only
+read-only preparation and releases undelivered prepared reviews.
+
+It reuses `ExperimentalRootTxtDeleteFacade` / `RootTxtDeleteBundle`, pinned
+runtime, production runtime provider, shared persistent safety owner,
+coordinator, guarded sender, independent Delete verifier and complete-backup
+implementation. Existing root ADD gains only an explicit progress callback
+argument; its default behavior is unchanged. Delete preparation gains
+cooperative cancellation/progress callbacks. The USB sender, transport,
+transaction format, claim schema, marker and global lock implementation are
+unchanged. New UI uses the existing shared `OperationController`; no second
+live pipeline. Old transfer review is cleared before Delete; tree clicks and
+stale transfer-review callbacks cannot invalidate an active Delete result.
+
+**Exact admitted execution scope:** only Sony VNW-V15,
+`root\IC_P18_041G_CLOCK_01.txt`, exact 29-byte fixture payload SHA-256
+`9541c1b9d09ee7d4ab91c704755c4bea8b2022c3bb8f50aa15c1a990bf80c35d`,
+unreferenced target, supported protected-state geometry. It remains
+Experimental and needs a fresh matching displayed complete backup, a new
+complete preflight backup, final execution-equivalent complete backup/capacity,
+one owner confirmation and the canonical single-use lifecycle. A successful
+send alone is insufficient: native integer zero, complete independent
+post-backup, exact sole removal, survivor/prefix/timestamp/checksum and
+protected-state checks, terminal evidence and marker resolution precede UI
+completion. Any uncertain started result retains the existing fail-safe lock
+and no retry. Unsupported selections have no enabled Delete affordance.
+
+**PHYSICALLY DEMONSTRATED:** only P18-041's single exact observed operation;
+[canonical closeout and hash inventory](phase-18-p18-041-physical-delete-closeout-20261010.md)
+verify all 43 original artifact hashes without alteration. No independent
+USB bus trace exists. P18-042 GUI execution was not physically tested.
+
+**NOT SUPPORTED:** arbitrary root TXT, BMP, nested files, directories,
+subtrees, root/system entries, ambiguous/multiple selections, VNW-V10,
+Restore, recovery or interrupted-write testing. General TXT admission is not
+silently promoted from one successful fixture. Existing host candidate rules
+cover more geometry, but no reviewed physical class-level envelope exists;
+root-parent marker/auxiliary/content behavior outside the demonstrated case
+needs scoped validation. The actual preserved post-delete library no longer
+contains the admitted fixture, so Delete is disabled for its surviving files.
+No replacement of that fixture or repeat write is authorized by this task.
+
+## Validation and review packet
+
+Supported Python 3.12.14 via existing reference runtime, with `PYTHONPATH=src`
+inside this isolated checkout (no combined infocarry import path). Tests use
+only injected fake USB backends and temporary safety stores.
+
+- New service tests: exact selection, unsupported/ambiguous/multiple paths,
+  forged/missing/changed targets, raw auxiliary drift, cancel/teardown,
+  candidate/owner rebinding, stale/reconnect-equivalent state, one sender,
+  consumed claim/resolved marker/clear lock, no reuse, nonzero completion,
+  disconnection, missing/bad complete post-backup, corrupted result, no guessed
+  refresh, global lock refusal and useful failure categories.
+- Actual ttk callback tests execute extracted production callback bodies with
+  lightweight widgets and the real threaded controller/main-thread callback
+  queue: one dialog, cancel, stale selection before/during dialog, duplicate
+  clicks, cancel before execution, refresh/error separation, disconnect,
+  nonzero completion, post-result evidence corruption, close protection and
+  teardown suppression. No GUI visual observation is claimed.
+- Focused Delete/integration/planning: **39 tests passed**; existing desktop
+  regressions: **43 passed**. Existing exact experimental sender/lifecycle,
+  transfer, backup, reconnect and guarded-write tests remain in the portable
+  suite.
+- Initial full portable run: **1,128 run, OK, 3 established intentional skips**.
+  After additional regressions/guard fixes, final full run is pending at this
+  checkpoint. Log: `/external/local-path`.
+- `compileall src tests` and `git diff --check` pass.
+- Strong independent exact-head R3 review is pending. Review must inspect the
+  base-to-head diff, applicable instructions/task, relevant source/tests,
+  original physical evidence/closeout inventory, full test log and admission
+  boundary independently. Executor summary is navigation only. At most two
+  material correction rounds. Report P0/P1/P2 and exact reviewed commit.
+
+## Follow-on work / remaining validation
+
+[Follow-on structural analysis](phase-18-p18-042-follow-on-delete-analysis-20261010.md):
+root BMP has two synthetic repacker/survivor checks; all 132 actual nested TXT
+files pass pure structural checks, 127 pass protected-state derivation and five
+referenced targets correctly refuse. An actual nested BMP host probe passes.
+Empty folders retain serialized parent markers; the existing file repacker
+rejects directory deletion and serialized subtree ownership remains unresolved.
+No optional class was enabled or physically demonstrated. Raw data remains
+outside Git. Further generalized root TXT/BMP admission should reuse these
+same seams and obtain separate scoped review/physical evidence.
+
+Task physical counters: USB requests **0**, physical writes **0**, real
+`0x101b` **0**, production claim consumption **0**, production sender-marker
+mutations **0**, production global-lock mutations **0**. Fake counters exist
+only in temporary tests. GUI visual/packaged cross-platform smoke and any
+physical validation require further evidence; no CI is claimed. Physical
+atomicity and interrupted-write recovery remain unresolved.

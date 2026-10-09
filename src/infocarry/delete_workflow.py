@@ -1,6 +1,6 @@
 """Offline deletion simulation and one bounded guarded root-TXT experiment.
 
-The normal CLI and ttk application do not import this module.  A caller must
+The offline generalized workflow requires injected fake callbacks. A caller must
 inject both backup and sender callbacks and explicitly pass ``fake_transport``
 as the boolean ``True``.  The workflow sends at most once and preserves the
 R15 distinction between safe pre-start cancellation and an indeterminate
@@ -9,7 +9,7 @@ at workflow boundaries and passed to the fake callback, but it cannot forcibly
 interrupt an arbitrary Python callback that never returns.  Bounded USB-call
 timeouts belong to the established canonical sender. The separate exact
 experimental facade below uses that sender, durable owner and pinned runtime;
-it does not enable a normal GUI or CLI Delete action.
+Device Library delegates only the same exact gated operation.
 """
 
 from __future__ import annotations
@@ -424,7 +424,7 @@ __all__ = [
 
 # The exact experimental root-TXT operation uses the existing sealed root
 # operation interface and canonical coordinator. It implements no transport,
-# claim store, marker or lock, and is never imported by normal Delete UI.
+# claim store, marker or lock. Device Library reuses this exact gate.
 
 
 EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE = "vnw-v15-experimental-exact-root-txt-delete-v1"
@@ -650,7 +650,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
     """Exact Delete admission, using the existing owner/coordinator/sender."""
 
     def prepare(self, *, target_path=FIXTURE_PATH, device_model="VNW-V15",
-                max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
+                max_age_seconds=DEFAULT_MAX_AGE_SECONDS, cancelled=None, progress=None):
         if self.stop_approved_rebuild():
             raise ValueError("approved Delete cannot refresh or adopt a new candidate")
         try:
@@ -660,6 +660,8 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 raise ValueError("only the exact VNW-V15 root-TXT fixture deletion is admitted")
             if max_age_seconds != DEFAULT_MAX_AGE_SECONDS:
                 raise ValueError("Delete preparation requires the established fresh-backup policy")
+            if cancelled is not None and cancelled():
+                raise TransferCancelledError("Delete cancelled before preparation")
             runtime = self.runtime
             owner = PersistentWriteSafetyOwner(execution_claim_store=runtime.execution_claim_store,
                 indeterminate_write_lock=runtime.indeterminate_write_lock)
@@ -671,7 +673,14 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 raise ValueError("fresh native capacity is required")
             root = Path(runtime.evidence_namespace) / ("prepared-root-txt-delete-" + uuid4().hex)
             root.mkdir(parents=True)
-            before = capture_and_verify_fresh_backup(root / "backup-baseline", runtime.capture)
+            if progress is not None:
+                progress("Preparing backup", 0, 1)
+            before = capture_and_verify_fresh_backup(root / "backup-baseline",
+                lambda destination: runtime.capture(destination, cancelled=cancelled, progress=progress))
+            if cancelled is not None and cancelled():
+                raise TransferCancelledError("Delete cancelled after backup, before approval")
+            if progress is not None:
+                progress("Validating operation", 0, 1)
             runtime.assert_same_session(runtime.session_binding_token)
             core = build_experimental_root_txt_delete(before.directory, max_age_seconds=max_age_seconds)
             candidate = RootTxtDeleteCandidate(before.directory, core.candidate_blob,
@@ -701,6 +710,8 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             bundle = replace(provisional, envelope_json=envelope, seal_sha256=_sha(envelope),
                              seal_artifact=OperationArtifact.file(seal_path))
             bundle.verify_seal()
+            if cancelled is not None and cancelled():
+                raise TransferCancelledError("Delete cancelled before approval")
             self._prepared_operation = bundle
             return bundle
         except BaseException:
