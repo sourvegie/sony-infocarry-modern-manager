@@ -65,47 +65,90 @@ Actual GUI callback tests cover both disposable targets and refuse ordinary
 unvalidated selections before runtime setup. Existing Delete/placement/transfer/
 backup/runtime regressions remain in the full suite.
 
-Exact code head `2fe413418e5d3a825263d955590c80ad3c34332f` full portable suite:
-**1,159 run / 1,156 passed / three established intentional evidence skips**
-in 125.615 seconds. Seventeen new admission tests, 40 Device Library regressions
-and 95 focused Delete/placement/provider/UI/model regressions pass. Python
-3.12.14 / Tk 9.0 binding; `compileall` and `git diff --check` pass. The final
-external corpus rerun confirms 55 targets, 28 prepared with identical archived
-candidate hashes, 27 protected-state refusals, and unchanged original objects.
-Logs remain outside Git under `/external/local-path`.
+Independent [root-TXT R3](phase-18-p18-043-independent-root-txt-r3-review-20261010.md)
+completed at `e35aab4`: **PASS / P0/P1/P2=0/0/0**. The earlier usage-limit
+interruption is resolved. Reviewer independently ran 93 focused tests, direct
+adapter refusal, twelve archives / 96 object hashes / 55 targets and all 43
+P18-041 saved artifact hashes/candidate/readback. The diff since `2fe4134` was
+four documentation files only. No general physical operation was enabled.
 
-Independent reviewer `/root/p18_043_r3_review` inspected exact head `2fe4134`
-against base `3c3ab28`, source/tests and canonical lifecycle. Its interim message
-reported no P0/P1/P2 findings so far. The agent then failed with an account usage
-limit before issuing its final review report. This is **not a completed R3
-review or production-readiness decision**. No final independent findings count
-is claimed. Resume independent review at the unchanged code head; no material
-review-correction round has yet occurred. Resource exhaustion stops the task
-before the root-BMP operation continuation. The previously reviewed pure BMP
-model is preserved, with no new BMP transaction/authorization/execution.
+## Native GUI acceptance and packaging
 
-macOS arm64 package build and ad-hoc signature verification passed. Existing
-frozen runtime smoke passed with Tk runtime 9.0.4, resources/libusb loaded,
-actual Manager startup/Add/workspace/close checks, locked/unavailable-runtime
-regression, and all real device/sender/claim/marker counters zero. Its isolated
-report is `/external/local-path`; no Windows
-native package execution is claimed. Wheel build uses installed setuptools/
-wheel via `pip wheel --no-deps --no-build-isolation` because the optional `build`
-module is absent; no dependency was installed into the read-only reference
-runtime. Two final same-epoch wheel builds compare identical: SHA-256
-`0afce951443964f6cbd6da8236d8d4a5e14e64479ffa0c7ea4ddd878891c1bd1`.
-Installing that wheel into an isolated `/private/tmp` target and importing the
-new service/profile passes. Final package build log:
-`/external/local-path`; full test log:
-`/external/local-path`. No runtime dependency or
-read-only checkout was modified.
+The owner explicitly authorized isolated local macOS GUI inspection when
+Computer Use could not identify the test app. Actual production Tk widgets,
+callback bodies, menus and one confirmation ran with synthetic complete backups,
+a fake transport, a fresh isolated profile and real USB/backend calls blocked.
+Window-only screenshots were captured with local `screencapture` and inspected.
+The [hash inventory](phase-18-p18-043-native-visual-checks-20261010.json) references
+preserved external screenshots, widget snapshots, harness scripts and counters.
 
-GUI visual inspection is pending: native Computer Use could not identify the
-isolated Tk process/test app, and timed out resolving its native app bundle.
-The owner has been asked to authorize local macOS launch/screenshot tools as
-an alternative, as the Computer Use rules require explicit authorization for
-another GUI method. No screenshot/visual success is claimed. The actual native
-package functional smoke is distinct from visual inspection.
+The first screenshot exposed a clipped Delete toolbar. The heading now occupies
+its own line; Refresh/Back Up/More and Details/Delete occupy two compact rows.
+Backup, capacity and Delete status wrap to the Device pane width. A later
+minimum-window screenshot exposed a clipped status footer: progress and wrapped
+status now have separate full-width rows, reserved ahead of the expandable tree.
+Default 1320×800 and minimum 1080×680 layouts are visually checked after repair.
+No general UI redesign or framework was introduced.
+
+Verified visually: supported/unsupported selection and matching button/menu
+states; complete filename/model/storage warning and one Delete/Cancel dialog;
+Cancel button and Escape; preparing backup/validating operation, transferring,
+verifying result and complete states; readable synthetic backup failure;
+pre-send Stop-and-close prompt and zero send; independent verified success,
+post-backup label, removed target and surviving file in the refreshed tree.
+A and B each completed one separate fake send with integer zero and verified
+readback. Terminal reports show real discovery/backend counters **0**, fake
+sender calls **1** per success, no retry and no production safety state used.
+The final pre-send close session shows fake begin/sender **0**. After-start close
+and no-cancel protections also remain covered by actual callback regression
+tests; no physical or interrupted-write experiment is claimed.
+
+Python 3.12.14 / Tk runtime 9.0.4. Final corrected portable suite:
+**1,172 run / 1,169 passed / three established evidence skips**, 128.933 seconds,
+`/external/local-path`. Thirteen new BMP tests plus
+64 relevant existing tests pass; 43 desktop regressions pass. `compileall` and
+`git diff --check` pass. Eighteen old/new TXT candidates, transactions, audit
+and authorization dictionaries compare identical. Existing full-suite transfer,
+backup, browsing, authorization, claim, marker, lock and no-retry coverage passes.
+
+Final corrected macOS arm64 package/signature build and established frozen
+runtime smoke pass: `/external/local-path` and
+`/external/local-path`. Actual native startup,
+Add/workspace/close and locked/unavailable-runtime checks pass; libusb/resources
+load and all real device/sender/claim/marker counters are zero. This is separate
+from the observed native GUI visual checks. No Windows native execution is claimed.
+Two final same-epoch wheels match SHA-256
+`b73f843d52d5d168c3bd8516f9368eb21548ce2493b98e38f267b323d325a270`.
+No optional dependency was installed into the reference runtime.
+
+## Reviewed-model root-BMP continuation
+
+`build_root_bmp_delete_candidate` shares the existing private candidate builder,
+fixed-state derivation and eight-range transaction. Admission requires one
+ordinary unique root BMP, exact safe NUL-terminated CP932 identity, lowercase
+extension, known read/unread flag, exact 16/32-byte prefix, and the existing
+237×320 uncompressed monochrome BMP parser/model. Active Marks and referenced
+targets refuse; understood survivor history/bookmark pointers rebase while
+opaque bytes, survivor prefixes/payloads/timestamps and checksum are preserved.
+
+The existing host authorization binds target type from reparsed hashed baseline
+bytes, not mutable audit. BMP authorization independently reconstructs the
+complete candidate/state/transaction from the verified archive. Wrong target,
+type, payload, state, candidate, transaction, changed/stale archive and malformed
+readback are tested. Existing sender-binding construction, helper and
+revalidation explicitly reject BMP; changing an audit/type label cannot enable
+it. Existing complete post-backup verifier requires integer native zero,
+byte-exact candidate, sole removal, protected state and unrelated objects.
+No BMP GUI, pinned live bundle, runtime, claim, marker, global-lock mutation or
+parallel sender is introduced. This is an offline operation/authorization model;
+physical validation requires a later separately reviewed bounded live adapter.
+
+Independent BMP archive census rehashed the same twelve complete archives / 96
+objects and found **zero root BMP records**. There are 1,826 related nested BMP
+occurrences, all 16-byte prefixes; this does not prove root behavior. No absent
+case is counted as a candidate pass or new test skip. BMP preparation is tested
+synthetically only. Census scripts/reports remain external in the visual inventory.
+Final combined continuation R3 is pending at the source checkpoint.
 
 ## Hardware boundary
 
@@ -119,10 +162,12 @@ P18-041 physical proof remains exact and does not establish the new class.
 
 ## Checkpoint disposition
 
-IMPLEMENTED / TESTED OFFLINE: generalized root TXT preparation, immutable
-selected-file binding, fail-closed execution gate and disposable-only UI route.
+IMPLEMENTED / TESTED OFFLINE: generalized root TXT and narrow root-BMP host
+preparation; disabled general/BMP execution; disposable-only TXT UI workflow.
+VISUALLY CHECKED: isolated native macOS synthetic Manager after layout repairs.
 PHYSICALLY DEMONSTRATED: only the original P18-041 exact fixture; no new write.
-PENDING: independent final R3, GUI visual inspection, separately approved
-fixture placement and bounded A/B physical validation. This is a preserved
-engineering checkpoint, not COMPLETE or READY_FOR_HARDWARE_TEST. General TXT,
-BMP, nested, directory/subtree and VNW-V10 live deletion remain unsupported.
+TXT R3: PASS. Final GUI/BMP continuation R3: pending.
+Hardware acceptance remains separate: A/B fixture placement and Delete require
+new specific owner approvals. General TXT class promotion is a later reviewed
+owner decision; BMP needs a separately reviewed bounded live adapter before its
+own disposable validation. Nested/directory/subtree/VNW-V10 deletion unsupported.

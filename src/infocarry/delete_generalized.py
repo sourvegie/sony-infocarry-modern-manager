@@ -17,7 +17,10 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 
 from .backup_format import BackupFormatError, ParsedBackupBlob, parse_backup_blob
-from .delete_model import DeleteModelError, OfflineDeleteModel, build_one_txt_delete_model
+from .delete_model import (
+    DeleteModelError, OfflineDeleteModel, build_one_txt_delete_model,
+    build_one_root_bmp_delete_model,
+)
 from .delete_state import (
     FIXED_STATE_COMMANDS,
     DeleteStateCandidate,
@@ -206,6 +209,19 @@ class GeneralizedDeleteCandidate:
     def transaction_sha256(self) -> str:
         return self.transaction.concatenated_sha256
 
+    @property
+    def target_extension(self) -> str:
+        """File type from bound baseline bytes, never from mutable audit data."""
+        try:
+            parsed = parse_backup_blob(self.baseline.data)
+            record = parsed.record_at(self.target_record_offset)
+        except BackupFormatError as exc:
+            raise GeneralizedDeleteError("bound target record is invalid") from exc
+        if (record.kind != "file" or _record_path(parsed, record) != self.target_path
+                or _sha256(parsed.data) != self.backup.blob_sha256):
+            raise GeneralizedDeleteError("bound baseline target identity differs")
+        return record.extension
+
     def to_dict(self) -> dict[str, Any]:
         return dict(self.audit)
 
@@ -225,6 +241,72 @@ def build_generalized_delete_candidate(
     candidate never uses attempt-specific timestamps or fixed-state blocks.
     """
 
+    return _build_delete_candidate(
+        backup_directory, target_path, target_record_offset, now=now,
+        max_age_seconds=max_age_seconds,
+        preserve_unreferenced_auxiliary_state=preserve_unreferenced_auxiliary_state,
+        bmp=False,
+    )
+
+
+def _validate_root_bmp_admission(parsed: ParsedBackupBlob, target_path: str,
+                                 target_record_offset: int) -> None:
+    """Narrow host profile; native identity and geometry must be understood."""
+    if type(target_record_offset) is not int:
+        raise GeneralizedDeleteError("root BMP target record offset must be an integer")
+    target = parsed.record_at(target_record_offset)
+    parts = parsed.paths.get(target.offset)
+    if (parts is None or len(parts) != 2 or parts[0] != "root"
+            or _record_path(parsed, target) != target_path
+            or target.kind != "file" or target.extension != "bmp"):
+        raise GeneralizedDeleteError("root BMP preparation requires one exact ordinary root-level BMP")
+    if target.flag not in {0xe0, 0x20} or target.field_14_be32 not in {0x100, 0x200}:
+        raise GeneralizedDeleteError("root BMP target has unsupported state or native prefix")
+    name = target.name
+    if (name in {"", ".", "..", "root"} or name != name.strip()
+            or any(ord(c) < 32 or ord(c) == 127 or c in '\\/.:<>"|?*' for c in name)):
+        raise GeneralizedDeleteError("root BMP name contains unsupported root/system/path syntax")
+    try:
+        encoded = name.encode("cp932", "strict")
+        if not 1 <= len(encoded) <= 39 or encoded.decode("cp932", "strict") != name:
+            raise UnicodeError("name must roundtrip within 39 native bytes")
+    except UnicodeError as exc:
+        raise GeneralizedDeleteError("root BMP name is not exactly CP932 representable") from exc
+    raw_name = bytes.fromhex(target.raw_hex)[24:64]
+    if b"\0" not in raw_name or raw_name.split(b"\0", 1)[0] != encoded:
+        raise GeneralizedDeleteError("root BMP native name is not an exact NUL-terminated identity")
+    identity = tuple(part.casefold() for part in parts)
+    if (sum(tuple(part.casefold() for part in path) == identity for path in parsed.paths.values()) != 1
+            or sum(_record_path(parsed, r) is not None and _record_path(parsed, r).casefold()
+                   == target_path.casefold() for r in parsed.records) != 1):
+        raise GeneralizedDeleteError("root BMP target has an ambiguous native identity")
+
+
+def build_root_bmp_delete_candidate(
+    backup_directory: Path,
+    target_path: str,
+    target_record_offset: int,
+    *,
+    now: Optional[datetime] = None,
+    max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+) -> GeneralizedDeleteCandidate:
+    """Prepare a root BMP transaction for offline review, with execution blocked.
+
+    Preserve protected survivor state and refuse referenced targets or active
+    Marks. This creates no claim, marker, sender or Device Library action.
+    """
+    return _build_delete_candidate(
+        backup_directory, target_path, target_record_offset, now=now,
+        max_age_seconds=max_age_seconds, preserve_unreferenced_auxiliary_state=True,
+        bmp=True,
+    )
+
+
+def _build_delete_candidate(
+    backup_directory: Path, target_path: str, target_record_offset: int, *,
+    now: Optional[datetime], max_age_seconds: Optional[float],
+    preserve_unreferenced_auxiliary_state: bool, bmp: bool,
+) -> GeneralizedDeleteCandidate:
     if type(preserve_unreferenced_auxiliary_state) is not bool:
         raise GeneralizedDeleteError("auxiliary-state preservation opt-in must be boolean")
     try:
@@ -235,7 +317,11 @@ def build_generalized_delete_candidate(
         )
         baseline_blob = _read_object(backup, _DYNAMIC_BLOB_KEY)
         baseline = parse_backup_blob(baseline_blob)
-        model = build_one_txt_delete_model(baseline, target_path, target_record_offset)
+        if bmp:
+            _validate_root_bmp_admission(baseline, target_path, target_record_offset)
+            model = build_one_root_bmp_delete_model(baseline, target_path, target_record_offset)
+        else:
+            model = build_one_txt_delete_model(baseline, target_path, target_record_offset)
         if model.source_blob_sha256 != backup.blob_sha256:
             raise GeneralizedDeleteError("fresh backup blob hash differs from parsed baseline")
         fixed_state_before = _fixed_state_from_backup(backup)
@@ -260,7 +346,7 @@ def build_generalized_delete_candidate(
         "state": "offline_candidate",
         "usb_transmission_performed": False,
         "automatic_retry_allowed": False,
-        "operation": "delete_one_existing_txt",
+        "operation": "delete_one_existing_bmp" if bmp else "delete_one_existing_txt",
         "policy": {
             "timestamps": "preserve_surviving_timestamps",
             "fixed_state": (state.audit["policy"] if preserve_unreferenced_auxiliary_state
@@ -307,6 +393,9 @@ def build_generalized_delete_candidate(
             "automatic_retry_allowed": False,
         },
     }
+    if bmp:
+        audit["capability_status"] = "host_offline_not_live_enabled"
+        audit["safety"].update(execution_available=False, physical_behavior_proven=False)
     return GeneralizedDeleteCandidate(
         backup=backup,
         baseline=baseline,
@@ -339,8 +428,11 @@ class GeneralizedDeleteAuthorization:
     transaction_variable_m: int
     confirmation_phrase: str
     baseline: VerifiedBackup
+    target_extension: str = "txt"
 
     def __post_init__(self) -> None:
+        if self.target_extension not in {"txt", "bmp"}:
+            raise GeneralizedDeleteError("authorized delete file type is unsupported")
         if self.confirmation_phrase != DELETE_GENERALIZED_CONFIRMATION_PHRASE:
             raise GeneralizedDeleteError("delete confirmation phrase was not accepted")
         if self.device_identity != ("0x054c", "0x001e"):
@@ -380,12 +472,12 @@ class GeneralizedDeleteAuthorization:
         _require_fixed_hashes(self.fixed_state_after_sha256, "fixed-state after")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "format": DELETE_GENERALIZED_FORMAT,
             "state": "authorized_for_future_writer_only",
             "usb_transmission_performed": False,
             "automatic_retry_allowed": False,
-            "operation": "delete_one_existing_txt",
+            "operation": f"delete_one_existing_{self.target_extension}",
             "device": {"vendor_id": self.device_identity[0], "product_id": self.device_identity[1]},
             "baseline_manifest_sha256": self.baseline_manifest_sha256,
             "baseline_blob_sha256": self.baseline_blob_sha256,
@@ -405,9 +497,31 @@ class GeneralizedDeleteAuthorization:
             "confirmation_phrase": self.confirmation_phrase,
         }
 
+        if self.target_extension == "bmp":
+            result.update(state="authorized_for_host_review_only",
+                          target_extension="bmp", execution_available=False,
+                          physical_behavior_proven=False)
+        return result
+
     def require_same_candidate(self, candidate: GeneralizedDeleteCandidate) -> None:
         if not isinstance(candidate, GeneralizedDeleteCandidate):
             raise GeneralizedDeleteError("candidate type differs from authorization")
+        if candidate.target_extension != self.target_extension:
+            raise GeneralizedDeleteError("candidate file type differs from authorization")
+        if self.target_extension == "bmp":
+            # Reconstruct through the same builder before accepting a host
+            # authorization. Parsed caches and mutable audit are not authority.
+            expected = build_root_bmp_delete_candidate(
+                candidate.backup.directory, candidate.target_path,
+                candidate.target_record_offset, max_age_seconds=None,
+            )
+            if (candidate.baseline.data != expected.baseline.data
+                    or candidate.candidate_blob != expected.candidate_blob
+                    or candidate.target_payload_sha256 != expected.target_payload_sha256
+                    or candidate.fixed_state.before != expected.fixed_state.before
+                    or candidate.fixed_state.after != expected.fixed_state.after
+                    or candidate.transaction != expected.transaction):
+                raise GeneralizedDeleteError("BMP candidate differs from validated source reconstruction")
         checks = (
             (candidate.backup.device_identity, self.device_identity, "device identity"),
             (candidate.backup.manifest_sha256, self.baseline_manifest_sha256, "baseline manifest"),
@@ -486,6 +600,7 @@ def authorize_generalized_delete(
         transaction_variable_m=candidate.transaction.variable_m,
         confirmation_phrase=confirmation,
         baseline=candidate.backup,
+        target_extension=candidate.target_extension,
     )
     authorization.require_same_candidate(candidate)
     return authorization
@@ -504,10 +619,18 @@ class GeneralizedDeleteSenderBinding:
     def backup(self) -> VerifiedBackup:
         return self.authorization.baseline
 
+    def _require_execution_admitted(self) -> None:
+        # BMP host authorizations deliberately cannot become sender capability.
+        # Derive the gate from the parsed source, not audit/operation labels.
+        if self.candidate.target_extension != "txt" or self.authorization.target_extension != "txt":
+            raise GeneralizedDeleteError("root BMP Delete is host-only and not physically validated")
+
     def __post_init__(self) -> None:
+        self._require_execution_admitted()
         self.authorization.require_same_candidate(self.candidate)
 
     def revalidate(self, transaction: ProspectiveWriteTransaction) -> None:
+        self._require_execution_admitted()
         if not isinstance(transaction, ProspectiveWriteTransaction):
             raise GeneralizedDeleteError("sender transaction is not prospective")
         if transaction.concatenated_sha256 != self.candidate.transaction_sha256:
@@ -659,5 +782,6 @@ __all__ = [
     "authorize_generalized_delete",
     "bind_generalized_delete_sender",
     "build_generalized_delete_candidate",
+    "build_root_bmp_delete_candidate",
     "verify_generalized_delete_readback",
 ]

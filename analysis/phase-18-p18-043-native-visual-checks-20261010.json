@@ -1,0 +1,133 @@
+{
+  "format": "infocarry-host-gui-check-evidence-v1",
+  "physical_writes": 0,
+  "production_profile_used": false,
+  "native_window_only": true,
+  "artifacts": [
+    {
+      "path": "/external/local-path",
+      "bytes": 334947,
+      "sha256": "1c77b491fc76b36d3e84be047a22a58b12b037f8399009c31672834b7f89cefd"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 334168,
+      "sha256": "28747d93d5b83015260f8ecab508a7a2e07653c84ef8047b22ad146a468e2c48"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 332437,
+      "sha256": "d982ba2d6f175aba37bcfe8be2c424fcf4cd8e221a467d516f1120ccccf0b4d5"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 575994,
+      "sha256": "3ab859d92642cf4963638a65a71b710cd0774178a994b0ec0bfd195713809315"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 337775,
+      "sha256": "cff80dd4d3ff55222c89595523afa180c312598701c24355ae87d02943ea76f3"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 349275,
+      "sha256": "0eea2db21470aa29aa99cc1c2419d910a8a6771578d01de23e27acabee0337da"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 455608,
+      "sha256": "b4881ac85cc0646dc67e3c7ff8c04dee7b6c96003579abb5747fdd6c595d1f4f"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 328767,
+      "sha256": "51b78448d97c80a2c6a5e5a52a8b0a4faf2b4543e057061f9d53b5c4b7c86849"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 404,
+      "sha256": "491b1af7f3586068a480264158676c2909ec46eb8bcf00fdd0da237911c5db03"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 524556,
+      "sha256": "50cfc93bdf6e0b3362b39abc7805a1af6d488646ebb65c72ab9577acd08d2ef6"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 282404,
+      "sha256": "28f6a69b0c67c4eceb1cde5a16ff1db1f5ea7648e5208541efee6c84aac0ebc7"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 294680,
+      "sha256": "c01a6becfec7d4b4ddfbbdd44771b8166d20e7223311dafac6900745e76edd83"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 297717,
+      "sha256": "3073d809aacbff073108ae2bf734f761769ccd1e0264305960672f6ed79fbb57"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 280044,
+      "sha256": "af4fe9bcce517c199b5668590e3d69af1fad2474ee8b7eb5552e25d8882a0165"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 404,
+      "sha256": "78b50adf2198e71418267eb14cd120b2a7d856e111fc625c494bc3fe1ac6864f"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 290568,
+      "sha256": "e2f11a5f431f7eb5b3c70b880f72b2cade983e27fea67cd6c501034480c5e485"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 286843,
+      "sha256": "d820193c1dc236c6d11f313a13dad5e45ca90c382ba69e42c1e12fc22289dcbb"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 310084,
+      "sha256": "dae5ef52e1aca6aac98fecfe1bd1502e71dce2f241eb6786dec29b8ad3b06c1d"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 353087,
+      "sha256": "60637a5123582b99bfe187408d86cd5c5926cd6ec066734982ab39910cb0a5a5"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 538586,
+      "sha256": "6b100252602e8d22d2f2cc59f4c32f98b29520e681766a13ed8a29fc5a1919e5"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 306,
+      "sha256": "52297b9729e0833a9818a2a5175d0ead3dfde1e81eed16b3d482ce9cbe726d1f"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 7944,
+      "sha256": "7cde2b80ea8dc0f9a5d39af202bbd3e7bd4f7b839dc6b833b05ab448ef4afcea"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 1728,
+      "sha256": "35097939a48e490021a0bb94e7b52b972d18955b1425626f61aaf728ce3b5616"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 24330,
+      "sha256": "0663316c6e0c1cd274015024df8c037a2a08115c8aa8f5e577fd1b59acfbc6e0"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 3043,
+      "sha256": "6999c876b47b9ed17d90f579aacc17cfeb240addebe0096f8e9c50a2fdb1f7ac"
+    }
+  ]
+}

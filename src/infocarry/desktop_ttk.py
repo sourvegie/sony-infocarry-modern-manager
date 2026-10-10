@@ -2428,13 +2428,13 @@ def launch_ttk_desktop(
                 parent=root,
             )
 
+    ttk.Label(device_tab, text="DEVICE LIBRARY", font=("TkDefaultFont", 13, "bold")).pack(
+        anchor="w", padx=2, pady=(0, 4)
+    )
     toolbar = ttk.Frame(device_tab, padding=(2, 2, 2, 6))
     toolbar.pack(fill="x")
-    ttk.Label(toolbar, text="DEVICE LIBRARY", font=("TkDefaultFont", 13, "bold")).pack(
-        side="left", padx=(0, 8)
-    )
-    check_button = ttk.Button(toolbar, text="Refresh")
-    backup_button = ttk.Button(toolbar, text="Back Up")
+    check_button = ttk.Button(toolbar, text="Refresh", width=8)
+    backup_button = ttk.Button(toolbar, text="Back Up", width=8)
     open_button = ttk.Button(toolbar, text="Open backup…")
     export_button = ttk.Button(toolbar, text="Export selected…", state="disabled")
     replacement_button = ttk.Button(
@@ -2445,7 +2445,7 @@ def launch_ttk_desktop(
     )
     for button in (check_button, backup_button):
         button.pack(side="left", padx=3)
-    device_more_button = ttk.Menubutton(toolbar, text="More")
+    device_more_button = ttk.Menubutton(toolbar, text="More", width=8)
     device_more_menu = tk.Menu(device_more_button, tearoff=False)
     device_more_menu.add_command(
         label="Open Backup…", command=lambda: open_button.invoke()
@@ -2462,32 +2462,38 @@ def launch_ttk_desktop(
     )
     device_more_button.configure(menu=device_more_menu)
     device_more_button.pack(side="left", padx=3)
+    device_item_toolbar = ttk.Frame(device_tab, padding=(2, 0, 2, 6))
+    device_item_toolbar.pack(fill="x")
     device_details_visible = False
-    device_details_button = ttk.Button(toolbar, text="Details")
+    device_details_button = ttk.Button(device_item_toolbar, text="Details")
     device_details_button.pack(side="left", padx=3)
-    device_delete_button = ttk.Button(toolbar, text="Delete", state="disabled")
+    device_delete_button = ttk.Button(device_item_toolbar, text="Delete", state="disabled")
     device_delete_button.pack(side="left", padx=3)
-    ttk.Label(toolbar, textvariable=backup_var, anchor="e").pack(
-        side="right", fill="x", expand=True, padx=(12, 0)
-    )
+    device_backup_label = ttk.Label(device_tab, textvariable=backup_var, anchor="w", justify="left")
+    device_backup_label.pack(fill="x", padx=4, pady=(0, 4))
 
     device_overview = ttk.Frame(device_tab, padding=(2, 0, 2, 5))
     device_overview.pack(fill="x")
     ttk.Label(
         device_overview, textvariable=device_home_heading_var, anchor="w"
-    ).pack(side="left", fill="x", expand=True)
-    ttk.Label(
-        device_overview,
-        textvariable=device_capacity_var,
-        anchor="e",
-        justify="right",
-    ).pack(side="right", padx=(8, 0))
+    ).pack(anchor="w", fill="x")
+    device_workspace_capacity_label = ttk.Label(
+        device_overview, textvariable=device_capacity_var, anchor="w", justify="left"
+    )
+    device_workspace_capacity_label.pack(anchor="w", fill="x", pady=(4, 0))
     device_delete_status_var = tk.StringVar(
         value="Delete is not enabled for this selection."
     )
-    ttk.Label(
-        device_tab, textvariable=device_delete_status_var, anchor="w"
-    ).pack(fill="x", padx=4, pady=(0, 4))
+    device_delete_status_label = ttk.Label(
+        device_tab, textvariable=device_delete_status_var, anchor="w", justify="left"
+    )
+    device_delete_status_label.pack(fill="x", padx=4, pady=(0, 4))
+
+    def resize_device_workspace_labels(event: Any) -> None:
+        for label in (device_backup_label, device_workspace_capacity_label, device_delete_status_label):
+            label.configure(wraplength=max(180, event.width - 24))
+
+    device_tab.bind("<Configure>", resize_device_workspace_labels, add="+")
 
     device_search_bar = ttk.Frame(device_tab, padding=(2, 0, 2, 5))
     device_search_bar.pack(fill="x")
@@ -2562,10 +2568,13 @@ def launch_ttk_desktop(
             device_details_button.configure(text="Hide Details")
 
     bottom = ttk.Frame(device_tab, padding=(10, 0, 10, 10))
-    bottom.pack(fill="x")
+    bottom.pack(side="bottom", fill="x", before=content)
     progress = ttk.Progressbar(bottom, mode="determinate", maximum=8)
-    progress.pack(side="left", fill="x", expand=True, padx=(0, 10))
-    ttk.Label(bottom, textvariable=status_var, anchor="w").pack(side="left", fill="x", expand=True)
+    progress.pack(fill="x", pady=(0, 4))
+    manager_status_label = ttk.Label(bottom, textvariable=status_var, anchor="w", justify="left")
+    manager_status_label.pack(fill="x")
+    manager_status_label.bind("<Configure>", lambda event: manager_status_label.configure(
+        wraplength=max(160, event.width - 8)), add="+")
 
     conversion_document: Optional[OfflineTextDocument] = None
     renderer_document: Optional[OfflineTextDocument] = None

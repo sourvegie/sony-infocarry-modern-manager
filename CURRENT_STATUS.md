@@ -2,44 +2,39 @@
 
 Date: 2026-10-10
 
-## P18-043 — General root-TXT Delete — tested checkpoint / review resource blocker
+## P18-043 — TXT reviewed / GUI checked / BMP host continuation in final R3
 
-The P18-042 guarded path now prepares one ordinary VNW-V15 root TXT using a
-frozen selected filename, record offset and payload. Initial host admission is
-one unique safe CP932 native name, read/unread flags, evidenced 32-byte TXT
-prefix, structural/content/survivor/checksum proof and supported protected
-state. Referenced targets, active Marks, ambiguities and unsupported structures
-refuse. No arbitrary deletion payload-size limit is inferred.
+The independent TXT checkpoint R3 is complete: **P0/P1/P2=0/0/0** at
+`e35aab40467c1808138a9ca39ce1606c6f73f7e3`. The owner-authorized isolated
+macOS visual checks exercised actual Manager controls with synthetic complete
+backups and fake transport. Toolbar clipping and minimum-size status-footer
+clipping are corrected; select → Delete → one confirmation, Cancel/Escape,
+progress, errors, safe pre-send close and independently verified refresh pass.
+No physical device or production safety state was used.
 
-General root-TXT execution remains disabled in the normal Manager and at the
-coordinator/claim seams. An explicit validation launcher admits only one of
-two predetermined disposable files with its exact payload, through the same
-select → Delete → confirm UI and canonical one-shot safeguards. It disables
-transfer and existing-text replacement; no personal file or other Delete can
-execute in that mode. No new physical operation is authorized/performed.
+Ordinary VNW-V15 root TXT preparation remains the bounded 32-byte-prefix,
+unique safe native identity, known read/unread and protected-state profile.
+General execution stays disabled at UI/service/coordinator/claim seams.
+The exact disposable-only A/B launcher is preserved and requires separate
+hardware authorization. Only the original P18-041 fixture is physically proven.
 
-[Archive evidence](analysis/phase-18-p18-043-root-txt-corpus-20261010.md): twelve
-complete backups / 96 rehashed objects / 55 structural cases; 28 protected
-preparations pass, 26 active-Mark cases and one referenced target refuse.
-Seventeen new portable tests and 40 Device Library regressions pass. Exact
-code head `2fe413418e5d3a825263d955590c80ad3c34332f` passed **1,159 run /
-1,156 passed / three established evidence skips**. Rebuilt macOS arm64 native
-package/runtime smoke passes with zero real device/sender/safety counters;
-two same-epoch wheels match and isolated installed-wheel imports pass.
+Root-BMP now reuses the reviewed structural model and existing candidate,
+protected-state, eight-range transaction, bound host authorization and complete
+readback verifier. BMP sender binding is blocked regardless of audit labels;
+no BMP UI/live bundle/claim path is added. Thirteen new synthetic tests pass.
+The twelve-archive census has **zero root BMP records**; nested records do not
+prove root behavior. Final continuation R3 is pending.
 
-Independent R3 inspected the exact head and reported no findings provisionally,
-but hit the account usage limit before delivering a final report. **R3 is not
-complete; READY_FOR_HARDWARE_TEST is not claimed.** GUI visual inspection also
-remains pending: the native tool cannot resolve the isolated test app and
-alternative screenshot authorization has not arrived. No visual or Windows
-native execution is claimed.
+Full final portable suite: **1,172 run / 1,169 passed / three established
+intentional evidence skips**, 128.933 seconds. Final corrected macOS package
+and isolated runtime smoke pass with zero real device/sender/safety counters.
+No Windows native execution is claimed. No physical write, push or merge.
 
-[Delivery/review packet](analysis/phase-18-p18-043-general-root-txt-delete-20261010.md)
+[Delivery/review packet](analysis/phase-18-p18-043-general-root-txt-delete-20261010.md),
+[independent TXT R3](analysis/phase-18-p18-043-independent-root-txt-r3-review-20261010.md),
+[native visual inventory](analysis/phase-18-p18-043-native-visual-checks-20261010.json)
 and [bounded physical procedure](analysis/phase-18-p18-043-disposable-root-txt-delete-procedure-20261010.md)
-record the gate and outstanding checks. Resume with independent exact-head R3
-and visual inspection, then prepare root-BMP operations; the existing pure BMP
-model remains unchanged. No USB/physical write/production safety mutation,
-push or merge. Ordinary root TXT execution stays disabled.
+record the exact scope and outstanding physical acceptance requirements.
 
 ## P18-042 — Device Library Delete integration — READY_FOR_HARDWARE_TEST
 
