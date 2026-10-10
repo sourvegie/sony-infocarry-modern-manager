@@ -26,6 +26,17 @@ addition capability. **A Delete, B placement and B Delete are not authorized or
 started.** Ordinary root-TXT execution stays disabled. Stop at this owner
 boundary; future operations require separate approval and the existing guarded
 procedure. Complete backups/raw evidence remain external and unmodified.
+
+Actual A Delete GUI preparation is now complete and independently **PASS**:
+fresh displayed eight-object backup matches the verified placement state; only
+A is selected; service obtains its own complete fresh backup/native capacity;
+the frozen candidate removes only A and returns the exact pre-placement blob
+and protected blocks. All 300 survivor payloads and 454 timestamps preserved.
+A single **Confirm Delete** dialog is open and **unconfirmed**. No Delete claim,
+sender or transaction; global lock clear and no marker. A separate readable
+owner confirmation is required for this frozen operation. 76 focused Delete
+regressions pass; implementation unchanged from `dbaa851`.
+
 [Physical preparation and A closeout](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
 No push or merge.
 

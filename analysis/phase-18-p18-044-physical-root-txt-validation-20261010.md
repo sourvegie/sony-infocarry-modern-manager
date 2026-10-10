@@ -200,3 +200,67 @@ Normal general Delete remains disabled. No physical operation follows this
 approval automatically; stop pending a new separate owner-authorized operation.
 Source/test code unchanged, full completed 1,190-test validation and R3 remain
 applicable; final closeout changes are documentation only. No push or merge.
+
+## Actual Device Library A Delete preparation — READY_FOR_HARDWARE_TEST
+
+The owner authorized narrow local macOS screenshot/accessibility inspection
+and **read-only preparation only**, not a Delete. Native Computer Use could
+not identify the running Python validation Manager. Existing system tools
+locate PID 64693 / InfoCarry Manager. Tk coordinate actions initially did not
+invoke backup; the native Device → Back Up menu succeeded. No implementation
+change, installed automation infrastructure, injected Tk hook or alternate
+USB pipeline was used. The backup-complete information sheet was acknowledged;
+this was not a write confirmation. The live Device Library was filtered to A,
+its sole exact row selected, then the normal Device → Delete action prepared
+its candidate and opened one real **Confirm Delete** dialog. Both menu commands
+invoke the same existing toolbar callbacks. **Delete remains unclicked.**
+
+Fresh displayed backup:
+application `Backups/InfoCarry-backup-20261010-235604`, all eight objects
+verified, manifest
+`ff2c10f72751c6239388ee1267c1566b1a3df8c89fe597320dceb4d61b8945af`.
+A's exact 32-byte payload and native record at `0x680` match the immutable
+fixture manifest. Canonical raw state equals the independently verified actual
+A-placement post state; no intervening device content drift is observed.
+
+Actual service-prepared root under application `Evidence/Library Transfer Operations/`:
+`prepared-root-txt-delete-b60d36c89b0a487d9da0ae45911b7a94`. Its own fresh
+eight-object baseline manifest is
+`011c7571c2959bb05327800e6fa26f82f2ff822e4e55dbf4a9d1911bf5b75f1a`.
+Frozen seal `4d40b06da105a0da740c57cd548cf29cbe761d41a56861aa8ba8ac89af1afa42`;
+candidate `6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8`;
+transaction `e5831e0e363cab494c3f4aa859763808fa5a7676b01c6fd4ddb15edd4d58c452`;
+authorization `fc5e4482d04ab7322e42a7af1399dd5ba6d707275300daa17a359636546296f6`.
+`delete-A-frozen-review.json` is read-only navigation derived from this actual
+sealed envelope and existing canonical identity fields, not a substituted or
+newly adopted operation. `delete-A-preapproval-evidence-inventory.json` freezes
+all 22 prepared files. The UI retains its own prepared bundle and single modal.
+
+Independent actual GUI pre-Delete review **PASS**, P0/P1/P2 findings **0/0/0**:
+`INDEPENDENT_A_PREDELETE.md` external session report SHA-256
+`6d007f00309775cb38a1db41c5b28d1e0f94944c93856acec789775720ab5511`.
+The reviewer verifies all fresh/displayed/placed archive identities, exact
+source/candidate/transaction ranges/audit/authorization/capacity, sole A
+removal, all 300 survivor prefixes/payloads and 454 surviving timestamps, raw
+content/gaps/trailer, valid structure/checksum and eight protected associations.
+Candidate and prospective five protected blocks exactly reproduce the original
+pre-A-placement state. This is candidate proof, not future physical success.
+
+Actual native screenshots preserve selected A and the single readable dialog;
+`Delete-A-final-confirmation.png`, SHA-256
+`2180445ac39f89efa79697d1ceaa02c924a2d3a025f146ca7c0daccef2672857`,
+shows filename, VNW-V15, storage warning and Delete/Cancel. Cancel is the
+focused/default action. Current read-only safety verification passes: eleven
+historical consumed claims, **zero claims for this Delete seal**, **zero active
+markers**, retained global lock cleared; DB hash `6b967147…` unchanged during
+inspection. No physical Delete approval, sender invocation or transaction.
+76 relevant UI/service/admission/facade regressions pass, 10.986 seconds,
+external log `/external/local-path`. Full
+1,190-test checkpoint remains applicable; no source/tests/scripts changed.
+
+**Stop at the one unconfirmed dialog.** Owner approval must bind this already
+frozen operation; do not regenerate or adopt another candidate. If approved,
+click Delete once through the reviewed UI, require exact native integer zero
+and complete independent actual post-backup/sole-removal/survivor/protected/
+terminal verification, with no automatic retry. A ambiguity stops physical
+work; no B preparation or execution follows automatically. No push or merge.
