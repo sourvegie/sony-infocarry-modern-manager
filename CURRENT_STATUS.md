@@ -2,40 +2,32 @@
 
 Date: 2026-10-10
 
-## P18-044 — reviewed disposable preparation / READY_FOR_HARDWARE_TEST
+## P18-044 — exact A placement COMPLETE / Delete and B await separate authorization
 
-Starting reviewed commit `e1cfda6`; branch
-`task/P18-044-root-txt-physical-validation`. The owner authorized necessary
-out-of-sandbox access. Separate fixture-placement and Delete approvals have
-**not** been granted; physical writes / sender calls / new claims: **0**.
+Branch `task/P18-044-root-txt-physical-validation`, based on reviewed P18-043
+`e1cfda6`. The owner explicitly approved the already frozen **A placement once
+only**; the waiting process executed that identical candidate without rebuilding.
+Native **0x0000**, launcher exit **0**, one audited sender/transaction, zero
+automatic retries. The complete actual post-placement backup independently
+verifies exact `root\IC_P18_043_DELETE_A.txt` (32 bytes) as the sole addition.
+All 300 surviving prefixes/payloads, 454 surviving timestamps, original storage
+gaps/trailer and protected associations are preserved; checksum/structure valid.
+Current archive has 301 files / 455 records, growth 128 bytes. Exact claim
+consumed, sender marker resolved, global lock clear; no manual safety cleanup.
 
-A complete read-only VNW-V15 backup and native capacity query are preserved
-outside Git. The current blob matches the original P18-041 post-delete image:
-300 files / 454 records; A/B paths absent; native capacity 3,145,728 bytes.
-Read-only safety inspection finds the retained global record **cleared**,
-no active sender marker, ten consumed historical claims, valid database and
-unchanged safety bytes. No lock/marker/claim mutation occurred.
+Placement source head `52c75c802212c3ca652305e1890cc3d187021100` has independent
+R3 **PASS P0/P1/P2=0/0/0**. Fresh frozen preparation and actual post-placement
+independent reviews also PASS. Portable suite remains **1,190 run / 1,187
+passed / three established skips**; source/tests/scripts are unchanged after
+review. No independent USB bus trace was captured.
 
-Necessary A/B fixture placement now reuses the existing root-TXT guarded
-facade with explicit exact-manifest opt-in. Generic addition is unavailable.
-Actual-template padding exposed an inherited double-padding issue: the new
-clone copied three template padding bytes and added further alignment. The
-new opt-in authors only the new clone allocation; all existing bytes/gaps stay
-verbatim and default/proven operations remain unchanged. A/B host insertion
-then deletion reproduces the exact current blob and protected state.
-
-Portable suite passes **1,190 run / 1,187 passed / three established skips**;
-30 placement/launcher regressions pass. Independent exact-head R3 at
-`52c75c802212c3ca652305e1890cc3d187021100` passes **P0/P1/P2=0/0/0**;
-90 independently run focused tests pass with two established skips. Exact A/B
-placement is READY_FOR_HARDWARE_TEST after fresh frozen operation-specific
-owner approval. No such physical approval has been received.
-[Preparation/review packet](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
-A fresh exact placement review is now frozen and waiting at its sole owner
-confirmation. Independent artifact/current-safety verification passes: complete
-backup unchanged, A/B absent, all survivor state preserved, no A claim or sender
-marker. A placement approval is pending; no sender has started.
-No physical experiment has run, no general Delete promotion, no push or merge.
+This is one exact disposable A placement proof, not a Delete proof or a generic
+addition capability. **A Delete, B placement and B Delete are not authorized or
+started.** Ordinary root-TXT execution stays disabled. Stop at this owner
+boundary; future operations require separate approval and the existing guarded
+procedure. Complete backups/raw evidence remain external and unmodified.
+[Physical preparation and A closeout](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
+No push or merge.
 
 ## P18-043 — host work complete / TXT READY_FOR_HARDWARE_TEST / BMP host-reviewed
 

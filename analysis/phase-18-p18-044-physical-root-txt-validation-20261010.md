@@ -3,7 +3,8 @@
 Base `e1cfda6efc6cb8cfebcfe484fcb1e3bb69d54be3`; branch
 `task/P18-044-root-txt-physical-validation`. R3 host preparation precedes every
 new physical placement. The existing P18-043 A/B procedure and exact manifest
-remain authoritative. No physical write approval has yet been received.
+remain authoritative. At initial preparation no physical write approval had
+been received; the final, separately approved A placement closeout is below.
 
 ## Read-only preparation evidence
 
@@ -145,3 +146,57 @@ once only**; it authorizes neither A Delete nor any B operation. Source/tests/
 scripts remain identical to reviewed `52c75c8`; subsequent commits are only
 documentation. Do not rebuild or replace the pending frozen operation after
 approval; the existing coordinator must revalidate equivalence before sending.
+
+## Owner-approved exact A placement — independently verified COMPLETE
+
+The owner explicitly selected **Authorize this A placement once** for the
+already frozen operation. Receipt `placement-A-owner-approval.json` binds the
+unchanged review/complete owner identity. All 22 prepared artifacts rehashed
+unchanged immediately before the sole answer was supplied to the already
+waiting launcher. Process launched at documentation head `652aaee`, owner
+answer released at documentation-only `ebfe114`; source/tests/scripts remained
+identical to R3-reviewed `52c75c8`. No candidate or timestamp regenerated.
+
+Actual result: native **0x0000**, launcher exit **0**, **one sender / one audited
+transaction / zero retries**, complete eight-object pre/post archives and
+`readback_verified`. Sole added path `root\IC_P18_043_DELETE_A.txt`, exact
+manifest 32-byte payload. Actual post blob equals frozen candidate
+`fb912fed8176549f2fd938a685e1545c00a3f66bb0faccb890446abdf5233710`;
+archive growth 128 bytes, 300→301 files and 454→455 records. All 300 surviving
+prefixes/payloads and 454 surviving timestamps, full original content/gaps/
+trailer, checksum/structure, all eight protected associations and five protected
+response blocks independently verified. Permitted reference rebases preserve
+the same survivors. Nothing unrelated removed, changed or normalized.
+
+Evidence root: application `Evidence/Library Transfer Operations/` directory
+`p17-017-attempt-5b0e325cba594f47a5fe5af6b2ca4393`. Actual before manifest
+`341eeeff4102535adc4c2c6750bebdaae17e5eb77c137e86b6b7fc87cf3d03f8`;
+actual after manifest
+`a06894f58d5c7dc875bf5d8fb33c0f6db2f7dbdc6e19f177fb609d909051c61c`.
+Result manifest
+`7ff0e168b292b28d433c2a46aa5aaad9d922bbf1a4be41dd8a48f165cb9c1653`
+is hash-bound by verified terminal resolution. Exact A claim consumed; current
+store contains eleven consumed claims, zero sender markers and a cleared global
+lock. No manual claim/marker/lock cleanup or automatic retry. Safety inspection
+and evidence review were read-only; original physical evidence remains external.
+
+External session reports:
+`PHYSICAL_A_PLACEMENT_REPORT.md`, SHA-256
+`3aebb7ad613035c7cec3665d16f6e2b8abd4d15404f92a3a07fa2fc83bca3925`;
+`INDEPENDENT_A_POSTPLACEMENT.md`, SHA-256
+`6363828cd5bd2a4c62d16ae188e406cbefa07bdd3afc83b59595dc8973df715c`,
+**PASS**. Reviewer independently inspected actual complete archives, raw
+survivor/content/protected-state invariants, exact approval/result binding,
+claim/marker/lock and chronological ordering. Machine verification, original
+approval, frozen/execution inventories and safety reports remain beside them.
+
+No independent USB bus trace exists. One-transaction/no-retry evidence is the
+actual execution audit, durable lifecycle and reviewed one-shot implementation,
+not an independent bus capture. This is only one exact A placement on the
+observed VNW-V15 state. **A Delete and all B operations are not authorized or
+started.** No new GUI hardware proof, generic TXT addition/deletion, BMP,
+nested/directory/subtree, VNW-V10, physical atomicity or recovery is established.
+Normal general Delete remains disabled. No physical operation follows this
+approval automatically; stop pending a new separate owner-authorized operation.
+Source/test code unchanged, full completed 1,190-test validation and R3 remain
+applicable; final closeout changes are documentation only. No push or merge.
