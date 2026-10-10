@@ -140,6 +140,44 @@ class NewRootTxtBuilderTests(unittest.TestCase):
                 self.assertEqual(result.audit["target"]["payload_length"], length)
                 self.assertEqual(result.audit["allocation"]["alignment_padding_bytes"], (-length) % 4)
 
+    def test_fresh_new_allocation_cross_product_preserves_baseline_bytes(self):
+        for old_length in range(4):
+            for new_length in range(4):
+                with self.subTest(old=old_length, new=new_length), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    blob = bytearray(_make_root_blob(b'O'*old_length))
+                    before = parse_backup_blob(bytes(blob))
+                    padding_start = before.header.content_start+32+old_length
+                    blob[padding_start:-4] = b'\xc7'*(len(blob)-4-padding_start)
+                    blob[0x1C:0x20] = calculate_backup_checksum(blob).to_bytes(4,'big')
+                    backup = _write_archive(root/'backup', bytes(blob), self.now)
+                    source = root/'new.txt'; source.write_bytes(b'N'*new_length)
+                    result = build_new_root_txt_add(backup,source,'new.txt',source_template_offset=0xC0,
+                        available_capacity_bytes=10000,record_timestamp_be32=1234,now=self.now,max_age_seconds=None,
+                        fresh_new_allocation=True)
+                    after = parse_backup_blob(result.candidate_blob)
+                    target = next(after.record_at(o) for o,p in after.paths.items() if p == ('root','new'))
+                    old_content = bytes(blob)[before.header.content_start:before.header.content_start+before.header.content_length]
+                    new_content = after.data[after.header.content_start:after.header.content_start+after.header.content_length]
+                    length = 32+new_length+(-new_length)%4
+                    start = target.field_04_be32
+                    self.assertEqual(new_content[:start]+new_content[start+length:], old_content)
+                    self.assertEqual(result.audit['allocation']['alignment_padding_bytes'],(-new_length)%4)
+                    self.assertTrue(result.audit['allocation']['fresh_new_allocation'])
+                    self.assertEqual(result.audit['preservation']['preserved_file_payloads'],1)
+
+    def test_fresh_allocation_rejects_non_boolean_and_default_audit_unchanged(self):
+        temporary, backup, source, target = self._case()
+        self.addCleanup(temporary.cleanup)
+        kwargs = dict(source_template_offset=0xC0,available_capacity_bytes=10000,now=self.now,max_age_seconds=None)
+        for invalid in (1,None,'yes'):
+            with self.assertRaises(NewTxtAddError):
+                build_new_root_txt_add(backup,source,target,**kwargs,fresh_new_allocation=invalid)
+        ordinary = build_new_root_txt_add(backup,source,target,**kwargs)
+        explicit = build_new_root_txt_add(backup,source,target,**kwargs,fresh_new_allocation=False)
+        self.assertEqual(ordinary,explicit)
+        self.assertNotIn('fresh_new_allocation',ordinary.audit['allocation'])
+
     def test_long_valid_content_is_encoded_and_bounded(self):
         temporary, _backup, _source, result = self._build("日本語\n" * 500, capacity=20000)
         self.addCleanup(temporary.cleanup)

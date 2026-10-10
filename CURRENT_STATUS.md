@@ -2,6 +2,34 @@
 
 Date: 2026-10-10
 
+## P18-044 — disposable physical validation preparation / R3 pending
+
+Starting reviewed commit `e1cfda6`; branch
+`task/P18-044-root-txt-physical-validation`. The owner authorized necessary
+out-of-sandbox access. Separate fixture-placement and Delete approvals have
+**not** been granted; physical writes / sender calls / new claims: **0**.
+
+A complete read-only VNW-V15 backup and native capacity query are preserved
+outside Git. The current blob matches the original P18-041 post-delete image:
+300 files / 454 records; A/B paths absent; native capacity 3,145,728 bytes.
+Read-only safety inspection finds the retained global record **cleared**,
+no active sender marker, ten consumed historical claims, valid database and
+unchanged safety bytes. No lock/marker/claim mutation occurred.
+
+Necessary A/B fixture placement now reuses the existing root-TXT guarded
+facade with explicit exact-manifest opt-in. Generic addition is unavailable.
+Actual-template padding exposed an inherited double-padding issue: the new
+clone copied three template padding bytes and added further alignment. The
+new opt-in authors only the new clone allocation; all existing bytes/gaps stay
+verbatim and default/proven operations remain unchanged. A/B host insertion
+then deletion reproduces the exact current blob and protected state.
+
+Portable suite passes **1,190 run / 1,187 passed / three established skips**;
+30 placement/launcher regressions pass. Independent exact-head R3 is pending
+before any new placement is eligible for separate physical owner approval.
+[Preparation/review packet](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
+No physical experiment has run, no general Delete promotion, no push or merge.
+
 ## P18-043 — host work complete / TXT READY_FOR_HARDWARE_TEST / BMP host-reviewed
 
 The independent TXT checkpoint R3 is complete: **P0/P1/P2=0/0/0** at

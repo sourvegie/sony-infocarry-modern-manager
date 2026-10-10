@@ -8,7 +8,7 @@ addition is not exposed.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -37,6 +37,69 @@ from .p18_041h_experiment import (
 
 ROOT_TXT_PLACEMENT_PROFILE = "vnw-v15-exact-clock-root-txt-placement-v1"
 CONFIRMATION = f"ADD {FIXTURE_FILENAME} ONCE"
+DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE = "vnw-v15-disposable-root-txt-placement-validation-v1"
+
+
+def _placement_fixture(target_path, validation_placement):
+    if type(validation_placement) is not bool:
+        raise ValueError("validation placement opt-in must be explicit boolean")
+    if validation_placement:
+        # Lazy: delete_workflow inherits the existing placement bundle.
+        from .delete_workflow import ROOT_TXT_DELETE_VALIDATION_FILES
+        payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(target_path)
+        if payload is None:
+            raise ValueError("only exact disposable A/B placement targets are admitted")
+        return target_path.split("\\")[-1], payload
+    if target_path != FIXTURE_PATH:
+        raise ValueError("only the exact VNW-V15 direct-root TXT fixture is admitted")
+    return FIXTURE_FILENAME, FIXTURE_BYTES
+
+
+def _fixture_dict(target_path, validation_placement):
+    if not validation_placement:
+        return fixture_identity()
+    filename, payload = _placement_fixture(target_path, True)
+    return {"path": target_path, "filename": filename, "length": len(payload),
+            "sha256": _sha(payload), "disposable_validation_only": True}
+
+
+def _absent_disposable_target(parsed, filename):
+    stem = filename[:-4].casefold()
+    if any(len(path) == 2 and path[0].casefold() == "root" and
+           path[1].casefold() == stem for path in parsed.paths.values()):
+        raise ValueError("disposable target must be absent without native-stem ambiguity")
+
+
+def _disposable_delta(before, after, target_path):
+    filename, payload = _placement_fixture(target_path, True)
+    baseline, candidate = parse_backup_blob(before), parse_backup_blob(after)
+    _absent_disposable_target(baseline, filename)
+    target = ("root", filename[:-4])
+    def records(parsed):
+        values = {}
+        for offset, path in parsed.paths.items():
+            if path in values:
+                raise ValueError("ambiguous native path")
+            record = parsed.record_at(offset)
+            values[path] = record
+        return values
+    old, new = records(baseline), records(candidate)
+    if set(new) - set(old) != {target} or set(old) - set(new):
+        raise ValueError("placement requires exactly one absent direct-root addition")
+    added = new[target]
+    if (added.kind != "file" or added.extension != "txt" or added.flag not in (0x20, 0xE0)
+            or added.field_14_be32 != 0x200 or candidate.payload_parts(added)[1] != payload):
+        raise ValueError("placement target payload differs from disposable identity")
+    for path, record in old.items():
+        survivor = new[path]
+        if (record.kind, record.extension, record.timestamp_be32) != (survivor.kind, survivor.extension, survivor.timestamp_be32):
+            raise ValueError("prior record type or timestamp changed")
+        if record.kind == "file" and baseline.payload_parts(record) != candidate.payload_parts(survivor):
+            raise ValueError("prior payload or native prefix changed")
+    return {"fixture_count_at_root": 1, "payload_length": len(payload),
+            "payload_sha256": _sha(payload), "only_path_delta": target_path,
+            "unrelated_payloads_unchanged": True, "surviving_prefixes_unchanged": True,
+            "surviving_timestamps_unchanged": True}
 
 
 def _sha(data: bytes) -> str:
@@ -123,6 +186,7 @@ class RootTxtAuthorizationCore:
     source_path: Path
     confirmation_phrase: str = CONFIRMATION
     confirmation_policy: str = "explicit_phrase"
+    profile_id: str = ROOT_TXT_PLACEMENT_PROFILE
 
     def revalidate(self, candidate: NewTxtAddResult, *, now=None,
                    max_age_seconds=DEFAULT_MAX_AGE_SECONDS) -> None:
@@ -138,9 +202,11 @@ class RootTxtPlacementAuthorization:
         self.core.binding.require_same_candidate(candidate.core)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"format": "infocarry-exact-root-txt-authorization-v1",
-                "profile": ROOT_TXT_PLACEMENT_PROFILE,
-                "confirmation_phrase": CONFIRMATION,
+        return {"format": ("infocarry-disposable-root-txt-placement-authorization-v1"
+                           if self.core.profile_id == DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE
+                           else "infocarry-exact-root-txt-authorization-v1"),
+                "profile": self.core.profile_id,
+                "confirmation_phrase": self.core.confirmation_phrase,
                 "inner_binding": self.core.binding.to_dict()}
 
 
@@ -169,6 +235,8 @@ class RootTxtPlacementBundle:
     seal_sha256: str
     session_binding_token: str
     max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS
+    placement_target_path: str = field(default=FIXTURE_PATH, kw_only=True)
+    validation_placement: bool = field(default=False, kw_only=True)
 
     @property
     def operation_bundle(self):
@@ -192,7 +260,7 @@ class RootTxtPlacementBundle:
 
     @property
     def expected_folder_name(self) -> str:
-        return FIXTURE_FILENAME
+        return self.placement_target_path.split("\\")[-1]
 
     @property
     def device_identity(self) -> tuple[str, str]:
@@ -204,15 +272,17 @@ class RootTxtPlacementBundle:
 
     @property
     def operation_profile(self) -> str:
-        return ROOT_TXT_PLACEMENT_PROFILE
+        return DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE if self.validation_placement else ROOT_TXT_PLACEMENT_PROFILE
 
     @property
     def result_format(self) -> str:
-        return "infocarry-exact-root-txt-placement-result-v1"
+        return ("infocarry-disposable-root-txt-placement-result-v1" if self.validation_placement
+                else "infocarry-exact-root-txt-placement-result-v1")
 
     @property
     def terminal_format(self) -> str:
-        return "infocarry-exact-root-txt-terminal-resolution-v1"
+        return ("infocarry-disposable-root-txt-placement-terminal-resolution-v1" if self.validation_placement
+                else "infocarry-exact-root-txt-terminal-resolution-v1")
 
     @property
     def bundle_sha256(self) -> str:
@@ -253,22 +323,22 @@ class RootTxtPlacementBundle:
             OwnerAuthorizedOperationIdentity.from_bundle(self).approval_phrase})
 
     def review_dict(self) -> dict[str, Any]:
-        return {"format": "infocarry-exact-root-txt-placement-review-v2",
+        return {"format": ("infocarry-disposable-root-txt-placement-review-v1" if self.validation_placement else "infocarry-exact-root-txt-placement-review-v2"),
                 "owner_identity": OwnerAuthorizedOperationIdentity.from_bundle(self).to_dict(),
-                "fixture": fixture_identity(),
+                "fixture": _fixture_dict(self.placement_target_path, self.validation_placement),
                 "device_state_binding": {
                     "model": "VNW-V15",
                     "baseline_state_identity_sha256": self.baseline_state_identity_sha256,
                     "capacity_response_sha256": self.capacity_response_sha256,
                     "target_absent": True,
                 },
-                "confirmation_phrase": CONFIRMATION, "automatic_retry_allowed": False,
+                "confirmation_phrase": self.authorization.core.confirmation_phrase, "automatic_retry_allowed": False,
                 "required_post_backup": "complete_independent_exact_readback"}
 
     def _envelope(self) -> dict[str, Any]:
-        return {"format": "infocarry-exact-root-txt-placement-bundle-v2",
-                "profile": ROOT_TXT_PLACEMENT_PROFILE, "model": "VNW-V15",
-                "fixture": fixture_identity(),
+        return {"format": ("infocarry-disposable-root-txt-placement-bundle-v1" if self.validation_placement else "infocarry-exact-root-txt-placement-bundle-v2"),
+                "profile": self.operation_profile, "model": "VNW-V15",
+                "fixture": _fixture_dict(self.placement_target_path, self.validation_placement),
                 "baseline_state_identity_sha256": self.baseline_state_identity_sha256,
                 "baseline_artifact": self.backup_artifact.to_dict(),
                 "source_artifact": self.source_artifact.to_dict(),
@@ -280,7 +350,7 @@ class RootTxtPlacementBundle:
                 "capacity_artifact": self.capacity_artifact.to_dict(),
                 "capacity_response_sha256": self.capacity_response_sha256,
                 "authorization_sha256": self.authorization_sha256,
-                "confirmation_phrase": CONFIRMATION, "no_retry": True,
+                "confirmation_phrase": self.authorization.core.confirmation_phrase, "no_retry": True,
                 "one_sender": True, "native_success": "0x0000",
                 "post_backup": "complete_independent_exact_readback"}
 
@@ -288,8 +358,13 @@ class RootTxtPlacementBundle:
         for artifact in (self.source_artifact, self.candidate_artifact, self.capacity_artifact,
                          self.backup_artifact, self.seal_artifact):
             artifact.verify()
-        if self.source_path.name != FIXTURE_FILENAME or self.source_path.read_bytes() != FIXTURE_BYTES:
+        filename, payload = _placement_fixture(self.placement_target_path, self.validation_placement)
+        if self.source_path.name != filename or self.source_path.read_bytes() != payload:
             raise ValueError("exact fixture source changed")
+        expected_profile = DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE if self.validation_placement else ROOT_TXT_PLACEMENT_PROFILE
+        expected_phrase = f"ADD {filename} ONCE"
+        if self.authorization.core.profile_id != expected_profile or self.authorization.core.confirmation_phrase != expected_phrase:
+            raise ValueError("placement authorization profile or target phrase differs")
         if self.candidate_artifact.sha256 != self.candidate_blob_sha256:
             raise ValueError("candidate artifact differs from frozen candidate")
         if self.capacity_artifact.sha256 != _sha(self.capacity_response.raw_response):
@@ -302,10 +377,29 @@ class RootTxtPlacementBundle:
         if preserved != self.candidate.transaction:
             raise ValueError("preserved transaction differs from frozen transaction")
         before = verify_fresh_backup(self.before_backup.directory, max_age_seconds=None)
-        _exact_delta(_blob(before), self.candidate.candidate_blob)
+        if self.validation_placement:
+            self._reconstruct_disposable_candidate(before)
+            _disposable_delta(_blob(before), self.candidate.candidate_blob, self.placement_target_path)
+        else:
+            _exact_delta(_blob(before), self.candidate.candidate_blob)
         self.capacity_response.bind_model_lengths(len(_blob(before)), len(self.candidate.candidate_blob))
         self.authorization.require_same_candidate(self.candidate)
         self.authorization.core.revalidate(self.candidate.core, max_age_seconds=None)
+
+    def _reconstruct_disposable_candidate(self, before):
+        audit = self.candidate.audit_dict()
+        preparation = audit.get("disposable_placement")
+        if not isinstance(preparation, dict):
+            raise ValueError("disposable placement preparation identity missing")
+        result = build_new_root_txt_add(before.directory, self.source_path, self.expected_folder_name,
+            source_template_offset=int(audit["template"]["record_offset_hex"], 16),
+            available_capacity_bytes=self.capacity_response.capacity_limit_bytes-len(_blob(before)),
+            record_timestamp_be32=preparation["record_timestamp_be32"], max_age_seconds=None,
+            fresh_new_allocation=True)
+        rebuilt_audit = result.audit_dict()
+        rebuilt_audit["disposable_placement"] = preparation
+        if result.candidate_blob != self.candidate.candidate_blob or result.transaction != self.candidate.transaction or _json(rebuilt_audit) != self.candidate.audit_json:
+            raise ValueError("disposable candidate/transaction/audit differs from independent reconstruction")
 
     def _consume_execution_claim(self, owner: PersistentWriteSafetyOwner):
         from .prepared_library_package_live_adapter import _execution_claim_bindings
@@ -371,7 +465,8 @@ class RootTxtPlacementBundle:
         verified = self.authorization.core.binding.verify_post_add_backup(
             self.candidate.core, self.before_backup.directory, self.source_path, after.directory,
             now=now, max_age_seconds=max_age_seconds)
-        exact = _exact_delta(_blob(self.before_backup), _blob(after))
+        exact = (_disposable_delta(_blob(self.before_backup), _blob(after), self.placement_target_path)
+                 if self.validation_placement else _exact_delta(_blob(self.before_backup), _blob(after)))
         return RootTxtReadback(_json({"independent_complete_backup_verification": verified.to_dict(),
                                      "exact_path_and_payload_verification": exact}))
 
@@ -407,6 +502,8 @@ class RootTxtPlacementBundle:
                                  "result_manifest": OperationArtifact.file(result_manifest).to_dict()})
 
     def write_placement_report(self, root, audit, after) -> Path:
+        if self.validation_placement:
+            raise ValueError("disposable placement cannot produce a P18-041H prestage report")
         if audit.get("execution_claim", {}).get("committed") is not True or audit.get("execution_claim", {}).get("sender_marker", {}).get("resolved") is not True:
             raise ValueError("report requires a committed claim and terminal marker resolution")
         verification = self.verify_readback(after, completion=0).to_dict()
@@ -421,7 +518,7 @@ class RootTxtPlacementBundle:
             "completed_at_utc": datetime.now(timezone.utc).isoformat(),
             "physical_operation_count": 1, "add_count": 1, "delete_count": 0,
             "subtree_operation": False, "retry_count": 0, "sender_invocations": 1,
-            "fixture": fixture_identity(), "post_placement_backup": {
+            "fixture": _fixture_dict(self.placement_target_path, self.validation_placement), "post_placement_backup": {
                 "path": str(after.directory), "manifest_sha256": after.manifest_sha256,
                 "blob_sha256": after.blob_sha256}, "verification": verification,
             "later_delete_session": "not_started_by_placement",
@@ -431,6 +528,23 @@ class RootTxtPlacementBundle:
 
     def write_operation_report(self, root, audit, after) -> Path:
         """Canonical runner hook; the established placement report is unchanged."""
+        if self.validation_placement:
+            if audit.get("state") != "readback_verified" or audit.get("completion") != "0x0000" or audit.get("workflow", {}).get("sender_calls") != 1:
+                raise ValueError("disposable report requires verified native-zero one-shot result")
+            if audit.get("execution_claim", {}).get("committed") is not True or audit.get("execution_claim", {}).get("sender_marker", {}).get("resolved") is not True:
+                raise ValueError("report requires committed claim and resolved marker")
+            path = Path(root) / "disposable-placement-report.json"
+            _write_json(path, {"format": "infocarry-disposable-root-txt-placement-report-v1",
+                "experiment_id": "P18-044", "status": "completed_and_independently_verified",
+                "operation": "separate_fixture_placement", "fixture": _fixture_dict(self.placement_target_path, True),
+                "sender_invocations": 1, "add_count": 1, "delete_count": 0, "retry_count": 0,
+                "native_completion": "0x0000",
+                "owner_authorized_operation": OwnerAuthorizedOperationIdentity.from_bundle(self).to_dict(),
+                "post_placement_backup": {"path": str(after.directory), "manifest_sha256": after.manifest_sha256,
+                                          "blob_sha256": after.blob_sha256},
+                "verification": self.verify_readback(after, completion=0).to_dict(),
+                "result_manifest": OperationArtifact.file(Path(root) / "result-manifest-0001.json").to_dict()})
+            return path
         return self.write_placement_report(root, audit, after)
 
     def reconcile_result(self, result):
@@ -447,7 +561,16 @@ class RootTxtPlacementBundle:
                     node.pop("verified_at_utc", None)
         if actual != expected or audited != expected:
             raise ValueError("independent root readback reconciliation failed")
-        _validate_fixture_prestage_report(Path(result.audit["evidence_outputs"]["root"]) / "01-fixture-prestage" / "placement-readback-or-backup-report.json")
+        if self.validation_placement:
+            report = json.loads((Path(result.audit["evidence_outputs"]["root"]) / "disposable-placement-report.json").read_bytes())
+            if (report.get("format") != "infocarry-disposable-root-txt-placement-report-v1"
+                    or report.get("fixture") != _fixture_dict(self.placement_target_path, True)
+                    or report.get("native_completion") != "0x0000"
+                    or report.get("sender_invocations") != 1 or report.get("retry_count") != 0
+                    or report.get("owner_authorized_operation") != OwnerAuthorizedOperationIdentity.from_bundle(self).to_dict()):
+                raise ValueError("disposable placement report identity differs")
+        else:
+            _validate_fixture_prestage_report(Path(result.audit["evidence_outputs"]["root"]) / "01-fixture-prestage" / "placement-readback-or-backup-report.json")
         return result
 
 
@@ -465,16 +588,18 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
         self.runtime.close()
 
     def prepare(self, source_path: Path, *, target_path: str = FIXTURE_PATH,
-                device_model: str = "VNW-V15", max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
+                device_model: str = "VNW-V15", max_age_seconds=DEFAULT_MAX_AGE_SECONDS,
+                validation_placement: bool = False):
         if self.stop_approved_rebuild():
             raise LibraryTransferExecutionError("approved operation cannot refresh or adopt a new candidate", stage="owner_authorization")
         try:
             if self._prepared_operation is not None:
                 raise ValueError("discard the previous operation before preparing another")
-            if device_model != "VNW-V15" or target_path != FIXTURE_PATH:
-                raise ValueError("only the exact VNW-V15 direct-root TXT fixture is admitted")
+            if device_model != "VNW-V15":
+                raise ValueError("only VNW-V15 placement is admitted")
+            filename, payload = _placement_fixture(target_path, validation_placement)
             source = Path(source_path).expanduser().resolve()
-            if source.name != FIXTURE_FILENAME or not source.is_file() or source.read_bytes() != FIXTURE_BYTES:
+            if source.name != filename or not source.is_file() or source.read_bytes() != payload:
                 raise ValueError("fixture source name/payload differs")
             if max_age_seconds != DEFAULT_MAX_AGE_SECONDS:
                 raise ValueError("placement must use the established fresh-backup age policy")
@@ -496,34 +621,51 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             baseline_blob = _blob(before)
             parsed = parse_backup_blob(baseline_blob)
             templates = [offset for offset in parsed.paths if parsed.record_at(offset).kind == "file" and parsed.record_at(offset).extension.lower() == "txt"]
+            if validation_placement:
+                templates = [offset for offset in templates if parsed.paths[offset][:-1] == ("root",)
+                             and parsed.record_at(offset).extension == "txt"
+                             and parsed.record_at(offset).flag in (0x20, 0xE0)
+                             and parsed.record_at(offset).field_14_be32 == 0x200]
             if not templates:
                 raise ValueError("baseline has no ordinary TXT template")
-            source_copy = root / FIXTURE_FILENAME
+            if validation_placement:
+                _absent_disposable_target(parsed, filename)
+            source_copy = root / filename
             with source_copy.open("xb") as output:
                 output.write(source.read_bytes())
-            result = build_new_root_txt_add(before.directory, source_copy, FIXTURE_FILENAME,
+            timestamp = runtime.new_record_timestamp_be32()
+            result = build_new_root_txt_add(before.directory, source_copy, filename,
                 source_template_offset=templates[0], available_capacity_bytes=capacity.capacity_limit_bytes-len(baseline_blob),
-                record_timestamp_be32=runtime.new_record_timestamp_be32())
-            _exact_delta(baseline_blob, result.candidate_blob)
+                record_timestamp_be32=timestamp, fresh_new_allocation=validation_placement)
+            if validation_placement:
+                _disposable_delta(baseline_blob, result.candidate_blob, target_path)
+            else:
+                _exact_delta(baseline_blob, result.candidate_blob)
             capacity.bind_model_lengths(len(baseline_blob), len(result.candidate_blob))
             candidate_path = root / "candidate.bin"
             with candidate_path.open("xb") as output:
                 output.write(result.candidate_blob)
             transaction_directory = root / "transaction"
-            result.transaction.preserve(transaction_directory, source="exact-root-txt-placement")
+            result.transaction.preserve(transaction_directory, source="disposable-root-txt-placement" if validation_placement else "exact-root-txt-placement")
             capacity_path = root / "capacity-0019.bin"
             with capacity_path.open("xb") as output:
                 output.write(capacity.raw_response)
-            candidate = RootTxtPlacementCandidate(result.candidate_blob, result.transaction, _json(result.audit_dict()))
+            candidate_audit = result.audit_dict()
+            if validation_placement:
+                candidate_audit["disposable_placement"] = {"record_timestamp_be32": timestamp}
+            candidate = RootTxtPlacementCandidate(result.candidate_blob, result.transaction, _json(candidate_audit))
             binding = authorize_new_txt_add(result, confirmation=NEW_ROOT_TXT_CONFIRMATION_PHRASE)
-            authorization = RootTxtPlacementAuthorization(RootTxtAuthorizationCore(binding, before.directory, source_copy))
+            authorization = RootTxtPlacementAuthorization(RootTxtAuthorizationCore(binding, before.directory, source_copy,
+                confirmation_phrase=f"ADD {filename} ONCE",
+                profile_id=DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE if validation_placement else ROOT_TXT_PLACEMENT_PROFILE))
             seal_path = root / "operation-bundle.json"
             from dataclasses import replace
             provisional = RootTxtPlacementBundle(runtime,before,capacity,candidate,authorization,
                 OperationArtifact.file(source_copy), OperationArtifact.file(candidate_path),
                 OperationArtifact.file(capacity_path), OperationArtifact.backup_manifest(before.directory),
                 OperationArtifact(str(seal_path), "0"*64, "file_bytes", 0),
-                transaction_directory,b"", "0"*64,runtime.session_binding_token,None)
+                transaction_directory,b"", "0"*64,runtime.session_binding_token,None,
+                placement_target_path=target_path, validation_placement=validation_placement)
             envelope = _json(provisional._envelope())
             with seal_path.open("xb") as output:
                 output.write(envelope)

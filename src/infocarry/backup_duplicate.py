@@ -35,6 +35,7 @@ class DuplicateSpec:
     new_name: str
     timestamp_be32: Optional[int] = None
     flag: Optional[int] = None
+    replacement_payload: Optional[bytes] = None
 
 
 def _u32(value: int, label: str) -> None:
@@ -64,6 +65,10 @@ def _validate_spec(spec: DuplicateSpec) -> None:
         raise BackupDuplicateError("new_name is not representable in CP932") from exc
     if len(encoded) >= 40:
         raise BackupDuplicateError("new_name must leave room for the metadata NUL terminator")
+    if spec.replacement_payload is not None:
+        if not isinstance(spec.replacement_payload, bytes):
+            raise BackupDuplicateError("replacement_payload must be immutable bytes for the new clone")
+        _u32(len(spec.replacement_payload), "replacement_payload length")
     if spec.timestamp_be32 is not None:
         _u32(spec.timestamp_be32, "timestamp_be32")
     if spec.flag is not None:
@@ -142,7 +147,14 @@ def duplicate_existing_records(
             raise BackupDuplicateError(str(exc)) from exc
         if source.kind != "file" or source.offset not in parsed.paths:
             raise BackupDuplicateError("each source must be a reachable file")
-        source_records.append((spec, source, _aligned_copy(parsed, source)))
+        if spec.replacement_payload is None:
+            segment = _aligned_copy(parsed, source)
+        else:
+            # Only the new allocation is authored; old content and gaps remain verbatim.
+            prefix, _source_payload = parsed.payload_parts(source)
+            segment = prefix + spec.replacement_payload
+            segment += b"\x00" * ((-len(segment)) % 4)
+        source_records.append((spec, source, segment))
 
     # The first marker immediately after this directory's child table is the
     # shared boundary before the next subtree. Several later subtrees also
@@ -224,6 +236,8 @@ def duplicate_existing_records(
             for spec, source, segment in source_records:
                 record = bytearray.fromhex(source.raw_hex)
                 record[0x04:0x08] = content_position.to_bytes(4, "big")
+                if spec.replacement_payload is not None:
+                    record[0x08:0x0C] = len(spec.replacement_payload).to_bytes(4, "big")
                 timestamp = (
                     spec.timestamp_be32
                     if spec.timestamp_be32 is not None
@@ -283,6 +297,7 @@ def add_file_from_template(
     flag: Optional[int] = None,
     metadata_timestamp_be32: Optional[int] = None,
     metadata_timestamps: Optional[Mapping[int, int]] = None,
+    fresh_new_allocation: bool = False,
 ) -> bytes:
     """Add one file using a captured record as its structural template.
 
@@ -294,6 +309,8 @@ def add_file_from_template(
     new record grammar or sidecar state.
     """
 
+    if type(fresh_new_allocation) is not bool:
+        raise BackupDuplicateError("fresh_new_allocation must be an explicit boolean")
     if not isinstance(payload, (bytes, bytearray, memoryview)):
         raise BackupDuplicateError("payload must be bytes-like")
     spec = DuplicateSpec(
@@ -301,6 +318,7 @@ def add_file_from_template(
         new_name=new_name,
         timestamp_be32=timestamp_be32,
         flag=flag,
+        replacement_payload=bytes(payload) if fresh_new_allocation else None,
     )
     try:
         duplicated = duplicate_existing_records(
@@ -313,6 +331,9 @@ def add_file_from_template(
         rebuilt = parse_backup_blob(duplicated)
     except (BackupDuplicateError, BackupFormatError) as exc:
         raise BackupDuplicateError(str(exc)) from exc
+
+    if fresh_new_allocation:
+        return duplicated
 
     target_path = parsed.paths[target_directory_offset] + (new_name,)
     candidates = [

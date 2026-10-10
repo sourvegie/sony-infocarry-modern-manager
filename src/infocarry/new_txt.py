@@ -313,6 +313,7 @@ def build_new_root_txt_add(
     metadata_timestamps: Optional[Mapping[int, int]] = None,
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+    fresh_new_allocation: bool = False,
 ) -> NewTxtAddResult:
     """Build one root-level TXT candidate without mutating any input.
 
@@ -321,6 +322,8 @@ def build_new_root_txt_add(
     semantics remain unresolved; ``None`` therefore fails closed.
     """
 
+    if type(fresh_new_allocation) is not bool:
+        raise NewTxtAddError("fresh_new_allocation must be an explicit boolean")
     if (
         available_capacity_bytes is None
         or isinstance(available_capacity_bytes, bool)
@@ -374,6 +377,7 @@ def build_new_root_txt_add(
             authored_payload,
             timestamp_be32=record_timestamp_be32,
             metadata_timestamps=timestamp_overrides,
+            fresh_new_allocation=fresh_new_allocation,
         )
         candidate = parse_backup_blob(candidate_blob)
     except (BackupDuplicateError, BackupFormatError, OverflowError) as exc:
@@ -500,6 +504,8 @@ def build_new_root_txt_add(
             "The supplied capacity budget is an external safe bound; device capacity-field semantics are not inferred.",
         ],
     }
+    if fresh_new_allocation:
+        audit["allocation"]["fresh_new_allocation"] = True
     audit_bytes = json.dumps(audit, sort_keys=True, separators=(",", ":")).encode("utf-8")
     audit["audit_sha256"] = _sha256(audit_bytes)
     return NewTxtAddResult(candidate_blob=candidate_blob, transaction=transaction, audit=audit)
