@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 
-## P18-043 — TXT reviewed / GUI checked / BMP host continuation in final R3
+## P18-043 — host work complete / TXT READY_FOR_HARDWARE_TEST / BMP host-reviewed
 
 The independent TXT checkpoint R3 is complete: **P0/P1/P2=0/0/0** at
 `e35aab40467c1808138a9ca39ce1606c6f73f7e3`. The owner-authorized isolated
@@ -23,15 +23,23 @@ protected-state, eight-range transaction, bound host authorization and complete
 readback verifier. BMP sender binding is blocked regardless of audit labels;
 no BMP UI/live bundle/claim path is added. Thirteen new synthetic tests pass.
 The twelve-archive census has **zero root BMP records**; nested records do not
-prove root behavior. Final continuation R3 is pending.
+prove root behavior. Combined GUI/BMP continuation R3 passes
+**P0/P1/P2=0/0/0** at `1ea9d6e`,
+with the optional P3 preview-footer wording corrected and independently verified
+at final code head `c2e6a5f48df5d7e5b5ae83a85c086e6b50e8f617`. No unresolved
+review findings or material correction rounds remain.
 
 Full final portable suite: **1,172 run / 1,169 passed / three established
-intentional evidence skips**, 128.933 seconds. Final corrected macOS package
-and isolated runtime smoke pass with zero real device/sender/safety counters.
-No Windows native execution is claimed. No physical write, push or merge.
+intentional evidence skips**, 129.352 seconds at final code head. The corrected
+macOS package and isolated runtime smoke pass with zero real device/sender/safety
+counters. Two identical wheels and isolated installed-wheel imports pass. No Windows native execution is claimed. No physical write, push
+or merge. Next: separately authorize disposable TXT placement/validation; keep
+ordinary TXT execution disabled pending reviewed owner-accepted class promotion.
+BMP needs a later bounded live adapter and its own disposable physical validation.
 
 [Delivery/review packet](analysis/phase-18-p18-043-general-root-txt-delete-20261010.md),
 [independent TXT R3](analysis/phase-18-p18-043-independent-root-txt-r3-review-20261010.md),
+[continuation R3](analysis/phase-18-p18-043-bmp-ui-independent-r3-review-20261010.md),
 [native visual inventory](analysis/phase-18-p18-043-native-visual-checks-20261010.json)
 and [bounded physical procedure](analysis/phase-18-p18-043-disposable-root-txt-delete-procedure-20261010.md)
 record the exact scope and outstanding physical acceptance requirements.

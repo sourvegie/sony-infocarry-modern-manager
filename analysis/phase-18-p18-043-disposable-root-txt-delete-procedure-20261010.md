@@ -1,9 +1,10 @@
 # P18-043 bounded disposable root-TXT Delete validation
 
 **PREPARATION ONLY — no physical operation is authorized by this document.**
-Final independent R3 and GUI visual checks are still outstanding; do not run
-this procedure until they complete. Use the final reviewed code head from the
-P18-043 delivery record. Stop if the
+Host R3 and native synthetic GUI visual checks pass: READY_FOR_HARDWARE_TEST.
+Running this procedure requires separate operation-specific owner approvals.
+Use reviewed code head `c2e6a5f48df5d7e5b5ae83a85c086e6b50e8f617` or its
+documentation-only closure recorded in the P18-043 delivery record. Stop if the
 installation-wide lock or sender marker is active; do not clear it manually.
 Never use personal files, interrupt a write, restore, or automatically retry.
 

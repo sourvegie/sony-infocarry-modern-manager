@@ -128,6 +128,31 @@
       "path": "/external/local-path",
       "bytes": 3043,
       "sha256": "6999c876b47b9ed17d90f579aacc17cfeb240addebe0096f8e9c50a2fdb1f7ac"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 328006,
+      "sha256": "4df9d18655e0742e012491dc6612289ac797f23116257d6147498bd9930c5420"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 30484,
+      "sha256": "618515c1e6a96f26449b89a79bfdce09935a4d9813b08b273f667aecf3370900"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 306,
+      "sha256": "e225360b8381bc7280aebced38b081aed19f268c32df6af2216de86e15d3d3a7"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 7944,
+      "sha256": "98d06fb4b585e92b0cb5a93cf2230c37edd5c07f849c7d229d25610784fd5301"
+    },
+    {
+      "path": "/external/local-path",
+      "bytes": 1728,
+      "sha256": "234af69c819f891a0a0877ce0f94fd3d02ca9cd2c0a68d030e08cc3b7ff53ded"
     }
   ]
 }

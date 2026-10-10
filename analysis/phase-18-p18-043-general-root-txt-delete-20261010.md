@@ -104,7 +104,7 @@ and no-cancel protections also remain covered by actual callback regression
 tests; no physical or interrupted-write experiment is claimed.
 
 Python 3.12.14 / Tk runtime 9.0.4. Final corrected portable suite:
-**1,172 run / 1,169 passed / three established evidence skips**, 128.933 seconds,
+**1,172 run / 1,169 passed / three established evidence skips**, 129.352 seconds at code head `c2e6a5f48df5d7e5b5ae83a85c086e6b50e8f617`,
 `/external/local-path`. Thirteen new BMP tests plus
 64 relevant existing tests pass; 43 desktop regressions pass. `compileall` and
 `git diff --check` pass. Eighteen old/new TXT candidates, transactions, audit
@@ -118,8 +118,9 @@ Add/workspace/close and locked/unavailable-runtime checks pass; libusb/resources
 load and all real device/sender/claim/marker counters are zero. This is separate
 from the observed native GUI visual checks. No Windows native execution is claimed.
 Two final same-epoch wheels match SHA-256
-`b73f843d52d5d168c3bd8516f9368eb21548ce2493b98e38f267b323d325a270`.
-No optional dependency was installed into the reference runtime.
+`ad85efa8698502f2d74314cb608dd4489f57c49a88646290c5afe706c8a37857`.
+Final wheel installation into an isolated `/private/tmp` target and source-verified
+imports pass. No optional dependency was installed into the reference runtime.
 
 ## Reviewed-model root-BMP continuation
 
@@ -148,7 +149,23 @@ objects and found **zero root BMP records**. There are 1,826 related nested BMP
 occurrences, all 16-byte prefixes; this does not prove root behavior. No absent
 case is counted as a candidate pass or new test skip. BMP preparation is tested
 synthetically only. Census scripts/reports remain external in the visual inventory.
-Final combined continuation R3 is pending at the source checkpoint.
+Final [combined GUI/BMP R3](phase-18-p18-043-bmp-ui-independent-r3-review-20261010.md)
+passes at `1ea9d6e24e86f65a5a4ef8290c5b372e3ed0ae23`, P0/P1/P2=0/0/0.
+Reviewer independently ran 105 targeted tests, checked original evidence,
+28 real TXT old/new candidate/transaction/audit/authorization comparisons and
+27 equal refusals, inspected native screenshots/reports, and verified all
+25 then-recorded artifact hashes. Optional P3 preview wording is corrected:
+selection preview says “Text preview loaded” while the scoped Delete label
+states its availability. At `c2e6a5f48df5d7e5b5ae83a85c086e6b50e8f617`,
+the reviewer independently inspected the four-line UI-only diff and actual
+native screenshot, reran 43 desktop tests and acknowledged resolution.
+No material review correction rounds or unresolved findings remain.
+
+The visual inventory now preserves 30 hashed artifacts. Session-06 harness
+snapshots are byte-exact to their earlier recorded digests (recovered by reversing
+only the session-07 literal); session-07 scripts and preview screenshot/report
+are separate frozen copies. Original screenshots, reports and hardware evidence
+remain unchanged.
 
 ## Hardware boundary
 
@@ -166,7 +183,9 @@ IMPLEMENTED / TESTED OFFLINE: generalized root TXT and narrow root-BMP host
 preparation; disabled general/BMP execution; disposable-only TXT UI workflow.
 VISUALLY CHECKED: isolated native macOS synthetic Manager after layout repairs.
 PHYSICALLY DEMONSTRATED: only the original P18-041 exact fixture; no new write.
-TXT R3: PASS. Final GUI/BMP continuation R3: pending.
+TXT and final GUI/BMP continuation R3: PASS, P0/P1/P2=0/0/0.
+Host task scope complete; disposable TXT route READY_FOR_HARDWARE_TEST with
+separate owner authorization. BMP host preparation reviewed, execution disabled.
 Hardware acceptance remains separate: A/B fixture placement and Delete require
 new specific owner approvals. General TXT class promotion is a later reviewed
 owner decision; BMP needs a separately reviewed bounded live adapter before its
