@@ -65,10 +65,24 @@ Actual GUI callback tests cover both disposable targets and refuse ordinary
 unvalidated selections before runtime setup. Existing Delete/placement/transfer/
 backup/runtime regressions remain in the full suite.
 
-Initial full suite: **1,155 run, OK with three established intentional skips**.
-After final scope/fixture changes, focused/full final results are pending.
-Python 3.12.14 / Tk 9.0 binding. `compileall` / `git diff --check` are required.
-Independent exact-head R3 review is pending at this preparation checkpoint.
+Exact code head `2fe413418e5d3a825263d955590c80ad3c34332f` full portable suite:
+**1,159 run / 1,156 passed / three established intentional evidence skips**
+in 125.615 seconds. Seventeen new admission tests, 40 Device Library regressions
+and 95 focused Delete/placement/provider/UI/model regressions pass. Python
+3.12.14 / Tk 9.0 binding; `compileall` and `git diff --check` pass. The final
+external corpus rerun confirms 55 targets, 28 prepared with identical archived
+candidate hashes, 27 protected-state refusals, and unchanged original objects.
+Logs remain outside Git under `/external/local-path`.
+
+Independent reviewer `/root/p18_043_r3_review` inspected exact head `2fe4134`
+against base `3c3ab28`, source/tests and canonical lifecycle. Its interim message
+reported no P0/P1/P2 findings so far. The agent then failed with an account usage
+limit before issuing its final review report. This is **not a completed R3
+review or production-readiness decision**. No final independent findings count
+is claimed. Resume independent review at the unchanged code head; no material
+review-correction round has yet occurred. Resource exhaustion stops the task
+before the root-BMP operation continuation. The previously reviewed pure BMP
+model is preserved, with no new BMP transaction/authorization/execution.
 
 macOS arm64 package build and ad-hoc signature verification passed. Existing
 frozen runtime smoke passed with Tk runtime 9.0.4, resources/libusb loaded,
@@ -78,7 +92,13 @@ report is `/external/local-path`; no Windows
 native package execution is claimed. Wheel build uses installed setuptools/
 wheel via `pip wheel --no-deps --no-build-isolation` because the optional `build`
 module is absent; no dependency was installed into the read-only reference
-runtime. Two same-epoch wheel builds compare identical.
+runtime. Two final same-epoch wheel builds compare identical: SHA-256
+`0afce951443964f6cbd6da8236d8d4a5e14e64479ffa0c7ea4ddd878891c1bd1`.
+Installing that wheel into an isolated `/private/tmp` target and importing the
+new service/profile passes. Final package build log:
+`/external/local-path`; full test log:
+`/external/local-path`. No runtime dependency or
+read-only checkout was modified.
 
 GUI visual inspection is pending: native Computer Use could not identify the
 isolated Tk process/test app, and timed out resolving its native app bundle.
@@ -96,3 +116,13 @@ approval, one readable dialog per frozen operation, at most two deletes, native
 zero and complete independent postverification. No personal files or interrupted
 writes; no restore or automatic retry. This task has not run it. The original
 P18-041 physical proof remains exact and does not establish the new class.
+
+## Checkpoint disposition
+
+IMPLEMENTED / TESTED OFFLINE: generalized root TXT preparation, immutable
+selected-file binding, fail-closed execution gate and disposable-only UI route.
+PHYSICALLY DEMONSTRATED: only the original P18-041 exact fixture; no new write.
+PENDING: independent final R3, GUI visual inspection, separately approved
+fixture placement and bounded A/B physical validation. This is a preserved
+engineering checkpoint, not COMPLETE or READY_FOR_HARDWARE_TEST. General TXT,
+BMP, nested, directory/subtree and VNW-V10 live deletion remain unsupported.

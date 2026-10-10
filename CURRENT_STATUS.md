@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 
-## P18-043 — General root-TXT Delete — host integration / R3 review in progress
+## P18-043 — General root-TXT Delete — tested checkpoint / review resource blocker
 
 The P18-042 guarded path now prepares one ordinary VNW-V15 root TXT using a
 frozen selected filename, record offset and payload. Initial host admission is
@@ -21,18 +21,25 @@ execute in that mode. No new physical operation is authorized/performed.
 [Archive evidence](analysis/phase-18-p18-043-root-txt-corpus-20261010.md): twelve
 complete backups / 96 rehashed objects / 55 structural cases; 28 protected
 preparations pass, 26 active-Mark cases and one referenced target refuse.
-Seventeen new portable tests and 40 Device Library regressions pass. Initial
-full suite is 1,155 run / three established skips; final scope changes require
-final full validation. macOS arm64 native package/runtime smoke passes with
-zero real device/sender counters; isolated GUI visual inspection is pending
-because the native UI tool cannot resolve the test app. Alternative screenshot
-authorization is pending. No visual or Windows native execution is claimed.
+Seventeen new portable tests and 40 Device Library regressions pass. Exact
+code head `2fe413418e5d3a825263d955590c80ad3c34332f` passed **1,159 run /
+1,156 passed / three established evidence skips**. Rebuilt macOS arm64 native
+package/runtime smoke passes with zero real device/sender/safety counters;
+two same-epoch wheels match and isolated installed-wheel imports pass.
+
+Independent R3 inspected the exact head and reported no findings provisionally,
+but hit the account usage limit before delivering a final report. **R3 is not
+complete; READY_FOR_HARDWARE_TEST is not claimed.** GUI visual inspection also
+remains pending: the native tool cannot resolve the isolated test app and
+alternative screenshot authorization has not arrived. No visual or Windows
+native execution is claimed.
 
 [Delivery/review packet](analysis/phase-18-p18-043-general-root-txt-delete-20261010.md)
 and [bounded physical procedure](analysis/phase-18-p18-043-disposable-root-txt-delete-procedure-20261010.md)
-record the exact gate and remaining requirements. Independent R3 is pending.
-No USB/physical write/production safety mutation, push or merge. Root-BMP
-operation preparation follows only after the TXT checkpoint is reviewed.
+record the gate and outstanding checks. Resume with independent exact-head R3
+and visual inspection, then prepare root-BMP operations; the existing pure BMP
+model remains unchanged. No USB/physical write/production safety mutation,
+push or merge. Ordinary root TXT execution stays disabled.
 
 ## P18-042 — Device Library Delete integration — READY_FOR_HARDWARE_TEST
 

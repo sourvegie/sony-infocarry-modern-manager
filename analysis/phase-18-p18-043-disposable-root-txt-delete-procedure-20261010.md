@@ -1,7 +1,9 @@
 # P18-043 bounded disposable root-TXT Delete validation
 
 **PREPARATION ONLY — no physical operation is authorized by this document.**
-Use the final reviewed code head from the P18-043 delivery record. Stop if the
+Final independent R3 and GUI visual checks are still outstanding; do not run
+this procedure until they complete. Use the final reviewed code head from the
+P18-043 delivery record. Stop if the
 installation-wide lock or sender marker is active; do not clear it manually.
 Never use personal files, interrupt a write, restore, or automatically retry.
 
