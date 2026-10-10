@@ -5050,7 +5050,9 @@ def launch_ttk_desktop(
             image_preview.pack_forget()
             preview.pack(fill="both", expand=True)
             _set_readonly_text(preview, "Select a TXT file to view its decoded read-only preview.")
-        status_var.set(model.state.status)
+        # A read-only preview does not describe the availability of a separate
+        # scoped operation such as Experimental Delete.
+        status_var.set(model.state.status.removesuffix("; device writes disabled"))
 
     def check_device_action() -> None:
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
