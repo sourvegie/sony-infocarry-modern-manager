@@ -119,3 +119,29 @@ supplies the owner answer. Do not mutate locks/markers manually.
 A/B physical results, native completion, physical sender/transaction counts:
 **NOT RUN / zero**. No independent USB bus trace captured. General root-TXT
 execution remains disabled; no capability promotion follows from host evidence.
+
+## Fresh frozen A preparation — awaiting separate owner approval
+
+The reviewed launcher captured a new complete baseline and native capacity,
+then stopped at its sole readable owner prompt. No confirmation has been
+supplied, no A claim consumed and no sender started. Review is preserved as
+`placement-A-frozen-review.json` in the external session, SHA-256
+`2c45c2fc1ccec4f4f66fe2e3660777141923ab57c3b118cd91c3497d7b698441`.
+Frozen seal `66d8b016efeba68df34450e85d706a21dc414ed016aacd9d802602326faaae61`;
+candidate `fb912fed8176549f2fd938a685e1545c00a3f66bb0faccb890446abdf5233710`;
+transaction `0be2d941affb0deed2a2c003434dfaeb24b95284726189eaa3e04ff245c0bc06`.
+
+Independent fresh artifact verification is PASS: all eight before objects equal
+the earlier saved raw state, A/B absent, exact A payload/template/timestamp,
+reconstructed authorization/candidate/audit/all eight transaction ranges match,
+300 survivor payloads and 454 timestamps preserved, protected associations
+unchanged. Current read-only SQLite/lock inspection finds ten historical claims,
+no A claim, no markers, cleared global lock and unchanged safety bytes.
+`INDEPENDENT_A_PREPLACEMENT.md` external report SHA-256
+`676ed2137e870b191e93ce9e233104faeb498681b46df2c5ebd7413563888a98`.
+`placement-A-preapproval-evidence-inventory.json` freezes 22 prepared files.
+An operation-specific request now awaits the owner's answer for **A placement
+once only**; it authorizes neither A Delete nor any B operation. Source/tests/
+scripts remain identical to reviewed `52c75c8`; subsequent commits are only
+documentation. Do not rebuild or replace the pending frozen operation after
+approval; the existing coordinator must revalidate equivalence before sending.
