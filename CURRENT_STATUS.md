@@ -2,7 +2,7 @@
 
 Date: 2026-10-10
 
-## P18-044 — disposable physical validation preparation / R3 pending
+## P18-044 — reviewed disposable preparation / READY_FOR_HARDWARE_TEST
 
 Starting reviewed commit `e1cfda6`; branch
 `task/P18-044-root-txt-physical-validation`. The owner authorized necessary
@@ -25,8 +25,11 @@ verbatim and default/proven operations remain unchanged. A/B host insertion
 then deletion reproduces the exact current blob and protected state.
 
 Portable suite passes **1,190 run / 1,187 passed / three established skips**;
-30 placement/launcher regressions pass. Independent exact-head R3 is pending
-before any new placement is eligible for separate physical owner approval.
+30 placement/launcher regressions pass. Independent exact-head R3 at
+`52c75c802212c3ca652305e1890cc3d187021100` passes **P0/P1/P2=0/0/0**;
+90 independently run focused tests pass with two established skips. Exact A/B
+placement is READY_FOR_HARDWARE_TEST after fresh frozen operation-specific
+owner approval. No such physical approval has been received.
 [Preparation/review packet](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
 No physical experiment has run, no general Delete promotion, no push or merge.
 
