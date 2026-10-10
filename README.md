@@ -391,3 +391,21 @@ ordinary 237×320 monochrome image. It validates structural survivor effects
 and remains disconnected from transaction construction, authorization and the
 Device Library Delete action. Its review and limits are in the
 [follow-on record](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+
+## General root-TXT Delete preparation and validation
+
+Ordinary root TXT files can now be prepared offline under the evidenced
+32-byte prefix / read-unread / safe CP932 identity / structural and protected
+state rules. Referenced targets, active Marks and ambiguous/unsupported files
+refuse. General execution remains disabled; archived or fake success cannot
+unlock it.
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/experimental_root_txt_delete.py --backup /absolute/complete-backup --target 'root\ordinary.txt' --output /absolute/new-outside-repository
+```
+
+The [disposable validation procedure](analysis/phase-18-p18-043-disposable-root-txt-delete-procedure-20261010.md)
+prepares a future owner-authorized GUI test with exact synthetic A/B payloads,
+one target per explicit launcher, one Delete/Cancel dialog, complete backups,
+one guarded send and independent readback. It authorizes no operation now and
+never admits personal files or other device-changing operations in that mode.

@@ -24,6 +24,7 @@ from typing import Any, Callable, ClassVar, Mapping, Optional
 from .delete_generalized import (
     DELETE_GENERALIZED_CONFIRMATION_PHRASE,
     GeneralizedDeleteAuthorization,
+    GeneralizedDeleteError,
     GeneralizedDeleteCandidate,
     GeneralizedDeleteVerification,
     authorize_generalized_delete,
@@ -36,6 +37,7 @@ from .write_gate import DEFAULT_MAX_AGE_SECONDS, VerifiedBackup, capture_and_ver
 
 import json
 from uuid import uuid4
+from types import MappingProxyType
 from .root_txt_placement import (
     RootTxtPlacementBundle, RootTxtPlacementFacade, RootTxtReadback,
     _blob, _json, _sha, _write_json,
@@ -449,18 +451,89 @@ def build_experimental_root_txt_delete(backup_directory, *, max_age_seconds=None
     )
 
 
+ROOT_TXT_DELETE_HOST_PROFILE = "vnw-v15-host-root-txt-delete-v1"
+ROOT_TXT_DELETE_VALIDATION_PROFILE = "vnw-v15-disposable-root-txt-delete-validation-v1"
+ROOT_TXT_DELETE_VALIDATION_FILES = MappingProxyType({
+    "root\\IC_P18_043_DELETE_A.txt": b"Disposable P18-043 root TXT A.\r\n",
+    "root\\IC_P18_043_DELETE_B.txt": b"Disposable P18-043 root TXT B: alignment case-01.\r\n",
+})
+
+
+class RootTxtDeleteAdmissionError(ValueError):
+    stage = "admission"
+
+
+def validate_root_txt_delete_name(name):
+    """The established NUL-terminated native name field, with no path syntax."""
+    if (not isinstance(name, str) or name in {"", ".", "..", "root"} or name != name.strip()
+            or any(ord(c) < 32 or ord(c) == 127 or c in '\\/.:<>"|?*' for c in name)):
+        raise ValueError("root TXT name contains unsupported root/system/path syntax")
+    try:
+        encoded = name.encode("cp932", "strict")
+    except UnicodeError as exc:
+        raise ValueError("root TXT name is not exactly CP932 representable") from exc
+    if not 1 <= len(encoded) <= 39 or encoded.decode("cp932", "strict") != name:
+        raise ValueError("root TXT name must roundtrip within the 39-byte native field")
+    return encoded
+
+
+def build_root_txt_delete(backup_directory, target_path, *, target_record_offset=None, max_age_seconds=None):
+    """General root-TXT host preparation; not permission to execute it."""
+    backup = verify_fresh_backup(Path(backup_directory), max_age_seconds=max_age_seconds)
+    if backup.device_identity != ("0x054c", "0x001e"):
+        raise RootTxtDeleteAdmissionError("root TXT Delete requires the characterized VNW-V15 model")
+    parsed = parse_backup_blob(_blob(backup))
+    if not isinstance(target_path, str) or len(target_path.split("\\")) != 2 or not target_path.startswith("root\\"):
+        raise RootTxtDeleteAdmissionError("only one ordinary root-level TXT file is admitted")
+    def path(record):
+        parts = parsed.paths.get(record.offset)
+        return "\\".join(parts) + ("." + record.extension if record.extension else "") if parts else None
+    matches = [r for r in parsed.records if path(r) == target_path]
+    if len(matches) != 1:
+        raise RootTxtDeleteAdmissionError("root TXT target is missing or ambiguous")
+    target = matches[0]
+    if (target.kind != "file" or target.extension != "txt"
+            or target.flag not in {0xe0, 0x20} or target.field_14_be32 != 0x200):
+        raise RootTxtDeleteAdmissionError("root TXT target requires known read/unread state and the evidenced 32-byte prefix")
+    try:
+        encoded = validate_root_txt_delete_name(target.name)
+    except ValueError as exc:
+        raise RootTxtDeleteAdmissionError(str(exc)) from exc
+    raw_name = bytes.fromhex(target.raw_hex)[24:64]
+    if b"\0" not in raw_name or raw_name.split(b"\0", 1)[0] != encoded:
+        raise RootTxtDeleteAdmissionError("root TXT native name is not an exact NUL-terminated CP932 identity")
+    folded = target_path.casefold()
+    native_identity = tuple(part.casefold() for part in parsed.paths[target.offset])
+    if (sum(path(r) is not None and path(r).casefold() == folded for r in parsed.records) != 1
+            or sum(tuple(part.casefold() for part in parts) == native_identity for parts in parsed.paths.values()) != 1):
+        raise RootTxtDeleteAdmissionError("root TXT target has an ambiguous case-insensitive identity")
+    if target_record_offset is not None and (type(target_record_offset) is not int or target.offset != target_record_offset):
+        raise RootTxtDeleteAdmissionError("root TXT selected metadata identity changed")
+    try:
+        return build_generalized_delete_candidate(backup.directory, target_path, target.offset,
+            max_age_seconds=max_age_seconds, preserve_unreferenced_auxiliary_state=True)
+    except GeneralizedDeleteError as exc:
+        raise RootTxtDeleteAdmissionError("Root TXT protected state or structural invariants are unsupported") from exc
+
+
 @dataclass(frozen=True)
 class RootTxtDeleteCandidate:
     backup_directory: Path
     candidate_blob: bytes
     transaction: ProspectiveWriteTransaction
     audit_json: bytes
+    target_path: str = FIXTURE_PATH
+    target_record_offset: int | None = None
+    exact_fixture: bool = True
 
     @property
     def core(self):
         # Reconstruct from verified immutable inputs rather than exposing a
         # mutable parsed-tree/audit object as an authorization authority.
-        return build_experimental_root_txt_delete(self.backup_directory)
+        if self.exact_fixture:
+            return build_experimental_root_txt_delete(self.backup_directory)
+        return build_root_txt_delete(self.backup_directory, self.target_path,
+            target_record_offset=self.target_record_offset)
 
     @property
     def candidate_blob_sha256(self):
@@ -481,6 +554,7 @@ class RootTxtDeleteAuthorizationCore:
     source_path: Path
     confirmation_phrase: str = ROOT_TXT_DELETE_CONFIRMATION
     confirmation_policy: str = "explicit_phrase"
+    profile_id: str = EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE
 
     def revalidate(self, candidate, *, now=None, max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
         self.binding.revalidate(candidate, now=now, max_age_seconds=max_age_seconds)
@@ -498,8 +572,8 @@ class RootTxtDeleteAuthorization:
 
     def to_dict(self):
         return {"format": "infocarry-experimental-root-txt-delete-authorization-v1",
-                "profile": EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE,
-                "confirmation_phrase": ROOT_TXT_DELETE_CONFIRMATION,
+                "profile": self.core.profile_id,
+                "confirmation_phrase": self.core.confirmation_phrase,
                 "inner_binding": self.core.binding.to_dict()}
 
 
@@ -507,13 +581,37 @@ class RootTxtDeleteAuthorization:
 class RootTxtDeleteBundle(RootTxtPlacementBundle):
     """Reuse H2's immutable bundle and execution-equivalence lifecycle."""
 
+    validation_only: bool = False
+
+    @property
+    def target_path(self):
+        return self.candidate.target_path
+
+    @property
+    def expected_folder_name(self):
+        return self.target_path.split("\\")[-1]
+
+    @property
+    def owner_confirmation_phrase(self):
+        return None if self.candidate.exact_fixture else self.authorization.core.confirmation_phrase
+
+    @property
+    def execution_available(self):
+        return self.candidate.exact_fixture or self.validation_only
+
+    def assert_execution_admitted(self):
+        self.verify_seal()
+        if not self.execution_available:
+            raise ValueError("general root TXT execution is not physically validated; preparation only")
+
     @property
     def operation_id(self):
         return "root-txt-delete-" + self.seal_sha256
 
     @property
     def operation_profile(self):
-        return EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE
+        return (EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE if self.candidate.exact_fixture else
+                ROOT_TXT_DELETE_VALIDATION_PROFILE if self.validation_only else ROOT_TXT_DELETE_HOST_PROFILE)
 
     @property
     def result_format(self):
@@ -524,16 +622,17 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         return "infocarry-experimental-root-txt-delete-terminal-resolution-v1"
 
     def verify_execution_equivalence(self, before, capacity):
+        self.assert_execution_admitted()
         result = super().verify_execution_equivalence(before, capacity)
         result.pop("target_absent")
         result["target_present_and_exact"] = True
         return result
 
     def _envelope(self):
-        return {"format": "infocarry-experimental-root-txt-delete-bundle-v1",
-                "profile": EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE,
-                "device": list(self.device_identity), "target": FIXTURE_PATH,
-                "fixture_length": 29, "fixture_sha256": FIXTURE_SHA256,
+        value = {"format": "infocarry-experimental-root-txt-delete-bundle-v1",
+                "profile": self.operation_profile,
+                "device": list(self.device_identity), "target": self.target_path,
+                "fixture_length": self.source_artifact.size_bytes, "fixture_sha256": self.source_artifact.sha256,
                 "source_artifact": self.source_artifact.to_dict(),
                 "backup_artifact": self.backup_artifact.to_dict(),
                 "baseline_state_identity_sha256": self.baseline_state_identity_sha256,
@@ -544,17 +643,31 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
                 "candidate_audit_sha256": _sha(self.candidate.audit_json),
                 "transaction_sha256": self.transaction_sha256,
                 "authorization_sha256": self.authorization_sha256,
-                "confirmation_phrase": ROOT_TXT_DELETE_CONFIRMATION,
+                "confirmation_phrase": self.authorization.core.confirmation_phrase,
                 "timestamp_policy": "preserve_surviving_timestamps",
                 "no_retry": True, "one_sender": True,
                 "post_backup": "complete_independent_exact_readback"}
+        if not self.candidate.exact_fixture:
+            value.update({"validation_only": self.validation_only, "execution_available": self.execution_available,
+                          "target_record_offset": self.candidate.target_record_offset,
+                          "capability_status": "bounded_disposable_validation" if self.validation_only else "host_not_live_enabled"})
+        return value
+
+    def _consume_execution_claim(self, owner):
+        self.assert_execution_admitted()
+        return super()._consume_execution_claim(owner)
 
     def _exact_candidate_binding(self):
         core = self.candidate.core
         if self.candidate.audit_json != _json(core.to_dict()):
             raise ValueError("frozen Delete audit differs from independently reconstructed candidate")
-        if core.target_path != FIXTURE_PATH or core.target_payload_sha256 != FIXTURE_SHA256:
-            raise ValueError("Delete target differs from exact experimental fixture")
+        if self.candidate.exact_fixture:
+            if core.target_path != FIXTURE_PATH or core.target_payload_sha256 != FIXTURE_SHA256:
+                raise ValueError("Delete target differs from exact experimental fixture")
+        elif core.target_path != self.candidate.target_path or core.target_record_offset != self.candidate.target_record_offset:
+            raise ValueError("Delete target differs from frozen selected path/record")
+        if core.target_payload_sha256 != self.source_artifact.sha256:
+            raise ValueError("Delete source payload differs from the selected target")
         if self.candidate.candidate_blob != core.candidate_blob or self.candidate.transaction != core.transaction:
             raise ValueError("sealed candidate or transaction differs from derived Delete")
         if self.candidate_artifact.sha256 != self.candidate_blob_sha256:
@@ -568,15 +681,27 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
             raise ValueError("Delete bundle contains a different operation type")
         if type(self.capacity_response) is not NativeCapacityResponse:
             raise ValueError("Delete requires verified native capacity evidence")
-        if self.authorization.core.confirmation_phrase != ROOT_TXT_DELETE_CONFIRMATION:
+        expected_phrase = ROOT_TXT_DELETE_CONFIRMATION if self.candidate.exact_fixture else f"DELETE {self.expected_folder_name} ONCE"
+        if self.authorization.core.confirmation_phrase != expected_phrase:
             raise ValueError("Delete confirmation changed")
         if self.authorization.core.confirmation_policy != "explicit_phrase":
             raise ValueError("Delete requires the exact explicit confirmation policy")
         for artifact in (self.source_artifact, self.candidate_artifact,
                          self.capacity_artifact, self.backup_artifact, self.seal_artifact):
             artifact.verify()
-        if self.source_path.name != FIXTURE_FILENAME or self.source_path.read_bytes() != FIXTURE_BYTES:
-            raise ValueError("deleted fixture source copy changed")
+        if type(self.validation_only) is not bool or type(self.candidate.exact_fixture) is not bool:
+            raise ValueError("Delete admission flags must be exact booleans")
+        if self.candidate.exact_fixture:
+            if self.validation_only or self.source_path.name != FIXTURE_FILENAME or self.source_path.read_bytes() != FIXTURE_BYTES:
+                raise ValueError("deleted fixture source copy or scope changed")
+        elif self.source_path.name != "selected-txt.bin" or _sha(self.source_path.read_bytes()) != self.candidate.core.target_payload_sha256:
+            raise ValueError("selected TXT source copy changed")
+        if self.validation_only:
+            expected = ROOT_TXT_DELETE_VALIDATION_FILES.get(self.target_path)
+            if expected is None or self.source_path.read_bytes() != expected:
+                raise ValueError("validation permits only the predetermined disposable file and exact payload")
+        if self.authorization.core.profile_id != self.operation_profile or self.authorization.core.source_path.resolve() != self.source_path:
+            raise ValueError("Delete authorization scope or source path changed")
         if self.candidate.backup_directory != self.before_backup.directory or self.authorization.core.backup_directory != self.before_backup.directory:
             raise ValueError("Delete baseline was rebound")
         if self.capacity_artifact.sha256 != _sha(self.capacity_response.raw_response):
@@ -596,11 +721,11 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         return {"format": "infocarry-experimental-root-txt-delete-review-v1",
                 "owner_identity": OwnerAuthorizedOperationIdentity.from_bundle(self).to_dict(),
                 "device_model": "Sony VNW-V15", "operation": "Delete",
-                "target": FIXTURE_PATH, "fixture_length": 29, "fixture_sha256": FIXTURE_SHA256,
+                "target": self.target_path, "fixture_length": self.source_artifact.size_bytes, "fixture_sha256": self.source_artifact.sha256,
                 "fixture_verified": True, "fresh_backup_verified": True,
-                "candidate_prepared": True, "confirmation_phrase": ROOT_TXT_DELETE_CONFIRMATION,
+                "candidate_prepared": True, "confirmation_phrase": self.authorization.core.confirmation_phrase,
                 "physical_operation_count": 1, "automatic_retry_allowed": False,
-                "profile": EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE}
+                "profile": self.operation_profile}
 
     def verify_readback(self, after, *, completion, now=None, max_age_seconds=None):
         self.verify_seal()
@@ -615,7 +740,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         report["after_backup"] = after.to_dict()
         return RootTxtReadback(_json({"independent_complete_backup_verification": report,
             "exact_path_and_payload_verification": {
-                "only_removed_path": FIXTURE_PATH, "added_paths": [],
+                "only_removed_path": self.target_path, "added_paths": [],
                 "surviving_timestamps_preserved": True, "unrelated_payloads_unchanged": True,
                 "protected_auxiliary_associations_preserved": True}}))
 
@@ -624,8 +749,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
             raise ValueError("Delete report requires terminal marker resolution")
         path = Path(root) / "root-txt-delete-report.json"
         _write_json(path, {"format": "infocarry-experimental-root-txt-delete-result-v1",
-                          "operation": "Delete", "target": FIXTURE_PATH,
-                          "profile": EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE,
+                          "operation": "Delete", "target": self.target_path,
+                          "profile": self.operation_profile,
                           "verification": self.verify_readback(after, completion=0).to_dict()})
         return path
 
@@ -650,13 +775,18 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
     """Exact Delete admission, using the existing owner/coordinator/sender."""
 
     def prepare(self, *, target_path=FIXTURE_PATH, device_model="VNW-V15",
-                max_age_seconds=DEFAULT_MAX_AGE_SECONDS, cancelled=None, progress=None):
+                max_age_seconds=DEFAULT_MAX_AGE_SECONDS, cancelled=None, progress=None,
+                general_txt=False, validation_only=False):
         if self.stop_approved_rebuild():
             raise ValueError("approved Delete cannot refresh or adopt a new candidate")
         try:
             if self._prepared_operation is not None:
                 raise ValueError("discard the previous operation before preparing another")
-            if target_path != FIXTURE_PATH or device_model != "VNW-V15":
+            if type(general_txt) is not bool or type(validation_only) is not bool:
+                raise ValueError("Delete admission flags require exact booleans")
+            if validation_only and (not general_txt or target_path not in ROOT_TXT_DELETE_VALIDATION_FILES):
+                raise ValueError("validation requires one predetermined disposable target")
+            if (not general_txt and target_path != FIXTURE_PATH) or device_model != "VNW-V15":
                 raise ValueError("only the exact VNW-V15 root-TXT fixture deletion is admitted")
             if max_age_seconds != DEFAULT_MAX_AGE_SECONDS:
                 raise ValueError("Delete preparation requires the established fresh-backup policy")
@@ -682,12 +812,17 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             if progress is not None:
                 progress("Validating operation", 0, 1)
             runtime.assert_same_session(runtime.session_binding_token)
-            core = build_experimental_root_txt_delete(before.directory, max_age_seconds=max_age_seconds)
+            core = (build_root_txt_delete(before.directory, target_path, max_age_seconds=max_age_seconds) if general_txt else
+                    build_experimental_root_txt_delete(before.directory, max_age_seconds=max_age_seconds))
+            parsed = core.baseline
+            payload = parsed.payload_parts(parsed.record_at(core.target_record_offset))[1]
+            if validation_only and payload != ROOT_TXT_DELETE_VALIDATION_FILES[target_path]:
+                raise ValueError("disposable validation target payload changed")
             candidate = RootTxtDeleteCandidate(before.directory, core.candidate_blob,
-                core.transaction, _json(core.to_dict()))
-            source = root / FIXTURE_FILENAME
+                core.transaction, _json(core.to_dict()), core.target_path, core.target_record_offset, not general_txt)
+            source = root / ("selected-txt.bin" if general_txt else FIXTURE_FILENAME)
             with source.open("xb") as output:
-                output.write(FIXTURE_BYTES)
+                output.write(payload)
             candidate_path = root / "candidate.bin"
             with candidate_path.open("xb") as output:
                 output.write(candidate.candidate_blob)
@@ -697,13 +832,17 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             with capacity_path.open("xb") as output:
                 output.write(capacity.raw_response)
             binding = authorize_generalized_delete(core, confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE)
-            authorization = RootTxtDeleteAuthorization(RootTxtDeleteAuthorizationCore(binding, before.directory, source))
+            phrase = f"DELETE {target_path.split(chr(92))[-1]} ONCE"
+            profile = (EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE if not general_txt else
+                       ROOT_TXT_DELETE_VALIDATION_PROFILE if validation_only else ROOT_TXT_DELETE_HOST_PROFILE)
+            authorization = RootTxtDeleteAuthorization(RootTxtDeleteAuthorizationCore(binding, before.directory, source,
+                confirmation_phrase=phrase, profile_id=profile))
             seal_path = root / "operation-bundle.json"
             provisional = RootTxtDeleteBundle(runtime, before, capacity, candidate, authorization,
                 OperationArtifact.file(source), OperationArtifact.file(candidate_path),
                 OperationArtifact.file(capacity_path), OperationArtifact.backup_manifest(before.directory),
                 OperationArtifact(str(seal_path), "0" * 64, "file_bytes", 0),
-                transaction_path, b"", "0" * 64, runtime.session_binding_token, None)
+                transaction_path, b"", "0" * 64, runtime.session_binding_token, None, validation_only)
             envelope = _json(provisional._envelope())
             with seal_path.open("xb") as output:
                 output.write(envelope)

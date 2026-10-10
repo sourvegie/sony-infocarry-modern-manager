@@ -366,6 +366,9 @@ class GuardedLibraryExecutionCoordinator:
             self._assert_execution_boundary_available()
         if root_placement:
             operation_bundle.verify_seal()
+            admit = getattr(operation_bundle, "assert_execution_admitted", None)
+            if admit is not None:
+                admit()
             if self.operation_binding is not None:
                 raise GuardedLibraryExecutionError("root placement cannot adopt a package binding", stage="operation_bundle")
             if not isinstance(owner_authorized_identity, OwnerAuthorizedOperationIdentity) or owner_authorized_identity != OwnerAuthorizedOperationIdentity.from_bundle(operation_bundle):

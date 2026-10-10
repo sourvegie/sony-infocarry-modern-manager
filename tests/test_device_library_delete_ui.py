@@ -53,8 +53,8 @@ def callback_harness(env):
                    ast.Subscript(ast.Name('env', ast.Load()), ast.Constant(key), ast.Load())) for key in env]
     # Use the actual callback bodies with their original lexical/nonlocal scopes.
     getter = ast.parse("def state():\n    return device_delete_active, library_device_change_in_progress, device_delete_evidence, loaded_backup_summary").body[0]
-    body = assignments + [functions[name] for name in ('start_library_operation', 'device_delete_action', 'close_action', 'show_selection', 'invalidate_library_transfer_review_if_stale')] + [getter]
-    body += ast.parse('return device_delete_action, close_action, state, show_selection, invalidate_library_transfer_review_if_stale').body
+    body = assignments + [functions[name] for name in ('start_library_operation', 'device_delete_action', 'close_action', 'show_selection', 'invalidate_library_transfer_review_if_stale', 'replacement_write_action')] + [getter]
+    body += ast.parse('return device_delete_action, close_action, state, show_selection, invalidate_library_transfer_review_if_stale, replacement_write_action').body
     wrapper = ast.FunctionDef('create', ast.arguments(posonlyargs=[], args=[ast.arg('env')], kwonlyargs=[], kw_defaults=[], defaults=[]), body, [], None)
     module = ast.fix_missing_locations(ast.Module([wrapper], []))
     globals_ = vars(desktop_ttk).copy()
@@ -63,10 +63,10 @@ def callback_harness(env):
 
 
 class DeviceLibraryDeleteUITests(unittest.TestCase):
-    def setup_ui(self, *, confirmed=True, options=None, reconnect=False):
+    def setup_ui(self, *, confirmed=True, options=None, reconnect=False, data_override=None):
         helper = helpers.DeviceLibraryDeleteExecutionTests('test_supported_selection_and_single_readable_review')
         self.addCleanup(helper.doCleanups)
-        data = helper.setup_case(backend_options=options, reconnect=reconnect)
+        data = data_override or helper.setup_case(backend_options=options, reconnect=reconnect)
         case, model, selection, service = data
         original_prepare = service.prepare
         def prepare(*args, **kwargs):
@@ -119,7 +119,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
             cancel_event=threading.Event(),
             messagebox=SimpleNamespace(showinfo=lambda *a, **kw: notices.append(a), askyesno=lambda *a, **kw: True),
         )
-        action, close, state, show_selection, invalidate_review = callback_harness(env)
+        action, close, state, show_selection, invalidate_review, replacement_action = callback_harness(env)
         def drain():
             # Each callback is delivered on this test's main thread, as with Tk.
             while controller.busy or not posted.empty():
@@ -131,7 +131,7 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         return SimpleNamespace(data=data, action=action, close=close, state=state, controller=controller,
             drain=drain, dialogs=dialogs, refreshes=refreshes, controls=controls, notices=notices,
             tree=tree, statuses=statuses, main_status=main_status, posted=posted, refresh_failure=refresh_failure,
-            show_selection=show_selection, invalidate_review=invalidate_review)
+            show_selection=show_selection, invalidate_review=invalidate_review, replacement_action=replacement_action)
 
     def test_delete_confirm_verify_refresh_in_one_dialog(self):
         ui = self.setup_ui(reconnect=True)

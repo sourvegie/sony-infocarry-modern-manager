@@ -1,0 +1,21 @@
+{
+  "format": "infocarry-disposable-root-txt-delete-validation-plan-v1",
+  "physical_operations_authorized": false,
+  "maximum_delete_operations": 2,
+  "fixtures": [
+    {
+      "path": "root\\IC_P18_043_DELETE_A.txt",
+      "payload_ascii": "Disposable P18-043 root TXT A.\r\n",
+      "bytes": 32,
+      "sha256": "d5011189f2020b770935ed4ee2736c1feeed708f2875a74d0c41ad4f213e8aab",
+      "alignment_remainder": 0
+    },
+    {
+      "path": "root\\IC_P18_043_DELETE_B.txt",
+      "payload_ascii": "Disposable P18-043 root TXT B: alignment case-01.\r\n",
+      "bytes": 51,
+      "sha256": "5a5bdff8c2dd352322bc81445be4677534f5c75e5e4ba5f902bf5854c59bbf2e",
+      "alignment_remainder": 3
+    }
+  ]
+}

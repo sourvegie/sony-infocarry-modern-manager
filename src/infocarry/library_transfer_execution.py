@@ -467,9 +467,14 @@ class OwnerAuthorizedOperationIdentity:
     authorization_sha256: str
     core_preflight_seal_sha256: str
     preflight_seal_sha256: str
+    readable_confirmation_phrase: Optional[str] = None
 
     def __post_init__(self) -> None:
         _require_phrase(self.operation_id, "owner-authorized operation id")
+        if self.readable_confirmation_phrase is not None:
+            _require_phrase(self.readable_confirmation_phrase, "root Delete confirmation")
+            if self.operation_id != "root-txt-delete-" + self.bundle_sha256:
+                raise ValueError("readable root Delete confirmation requires its sealed operation")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("owner authorization is not bound to the reviewed VNW-V15")
         for label, value in (
@@ -504,10 +509,11 @@ class OwnerAuthorizedOperationIdentity:
             authorization_sha256=bundle.authorization_sha256,
             core_preflight_seal_sha256=bundle.core_preflight_seal_sha256,
             preflight_seal_sha256=bundle.preflight_seal_sha256,
+            readable_confirmation_phrase=getattr(bundle, "owner_confirmation_phrase", None),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "format": "infocarry-owner-authorized-operation-identity-v1",
             "operation_id": self.operation_id,
             "bundle_sha256": self.bundle_sha256,
@@ -520,6 +526,9 @@ class OwnerAuthorizedOperationIdentity:
             "core_preflight_seal_sha256": self.core_preflight_seal_sha256,
             "preflight_seal_sha256": self.preflight_seal_sha256,
         }
+        if self.readable_confirmation_phrase is not None:
+            value["readable_confirmation_phrase"] = self.readable_confirmation_phrase
+        return value
 
     @property
     def identity_sha256(self) -> str:
@@ -527,6 +536,8 @@ class OwnerAuthorizedOperationIdentity:
 
     @property
     def approval_phrase(self) -> str:
+        if self.readable_confirmation_phrase is not None:
+            return self.readable_confirmation_phrase
         if self.operation_id == "root-txt-delete-" + self.bundle_sha256:
             from .p18_041h_experiment import FIXTURE_FILENAME
             return f"DELETE {FIXTURE_FILENAME} ONCE"

@@ -551,6 +551,9 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             if prepared is None or self._owner_authorized_identity is None:
                 raise LibraryTransferExecutionError("separate exact owner approval required", stage="owner_authorization")
             prepared.verify_seal()
+            admit = getattr(prepared, "assert_execution_admitted", None)
+            if admit is not None:
+                admit()
             if OwnerAuthorizedOperationIdentity.from_bundle(prepared) != self._owner_authorized_identity:
                 raise LibraryTransferExecutionError("stale owner approval", stage="owner_authorization")
             if runner_overrides:

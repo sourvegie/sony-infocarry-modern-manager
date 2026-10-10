@@ -13,7 +13,10 @@ import threading
 from typing import Callable, Sequence
 
 from .desktop import DesktopWorkflowModel, InventoryRow
-from .delete_workflow import ExperimentalRootTxtDeleteFacade, RootTxtDeleteBundle
+from .delete_workflow import (
+    ExperimentalRootTxtDeleteFacade, RootTxtDeleteBundle,
+    ROOT_TXT_DELETE_VALIDATION_FILES, validate_root_txt_delete_name,
+)
 from .library_transfer_execution import OwnerAuthorizedOperationIdentity
 from .library_transfer_runtime_provider import PinnedRootTxtRuntime
 from .p18_041h_experiment import FIXTURE_FILENAME, FIXTURE_PATH, FIXTURE_SHA256
@@ -34,6 +37,7 @@ class DeviceDeleteSelection:
     baseline_blob_sha256: str
     row: InventoryRow
     device_model: str = "VNW-V15"
+    general_txt: bool = False
 
     @property
     def filename(self) -> str:
@@ -41,7 +45,8 @@ class DeviceDeleteSelection:
 
 
 def select_device_library_delete(
-    model: DesktopWorkflowModel, offsets: Sequence[int], *, device_model: str = "VNW-V15"
+    model: DesktopWorkflowModel, offsets: Sequence[int], *, device_model: str = "VNW-V15",
+    allow_general_txt: bool = False,
 ) -> DeviceDeleteSelection:
     """Cheap UI admission; fresh backup/candidate validation happens off Tk."""
     if device_model != "VNW-V15":
@@ -57,14 +62,24 @@ def select_device_library_delete(
         raise DeviceLibraryDeleteError("Root, system entries, folders and nested files cannot be deleted.")
     if row.extension != "txt":
         raise DeviceLibraryDeleteError("Only the demonstrated root-level TXT operation is available.")
-    if sum(other.display_name == row.display_name for other in rows) != 1:
+    if (sum(other.display_name.casefold() == row.display_name.casefold() for other in rows) != 1
+            or sum(other.path.casefold() == row.path.casefold() for other in rows) != 1):
         raise DeviceLibraryDeleteError("The selected path is ambiguous. Delete is unavailable.")
-    if (row.display_name != FIXTURE_PATH or row.payload_bytes != 29
-            or row.payload_sha256 != FIXTURE_SHA256):
+    exact = row.display_name == FIXTURE_PATH and row.payload_bytes == 29 and row.payload_sha256 == FIXTURE_SHA256
+    if not exact and not allow_general_txt:
         raise DeviceLibraryDeleteError("General root-level TXT deletion still requires hardware validation.")
+    if not exact:
+        try:
+            validate_root_txt_delete_name(row.path.split("\\")[-1])
+        except ValueError as exc:
+            raise DeviceLibraryDeleteError(str(exc)) from exc
+        if (type(row.payload_bytes) is not int or row.payload_bytes < 0
+                or not isinstance(row.payload_sha256, str) or len(row.payload_sha256) != 64
+                or any(c not in "0123456789abcdef" for c in row.payload_sha256)):
+            raise DeviceLibraryDeleteError("Selected TXT payload identity is incomplete.")
     if model.state.backup_directory is None or model.state.source_blob_sha256 is None:
         raise DeviceLibraryDeleteError("Load a complete backup before selecting Delete.")
-    return DeviceDeleteSelection(model.state.backup_directory, model.state.source_blob_sha256, row, device_model)
+    return DeviceDeleteSelection(model.state.backup_directory, model.state.source_blob_sha256, row, device_model, not exact)
 
 
 @dataclass(frozen=True)
@@ -88,12 +103,28 @@ class PreparedDeviceDelete:
 class DeviceLibraryDeleteService:
     """Own one UI attempt while delegating all safety decisions to P18-041."""
 
-    def __init__(self, runtime_factory: Callable[[], PinnedRootTxtRuntime]):
+    def __init__(self, runtime_factory: Callable[[], PinnedRootTxtRuntime], *, validation_target: str | None = None):
+        if validation_target is not None and validation_target not in ROOT_TXT_DELETE_VALIDATION_FILES:
+            raise DeviceLibraryDeleteError("Validation requires one predetermined disposable target.")
+        self.validation_target = validation_target
         self._runtime_factory = runtime_factory
         self._facade = None
         self._prepared = None
         self._preparation_closed = threading.Event()
         self._preparation_lock = threading.RLock()
+
+    def select(self, model, offsets, *, device_model="VNW-V15"):
+        return select_device_library_delete(model, offsets, device_model=device_model, allow_general_txt=True)
+
+    def execution_available(self, selection):
+        if self.validation_target is not None and selection.row.display_name != self.validation_target:
+            return False
+        if not selection.general_txt:
+            return True
+        payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(self.validation_target)
+        from .root_txt_placement import _sha
+        return (payload is not None and selection.row.display_name == self.validation_target
+                and selection.row.payload_bytes == len(payload) and selection.row.payload_sha256 == _sha(payload))
 
     def close_preparation(self) -> None:
         """Teardown cancels reads; a completed, undelivered review is released."""
@@ -114,11 +145,13 @@ class DeviceLibraryDeleteService:
         cancelled = lambda: self._preparation_closed.is_set() or (user_cancelled is not None and user_cancelled())
         if self._facade is not None:
             raise DeviceLibraryDeleteError("An existing Delete review must be discarded first.", stage="approval")
+        if self.validation_target is not None and selection.row.display_name != self.validation_target:
+            raise DeviceLibraryDeleteError("Validation permits only its named disposable target.", stage="admission")
         # Re-admit the exact selection from its immutable archive before opening
         # any runtime. Caller-created tokens cannot bypass capability admission.
         original = DesktopWorkflowModel()
         original.load_backup(selection.backup_directory)
-        admitted = select_device_library_delete(original, (selection.row.record_offset,), device_model=selection.device_model)
+        admitted = self.select(original, (selection.row.record_offset,), device_model=selection.device_model)
         if admitted != selection:
             raise DeviceLibraryDeleteError("The selected file or library has changed. Refresh Device Library.", stage="approval")
         before = verify_fresh_backup(selection.backup_directory, max_age_seconds=None)
@@ -128,7 +161,9 @@ class DeviceLibraryDeleteService:
         try:
             self._facade = ExperimentalRootTxtDeleteFacade(self._runtime_factory())
             bundle = self._facade.prepare(target_path=selection.row.display_name,
-                device_model=selection.device_model, cancelled=cancelled, progress=progress)
+                device_model=selection.device_model, cancelled=cancelled, progress=progress,
+                general_txt=selection.general_txt,
+                validation_only=selection.general_txt and self.execution_available(selection))
             if (_backup_identity(bundle.before_backup) != identity
                     or bundle.candidate.core.target_record_offset != selection.row.record_offset):
                 raise DeviceLibraryDeleteError("Device contents changed since the displayed backup. Refresh Device Library.", stage="approval")
@@ -151,6 +186,9 @@ class DeviceLibraryDeleteService:
                 raise DeviceLibraryDeleteError("An explicit Delete or Cancel choice is required.", stage="approval")
             if not confirmed:
                 return None
+            if not self.execution_available(prepared.selection):
+                raise DeviceLibraryDeleteError("Delete execution is unavailable for this selection.", stage="admission")
+            prepared.bundle.assert_execution_admitted()
             prepared.bundle.verify_seal()
             if OwnerAuthorizedOperationIdentity.from_bundle(prepared.bundle) != prepared.owner_identity:
                 raise DeviceLibraryDeleteError("The approved operation changed. Review the selection again.", stage="approval")
@@ -188,6 +226,8 @@ def delete_failure_message(error: BaseException) -> str:
     state, stage = getattr(error, "state", None), getattr(error, "stage", None)
     if state == "indeterminate_after_transaction_start":
         return "Delete outcome is uncertain. Writes are locked. Preserve the evidence and use read-only diagnosis; do not retry."
+    if stage == "admission":
+        return "Delete is unsupported for this selection or its protected device state. No device-changing operation was started."
     if stage in {"post_write_backup", "post_write_verification", "post_operation_readback", "post_delete_readback", "verification", "result_reconciliation"}:
         return "Delete verification failed. Preserve the backups and use read-only diagnosis; do not retry."
     if stage in {"write", "write_completion", "send", "transfer"}:

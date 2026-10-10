@@ -1898,6 +1898,8 @@ def launch_ttk_desktop(
 
     def replacement_write_safety_available() -> bool:
         """Keep the replacement affordance closed when shared state is unsafe."""
+        if device_delete_service.validation_target is not None:
+            return False
 
         available, detail = _application_write_safety_status(replacement_safety_owner)
         if detail:
@@ -4857,9 +4859,12 @@ def launch_ttk_desktop(
             return
         offsets = tuple(tree_items[item] for item in tree.selection() if item in tree_items)
         try:
-            selection = select_device_library_delete(model, offsets)
+            selection = device_delete_service.select(model, offsets)
         except DeviceLibraryDeleteError as exc:
             device_delete_status_var.set(str(exc))
+            return
+        if not device_delete_service.execution_available(selection):
+            device_delete_status_var.set("Root TXT Delete awaits physical validation.")
             return
         clear_library_review_for_input_change()
         device_delete_active = True
@@ -4868,7 +4873,7 @@ def launch_ttk_desktop(
         def selected_matches() -> bool:
             current = tuple(tree_items[item] for item in tree.selection() if item in tree_items)
             try:
-                return select_device_library_delete(model, current) == selection
+                return device_delete_service.select(model, current) == selection
             except DeviceLibraryDeleteError:
                 return False
         def activity(update: OperationProgress) -> None:
@@ -4964,11 +4969,13 @@ def launch_ttk_desktop(
         delete_message = "Select one supported root-level TXT file."
         delete_allowed = False
         try:
-            select_device_library_delete(model, selected)
-            delete_allowed = replacement_safety_owner is not None or delete_service is not None
+            delete_selection = device_delete_service.select(model, selected)
+            delete_allowed = device_delete_service.execution_available(delete_selection) and (replacement_safety_owner is not None or delete_service is not None)
             if delete_service is None and replacement_safety_owner is not None:
-                delete_allowed = _application_safety_notice(replacement_safety_owner, replacement_safety_configuration_error) is None
-            delete_message = "Experimental Delete is available for this exact file." if delete_allowed else "Delete is blocked because write-safety state is unavailable."
+                delete_allowed = delete_allowed and _application_safety_notice(replacement_safety_owner, replacement_safety_configuration_error) is None
+            delete_message = ("Experimental Delete is available for this exact file." if delete_allowed else
+                "Root TXT Delete awaits physical validation." if not device_delete_service.execution_available(delete_selection) else
+                "Delete is blocked because write-safety state is unavailable.")
         except DeviceLibraryDeleteError as exc:
             delete_message = str(exc)
         manager_busy = library_operation_controller.busy or library_device_change_in_progress or (worker is not None and worker.is_alive())
@@ -5189,6 +5196,9 @@ def launch_ttk_desktop(
 
     def replacement_write_action() -> None:
         nonlocal worker
+        if device_delete_service.validation_target is not None:
+            status_var.set("This validation session permits only its named disposable Delete.")
+            return
         if library_operation_controller.busy or (worker is not None and worker.is_alive()):
             status_var.set(
                 "Another manager operation is in progress; Device Manager writes remain disabled"

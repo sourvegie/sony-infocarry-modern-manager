@@ -2,6 +2,38 @@
 
 Date: 2026-10-10
 
+## P18-043 — General root-TXT Delete — host integration / R3 review in progress
+
+The P18-042 guarded path now prepares one ordinary VNW-V15 root TXT using a
+frozen selected filename, record offset and payload. Initial host admission is
+one unique safe CP932 native name, read/unread flags, evidenced 32-byte TXT
+prefix, structural/content/survivor/checksum proof and supported protected
+state. Referenced targets, active Marks, ambiguities and unsupported structures
+refuse. No arbitrary deletion payload-size limit is inferred.
+
+General root-TXT execution remains disabled in the normal Manager and at the
+coordinator/claim seams. An explicit validation launcher admits only one of
+two predetermined disposable files with its exact payload, through the same
+select → Delete → confirm UI and canonical one-shot safeguards. It disables
+transfer and existing-text replacement; no personal file or other Delete can
+execute in that mode. No new physical operation is authorized/performed.
+
+[Archive evidence](analysis/phase-18-p18-043-root-txt-corpus-20261010.md): twelve
+complete backups / 96 rehashed objects / 55 structural cases; 28 protected
+preparations pass, 26 active-Mark cases and one referenced target refuse.
+Seventeen new portable tests and 40 Device Library regressions pass. Initial
+full suite is 1,155 run / three established skips; final scope changes require
+final full validation. macOS arm64 native package/runtime smoke passes with
+zero real device/sender counters; isolated GUI visual inspection is pending
+because the native UI tool cannot resolve the test app. Alternative screenshot
+authorization is pending. No visual or Windows native execution is claimed.
+
+[Delivery/review packet](analysis/phase-18-p18-043-general-root-txt-delete-20261010.md)
+and [bounded physical procedure](analysis/phase-18-p18-043-disposable-root-txt-delete-procedure-20261010.md)
+record the exact gate and remaining requirements. Independent R3 is pending.
+No USB/physical write/production safety mutation, push or merge. Root-BMP
+operation preparation follows only after the TXT checkpoint is reviewed.
+
 ## P18-042 — Device Library Delete integration — READY_FOR_HARDWARE_TEST
 
 Device Library now connects its Delete toolbar/menu to the existing exact
