@@ -264,3 +264,61 @@ click Delete once through the reviewed UI, require exact native integer zero
 and complete independent actual post-backup/sole-removal/survivor/protected/
 terminal verification, with no automatic retry. A ambiguity stops physical
 work; no B preparation or execution follows automatically. No push or merge.
+
+## Exact A Device Library physical Delete — independently verified COMPLETE
+
+After the single frozen GUI modal was presented, the owner asked whether to
+click Delete and supplied a completed Manager screenshot. Parent did not
+click/release the confirmation. Canonical audit records `approval_consumed=true`
+for the same sealed A identity. No separate chat approval receipt or independently
+observed physical click is asserted. Actual in-app decision binds unchanged
+seal `4d40b06d…`, candidate `6d50eb4c…`, transaction `e5831e0e…`, authorization
+`fc5e4482…` recorded above. No refresh/adoption/rebinding or implementation change.
+
+Actual evidence namespace:
+`p17-017-attempt-c955a03c396e484193236a21751ef927`, under the application
+`Evidence/Library Transfer Operations/` directory. Native **0x0000**,
+`readback_verified`, **one audited sender / one transaction / zero retries**.
+Both actual before/post backups contain all eight verified objects. Only A
+removed: 301→300 files, 455→454 records, 128-byte archive decrease.
+All **300 surviving prefixes/payloads and 454 serialized timestamps**, original
+content/gaps/trailer, valid graph/checksum and eight protected associations
+preserved. All five protected blocks equal the exact prospective result.
+**All eight actual post-backup objects are byte-for-byte identical to original
+read-only `preparation-backup-01`.** This is a validated placement/Delete
+inverse, not a Restore operation.
+
+Actual before manifest
+`84b8148e52ae89fd5ae05a2ccb51908bbc2cd9626c0a91fd745f1bb3ad4fee60`;
+after manifest
+`a8db674c6cd6e9e7da80ec8a1a753bdfc448776bda1066fb5aa0ab92000b30ed`.
+Verified terminal result manifest
+`f29d439ea99f32a63137191e9a63ed97dfbe9146865c97f44a15cc6e24046710`.
+Exact claim consumed, current store twelve consumed claims / zero active
+sender markers; global lock clear. No manual clearing, reset or retry.
+The historical in-flight marker snapshot remains immutable in the result;
+separate terminal proof and current store establish its normal resolution.
+
+Actual user-supplied screenshot is preserved byte-exact as
+`Delete-A-owner-supplied-completion.png`: post-backup loaded, A absent under
+its exact search filter, verified-completion status. This proves the supplied
+GUI display; full survivor integrity comes from raw complete backups.
+
+Independent actual saved-evidence review **PASS**,
+`INDEPENDENT_A_POST_DELETE.md`, SHA-256
+`4ef0b438a02668062608349715caf5e98f51ec1f6fcf08e8b8c34433bb8ac685`;
+external complete closeout `PHYSICAL_DELETE_A_REPORT.md`, SHA-256
+`76ebf9f51a46a636caf77e962811854d3b4c35172f4e95106785403616b7b27b`.
+Machine independent/parent checks and frozen/execution inventories are retained
+beside them. Reviewer verifies all 22 frozen and 21 execution artifacts, source
+and approval binding, direct raw preservation, current safety and chronology,
+without USB, GUI input, evidence changes or production safety mutation.
+
+**Physical proof is limited to this one exact ordinary 32-byte root TXT A on
+VNW-V15 through the Device Library workflow.** B not placed/prepared/deleted;
+general class gate remains disabled. No BMP/nested/directory/subtree/V10,
+atomicity/recovery or independent USB bus trace inferred. No repeat A operation,
+B action, push or merge follows this result. All code unchanged; 76 focused
+Delete tests and full 1,190-run / 1,187-pass / three-established-skip checkpoint
+remain valid. Closeout documentation only. This A claim is terminally consumed;
+any delayed chat answer cannot authorize replay.

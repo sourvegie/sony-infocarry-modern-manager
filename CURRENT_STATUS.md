@@ -1,43 +1,41 @@
 # Current Project Status
 
-Date: 2026-10-10
+Date: 2026-10-11
 
-## P18-044 — exact A placement COMPLETE / Delete and B await separate authorization
+## P18-044 — A placement and Device Library Delete COMPLETE / B not started
 
 Branch `task/P18-044-root-txt-physical-validation`, based on reviewed P18-043
-`e1cfda6`. The owner explicitly approved the already frozen **A placement once
-only**; the waiting process executed that identical candidate without rebuilding.
-Native **0x0000**, launcher exit **0**, one audited sender/transaction, zero
-automatic retries. The complete actual post-placement backup independently
-verifies exact `root\IC_P18_043_DELETE_A.txt` (32 bytes) as the sole addition.
-All 300 surviving prefixes/payloads, 454 surviving timestamps, original storage
-gaps/trailer and protected associations are preserved; checksum/structure valid.
-Current archive has 301 files / 455 records, growth 128 bytes. Exact claim
-consumed, sender marker resolved, global lock clear; no manual safety cleanup.
+`e1cfda6`. Exact A placement completed first under separate owner approval.
+The reviewed Device Library workflow then used a fresh complete backup and
+selected only
+`root\IC_P18_043_DELETE_A.txt`, verified its exact 32-byte payload, froze the
+operation and displayed one readable Delete/Cancel dialog. The parent left
+it unconfirmed; canonical GUI records the in-app confirmation and the user
+supplies the completed/refreshed Manager screenshot. No separate chat receipt
+or independently observed physical click is claimed.
 
-Placement source head `52c75c802212c3ca652305e1890cc3d187021100` has independent
-R3 **PASS P0/P1/P2=0/0/0**. Fresh frozen preparation and actual post-placement
-independent reviews also PASS. Portable suite remains **1,190 run / 1,187
-passed / three established skips**; source/tests/scripts are unchanged after
-review. No independent USB bus trace was captured.
+Actual A Delete independently **PASS**: native **0x0000**, **one audited sender/
+transaction, zero retries**, complete eight-object before/post backups. Only A
+removed; all **300 surviving prefixes/payloads, 454 timestamps** and protected
+associations preserved; original content/gaps/trailer and checksum/structure valid.
+**Every post-backup object matches the original pre-A-placement bytes.** Current
+archive is again 300 files / 454 records. Exact consumed claim, resolved marker,
+global lock clear; no manual cleanup. The user's actual screenshot confirms
+post-backup display, A absent and verified completion. No independent USB trace.
 
-This is one exact disposable A placement proof, not a Delete proof or a generic
-addition capability. **A Delete, B placement and B Delete are not authorized or
-started.** Ordinary root-TXT execution stays disabled. Stop at this owner
-boundary; future operations require separate approval and the existing guarded
-procedure. Complete backups/raw evidence remain external and unmodified.
+Source/scripts/tests remain unchanged from R3-reviewed `52c75c8` through
+`dbaa851` and preparation closure `b9b7999`; **P0/P1/P2=0/0/0**. Independent
+frozen preparation and actual placement/Delete evidence reviews pass. 76 focused
+Delete regressions pass; full checkpoint **1,190 run / 1,187 passed / three
+established skips** remains applicable. All raw evidence is preserved external
+and unmodified; closeout commits are documentation only.
 
-Actual A Delete GUI preparation is now complete and independently **PASS**:
-fresh displayed eight-object backup matches the verified placement state; only
-A is selected; service obtains its own complete fresh backup/native capacity;
-the frozen candidate removes only A and returns the exact pre-placement blob
-and protected blocks. All 300 survivor payloads and 454 timestamps preserved.
-A single **Confirm Delete** dialog is open and **unconfirmed**. No Delete claim,
-sender or transaction; global lock clear and no marker. A separate readable
-owner confirmation is required for this frozen operation. 76 focused Delete
-regressions pass; implementation unchanged from `dbaa851`.
-
-[Physical preparation and A closeout](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
+This proves **one exact A Device Library Delete**, not general root-TXT class
+support. Normal general Delete remains disabled. **B placement/Delete is not
+authorized or started**; no further physical operation follows automatically.
+The smallest next planned hardware work is separately approved exact B
+placement, independent verification, then separately approved B Delete.
+[Physical preparation and A placement/Delete closeout](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
 No push or merge.
 
 ## P18-043 — host work complete / TXT READY_FOR_HARDWARE_TEST / BMP host-reviewed
