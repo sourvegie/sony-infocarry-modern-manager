@@ -1,0 +1,30 @@
+{
+  "format": "infocarry-disposable-root-txt-delete-validation-plan-v1",
+  "physical_operations_authorized": false,
+  "maximum_delete_operations": 2,
+  "fixtures": [
+    {
+      "path": "root\\IC_P18_043_DELETE_A.txt",
+      "role": "previously demonstrated anchor; remove only after C verification",
+      "payload_ascii": "Disposable P18-043 root TXT A.\r\n",
+      "bytes": 32,
+      "sha256": "d5011189f2020b770935ed4ee2736c1feeed708f2875a74d0c41ad4f213e8aab",
+      "alignment_remainder": 0,
+      "expected_record_offset": "0x680"
+    },
+    {
+      "path": "root\\IC_P18_045_DELETE_C.txt",
+      "role": "missing alignment and different serialized position",
+      "payload_ascii": "Disposable P18-045 root TXT C++.\r\n",
+      "bytes": 34,
+      "sha256": "dc318d18b0410bfbabfa2ad8619cece0dd7ef4166bc10e2fd1213f06d0bcca3c",
+      "alignment_remainder": 2,
+      "expected_record_offset": "0x6c0"
+    }
+  ],
+  "operation_order": ["place A", "place C", "delete C", "delete A"],
+  "operation_specific_owner_approval_required": true,
+  "stop_on_any_ambiguity_or_failed_verification": true,
+  "automatic_retry_allowed": false,
+  "general_root_txt_execution_enabled": false
+}

@@ -152,7 +152,7 @@ class DisposablePlacementTests(unittest.TestCase):
             self.assertFalse(case[6].path.exists())
             evidence = Path(result.audit['evidence_outputs']['root'])
             report = json.loads((evidence/'disposable-placement-report.json').read_bytes())
-            self.assertEqual(report['experiment_id'], 'P18-044')
+            self.assertEqual(report['experiment_id'], 'P18-045' if target == 'root\\IC_P18_045_DELETE_C.txt' else 'P18-044')
             self.assertEqual(report['fixture']['path'], target)
             self.assertEqual(report['native_completion'], '0x0000')
             self.assertTrue(report['verification']['exact_path_and_payload_verification']['surviving_timestamps_unchanged'])

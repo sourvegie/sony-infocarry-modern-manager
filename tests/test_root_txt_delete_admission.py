@@ -76,6 +76,57 @@ class RootTxtAdmissionTests(unittest.TestCase):
         if prepared:
             self.assertIsNone(data[0][5].read_claim(prepared.bundle.seal_sha256))
 
+    def test_paired_remainder_two_fixture_at_different_serialized_position_is_exact_inverse(self):
+        from infocarry.new_txt import build_new_root_txt_add
+        from infocarry.delete_generalized import verify_generalized_delete_readback
+        try:
+            from test_new_txt import _make_root_blob
+        except ModuleNotFoundError:
+            from tests.test_new_txt import _make_root_blob
+        original = _make_root_blob()
+        current = self.archived(original)
+        added = []
+        def archive_transaction(transaction):
+            fixed = {c: transaction.ranges[0][(c-0x1b)*64:(c-0x1a)*64] for c in range(0x1b,0x1f)}
+            fixed[0x1f] = transaction.ranges[1]
+            return self.archived(transaction.ranges[4]+transaction.ranges[7], fixed)
+        for target in ('root\\IC_P18_043_DELETE_A.txt', 'root\\IC_P18_045_DELETE_C.txt'):
+            source = current.parent / target.split('\\')[-1]
+            source.write_bytes(ROOT_TXT_DELETE_VALIDATION_FILES[target])
+            result = build_new_root_txt_add(current, source, source.name,
+                source_template_offset=0xc0, available_capacity_bytes=10000,
+                record_timestamp_be32=1791696600, fresh_new_allocation=True)
+            added.append(result)
+            current = archive_transaction(result.transaction)
+        self.assertEqual(added[0].audit['target']['record_offset_hex'], '0x00000100')
+        self.assertEqual(added[1].audit['target']['record_offset_hex'], '0x00000140')
+        self.assertEqual(added[1].audit['allocation']['alignment_padding_bytes'], 2)
+        self.assertEqual(added[1].audit['allocation']['candidate_growth_bytes'], 132)
+        for target, expected_blob in (('root\\IC_P18_045_DELETE_C.txt', added[0].candidate_blob),
+                                      ('root\\IC_P18_043_DELETE_A.txt', original)):
+            core = build_root_txt_delete(current, target)
+            current = archive_transaction(core.transaction)
+            verify_generalized_delete_readback(core, current, completion=0)
+            self.assertEqual(core.candidate_blob, expected_blob)
+        self.assertEqual(parse_backup_blob(original).records, parse_backup_blob(expected_blob).records)
+
+    def test_p18_045_manifest_is_exact_and_c_remains_unavailable_without_validation(self):
+        from hashlib import sha256
+        manifest = json.loads((Path(__file__).resolve().parents[1] / 'analysis' /
+            'p18-045-disposable-root-txt-fixtures-20261011.json').read_bytes())
+        self.assertFalse(manifest['physical_operations_authorized'])
+        for fixture in manifest['fixtures']:
+            payload = ROOT_TXT_DELETE_VALIDATION_FILES[fixture['path']]
+            self.assertEqual(payload, fixture['payload_ascii'].encode('ascii'))
+            self.assertEqual(len(payload), fixture['bytes'])
+            self.assertEqual(sha256(payload).hexdigest(), fixture['sha256'])
+            self.assertEqual(len(payload)%4, fixture['alignment_remainder'])
+        data = self.case(path='root\\IC_P18_045_DELETE_C.txt')
+        prepared = self.prepare(data)
+        self.assertFalse(data[2].execution_available(data[3]))
+        with self.assertRaises(ValueError): prepared.bundle.assert_execution_admitted()
+        self.no_send(data, prepared)
+
     def test_first_middle_last_alignment_empty_and_large_payloads(self):
         for index in range(3):
             for length in (0,1,2,3,4,1863,65539):

@@ -2,6 +2,24 @@
 
 Date: 2026-10-11
 
+## P18-045 — minimum additional TXT validation — R3 review pending
+
+Branch `task/P18-045-root-txt-delete-validation` starts from `6acb3af`.
+Fresh read-only eight-object backup equals the verified B post-state; 300
+files / 454 records, fourteen historical consumed claims, no sender markers,
+global lock clear. No physical write has occurred in P18-045.
+
+The minimum plan reuses exact A32 as an anchor, places exact C34 next, deletes
+C first and separately cleans up A. Actual-baseline host candidates establish
+serialized A `0x680` / C `0x6c0`; C fills missing remainder 2 and preserves
+survivors before/after its different record position. The existing exact
+disposable map adds C; general root-TXT execution stays disabled. All existing
+guarded write protections are reused. Full portable suite: **1,192 run /
+1,189 passed / three established skips**; 19 focused admission tests pass.
+Independent R3 is pending. Each placement/Delete still requires a separate
+owner approval of its fresh frozen operation. No push or merge.
+[Plan, evidence and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
+
 ## P18-044 — bounded disposable A/B validation COMPLETE
 
 Branch `task/P18-044-root-txt-physical-validation`, based on the reviewed

@@ -456,6 +456,7 @@ ROOT_TXT_DELETE_VALIDATION_PROFILE = "vnw-v15-disposable-root-txt-delete-validat
 ROOT_TXT_DELETE_VALIDATION_FILES = MappingProxyType({
     "root\\IC_P18_043_DELETE_A.txt": b"Disposable P18-043 root TXT A.\r\n",
     "root\\IC_P18_043_DELETE_B.txt": b"Disposable P18-043 root TXT B: alignment case-01.\r\n",
+    "root\\IC_P18_045_DELETE_C.txt": b"Disposable P18-045 root TXT C++.\r\n",
 })
 
 

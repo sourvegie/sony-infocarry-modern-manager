@@ -48,7 +48,7 @@ def _placement_fixture(target_path, validation_placement):
         from .delete_workflow import ROOT_TXT_DELETE_VALIDATION_FILES
         payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(target_path)
         if payload is None:
-            raise ValueError("only exact disposable A/B placement targets are admitted")
+            raise ValueError("only exact named disposable placement targets are admitted")
         return target_path.split("\\")[-1], payload
     if target_path != FIXTURE_PATH:
         raise ValueError("only the exact VNW-V15 direct-root TXT fixture is admitted")
@@ -535,7 +535,8 @@ class RootTxtPlacementBundle:
                 raise ValueError("report requires committed claim and resolved marker")
             path = Path(root) / "disposable-placement-report.json"
             _write_json(path, {"format": "infocarry-disposable-root-txt-placement-report-v1",
-                "experiment_id": "P18-044", "status": "completed_and_independently_verified",
+                "experiment_id": "P18-045" if self.placement_target_path == "root\\IC_P18_045_DELETE_C.txt" else "P18-044",
+                "status": "completed_and_independently_verified",
                 "operation": "separate_fixture_placement", "fixture": _fixture_dict(self.placement_target_path, True),
                 "sender_invocations": 1, "add_count": 1, "delete_count": 0, "retry_count": 0,
                 "native_completion": "0x0000",
