@@ -322,3 +322,47 @@ B action, push or merge follows this result. All code unchanged; 76 focused
 Delete tests and full 1,190-run / 1,187-pass / three-established-skip checkpoint
 remain valid. Closeout documentation only. This A claim is terminally consumed;
 any delayed chat answer cannot authorize replay.
+
+## Fresh B placement preparation — awaiting separate physical approval
+
+Owner task continuation from clean `7185313` authorizes read-only B
+preparation and later assessment, with separate B placement and Delete
+approvals. The unchanged exact placement launcher captures current native
+capacity/full backup, freezes B, and waits at one readable owner prompt.
+No input, claim or sender start has been released.
+
+Exact source: `root\IC_P18_043_DELETE_B.txt`, 51 bytes,
+`Disposable P18-043 root TXT B: alignment case-01.` followed by CRLF, SHA-256
+`5a5bdff8c2dd352322bc81445be4677534f5c75e5e4ba5f902bf5854c59bbf2e`.
+Prepared root under application `Evidence/Library Transfer Operations/`:
+`prepared-root-txt-dfcbf34d905241868284da0bdecb1f72`.
+Fresh eight-object backup manifest
+`9ae819e9d8570d3f576cc2d5c28b406e80101569ee85a59fd5dd0529bc0d2137`,
+all raw objects equal original and verified A post-Delete; A/B absent.
+Frozen seal `4b0585648fad995aa2359ff58782decf3e4cea2b2f5449c24ee596438e37ac1d`;
+candidate `59481c11300b85e8ec3e4d314dd946b4d789f51a75a7605973802c07a6baeaaf`;
+transaction `0c5c72946d121842406912dc91b21030af1571b58aa9996fddd69f786652a0ff`;
+authorization `38087f67b74bfb84ab8e5bb1aebf832d4707686580ead59334176b52dcd27595`.
+Expected sole addition: one 64-byte record, 32-byte native prefix + 51-byte
+payload + one zero alignment byte; **148-byte total growth**. All existing
+payloads/timestamps/content/gaps and eight protected associations preserved.
+
+Independent actual frozen review **PASS**, no P0/P1/P2 findings:
+`INDEPENDENT_B_PREPLACEMENT.md`, external session SHA-256
+`a2e2f1c372ae7e644c74748f0a1eb526b65190ddcdfd169b2b2bde167060a0ed`.
+Reviewer independently rehashes all 22 frozen artifacts, reconstructs candidate/
+transaction/audit/authorization/capacity from actual fresh source/template/
+timestamp, verifies raw survivor metadata/content and direct protected-state
+rebases, and reads current safety without mutation. Current store twelve
+historical consumed claims, zero B-seal claims, zero markers; global clear;
+database `d2b618fd…` and lock bytes unchanged during inspection.
+
+External `placement-B-frozen-review.json`, frozen evidence inventory, parent
+preparation and safety reports retain exact operation identity and source.
+B placement remains **unapproved / not run**. After explicit approval only,
+release the sole readable answer to this waiting frozen operation; require
+native integer zero, one sender/no retry and independently verified full actual
+postbackup before any B Delete preparation. No personal target or class-gate
+change, source edit, push or merge. A late A approval cannot replay its consumed
+operation. The stale matrix sentence claiming Clock as the only completed
+modern proof is corrected to include bounded A, without widening exposure.

@@ -39,7 +39,9 @@ validation launcher permits one exact predetermined disposable A/B target and
 payload, uses the existing readable confirmation and full canonical safety
 lifecycle, and cannot execute another file, transfer or existing-text replacement.
 There is no automatic gate change after simulated or physical verification.
-The existing exact P18-041 proof remains the only completed modern operation.
+Completed Delete proofs are limited to the exact P18-041 Clock fixture and
+the exact P18-044 A fixture. B remains unperformed; neither proof promotes
+the ordinary root-TXT class.
 
 
 P18-042 adds the exact P18-041 Delete row to Device Library. Selection must

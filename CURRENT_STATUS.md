@@ -2,7 +2,7 @@
 
 Date: 2026-10-11
 
-## P18-044 — A placement and Device Library Delete COMPLETE / B not started
+## P18-044 — A COMPLETE / frozen B placement awaits separate authorization
 
 Branch `task/P18-044-root-txt-physical-validation`, based on reviewed P18-043
 `e1cfda6`. Exact A placement completed first under separate owner approval.
@@ -31,10 +31,16 @@ established skips** remains applicable. All raw evidence is preserved external
 and unmodified; closeout commits are documentation only.
 
 This proves **one exact A Device Library Delete**, not general root-TXT class
-support. Normal general Delete remains disabled. **B placement/Delete is not
-authorized or started**; no further physical operation follows automatically.
-The smallest next planned hardware work is separately approved exact B
-placement, independent verification, then separately approved B Delete.
+support. Normal general Delete remains disabled. **No B physical operation is authorized
+or started**; no physical action follows automatically. The exact B placement
+is now freshly prepared and frozen through the unchanged guarded facade:
+51-byte manifest payload, sole root addition, 148-byte archive growth, all
+300 survivor payloads / 454 timestamps and protected state preserved. Fresh
+eight-object baseline equals original and A post-Delete state. Independent
+frozen verification PASS; twelve historical claims, no B claim or marker,
+global lock clear. The existing launcher waits at its one readable prompt.
+Next step requires explicit owner B placement approval, independent actual
+postverification, then new B Delete preparation and its separate approval.
 [Physical preparation and A placement/Delete closeout](analysis/phase-18-p18-044-physical-root-txt-validation-20261010.md).
 No push or merge.
 
