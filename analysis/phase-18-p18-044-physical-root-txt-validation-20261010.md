@@ -366,3 +366,76 @@ postbackup before any B Delete preparation. No personal target or class-gate
 change, source edit, push or merge. A late A approval cannot replay its consumed
 operation. The stale matrix sentence claiming Clock as the only completed
 modern proof is corrected to include bounded A, without widening exposure.
+
+## Owner-authorized Fixture B placement and Delete — COMPLETE
+
+The owner separately approved the frozen B placement once, then after its
+independent success separately authorized the frozen B Delete once. No other
+physical operation followed. The exact target was
+`root\\IC_P18_043_DELETE_B.txt`; its fixture-manifest payload is 51 bytes,
+SHA-256 `5a5bdff8c2dd352322bc81445be4677534f5c75e5e4ba5f902bf5854c59bbf2e`.
+Placement and Delete both used the existing guarded Manager path with their
+own frozen identities, fresh complete backups, one readable confirmation,
+single-use claims, sender markers and the installation-wide lock. Both
+reported native **0x0000**, one audited sender/transaction, and zero retries.
+
+The placement added only B and was independently verified against a complete
+eight-object post-backup. Delete then used a newly prepared complete baseline
+and independently verified frozen candidate. Actual before/after manifests
+are `3e208f8df315898ceb3b8e6436fb71ffc49eeb14cee17f2ed7440ddb39e86ba3` and
+`7c5ca7263b1430992ebc6e4b6c8a799705fae283bf858ff26435d4d5ccb1f3a6`; the
+target was the sole removed path. The archive returned from 301 files / 455
+records to 300 / 454, shrinking 148 bytes. All 300 survivor prefixes and
+payloads, 454 timestamps, protected references and blocks, remaining content,
+trailer, structure and checksum were independently verified. All eight
+post-delete objects match the original `preparation-backup-01` bytes. The
+claim is consumed, the marker resolved, and the global lock is clear. The
+owner-supplied screenshot shows the refreshed exact B filter empty and the
+Manager's verified-completion status; it is presentation evidence, not an
+independent USB trace or a separately observed click.
+
+Independent actual post-delete review: **PASS, P0/P1/P2=0/0/0**, report SHA-256
+`f928c0cbe0e075ef9e40f0f2e9eb1461642099d3711ea97b84fc9b2222825f7c` at
+`/external/local-path`;
+machine verification SHA-256
+`9b05d2f2ad5d90086168b1265f16d52686ab0e69231a01dee205b05c12d91448`.
+The original B placement independent report SHA-256 is
+`bd9df4a345b824dc89e25dfeb002f0382dcb5fa5447efe359ab4ebce624451fa`.
+The report inspected actual complete backups and terminal state without
+running USB, sender, GUI input, or safety-state mutations. No independent USB
+bus trace was captured.
+
+## Evidence comparison and capability disposition
+
+P18-041 physically removed its exact 29-byte root TXT fixture;
+P18-044/A removed the exact 32-byte disposable fixture; and P18-044/B removed
+the exact 51-byte disposable fixture. All were VNW-V15 root-level records and
+all completed with native zero, one sender and no retry, independently verified
+complete readback, and preservation of unrelated content. Their payload-length
+remainders modulo four are respectively **1, 0, and 3**. They therefore do not
+exercise the remaining remainder-2 allocation case. The three targets also
+share the observed record position (`0x680`) and native 32-byte prefix/state
+profile; record positions outside this one have not been physically exercised.
+
+The P18-043 host admission is broader than these physical samples: it accepts
+additional safe root names, payload geometry and record positions under its
+structural and protected-state validators. Offline corpus/synthetic coverage
+and the exact P18-041/A/B results do not establish those combinations on the
+device. A useful narrow gate limited to the exact three names would not deliver
+ordinary file management, while promoting the existing general admission
+would exceed the physical evidence. Therefore **ordinary root-TXT execution
+remains disabled** at the UI/service/coordinator/claim boundaries; no source
+gate was changed. The bounded named-fixture validation route is not general
+admission and permits no personal target. The next smallest useful physical
+evidence should cover a disposable payload with length remainder 2 and a
+different record position; any such placement and deletion require their own
+operation-specific owner approvals and the existing guarded workflow.
+
+No new code was changed for this closeout. The reviewed source/tests at
+`52c75c802212c3ca652305e1890cc3d187021100` remain the implementation baseline;
+the existing full portable result (1,190 run, 1,187 passed, three established
+skips) remains applicable. The independent actual B review completes the
+evidence-review requirement for this bounded experiment. Root-BMP remains
+host-only; BMP, nested/directory/subtree Delete, VNW-V10 compatibility, physical
+atomicity and interrupted-write recovery are not demonstrated. Raw backups,
+candidates and transaction evidence remain external and unmodified.
