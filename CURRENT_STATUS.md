@@ -2,7 +2,7 @@
 
 Date: 2026-10-11
 
-## P18-045 — minimum additional TXT validation — R3 review pending
+## P18-045 — READY_FOR_HARDWARE_TEST / first anchor placement awaits approval
 
 Branch `task/P18-045-root-txt-delete-validation` starts from `6acb3af`.
 Fresh read-only eight-object backup equals the verified B post-state; 300
@@ -16,7 +16,12 @@ survivors before/after its different record position. The existing exact
 disposable map adds C; general root-TXT execution stays disabled. All existing
 guarded write protections are reused. Full portable suite: **1,192 run /
 1,189 passed / three established skips**; 19 focused admission tests pass.
-Independent R3 is pending. Each placement/Delete still requires a separate
+Independent exact-head R3 at `1461f92` is PASS, P0/P1/P2=0/0/0; reviewer ran
+108 focused tests successfully. First A is freshly frozen, not approved;
+independent frozen-operation review also PASS P0/P1/P2=0/0/0: all 22 prepared
+artifacts, fresh complete backup, exact candidate/authorization, 300 survivor
+payloads / 454 timestamps and eight protected associations verified. No
+sender or new claim has started. Each placement/Delete requires a separate
 owner approval of its fresh frozen operation. No push or merge.
 [Plan, evidence and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
 

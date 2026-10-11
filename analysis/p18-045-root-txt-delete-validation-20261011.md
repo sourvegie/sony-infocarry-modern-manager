@@ -41,6 +41,18 @@ It has 32 native prefix bytes, 34 payload bytes and two alignment bytes; total
 archive growth/removal is 132 bytes including its 64-byte metadata record.
 A retains its original manifest identity and 128-byte archive growth/removal.
 
+The reviewer additionally inspected the preserved
+[H.2 physical Delete](phase-13-milestone-h2-modern-delete-smoke-20260827.md):
+41-byte `IC_TEST_01` at `0x1c0`, with four surviving direct-root TXT siblings
+at `0x200`, `0x240`, `0x280`, `0x2c0` shifting to `0x1c0`, `0x200`, `0x240`,
+`0x280`. That native-zero, complete-readback proof used the earlier all-zero
+fixed-state boundary and older safety implementation. It supports the uniform
+root-sibling ordering/rebase invariant, not current protected-state safety or
+automatic class promotion. C's current-state validation is still needed for
+the missing alignment case and current preserved associations at a different
+offset. A third disposable solely to provide a root sibling after C would
+therefore duplicate existing ordering evidence; the two-file setup is enough.
+
 ## Actual baseline and host verification
 
 External session:
@@ -92,7 +104,48 @@ Host validation completed: 19 focused root-TXT admission tests pass (2.468s),
 full portable suite **1,192 run / 1,189 passed / three established evidence
 skips** (123.416s). Full log is `full-portable-suite.log` in the external
 session. `git diff --check` passes. No hung/interrupted test is counted as
-passed. Independent R3 remains pending; no first placement is approved.
+passed. Independent exact-head R3 at
+`1461f9294027158a48ae2e023922b6a38f1f9514` is **PASS, P0/P1/P2=0/0/0**, with
+no correction round. Reviewer independently ran 108 focused tests (all pass),
+checked the completed full-suite log and reconstructed all four model steps
+against 40 independently rehashed archive objects. The minimum A/C design is
+accepted as READY_FOR_HARDWARE_TEST; normal general execution is not promoted.
+External report `INDEPENDENT_HOST_R3.md`, SHA-256
+`6182767632206bf5ead1c07f4b0f083284fe62c0e6c724a01e28b082f3eebc63`;
+machine verification `independent-host-sequence-verification.json`, SHA-256
+`25327fc0d5c3becd39930c4fa0d0e759205047aef8de05ddef7fc96872e8dd3e`.
+No first placement is approved. Subsequent changes are documentation only.
+
+## Actual first anchor-A operation — frozen and independently reviewed
+
+The existing launcher obtains its own new complete baseline/native capacity
+and stops at its sole readable confirmation, without any answer or sender
+start. Actual prepared root is application `Evidence/Library Transfer Operations/`
+`prepared-root-txt-c94e93c5f84f4c658d964c49fd1f1937`.
+External `anchor-A-frozen-review.json` and `anchor-A-preapproval-inventory.json`
+preserve its original identity and all 22 immutable artifacts. Complete fresh
+backup manifest `7a00d8585c91ab91fc75e203d3d827968ceb48f6e286a721a5d3c755bf9cee46`;
+all eight raw objects equal the verified original state. Only A is added at
+`0x680`: exact 32-byte original fixture, 128-byte archive growth, survivor
+prefixes/payloads/timestamps and protected associations preserved.
+
+Frozen seal `74de2a324725c7dcdefeb24ee082f524f463a0931e1d319cfb22fb82506da632`;
+candidate `bc4966a9f6d6f87faa9a8c08771cdb5a58a978c35fd62d9954e59b32a56467d0`;
+transaction `1440e8a18c4dfdc751d49a2defaf3e32f62ae68c3d9174da1fac9d17daaccaf5`;
+authorization `32ce87b4fd9b228a1202892351090a384ca2f8d87fcd8399c613f2e1b4a4ca1d`.
+Reconstruction is comparison only, not regenerated/adopted execution evidence.
+The actual waiting launcher retains this exact operation.
+
+Independent frozen preplacement review **PASS, P0/P1/P2=0/0/0**:
+`INDEPENDENT_ANCHOR_A_PREPLACEMENT.md`, SHA-256
+`ee1cc227a43117f46ec82bf1a9b4fa93a6e27e975fb0a85732a0de79c6c4853f`;
+machine verification `independent-anchor-A-preplacement-verification.json`,
+SHA-256 `9c105a1113b79e44b99d6eca03c3247b69c93f8aec1913d91f274e9b82137083`.
+Read-only safety remains fourteen consumed historical claims, no claim for
+this seal, zero sender markers, global lock clear; inspected bytes unchanged.
+The first owner decision is **A placement once only**. C placement, C Delete
+and A cleanup each require later separate preparation/approval; none follows
+automatically. A failed/ambiguous result stops the entire physical plan.
 
 ## Hardware procedure and capability decision
 
