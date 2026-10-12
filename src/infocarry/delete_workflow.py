@@ -609,8 +609,9 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def execution_available(self):
-        return (self.candidate.exact_fixture or self.validation_only
-                or root_txt_delete_execution_supported(self.candidate.core))
+        # The physical state envelope applies to legacy and disposable routes
+        # too. A known name/payload does not establish alternate read-state proof.
+        return root_txt_delete_execution_supported(self.candidate.core)
 
     def assert_execution_admitted(self):
         self.verify_seal()

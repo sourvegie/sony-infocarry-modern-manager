@@ -471,3 +471,33 @@ images are not synthetic success proof. The completed physical window was closed
 then the exact isolated window/menu/fake workflow inspected successfully.
 Promotion code is pending fresh exact-head R3 before use/distribution. No further
 physical operation, personal-file deletion, push or merge occurred.
+
+
+### Promotion R3 first correction round
+
+Independent review at `c9a34be` identified two P2 findings, no P0/P1: the
+legacy exact/disposable branches bypassed the stated unread0xe0 boundary for
+read0x20 records; malformed cached manifests containing JSON arrays/null could
+raise raw AttributeError and leave a stale Delete affordance. Neither probe
+performed physical USB or touched production safety.
+
+Corrected the existing bundle's execution admission to require reconstructed
+unread0xe0 across **all** exact/disposable/ordinary routes; service applies the
+same state/structural proof before enabling the action. Named validation rejects
+unsupported payload/state before runtime. New read0x20 regressions cover exact
+legacy and named disposable UI, direct facade/bundle/claim entry, zero sender,
+and preserve E0 frozen bytes. Malformed cached JSON structures fail closed for
+availability; []/null/invalid-object regressions assert unavailable/no runtime.
+No new framework, shared backend format, sender or persistence change. Both
+findings belong to one bounded material correction round; re-review pending.
+
+Additional native isolated read0x20 screenshot
+`/external/local-path`
+shows its selected file, disabled Delete and clear unsupported-state reason;
+Device-menu Delete is disabled. Native harness closes with fake sender0 and
+real USB/backend0. External `root-txt-promotion-host-evidence-inventory-20261012.json`
+preserves27 initial host artifacts and excludes misleading intermediate images.
+Actual complete C post-state admission census found five ordinary root TXT
+records, all structurally admitted unread records, zero runtime calls; no file
+was approved or deleted during that offline census. The current-state census is
+usability/admission evidence, not five new physical demonstrations.

@@ -120,19 +120,20 @@ class DeviceLibraryDeleteService:
     def execution_available(self, selection):
         if self.validation_target is not None and selection.row.display_name != self.validation_target:
             return False
-        if not selection.general_txt:
-            return True
-        if self.validation_target is None:
-            try:
-                core = build_root_txt_delete(selection.backup_directory, selection.row.display_name,
-                    target_record_offset=selection.row.record_offset)
-                return root_txt_delete_execution_supported(core)
-            except (OSError, ValueError, WriteGateError):
+        if self.validation_target is not None:
+            payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(self.validation_target)
+            from .root_txt_placement import _sha
+            if (payload is None or selection.row.payload_bytes != len(payload)
+                    or selection.row.payload_sha256 != _sha(payload)):
                 return False
-        payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(self.validation_target)
-        from .root_txt_placement import _sha
-        return (payload is not None and selection.row.display_name == self.validation_target
-                and selection.row.payload_bytes == len(payload) and selection.row.payload_sha256 == _sha(payload))
+        try:
+            core = build_root_txt_delete(selection.backup_directory, selection.row.display_name,
+                target_record_offset=selection.row.record_offset)
+            return root_txt_delete_execution_supported(core)
+        except (OSError, ValueError, WriteGateError, AttributeError, TypeError):
+            # A cached manifest with malformed JSON structure is unavailable
+            # just like a missing/corrupt archive, before any runtime is opened.
+            return False
 
     def close_preparation(self) -> None:
         """Teardown cancels reads; a completed, undelivered review is released."""
@@ -156,7 +157,7 @@ class DeviceLibraryDeleteService:
         if self.validation_target is not None and selection.row.display_name != self.validation_target:
             raise DeviceLibraryDeleteError("Validation permits only its named disposable target.", stage="admission")
         if self.validation_target is not None and not self.execution_available(selection):
-            raise DeviceLibraryDeleteError("The named disposable validation payload has changed.", stage="admission")
+            raise DeviceLibraryDeleteError("The named disposable validation payload or state is unsupported.", stage="admission")
         # Re-admit the exact selection from its immutable archive before opening
         # any runtime. Caller-created tokens cannot bypass capability admission.
         original = DesktopWorkflowModel()

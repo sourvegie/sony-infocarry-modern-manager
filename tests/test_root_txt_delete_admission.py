@@ -273,8 +273,10 @@ class RootTxtAdmissionTests(unittest.TestCase):
     def test_missing_or_changed_displayed_archive_disables_delete_before_runtime(self):
         data=self.case(path='root\\ordinary.txt')
         self.assertFalse(data[2].execution_available(replace(data[3],backup_directory=data[0][0]/'absent')))
-        (data[3].backup_directory/'manifest.json').write_bytes(b'{}')
-        self.assertFalse(data[2].execution_available(data[3]))
+        for malformed in (b'{}',b'[]',b'null',b'{"objects":[null]}',b'{"objects":{}}'):
+            with self.subTest(manifest=malformed):
+                (data[3].backup_directory/'manifest.json').write_bytes(malformed)
+                self.assertFalse(data[2].execution_available(data[3]))
         self.no_send(data)
 
     def test_host_bundle_cannot_turn_into_a_personal_file_validation(self):
@@ -282,6 +284,36 @@ class RootTxtAdmissionTests(unittest.TestCase):
         object.__setattr__(prepared.bundle,'validation_only',True)
         with self.assertRaises(Exception):data[2].execute_once(prepared,confirmed=True)
         self.no_send(data,prepared)
+
+    def test_exact_legacy_and_named_disposable_read_flags_cannot_bypass_unread_gate(self):
+        from infocarry.p18_041h_experiment import FIXTURE_PATH,FIXTURE_BYTES
+        for validation in (False,True):
+            path='root\\IC_P18_045_DELETE_C.txt' if validation else FIXTURE_PATH
+            payload=ROOT_TXT_DELETE_VALIDATION_FILES[path] if validation else FIXTURE_BYTES
+            data=self.case(path=path,payload=payload,flag=0x20,validation=validation)
+            self.assertFalse(data[2].execution_available(data[3]))
+            helper=ui_helpers.DeviceLibraryDeleteUITests('test_delete_confirm_verify_refresh_in_one_dialog')
+            self.addCleanup(helper.doCleanups)
+            ui=helper.setup_ui(data_override=(data[0],data[1],data[3],data[2]))
+            captures=len(data[0][2]['captures']);ui.action();ui.drain()
+            self.assertEqual(ui.dialogs,[])
+            self.assertEqual(captures,len(data[0][2]['captures']))
+            if validation:
+                with self.assertRaisesRegex(ValueError,'state is unsupported'):self.prepare(data)
+                # Direct facade/coordinator entry must also refuse; UI scope is
+                # not the authority for state admission or claim consumption.
+                bundle=data[0][4].prepare(target_path=path,general_txt=True,validation_only=True)
+                data[0][2]['bundle']=bundle
+            else:
+                prepared=self.prepare(data)
+                bundle=prepared.bundle
+                with self.assertRaises(Exception):data[2].execute_once(prepared,confirmed=True)
+            self.assertFalse(bundle.execution_available)
+            with self.assertRaisesRegex(ValueError,'not physically validated'):
+                bundle.assert_execution_admitted()
+            with self.assertRaisesRegex(ValueError,'not physically validated'):
+                bundle._consume_execution_claim(None)
+            self.no_send(data)
 
     def test_disposable_guarded_ui_service_verifies_once_and_refreshes(self):
         for path in ROOT_TXT_DELETE_VALIDATION_FILES:
@@ -303,7 +335,7 @@ class RootTxtAdmissionTests(unittest.TestCase):
         path=next(iter(ROOT_TXT_DELETE_VALIDATION_FILES))
         data=self.case(path=path,payload=b'personal content',validation=True)
         self.assertFalse(data[2].execution_available(data[3]))
-        with self.assertRaisesRegex(ValueError,'payload has changed'):self.prepare(data)
+        with self.assertRaisesRegex(ValueError,'payload or state'):self.prepare(data)
         self.no_send(data)
         with self.assertRaises(ValueError):DeviceLibraryDeleteService(lambda:None,validation_target='root\\personal.txt')
 
