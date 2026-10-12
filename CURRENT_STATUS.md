@@ -2,7 +2,7 @@
 
 Date: 2026-10-12
 
-## P18-045 — physical gap validation COMPLETE / unread root-TXT promotion in R3
+## P18-045 — physical gap validation and narrow unread root-TXT promotion COMPLETE
 
 A/C placements and separately approved Device Library C deletion completed
 with native **0x0000**, one audited sender/transaction per operation, no retries,
@@ -18,19 +18,24 @@ two current guarded record positions, with survivor/pointer rebasing. Together
 with archived and synthetic structural invariants, they justify a narrow
 Experimental ordinary **unread** root-TXT envelope: VNW-V15 only, exact32-byte
 prefix, safe unique native name, unreferenced target and supported protected
-state/allocation. Task D authorizes this evidence-backed promotion. The local
+state/allocation. Task D authorizes this evidence-backed promotion. Independent
+exact-head R3 passed at `be61c5d327a4d4b80b89f963cff9dd60ca97932e`, with
+P0/P1/P2=0/0/0 after both P2 findings were fixed in one correction round. The
 implementation enables that envelope through the same selection, sealed bundle,
 authorization, claim/marker/global lock, sender/no-retry and independent readback
 protections. Read-state TXT, BMP, nested files/directories/subtrees, VNW-V10 and
 recovery remain excluded. No further physical operation was performed.
 
-Full final portable suite **1,196 run / 1,193 passed / three established skips**;
-23 focused admission and40 Device Library regressions pass. Native isolated
+Full final portable suite **1,197 run / 1,194 passed / three established skips**;
+24 focused admission and40 Device Library regressions pass. Native isolated
 ordinary-TXT GUI selection/menu/one confirmation/Cancel/fake-success refresh and
 macOS package build/final frozen runtime smoke pass, zero real USB/sender calls.
-Exact-head promotion R3 is pending; do not distribute/use the new profile until
-that review completes. Branch `task/P18-045-root-txt-delete-validation`.
+The independently reviewed profile is available as an Experimental VNW-V15
+capability; each delete still requires the normal one-operation in-app
+confirmation and complete guarded verification. Branch
+`task/P18-045-root-txt-delete-validation`.
 [Evidence, supported envelope and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
+[Independent exact-head R3 report](analysis/p18-045-independent-root-txt-promotion-r3-review-20261012.md).
 No push or merge.
 
 ## P18-044 — bounded disposable A/B validation COMPLETE

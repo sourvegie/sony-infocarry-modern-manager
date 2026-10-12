@@ -501,3 +501,29 @@ Actual complete C post-state admission census found five ordinary root TXT
 records, all structurally admitted unread records, zero runtime calls; no file
 was approved or deleted during that offline census. The current-state census is
 usability/admission evidence, not five new physical demonstrations.
+
+### Final correction validation and promotion disposition
+
+The corrected source head is `be61c5d327a4d4b80b89f963cff9dd60ca97932e`.
+After the two P2 findings described above were fixed in one material correction
+round, the final portable suite completed **1,197 tests / 1,194 passed / three
+established skips**. The corrected focused admission tests (24), Device Library
+regressions (40), final macOS arm64 package build/signature, and isolated frozen
+runtime smoke passed; the smoke recorded zero physical USB, sender, claim,
+marker, or installation-lock activity. The native GUI checks cover ordinary
+unread selection and menu admission, one confirmation, cancellation, and a
+synthetic verified refresh. Read-state TXT remains disabled. No physical write
+occurred during these checks.
+
+Independent exact-head R3 completed with **PASS, P0/P1/P2=0/0/0** at
+`be61c5d327a4d4b80b89f963cff9dd60ca97932e`. The reviewer independently
+rechecked the corrective diff, authorization and execution seams, old unread
+fixture compatibility, archived corpus, final test/package evidence and saved
+GUI images. The full report is preserved at
+[`p18-045-independent-root-txt-promotion-r3-review-20261012.md`](p18-045-independent-root-txt-promotion-r3-review-20261012.md)
+(SHA-256 `2493041993616f1c81ab7a233185823d110e36b5b24fd4a18ab9198d8e72fa33`).
+The narrow Experimental unread root-TXT profile is therefore enabled for
+normal in-app use under its documented VNW-V15 structural envelope. This does
+not expand to read-state TXT, BMP, nested files, directories, subtrees, VNW-V10,
+or interrupted-write recovery. The original physical evidence and private
+device backups remain external and unmodified; no independent USB trace exists.

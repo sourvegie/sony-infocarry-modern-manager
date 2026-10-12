@@ -368,7 +368,9 @@ it refuses archived offline inputs and collects a new complete backup.
 ## Device Library Delete
 
 Select one supported unread root TXT file, choose **Delete**, then review
-one **Delete / Cancel** dialog. The Manager obtains a fresh complete backup,
+one **Delete / Cancel** dialog. The narrow Experimental VNW-V15 envelope has
+passed exact-head R3 review; see its [independent report](analysis/p18-045-independent-root-txt-promotion-r3-review-20261012.md).
+The Manager obtains a fresh complete backup,
 validates the selected state, freezes the operation and performs final fresh
 backup/state checks before one guarded send. Completion requires native zero,
 a complete independent post-backup, survivor/protected-state verification and
@@ -377,7 +379,7 @@ preparation can be cancelled, while confirmed execution keeps the window open
 and offers no mid-write cancel or automatic retry. Technical evidence remains
 under **More → Technical Details**.
 
-The P18-045 supported envelope is one ordinary unread VNW-V15 root-level TXT
+The P18-045 Experimental envelope is one ordinary unread VNW-V15 root-level TXT
 file with the known32-byte native prefix, a unique safe CP932 filename,
 unreferenced target and supported protected state/structure. The Delete button
 and Device menu are available only for an admitted selection. Read-state TXT,
