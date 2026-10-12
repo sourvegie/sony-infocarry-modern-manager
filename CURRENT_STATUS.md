@@ -1,13 +1,18 @@
 # Current Project Status
 
-Date: 2026-10-11
+Date: 2026-10-12
 
-## P18-045 — READY_FOR_HARDWARE_TEST / first anchor placement awaits approval
+## P18-045 — anchor A placement COMPLETE / frozen C awaits placement approval
 
 Branch `task/P18-045-root-txt-delete-validation` starts from `6acb3af`.
-Fresh read-only eight-object backup equals the verified B post-state; 300
-files / 454 records, fourteen historical consumed claims, no sender markers,
-global lock clear. No physical write has occurred in P18-045.
+The owner separately authorized the original frozen A placement once. Actual
+native **0x0000**, launcher exit 0, one audited sender/transaction, no retry;
+complete independent before/post readback proves sole A32 addition at `0x680`,
+all 300 prior payloads / 454 timestamps and protected state preserved. Original
+frozen identity/candidate unchanged. Independent actual post-placement review
+PASS P0/P1/P2=0/0/0. Current device has 301 files / 455 records; exact A claim
+consumed, zero sender markers, global lock clear; fifteen historical claims.
+No independent USB bus trace exists.
 
 The minimum plan reuses exact A32 as an anchor, places exact C34 next, deletes
 C first and separately cleans up A. Actual-baseline host candidates establish
@@ -17,12 +22,21 @@ disposable map adds C; general root-TXT execution stays disabled. All existing
 guarded write protections are reused. Full portable suite: **1,192 run /
 1,189 passed / three established skips**; 19 focused admission tests pass.
 Independent exact-head R3 at `1461f92` is PASS, P0/P1/P2=0/0/0; reviewer ran
-108 focused tests successfully. First A is freshly frozen, not approved;
-independent frozen-operation review also PASS P0/P1/P2=0/0/0: all 22 prepared
-artifacts, fresh complete backup, exact candidate/authorization, 300 survivor
-payloads / 454 timestamps and eight protected associations verified. No
-sender or new claim has started. Each placement/Delete requires a separate
-owner approval of its fresh frozen operation. No push or merge.
+108 focused tests successfully. The expired waiting process was reattached
+using existing bundle/adoption APIs, original saved bytes and a new canonical
+runtime only; no candidate replacement or new preparation. The exact bounded
+external runner received independent R3 PASS and thirteen independent fake
+tests passed before execution. No production source or safety framework changed.
+
+C is freshly frozen through the unchanged placement launcher: exact 34-byte
+payload, prospective serialized `0x6c0`, 132-byte archive growth/two padding
+bytes, A unchanged at `0x680`, complete baseline equals verified A post-state.
+Independent frozen C review PASS P0/P1/P2=0/0/0: all 22 artifacts, fresh backup,
+301 survivor payloads / 455 timestamps and eight protected associations;
+host C Delete inverse equals verified A state. No C claim, sender or owner approval;
+no C placement, Delete or cleanup has occurred. Each later physical operation
+requires its own separate owner approval. General TXT execution stays disabled.
+No push or merge.
 [Plan, evidence and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
 
 ## P18-044 — bounded disposable A/B validation COMPLETE
