@@ -2,16 +2,18 @@
 
 Date: 2026-10-12
 
-## P18-045 — physical gap validation and narrow unread root-TXT promotion COMPLETE
+## P18-045 — physical gap validation, root-TXT promotion and disposable cleanup COMPLETE
 
 A/C placements and separately approved Device Library C deletion completed
 with native **0x0000**, one audited sender/transaction per operation, no retries,
-and complete independent eight-object readback. C34 was removed at serialized
-`0x6c0`; A32 remains intact at `0x680`. All 301 survivors / 455 timestamps and
-protected state are preserved; all eight post-delete objects equal verified A
-post-placement state. Independent actual C Delete review PASS P0/P1/P2=0/0/0.
-Seventeen historical claims consumed, zero sender markers, global lock clear.
-No independent USB trace exists. A cleanup remains separately unauthorized.
+and complete independent eight-object readback. The final separately approved
+A cleanup also completed with native **0x0000**, one sender, no retry, and a
+complete independent post-delete backup. A32 was removed at serialized `0x680`;
+the post-delete dynamic archive matches the frozen candidate and verified
+original pre-placement baseline. All surviving payloads and timestamps,
+unrelated objects, fixed/protected state and auxiliary associations are
+preserved. The final A claim is consumed, its marker resolved, and the global
+lock is clear. No independent USB trace exists.
 
 P18-041/044/045 collectively cover all four payload alignment remainders and
 two current guarded record positions, with survivor/pointer rebasing. Together
@@ -24,17 +26,22 @@ P0/P1/P2=0/0/0 after both P2 findings were fixed in one correction round. The
 implementation enables that envelope through the same selection, sealed bundle,
 authorization, claim/marker/global lock, sender/no-retry and independent readback
 protections. Read-state TXT, BMP, nested files/directories/subtrees, VNW-V10 and
-recovery remain excluded. No further physical operation was performed.
+recovery remain excluded. Fixture A was subsequently removed under separate
+owner authorization; see the final cleanup record below.
 
 Full final portable suite **1,197 run / 1,194 passed / three established skips**;
 24 focused admission and40 Device Library regressions pass. Native isolated
-ordinary-TXT GUI selection/menu/one confirmation/Cancel/fake-success refresh and
-macOS package build/final frozen runtime smoke pass, zero real USB/sender calls.
+ordinary-TXT GUI selection/menu/one confirmation/Cancel/fake-success refresh
+and the reviewed macOS package build/smoke passed at the implementation head.
+The final cleanup rebuild and bundle/signature checks passed; this turn's
+runtime-smoke rerun could not complete because direct Tk/AppKit registration
+aborted and LaunchServices rejected the temporary bundle. That attempt is not
+counted as passed.
 The independently reviewed profile is available as an Experimental VNW-V15
 capability; each delete still requires the normal one-operation in-app
 confirmation and complete guarded verification. Branch
 `task/P18-045-root-txt-delete-validation`.
-[Evidence, supported envelope and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
+[Evidence, supported envelope and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md), including the [final disposable cleanup record](analysis/p18-045-final-cleanup-20261012.md).
 [Independent exact-head R3 report](analysis/p18-045-independent-root-txt-promotion-r3-review-20261012.md).
 No push or merge.
 
@@ -263,7 +270,7 @@ four-byte timestamp fields or payloads differ. No production path or physical
 experiment was performed. A single disposable, owner-authorized
 root-level-TXT experiment is justified only to capture the missing timestamp
 event mapping, with a complete pre-backup and no retry. See the [P18-041G
-characterization report](analysis/phase-18-p18-041g-timestamp-rule-characterization-20261004.md) The private machine-readable timestamp comparison is omitted from this publication..
+characterization report](analysis/phase-18-p18-041g-timestamp-rule-characterization-20261004.md) The private machine-readable timestamp comparison is omitted from this publication.
 
 ## P18-041F — ROOT-LEAF DELETE EVIDENCE INSUFFICIENT — STOPPED BEFORE EXECUTION PATH
 

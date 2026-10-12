@@ -30,4 +30,4 @@ Capture 01 pre/post backup is not reusable as a live-operation baseline.
 
 See `SHA256SUMS.txt` for the exact manifest and source hashes.
 The checked-in `manifest.json` SHA-256 is
-`e6143502a393385ecbc9b62bd9a831917f758dfdcd1e83456321a5af3a37a044`.
+`bef99d55f99b621baf7d701a2f5faaa3b6bfc4eca9cc4c3e01c9aa46ffa09d63`.

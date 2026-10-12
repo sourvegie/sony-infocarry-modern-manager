@@ -16,16 +16,13 @@ from infocarry.write_gate import verify_fresh_backup
 
 
 EVIDENCE_ROOT = Path(
-    "/external/local-path"
-    "phase-18-p18-012-readonly-diagnostic-20260907-01"
+    "/external/evidence/phase-18-p18-012-readonly-diagnostic-20260907-01"
 )
 SOURCE_ROOT = Path(
-    "/external/local-path"
-    "phase-17-p17-004-fresh-library-package-20260831-02/00-package/source"
+    "/external/evidence/phase-17-p17-004-fresh-library-package-20260831-02/00-package/source"
 )
 TEMPLATE_BLOB = Path(
-    "/external/local-path"
-    "phase-17-p17-012-library-package-live-preflight-20260901-01/"
+    "/external/evidence/phase-17-p17-012-library-package-live-preflight-20260901-01/"
     "00-inputs/template/object-08-command-8004.bin"
 )
 TARGET = "IC_P18_LIBRARY_20260907_01"
@@ -108,12 +105,10 @@ class P18014FreshOperationIdentityTests(unittest.TestCase):
 
     def test_recovered_lock_is_read_only_clear_and_old_claim_remains_untouched(self):
         lock_path = Path(
-            "/external/local-path Support/"
-            "SonyInfoCarryModernManager/indeterminate-write-lock.json"
+            "/external/app-support/SonyInfoCarryModernManager/indeterminate-write-lock.json"
         )
         db_path = Path(
-            "/external/local-path Support/"
-            "SonyInfoCarryModernManager/execution-claims.sqlite3"
+            "/external/app-support/SonyInfoCarryModernManager/execution-claims.sqlite3"
         )
         lock = PersistentIndeterminateWriteLock(lock_path).read(
             DeviceModelLockKey("sony-vnw-v15")
