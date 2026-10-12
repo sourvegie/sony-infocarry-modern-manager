@@ -291,3 +291,97 @@ The first subsequent decision is **C placement once only** using this exact
 frozen operation; C Delete and A cleanup still require separate later approvals.
 General TXT gate remains disabled. Production source/scripts/tests are
 unchanged from R3-reviewed `1461f92`; this checkpoint is documentation only.
+
+
+## Actual C placement COMPLETE — 2026-10-12
+
+The owner's separate C-only authorization released the original waiting launcher
+once, without regenerating or substituting the frozen candidate. Preserved
+external receipt `C-owner-approval-20261012.json`, SHA-256
+`eb747547c0d99260b7cd7d501e2643f1363ef58d459d8f635b2f470a700f78b4`.
+Actual attempt `p17-017-attempt-8c5feed33a474b81935978e9344f8d8b` under the
+canonical application evidence root. Native **0x0000**, launcher exit 0,
+one audited sender/transaction, zero retries, complete independent post-backup.
+The original seal/candidate/transaction/authorization and all 22 frozen files
+remain unchanged. No independent USB bus trace was captured.
+
+Actual before manifest
+`b06761b8bb38255155c5ffcd344acf7cf2aa3790240215219090ef9710d445d5`;
+after manifest
+`7a9c75871d3466d3ebd65b05b24a68e9ef28ed53d53ffaf7e8dce2fe1ebb4d4b`.
+Result manifest SHA-256
+`773fac1a1e8106115de854570b2cad9ae468560a78e9b9691e0b4bc94196eac2`
+is terminally bound. Actual post dynamic image equals the original frozen C
+candidate. Only C34 added at serialized `0x6c0`, unread `0xe0`, prefix32,
+two zero alignment bytes: metadata64 + content68 = 132 archive bytes;
+2,210,560→2,210,692 bytes, 301→302 files / 455→456 records. A remains `0x680`
+with exact raw record/prefix/payload intact. All 301 prior payloads/prefixes,
+455 timestamps, surviving content/gaps/trailer, valid structure/checksum and
+eight protected associations across five blocks are independently preserved.
+
+Independent actual post-placement **PASS, P0/P1/P2=0/0/0**:
+`INDEPENDENT_C_POSTPLACEMENT.md`, SHA-256
+`5dd358e66f8f8b351caf781b88885aee654609b3f335109576872bffe664fa02`;
+machine `independent-C-postplacement-verification.json`, SHA-256
+`58d7104f85f49da53bd8f41b23930afc6380fec12473d8fe86d680823335bcc8`.
+Read-only immutable/query-only safety inspection confirms sixteen consumed
+historical claims, the exact C claim terminally resolved, zero sender markers,
+installation-wide lock clear. No manual clearing, retry or automatic cleanup.
+
+## Actual Device Library frozen Delete C — awaits separate owner approval
+
+Using the reviewed existing validation-target GUI, the Manager obtained a
+fresh complete displayed backup `InfoCarry-backup-20261012-120249`, manifest
+`6fbd7b77b4e6b47cf699ec983f7ed53d72d8ed3d6504ddf0d1489402ba56945c`.
+The selected sole Device Library file is `root\IC_P18_045_DELETE_C.txt`.
+Clicking the toolbar Delete prepared the operation and opened one normal
+**Confirm Delete** dialog. The final Delete button remains untouched and Cancel
+has focus. No typed fingerprint or extra authorization mechanism was added.
+Native Computer Use could not identify the Python-launched Manager; existing
+owner-authorized scoped macOS screenshot/accessibility inspection was used.
+
+Actual prepared root under application `Evidence/Library Transfer Operations/`:
+`prepared-root-txt-delete-7d7d2471429247ed806e7130ffc673a2`.
+Fresh operation-baseline manifest
+`ae330e8dd8098858d607c100f3cb93387ced0a22bef8c2ea08be05d9dc2b9665`;
+all eight displayed/fresh operation objects equal independently verified C post.
+Frozen seal `4bbdf4d524640e198fb10b07bb3be7db1ed9fcc5fa5a0e004035fc70201930ac`;
+candidate `bc4966a9f6d6f87faa9a8c08771cdb5a58a978c35fd62d9954e59b32a56467d0`;
+transaction `1440e8a18c4dfdc751d49a2defaf3e32f62ae68c3d9174da1fac9d17daaccaf5`;
+authorization `92138ae93e0c452950a470e3cbb9d48152b95b6c2824f9ecf52acd03adf19a2a`.
+
+All 22 frozen artifacts, complete candidate/audit/transaction ranges,
+existing bundle seal and full owner identity independently verify. Sole C34
+removal at `0x6c0`, 132-byte shrink, candidate returns the exact verified A
+post-state including all five protected blocks. A raw record/prefix/payload at
+`0x680`, all 301 survivor payloads/prefixes and 455 timestamps, content/gaps,
+trailer, checksum and all eight protected associations remain intact.
+This is host candidate proof; physical C deletion has **not** occurred.
+
+Independent actual GUI pre-Delete review **PASS, P0/P1/P2=0/0/0**:
+`INDEPENDENT_C_PREDELETE.md`, SHA-256
+`5eaed591ceb5f2131f840efe807edccd7d2e04dd7b90fec0248b1b8b57ce6d9d`;
+machine `independent-C-predelete-verification.json`, SHA-256
+`db64bfeaa8595057286f467cf1bad446e2e896edbbcfb14ef6a6fc7200e286b5`.
+Actual single confirmation screenshot `Delete-C-final-confirmation-20261012.png`,
+SHA-256 `76e8fdd8538b30b4cccf253c554214fe7aa1235660b896db5f2c0dd8d6296fae`,
+independently viewed: exact C/V15, storage warning, fresh backup, one operation,
+independent verification/refresh, no retry and focused Cancel. Screenshot
+inspection is not physical execution or an independently observed human click.
+
+The external descriptive navigation JSON accidentally double-escaped the path;
+canonical sealed operation, owner binding and actual dialog are correct. Original
+bytes preserved; separate `Delete-C-navigation-path-clarification-20261012.json`,
+SHA-256 `ae790c6ae05dc88b74631513f6c9297bab27d682712a13a971419576a38a21ad`,
+clarifies provenance only and changes no candidate, operation or approval.
+
+Read-only safety remains sixteen historical claims, **no Delete C seal claim**,
+zero markers and clear global lock; unchanged inspected safety/frozen bytes.
+**READY_FOR_HARDWARE_TEST**, only this frozen C Delete awaits its own explicit
+owner confirmation. A cleanup remains separately unauthorized. Native integer
+`0x0000`, one sender/no retry and complete independent actual post-readback are
+required after that decision. General root-TXT remains disabled until actual
+physical deletion evidence and reviewed capability assessment justify promotion.
+Source/scripts/tests unchanged from `1461f92`; this checkpoint is documentation
+only. Existing portable result is 1,192 run / 1,189 passed / three established
+skips, not a new test execution. All raw private evidence stays outside Git.

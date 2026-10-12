@@ -2,40 +2,36 @@
 
 Date: 2026-10-12
 
-## P18-045 — anchor A placement COMPLETE / frozen C awaits placement approval
+## P18-045 — A/C placements COMPLETE / Delete C READY_FOR_HARDWARE_TEST
 
 Branch `task/P18-045-root-txt-delete-validation` starts from `6acb3af`.
-The owner separately authorized the original frozen A placement once. Actual
-native **0x0000**, launcher exit 0, one audited sender/transaction, no retry;
-complete independent before/post readback proves sole A32 addition at `0x680`,
-all 300 prior payloads / 454 timestamps and protected state preserved. Original
-frozen identity/candidate unchanged. Independent actual post-placement review
-PASS P0/P1/P2=0/0/0. Current device has 301 files / 455 records; exact A claim
-consumed, zero sender markers, global lock clear; fifteen historical claims.
+Separately owner-authorized A32 and C34 placements each completed with native
+**0x0000**, launcher exit 0, one audited sender/transaction, no retry, and
+complete independent eight-object readback. A is at serialized `0x680`;
+C is at `0x6c0`, unread `0xe0`, native prefix32, two padding bytes. C adds
+132 archive bytes; all 301 prior payloads / 455 timestamps, A's exact raw
+record and protected state are preserved. Independent actual C post-placement
+review PASS P0/P1/P2=0/0/0. Device now has 302 files / 456 records;
+16 historical claims consumed, zero sender markers, global lock clear.
 No independent USB bus trace exists.
 
-The minimum plan reuses exact A32 as an anchor, places exact C34 next, deletes
-C first and separately cleans up A. Actual-baseline host candidates establish
-serialized A `0x680` / C `0x6c0`; C fills missing remainder 2 and preserves
-survivors before/after its different record position. The existing exact
-disposable map adds C; general root-TXT execution stays disabled. All existing
-guarded write protections are reused. Full portable suite: **1,192 run /
-1,189 passed / three established skips**; 19 focused admission tests pass.
-Independent exact-head R3 at `1461f92` is PASS, P0/P1/P2=0/0/0; reviewer ran
-108 focused tests successfully. The expired waiting process was reattached
-using existing bundle/adoption APIs, original saved bytes and a new canonical
-runtime only; no candidate replacement or new preparation. The exact bounded
-external runner received independent R3 PASS and thirteen independent fake
-tests passed before execution. No production source or safety framework changed.
+The actual Device Library workflow obtained a fresh verified complete backup,
+selected only C, prepared the exact deletion and opened its single readable
+confirmation. The unchanged frozen candidate removes only C, preserves A at
+`0x680`, all 301 survivors / 455 timestamps and eight protected associations,
+and returns all candidate device objects to verified A post-state. Independent
+actual frozen/GUI pre-Delete review PASS P0/P1/P2=0/0/0. Cancel is focused;
+no final confirmation, Delete claim or sender has occurred. **Delete C awaits
+its own owner approval. A cleanup also requires separate approval.**
 
-C is freshly frozen through the unchanged placement launcher: exact 34-byte
-payload, prospective serialized `0x6c0`, 132-byte archive growth/two padding
-bytes, A unchanged at `0x680`, complete baseline equals verified A post-state.
-Independent frozen C review PASS P0/P1/P2=0/0/0: all 22 artifacts, fresh backup,
-301 survivor payloads / 455 timestamps and eight protected associations;
-host C Delete inverse equals verified A state. No C claim, sender or owner approval;
-no C placement, Delete or cleanup has occurred. Each later physical operation
-requires its own separate owner approval. General TXT execution stays disabled.
+C Delete would address the missing payload remainder 2 and different serialized
+record position, with survivors before/after its record. Placement alone does
+not close these deletion gaps. General root-TXT execution remains disabled;
+the exact disposable-only validation path and existing guarded protections
+remain unchanged. Source/scripts/tests are identical to R3-reviewed `1461f92`.
+Existing full portable checkpoint: **1,192 run / 1,189 passed / three established
+skips**; 19 focused admission tests and 108 independent focused tests pass.
+This checkpoint changes documentation only, not the frozen operation.
 No push or merge.
 [Plan, evidence and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
 
