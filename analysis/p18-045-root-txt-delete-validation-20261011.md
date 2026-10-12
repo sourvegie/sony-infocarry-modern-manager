@@ -1,10 +1,12 @@
 # P18-045 — minimum additional root-TXT validation
 
 Starting checkpoint `6acb3af32ec03153405c75ec1afbb7bf4c43384c`, branch
-`task/P18-045-root-txt-delete-validation`. **Preparation only; no physical
-placement or Delete is authorized by this document.** The owner requires a
-separate approval for each frozen operation. Normal general-TXT execution
-remains disabled pending actual results and independent review.
+`task/P18-045-root-txt-delete-validation`. **A/C placements independently
+verified; frozen GUI Delete C awaits separate approval.** This document grants
+no physical authorization; the owner approves each frozen operation separately.
+Normal general-TXT execution remains disabled pending actual deletion results
+and independent review. The preparation sections below retain their historical
+checkpoint context; later sections record separately approved actual operations.
 
 ## Evidence and minimum experiment
 
