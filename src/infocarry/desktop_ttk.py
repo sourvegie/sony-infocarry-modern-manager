@@ -4873,7 +4873,7 @@ def launch_ttk_desktop(
             device_delete_status_var.set(str(exc))
             return
         if not device_delete_service.execution_available(selection):
-            device_delete_status_var.set("Root TXT Delete awaits physical validation.")
+            device_delete_status_var.set("Delete is unavailable for this file's state or protected references.")
             return
         clear_library_review_for_input_change()
         device_delete_active = True
@@ -4983,7 +4983,7 @@ def launch_ttk_desktop(
             if delete_service is None and replacement_safety_owner is not None:
                 delete_allowed = delete_allowed and _application_safety_notice(replacement_safety_owner, replacement_safety_configuration_error) is None
             delete_message = ("Experimental Delete is available for this exact file." if delete_allowed else
-                "Root TXT Delete awaits physical validation." if not device_delete_service.execution_available(delete_selection) else
+                "Delete is unavailable for this file's state or protected references." if not device_delete_service.execution_available(delete_selection) else
                 "Delete is blocked because write-safety state is unavailable.")
         except DeviceLibraryDeleteError as exc:
             delete_message = str(exc)

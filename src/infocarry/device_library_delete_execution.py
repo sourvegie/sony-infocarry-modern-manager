@@ -1,7 +1,7 @@
 """Device Library integration of the existing exact guarded Delete operation.
 
-This is a product facade, not a second writer. General root TXT, BMP, nested
-files and directories remain unavailable for execution. Every selection is
+This is a product facade, not a second writer. Only the reviewed unread root
+TXT envelope is enabled; BMP, nested files and directories remain unavailable. Every selection is
 bound to the library image the user saw and compared with a new complete
 backup before approval. All execution authority remains in delete_workflow.
 """
@@ -16,13 +16,14 @@ from .desktop import DesktopWorkflowModel, InventoryRow
 from .delete_workflow import (
     ExperimentalRootTxtDeleteFacade, RootTxtDeleteBundle,
     ROOT_TXT_DELETE_VALIDATION_FILES, validate_root_txt_delete_name,
+    build_root_txt_delete, root_txt_delete_execution_supported,
 )
 from .library_transfer_execution import OwnerAuthorizedOperationIdentity
 from .library_transfer_runtime_provider import PinnedRootTxtRuntime
 from .p18_041h_experiment import FIXTURE_FILENAME, FIXTURE_PATH, FIXTURE_SHA256
 from .prepared_library_package_live_adapter import PreparedLibraryPackageLiveResult, _backup_identity
 from .protocol import TransferCancelledError
-from .write_gate import verify_fresh_backup
+from .write_gate import WriteGateError, verify_fresh_backup
 
 
 class DeviceLibraryDeleteError(ValueError):
@@ -121,6 +122,13 @@ class DeviceLibraryDeleteService:
             return False
         if not selection.general_txt:
             return True
+        if self.validation_target is None:
+            try:
+                core = build_root_txt_delete(selection.backup_directory, selection.row.display_name,
+                    target_record_offset=selection.row.record_offset)
+                return root_txt_delete_execution_supported(core)
+            except (OSError, ValueError, WriteGateError):
+                return False
         payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(self.validation_target)
         from .root_txt_placement import _sha
         return (payload is not None and selection.row.display_name == self.validation_target
@@ -147,6 +155,8 @@ class DeviceLibraryDeleteService:
             raise DeviceLibraryDeleteError("An existing Delete review must be discarded first.", stage="approval")
         if self.validation_target is not None and selection.row.display_name != self.validation_target:
             raise DeviceLibraryDeleteError("Validation permits only its named disposable target.", stage="admission")
+        if self.validation_target is not None and not self.execution_available(selection):
+            raise DeviceLibraryDeleteError("The named disposable validation payload has changed.", stage="admission")
         # Re-admit the exact selection from its immutable archive before opening
         # any runtime. Caller-created tokens cannot bypass capability admission.
         original = DesktopWorkflowModel()
@@ -163,7 +173,8 @@ class DeviceLibraryDeleteService:
             bundle = self._facade.prepare(target_path=selection.row.display_name,
                 device_model=selection.device_model, cancelled=cancelled, progress=progress,
                 general_txt=selection.general_txt,
-                validation_only=selection.general_txt and self.execution_available(selection))
+                validation_only=(self.validation_target is not None
+                    and selection.general_txt and self.execution_available(selection)))
             if (_backup_identity(bundle.before_backup) != identity
                     or bundle.candidate.core.target_record_offset != selection.row.record_offset):
                 raise DeviceLibraryDeleteError("Device contents changed since the displayed backup. Refresh Device Library.", stage="approval")

@@ -1,11 +1,11 @@
 # P18-045 — minimum additional root-TXT validation
 
 Starting checkpoint `6acb3af32ec03153405c75ec1afbb7bf4c43384c`, branch
-`task/P18-045-root-txt-delete-validation`. **A/C placements independently
-verified; frozen GUI Delete C awaits separate approval.** This document grants
+`task/P18-045-root-txt-delete-validation`. **A/C placements and separately approved C Delete independently verified;
+narrow unread root-TXT promotion pending new R3.** This document grants
 no physical authorization; the owner approves each frozen operation separately.
-Normal general-TXT execution remains disabled pending actual deletion results
-and independent review. The preparation sections below retain their historical
+The proposed narrow unread root-TXT promotion requires new exact-head review
+before use/distribution. The preparation sections below retain their historical
 checkpoint context; later sections record separately approved actual operations.
 
 ## Evidence and minimum experiment
@@ -387,3 +387,87 @@ physical deletion evidence and reviewed capability assessment justify promotion.
 Source/scripts/tests unchanged from `1461f92`; this checkpoint is documentation
 only. Existing portable result is 1,192 run / 1,189 passed / three established
 skips, not a new test execution. All raw private evidence stays outside Git.
+
+
+## Actual C Delete COMPLETE and conservative promotion decision — 2026-10-12
+
+Owner separately replied **Authorize Delete C once**; external receipt
+`Delete-C-owner-approval-20261012.json`, SHA-256
+`f10c3a9b74331b25dd795f4dff5880cbe459dbb29754bbf95e5466d65384191d`.
+All22 frozen files rehashed unchanged; no new preparation/substitution. One
+final click in the actual Device Library confirmation, then no further hardware
+input/retry. Attempt `p17-017-attempt-b1d5863dfba04021b9bebad001336471`:
+native **0x0000**, one audited sender/transaction, no retries, complete actual
+post-backup. Fresh before manifest
+`b1de1fff7aaa040b22ed5bc144a913ed59958abb870c25a944f8cf42eaf5b7d3`;
+after `c4abf0a8fedc05fc5d8140a708a5dc0c2ed1d1c1531da4d3b68630f96a984630`;
+result manifest `c887214d14d2e6bea85ff0cb3e119e09df955a7b6778a3ab3609ab71aebdfb09`.
+Original seal/candidate/transaction/authorization retained exactly as above.
+
+Only C34 removed at0x6c0:132-byte shrink,302→301files/456→455records;
+A32raw record/prefix/payload unchanged at0x680. All301survivor payloads/prefixes,
+455timestamps, remaining full content/gaps/trailer/checksum and eight protected
+references across five blocks independently preserved. All eight post objects
+exactly equal verified A post-placement state. Seventeen consumed claims, no
+sender marker, clear installation-wide lock; terminal verified success binds
+result manifest. No independent USB trace. No A cleanup performed/authorized.
+
+Independent actual C Delete **PASS P0/P1/P2=0/0/0**:
+`INDEPENDENT_C_POSTDELETE.md`, SHA-256
+`9762ebb39e371d6f5914ebc204ac4ca4e6bf24ffb7718ff653d4923fe01732f0`;
+machine `independent-C-postdelete-verification.json`, SHA-256
+`20a7d29429b5bc33f189ddc52c2eda9f36e1fc683bdb0c6dc9891004d8266fe8`.
+Final actual GUI screenshot `Delete-C-final-verified-GUI-20261012.png`, SHA-256
+`bb3f26e41fea36ecd26b277c86edafe97195844cf9bb41b0a0ae5f92ce5e2bd0`,
+shows C absent, complete refreshed post-backup and verified success. The running
+GUI was closed only after this terminal success; no launcher-exit-zero claim is
+made for its later process termination.
+
+P18-041/044/045 provide29/32/51/34bytes (remainders1/0/3/2), current target
+positions0x680/0x6c0, survivor records before/after C, and supported nonzero
+history/bookmark rebasing. Historical H.2 separately supports later direct-root
+siblings at its older all-zero-state boundary. The reviewed candidate sends a
+whole validated prospective image, not a pathname-specific delete opcode;
+content shifts depend on checked allocation offsets, metadata shifts on record
+order and validated parents. Existing archived and synthetic first/middle/last,
+CP932, empty/large/padding/reference/geometry tests support those uniform
+invariants. No essential additional numerical-position/alignment experiment is
+identified for the narrow unread profile; exhaustive filenames/lengths/positions
+are not required. Representative physical observations are not exhaustive proof.
+
+Under the owner's conditionally approved Task D, implement the smallest justified
+live gate: ordinary unique safe NUL-terminated CP932 **unread0xe0 root TXT**,
+selector0x200/32-prefix, target absent from protected references, supported fixed
+state and validated nonoverlapping aligned allocation/native capacity. The same
+candidate/authorization reconstruction proves each operation, with unchanged
+frozen owner binding, fresh complete backup/reconnect equivalence, single-use
+claim/marker/global lock, one sender/no retry, integerzero/readback/refresh.
+New operation profile `vnw-v15-unread-root-txt-delete-v1` uses the existing
+bundle/facade; disposable and original exact-fixture serialization remain intact.
+Read0x20 remains host-only. No live BMP/nested/directory/subtree/V10/recovery.
+
+UI/service disable structurally unsupported/reference/read selections before
+opening a runtime. The one existing readable confirmation stays unchanged.
+Explicit disposable sessions reject wrong named payload before preparation,
+preventing fallback to ordinary admission. Missing/changed cached archives
+fail closed for button availability. No new framework/USB transport/safety store.
+
+Final focused23tests/Device Library40tests pass. Full final suite1196run /
+1193pass / three established skips,130.550seconds. Earlier full run failed on a
+stale test variable after its expectation changed; fixed and fully rerun, not
+reported passed. Logs remain outside Git. Final macOS arm64 build/signature and
+isolated packaged runtime smoke pass; all real device/sender/claim/marker counters
+zero. Native isolated ordinary TXT selection/menu/one confirmation/Cancel/fake
+nativezero/verified refresh pass using existing synthetic harness; real USB and
+backend blocked, fake one sender, no production safety use. Actual hardware C
+progress screenshots separately show preparation/transfer/verification.
+
+All original/derived private evidence remains external. Native visual files in
+`/external/local-path`; canonical actual records
+remain in the application evidence root. A grouped Python activation briefly
+raised the already-completed physical window during the menu test; its Delete
+was disabled, production claims remained17/markers0/lockclear. Those intermediate
+images are not synthetic success proof. The completed physical window was closed,
+then the exact isolated window/menu/fake workflow inspected successfully.
+Promotion code is pending fresh exact-head R3 before use/distribution. No further
+physical operation, personal-file deletion, push or merge occurred.

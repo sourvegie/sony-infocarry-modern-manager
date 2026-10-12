@@ -353,8 +353,8 @@ evidence, or the separate `InfoCarry-Toolkit` and reference archives.
 
 ## Exact P18-041 developer experiment
 
-Device Library Delete now uses the exact P18-041 VNW-V15 fixture gate. General
-selections remain disabled. The separately authorized developer experiment is documented in the
+Device Library Delete supports the reviewed Experimental unread root-TXT envelope
+on VNW-V15; unsupported states and file classes remain unavailable. The separately authorized developer experiment is documented in the
 [operator procedure](analysis/phase-18-p18-041-modern-root-txt-delete-procedure-20261009.md).
 Default script use is offline and never opens USB or installation safety state:
 
@@ -367,7 +367,7 @@ it refuses archived offline inputs and collects a new complete backup.
 
 ## Device Library Delete
 
-Select the exact demonstrated root TXT file, choose **Delete**, then review
+Select one supported unread root TXT file, choose **Delete**, then review
 one **Delete / Cancel** dialog. The Manager obtains a fresh complete backup,
 validates the selected state, freezes the operation and performs final fresh
 backup/state checks before one guarded send. Completion requires native zero,
@@ -377,35 +377,33 @@ preparation can be cancelled, while confirmed execution keeps the window open
 and offers no mid-write cancel or automatic retry. Technical evidence remains
 under **More → Technical Details**.
 
-Currently admitted: only VNW-V15 `root\IC_P18_041G_CLOCK_01.txt`, exact 29-byte
-fixture and payload, under the existing protected-state gate. That fixture is
-already absent from the preserved successful post-delete library. General root
-TXT, BMP, nested files, directories, multiple selections and VNW-V10 are
-unavailable. UI integration is host-tested; further UI/hardware validation
-requires separate owner authorization. Backup is not undo; Restore remains
-unavailable. See the [delivery record](analysis/phase-18-p18-042-device-library-delete-integration-20261010.md)
-and [follow-on analysis](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+The P18-045 supported envelope is one ordinary unread VNW-V15 root-level TXT
+file with the known32-byte native prefix, a unique safe CP932 filename,
+unreferenced target and supported protected state/structure. The Delete button
+and Device menu are available only for an admitted selection. Read-state TXT,
+BMP, nested files, directories, multiple selections and VNW-V10 remain unavailable.
+Backup is not undo; Restore remains unavailable. See the
+[physical evidence and capability decision](analysis/p18-045-root-txt-delete-validation-20261011.md)
+and authoritative [capability matrix](CAPABILITY_MATRIX.md) for review/release status.
 
-The existing pure deletion model also has a host-only root-BMP helper for one
-ordinary 237×320 monochrome image. It validates structural survivor effects
-and remains disconnected from transaction construction, authorization and the
-Device Library Delete action. Its review and limits are in the
-[follow-on record](analysis/phase-18-p18-042-follow-on-delete-analysis-20261010.md).
+Root-BMP candidate/authorization/readback models remain host-only and cannot
+enter the live sender or Device Library Delete workflow.
 
 ## General root-TXT Delete preparation and validation
 
 Ordinary root TXT files can now be prepared offline under the evidenced
 32-byte prefix / read-unread / safe CP932 identity / structural and protected
 state rules. Referenced targets, active Marks and ambiguous/unsupported files
-refuse. General execution remains disabled; archived or fake success cannot
-unlock it.
+refuse. Read-state TXT remains preparation-only; the narrower unread envelope
+is admitted through the guarded Manager after its exact-head promotion review.
+Archived or fake success cannot independently expand capability.
 
 ```sh
 PYTHONPATH=src .venv/bin/python scripts/experimental_root_txt_delete.py --backup /absolute/complete-backup --target 'root\ordinary.txt' --output /absolute/new-outside-repository
 ```
 
 The [disposable validation procedure](analysis/phase-18-p18-043-disposable-root-txt-delete-procedure-20261010.md)
-prepares a future owner-authorized GUI test with exact synthetic A/B payloads,
+defines the separately owner-authorized GUI tests with exact disposable A/B payloads,
 one target per explicit launcher, one Delete/Cancel dialog, complete backups,
 one guarded send and independent readback. It authorizes no operation now and
 never admits personal files or other device-changing operations in that mode.

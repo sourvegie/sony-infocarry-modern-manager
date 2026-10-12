@@ -11,7 +11,7 @@ from infocarry.backup_format import parse_backup_blob, calculate_backup_checksum
 from infocarry.backup_repack import rename_existing_record, repack_existing_records
 from infocarry.delete_workflow import (
     build_root_txt_delete, validate_root_txt_delete_name, ROOT_TXT_DELETE_VALIDATION_FILES,
-    ROOT_TXT_DELETE_HOST_PROFILE, ROOT_TXT_DELETE_VALIDATION_PROFILE,
+    ROOT_TXT_DELETE_HOST_PROFILE, ROOT_TXT_DELETE_VALIDATION_PROFILE, ROOT_TXT_DELETE_LIVE_PROFILE,
 )
 from infocarry.device_library_delete_execution import (
     DeviceLibraryDeleteService, select_device_library_delete, load_verified_delete_result,
@@ -46,7 +46,7 @@ class RootTxtAdmissionTests(unittest.TestCase):
         _write_archive(path,blob,datetime.now(timezone.utc), fixed_state=fixed or {c:bytes(64) for c in range(0x1b,0x20)})
         return path
 
-    def case(self, *, path=None, payload=None, validation=False, options=None, reconnect=False):
+    def case(self, *, path=None, payload=None, validation=False, options=None, reconnect=False, flag=0xe0):
         helper=exact_helpers.ExperimentalRootTxtDeleteTests('test_exact_candidate_inverse_preserves_timestamps_and_is_claim_free')
         self.addCleanup(helper.doCleanups)
         case=helper.setup_case(backend_options=options, reconnect=reconnect)
@@ -57,6 +57,8 @@ class RootTxtAdmissionTests(unittest.TestCase):
         name=path.split('\\')[-1][:-4]
         renamed=parsed.data if name==target.name else rename_existing_record(parsed,target.offset,name)
         case[2]['blob']=repack_existing_records(parse_backup_blob(renamed),{target.offset:payload})
+        changed=bytearray(case[2]['blob']);changed[target.offset]=flag
+        case[2]['blob']=_checksum(changed)
         case[2]['fixture_blob']=case[2]['blob']
         displayed=case[0]/'displayed-general'
         _write_archive(displayed,case[2]['blob'],datetime.now(timezone.utc),fixed_state=case[2]['fixed'])
@@ -110,7 +112,7 @@ class RootTxtAdmissionTests(unittest.TestCase):
             self.assertEqual(core.candidate_blob, expected_blob)
         self.assertEqual(parse_backup_blob(original).records, parse_backup_blob(expected_blob).records)
 
-    def test_p18_045_manifest_is_exact_and_c_remains_unavailable_without_validation(self):
+    def test_p18_045_manifest_is_exact_and_c_uses_reviewed_unread_envelope(self):
         from hashlib import sha256
         manifest = json.loads((Path(__file__).resolve().parents[1] / 'analysis' /
             'p18-045-disposable-root-txt-fixtures-20261011.json').read_bytes())
@@ -123,8 +125,9 @@ class RootTxtAdmissionTests(unittest.TestCase):
             self.assertEqual(len(payload)%4, fixture['alignment_remainder'])
         data = self.case(path='root\\IC_P18_045_DELETE_C.txt')
         prepared = self.prepare(data)
-        self.assertFalse(data[2].execution_available(data[3]))
-        with self.assertRaises(ValueError): prepared.bundle.assert_execution_admitted()
+        self.assertTrue(data[2].execution_available(data[3]))
+        self.assertEqual(prepared.bundle.operation_profile,ROOT_TXT_DELETE_LIVE_PROFILE)
+        prepared.bundle.assert_execution_admitted()
         self.no_send(data, prepared)
 
     def test_first_middle_last_alignment_empty_and_large_payloads(self):
@@ -203,8 +206,8 @@ class RootTxtAdmissionTests(unittest.TestCase):
             with self.subTest(command=command),self.assertRaises(Exception):
                 build_root_txt_delete(self.archived(make_text_blob(),fixed),'root\\memo.txt')
 
-    def test_general_bundle_prepares_but_every_execution_entry_blocks(self):
-        data=self.case(path='root\\ordinary.txt');prepared=self.prepare(data)
+    def test_read_txt_bundle_prepares_but_every_execution_entry_blocks(self):
+        data=self.case(flag=0x20,path='root\\ordinary.txt');prepared=self.prepare(data)
         self.assertEqual(prepared.bundle.operation_profile,ROOT_TXT_DELETE_HOST_PROFILE)
         self.assertFalse(prepared.bundle.execution_available)
         self.assertIn('ordinary.txt',prepared.confirmation_message)
@@ -222,6 +225,57 @@ class RootTxtAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'not physically validated|unavailable'):
             data[2].execute_once(prepared,confirmed=True)
         self.no_send(data,prepared)
+
+    def test_ordinary_unread_txt_uses_normal_single_confirmation_and_verified_refresh(self):
+        data=self.case(path='root\\ordinary.txt',payload=b'ordinary payload, not a manifest fixture',reconnect=True)
+        self.assertTrue(data[2].execution_available(data[3]))
+        helper=ui_helpers.DeviceLibraryDeleteUITests('test_delete_confirm_verify_refresh_in_one_dialog')
+        self.addCleanup(helper.doCleanups)
+        ui=helper.setup_ui(data_override=(data[0],data[1],data[3],data[2]))
+        ui.action();ui.drain()
+        self.assertEqual(len(ui.dialogs),1)
+        self.assertIn('ordinary.txt',ui.dialogs[0])
+        self.assertNotIn('fingerprint',ui.dialogs[0])
+        self.assertIn('Delete complete',ui.main_status.get())
+        self.assertEqual(len(ui.refreshes),1)
+        self.assertNotIn('root\\ordinary.txt',ui.refreshes[0])
+        self.assertEqual(sum(c[0]=='control_out' for c in data[0][3].calls),1)
+        self.assertIsNone(data[0][5].read_sender_in_flight())
+
+    def test_live_ordinary_txt_stale_nonzero_disconnect_bad_readback_never_retry(self):
+        for mode in ('stale','nonzero','disconnect','readback'):
+            options={'completion':(2,)} if mode=='nonzero' else {'fail_bulk_at':2} if mode=='disconnect' else None
+            data=self.case(path='root\\ordinary.txt',options=options);prepared=self.prepare(data)
+            self.assertEqual(prepared.bundle.operation_profile,ROOT_TXT_DELETE_LIVE_PROFILE)
+            if mode=='stale':data[0][2]['blob']=data[0][2]['original_blob']
+            if mode=='readback':data[0][2]['bad_delete_readback']=True
+            with self.subTest(mode=mode),self.assertRaises(Exception):data[2].execute_once(prepared,confirmed=True)
+            self.assertEqual(sum(c[0]=='control_out' for c in data[0][3].calls),0 if mode=='stale' else 1)
+            if mode in ('disconnect','readback'):
+                self.assertTrue(data[0][6].read(VNW_V15_PROFILE.lock_key).locked)
+                self.assertIsNotNone(data[0][5].read_sender_in_flight())
+
+    def test_unsupported_prefix_or_referenced_target_stays_disabled_before_runtime(self):
+        for mode in ('prefix','reference'):
+            data=self.case(path='root\\ordinary.txt')
+            if mode=='prefix':
+                changed=bytearray(data[0][2]['blob']);off=data[3].row.record_offset
+                changed[off+20:off+24]=(0x10200).to_bytes(4,'big');data[0][2]['blob']=_checksum(changed)
+            else:
+                fixed=bytearray(64);fixed[:4]=(1).to_bytes(4,'big')
+                fixed[8:12]=(data[3].row.record_offset-0x40).to_bytes(4,'big');data[0][2]['fixed'][0x1b]=bytes(fixed)
+            shown=self.archived(data[0][2]['blob'],data[0][2]['fixed'])
+            model=DesktopWorkflowModel();model.load_backup(shown)
+            selection=data[2].select(model,[data[3].row.record_offset])
+            self.assertFalse(data[2].execution_available(selection))
+            self.no_send(data)
+
+    def test_missing_or_changed_displayed_archive_disables_delete_before_runtime(self):
+        data=self.case(path='root\\ordinary.txt')
+        self.assertFalse(data[2].execution_available(replace(data[3],backup_directory=data[0][0]/'absent')))
+        (data[3].backup_directory/'manifest.json').write_bytes(b'{}')
+        self.assertFalse(data[2].execution_available(data[3]))
+        self.no_send(data)
 
     def test_host_bundle_cannot_turn_into_a_personal_file_validation(self):
         data=self.case(path='root\\personal.txt');prepared=self.prepare(data)
@@ -249,10 +303,8 @@ class RootTxtAdmissionTests(unittest.TestCase):
         path=next(iter(ROOT_TXT_DELETE_VALIDATION_FILES))
         data=self.case(path=path,payload=b'personal content',validation=True)
         self.assertFalse(data[2].execution_available(data[3]))
-        prepared=self.prepare(data)
-        self.assertFalse(prepared.bundle.execution_available)
-        with self.assertRaises(Exception):data[2].execute_once(prepared,confirmed=True)
-        self.no_send(data,prepared)
+        with self.assertRaisesRegex(ValueError,'payload has changed'):self.prepare(data)
+        self.no_send(data)
         with self.assertRaises(ValueError):DeviceLibraryDeleteService(lambda:None,validation_target='root\\personal.txt')
 
     def test_named_validation_cannot_admit_the_old_fixture_or_another_target(self):
@@ -292,8 +344,8 @@ class RootTxtAdmissionTests(unittest.TestCase):
         self.assertIn('only its named disposable Delete',ui.main_status.get())
         self.no_send(data)
 
-    def test_unvalidated_ordinary_gui_delete_callback_never_opens_runtime(self):
-        data=self.case(path='root\\ordinary.txt')
+    def test_read_ordinary_gui_delete_callback_never_opens_runtime(self):
+        data=self.case(flag=0x20,path='root\\ordinary.txt')
         helper=ui_helpers.DeviceLibraryDeleteUITests('test_delete_confirm_verify_refresh_in_one_dialog')
         self.addCleanup(helper.doCleanups)
         ui=helper.setup_ui(data_override=(data[0],data[1],data[3],data[2]))
@@ -301,7 +353,7 @@ class RootTxtAdmissionTests(unittest.TestCase):
         ui.action();ui.drain()
         self.assertEqual(ui.dialogs,[])
         self.assertEqual(captures,len(data[0][2]['captures']))
-        self.assertIn('awaits physical validation',ui.statuses.get())
+        self.assertIn('unavailable',ui.statuses.get())
         self.no_send(data)
 
     def test_wrong_target_candidate_source_audit_and_gate_drift_before_claim(self):

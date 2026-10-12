@@ -2,38 +2,36 @@
 
 Date: 2026-10-12
 
-## P18-045 — A/C placements COMPLETE / Delete C READY_FOR_HARDWARE_TEST
+## P18-045 — physical gap validation COMPLETE / unread root-TXT promotion in R3
 
-Branch `task/P18-045-root-txt-delete-validation` starts from `6acb3af`.
-Separately owner-authorized A32 and C34 placements each completed with native
-**0x0000**, launcher exit 0, one audited sender/transaction, no retry, and
-complete independent eight-object readback. A is at serialized `0x680`;
-C is at `0x6c0`, unread `0xe0`, native prefix32, two padding bytes. C adds
-132 archive bytes; all 301 prior payloads / 455 timestamps, A's exact raw
-record and protected state are preserved. Independent actual C post-placement
-review PASS P0/P1/P2=0/0/0. Device now has 302 files / 456 records;
-16 historical claims consumed, zero sender markers, global lock clear.
-No independent USB bus trace exists.
+A/C placements and separately approved Device Library C deletion completed
+with native **0x0000**, one audited sender/transaction per operation, no retries,
+and complete independent eight-object readback. C34 was removed at serialized
+`0x6c0`; A32 remains intact at `0x680`. All 301 survivors / 455 timestamps and
+protected state are preserved; all eight post-delete objects equal verified A
+post-placement state. Independent actual C Delete review PASS P0/P1/P2=0/0/0.
+Seventeen historical claims consumed, zero sender markers, global lock clear.
+No independent USB trace exists. A cleanup remains separately unauthorized.
 
-The actual Device Library workflow obtained a fresh verified complete backup,
-selected only C, prepared the exact deletion and opened its single readable
-confirmation. The unchanged frozen candidate removes only C, preserves A at
-`0x680`, all 301 survivors / 455 timestamps and eight protected associations,
-and returns all candidate device objects to verified A post-state. Independent
-actual frozen/GUI pre-Delete review PASS P0/P1/P2=0/0/0. Cancel is focused;
-no final confirmation, Delete claim or sender has occurred. **Delete C awaits
-its own owner approval. A cleanup also requires separate approval.**
+P18-041/044/045 collectively cover all four payload alignment remainders and
+two current guarded record positions, with survivor/pointer rebasing. Together
+with archived and synthetic structural invariants, they justify a narrow
+Experimental ordinary **unread** root-TXT envelope: VNW-V15 only, exact32-byte
+prefix, safe unique native name, unreferenced target and supported protected
+state/allocation. Task D authorizes this evidence-backed promotion. The local
+implementation enables that envelope through the same selection, sealed bundle,
+authorization, claim/marker/global lock, sender/no-retry and independent readback
+protections. Read-state TXT, BMP, nested files/directories/subtrees, VNW-V10 and
+recovery remain excluded. No further physical operation was performed.
 
-C Delete would address the missing payload remainder 2 and different serialized
-record position, with survivors before/after its record. Placement alone does
-not close these deletion gaps. General root-TXT execution remains disabled;
-the exact disposable-only validation path and existing guarded protections
-remain unchanged. Source/scripts/tests are identical to R3-reviewed `1461f92`.
-Existing full portable checkpoint: **1,192 run / 1,189 passed / three established
-skips**; 19 focused admission tests and 108 independent focused tests pass.
-This checkpoint changes documentation only, not the frozen operation.
+Full final portable suite **1,196 run / 1,193 passed / three established skips**;
+23 focused admission and40 Device Library regressions pass. Native isolated
+ordinary-TXT GUI selection/menu/one confirmation/Cancel/fake-success refresh and
+macOS package build/final frozen runtime smoke pass, zero real USB/sender calls.
+Exact-head promotion R3 is pending; do not distribute/use the new profile until
+that review completes. Branch `task/P18-045-root-txt-delete-validation`.
+[Evidence, supported envelope and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
 No push or merge.
-[Plan, evidence and review packet](analysis/p18-045-root-txt-delete-validation-20261011.md).
 
 ## P18-044 — bounded disposable A/B validation COMPLETE
 

@@ -452,6 +452,7 @@ def build_experimental_root_txt_delete(backup_directory, *, max_age_seconds=None
 
 
 ROOT_TXT_DELETE_HOST_PROFILE = "vnw-v15-host-root-txt-delete-v1"
+ROOT_TXT_DELETE_LIVE_PROFILE = "vnw-v15-unread-root-txt-delete-v1"
 ROOT_TXT_DELETE_VALIDATION_PROFILE = "vnw-v15-disposable-root-txt-delete-validation-v1"
 ROOT_TXT_DELETE_VALIDATION_FILES = MappingProxyType({
     "root\\IC_P18_043_DELETE_A.txt": b"Disposable P18-043 root TXT A.\r\n",
@@ -462,6 +463,16 @@ ROOT_TXT_DELETE_VALIDATION_FILES = MappingProxyType({
 
 class RootTxtDeleteAdmissionError(ValueError):
     stage = "admission"
+
+
+def root_txt_delete_execution_supported(core):
+    """P18-041/044/045 prove the unread profile; read TXT remains host-only.
+
+    The supplied core must already pass build_root_txt_delete's model, name,
+    reference, allocation and protected-state checks. Position and payload
+    length follow those checked invariants, rather than a fixture allowlist.
+    """
+    return core.baseline.record_at(core.target_record_offset).flag == 0xe0
 
 
 def validate_root_txt_delete_name(name):
@@ -598,12 +609,13 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def execution_available(self):
-        return self.candidate.exact_fixture or self.validation_only
+        return (self.candidate.exact_fixture or self.validation_only
+                or root_txt_delete_execution_supported(self.candidate.core))
 
     def assert_execution_admitted(self):
         self.verify_seal()
         if not self.execution_available:
-            raise ValueError("general root TXT execution is not physically validated; preparation only")
+            raise ValueError("this root TXT state is not physically validated; preparation only")
 
     @property
     def operation_id(self):
@@ -612,7 +624,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
     @property
     def operation_profile(self):
         return (EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE if self.candidate.exact_fixture else
-                ROOT_TXT_DELETE_VALIDATION_PROFILE if self.validation_only else ROOT_TXT_DELETE_HOST_PROFILE)
+                ROOT_TXT_DELETE_VALIDATION_PROFILE if self.validation_only else
+                ROOT_TXT_DELETE_LIVE_PROFILE if self.execution_available else ROOT_TXT_DELETE_HOST_PROFILE)
 
     @property
     def result_format(self):
@@ -651,7 +664,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         if not self.candidate.exact_fixture:
             value.update({"validation_only": self.validation_only, "execution_available": self.execution_available,
                           "target_record_offset": self.candidate.target_record_offset,
-                          "capability_status": "bounded_disposable_validation" if self.validation_only else "host_not_live_enabled"})
+                          "capability_status": "bounded_disposable_validation" if self.validation_only else
+                          "experimental_unread_root_txt" if self.execution_available else "host_not_live_enabled"})
         return value
 
     def _consume_execution_claim(self, owner):
@@ -835,7 +849,8 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             binding = authorize_generalized_delete(core, confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE)
             phrase = f"DELETE {target_path.split(chr(92))[-1]} ONCE"
             profile = (EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE if not general_txt else
-                       ROOT_TXT_DELETE_VALIDATION_PROFILE if validation_only else ROOT_TXT_DELETE_HOST_PROFILE)
+                       ROOT_TXT_DELETE_VALIDATION_PROFILE if validation_only else
+                       ROOT_TXT_DELETE_LIVE_PROFILE if root_txt_delete_execution_supported(core) else ROOT_TXT_DELETE_HOST_PROFILE)
             authorization = RootTxtDeleteAuthorization(RootTxtDeleteAuthorizationCore(binding, before.directory, source,
                 confirmation_phrase=phrase, profile_id=profile))
             seal_path = root / "operation-bundle.json"
