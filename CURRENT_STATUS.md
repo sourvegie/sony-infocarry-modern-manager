@@ -5,8 +5,9 @@ Date: 2026-10-22
 
 ## P18-047 — root-BMP host expansion and nested-file models
 
-The isolated `task/P18-047-root-bmp-nested-delete` branch starts at sanitized
-`dd715081`. Ordinary root BMP has conservative host admission for unique safe
+`task/P18-047-root-bmp-nested-delete` carries forward sanitized snapshot
+`dd715081` through the exact reviewed ports described below. Ordinary root BMP
+has conservative host admission for unique safe
 CP932 names, unread `0xe0`, opaque field `0xffffffff`, selector `0x100` and
 16-byte all-`ff` prefix, canonical 237×320 monochrome payloads, and existing
 structural/protected-state checks. Normal live admission remains exact P18-046
@@ -21,15 +22,22 @@ UI and sender admission remain disabled. Existing TXT candidate bytes/audits
 match all 136 archived TXT records. Detailed archive results, minimum four-write
 B experiment and preserved evidence are in the
 [P18-047 delivery record](analysis/p18-047-root-bmp-nested-delete-20261022.md).
-New focused suites pass 25 tests; final independent R3 is pending. Package build,
-plist and signature checks pass; frozen runtime smoke remains unavailable with
-the recorded temporary-checkout AppKit/LaunchServices errors.
+Final portable suite: **1,247 run, 1,242 passed, five established skips**.
+Independent exact-head R3 passes **P0/P1/P2=0/0/0** at sanitized source head
+`2ec34073f00fbc3253d957598aa6c1f75f7df81a`; 105 independent focused tests pass.
+Package build/plist/signature checks and the narrowly approved out-of-sandbox
+packaged runtime smoke pass, with all hardware/safety counters zero. The earlier
+AppKit abort is limited to sandboxed execution in this comparison.
 
-The starting temporary repository has five missing ancestor tree objects.
-Current/reviewed snapshots are intact, but full outgoing-history audit and
-publication readiness remain blocked until exact trusted objects are restored.
-P18-034 working files and private evidence are preserved. No USB operation,
-production safety-state mutation, push or merge occurred.
+The original temporary repository has missing ancestor trees. Delivery uses a
+new isolated repository at `/private/tmp/p18-047-sanitized-delivery`, based only
+on published sanitized `d344f1e` and independently checked exact snapshot ports.
+No missing/unsanitized task ancestry was imported. Complete Git integrity and
+outgoing-file/commit-metadata scans pass. The original branch references,
+P18-034's 1,043 dirty files, and private evidence are preserved. No USB
+operation, production safety-state mutation, push or merge occurred. The exact
+B procedure is **READY_FOR_HARDWARE_TEST** only after separate operation-specific
+approvals; ordinary BMP and nested Delete remain host-only.
 
 ## P18-046 — exact disposable root-BMP Delete physically validated
 

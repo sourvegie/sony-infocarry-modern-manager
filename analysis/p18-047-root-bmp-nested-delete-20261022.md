@@ -2,9 +2,10 @@
 
 ## Scope and preserved starting evidence
 
-The branch starts at sanitized checkpoint
+Implementation began from sanitized checkpoint
 `dd715081292a4320bf2f3badd98500a69724644e`, descended from published sanitized
-`d344f1e59664f38ebb8c3a3219c72b6eea8f79cd`. P18-046's independently reviewed
+`d344f1e59664f38ebb8c3a3219c72b6eea8f79cd`. The final isolated delivery uses
+exact snapshot ports onto that published base, as detailed below. P18-046's independently reviewed
 implementation and exact disposable BMP placement/Delete evidence remain
 preserved. Its complete before/post backups were rehashed read-only; all eight
 final objects match the original pre-placement state. The physical proof is
@@ -84,15 +85,23 @@ records, orientations, markers, empty parents, P18-040's reconstructed hierarchy
 protected references, all four TXT alignment remainders, tampered readback,
 normal UI refusal, exact B-only validation, source/anchor/slot refusal,
 fake one-sender/native-zero/readback/refresh, and ambiguous-send locking with no
-retry. Before final CLI/anchor boundary additions, the full portable suite ran
-1,244 tests: 1,239 passed, five established skips. The final new suites pass
-25 tests. Independent exact-head R3 and final full-suite disposition are pending.
+retry. The final portable suite ran 1,247 tests: **1,242 passed, five established
+skips**, 180.961 seconds. The final new suites pass 25 tests. Independent exact-head
+R3 passes **P0/P1/P2=0/0/0**, including 105 independently run focused tests and
+independent old/new TXT/BMP comparison, physical evidence and readback rechecks.
+See the [independent review record](p18-047-independent-r3-review-20261022.md).
 
 The macOS package builds; plist and deep/strict code-signature checks pass.
-The frozen runtime attempt aborts with status 134 and emits no smoke report;
-LaunchServices fallback returns `-10827` (`kLSNoExecutableErr`) despite a present
-executable. This repeats the recorded temporary-checkout limitation and is not
-counted as a runtime-smoke pass or a demonstrated application regression.
+Sandboxed frozen startup aborts with status 134 and LaunchServices returns
+`-10827`; those attempts are not counted as passed. The same final package's
+narrowly approved out-of-sandbox runtime smoke then passes with exit zero:
+actual Manager/Tk startup and close, Add/menu behavior, isolated profile,
+resources/libusb, and locked/unavailable-runtime checks all pass. Device
+enumeration, sender calls, claims, markers and real `0x101b` counters are all
+zero. This comparison establishes the observed startup limitation as
+sandbox-dependent. It is a native widget/runtime smoke, not a claimed screenshot
+visual inspection. The private report is preserved outside Git under
+`/private/tmp/p18-047-runtime-smoke-20261022/report-unsandboxed.json`.
 
 ## Minimum additional root-BMP experiment
 
@@ -147,16 +156,38 @@ those approvals. Success would trigger a bounded evidence/R3 assessment of the
 ordinary unread root-BMP envelope; there is no automatic class-enabling switch.
 Nested TXT/BMP physical validation remains a later separately scoped operation.
 
-## Sanitized-history integrity limitation
+## Sanitized snapshot port and preservation
 
-Current snapshots and ancestry are preserved and all new files are sanitized
-source/tests/disposable-fixture metadata. No private backups, candidates,
-payloads, credentials, original source history or P18-034 changes are imported.
-However `git fsck` found five missing ancestor root tree objects in the starting
-temporary repository: `74aa2e0e`, `c5646242`, `06d15fc2`, `06708212`, `205aaeea`.
-The current snapshot, reviewed heads and published base are readable; a bounded
-search found no retained trusted copies of these trees. No object/branch
-reconstruction or history rewrite was attempted. Full outgoing-history audit
-and publication/integration readiness cannot be claimed until the exact trees
-are restored from trusted preservation. This does not prevent host code review
-against intact starting snapshot `dd715081`.
+The original temporary repository has five missing ancestor root tree objects
+(`74aa2e0e`, `c5646242`, `06d15fc2`, `06708212`, `205aaeea`) and missing primary
+checkout Git metadata. Those objects were not guessed or reconstructed; no
+original repository/reference was modified. Current approved/reviewed snapshots
+and the published base remained intact.
+
+Delivery instead uses a new isolated repository at
+`/private/tmp/p18-047-sanitized-delivery`. Only published sanitized commit graph
+`d344f1e59664f38ebb8c3a3219c72b6eea8f79cd` and the two exact snapshot trees were
+imported. Local port `16235be02e7cafaac9dca069c9a2a5263c786462` has the exact
+approved P18-046 `dd715081` tree. Reviewed P18-047 source head
+`2ec34073f00fbc3253d957598aa6c1f75f7df81a` has the exact original reviewed
+`375fd82` tree. The implementation diff is byte-identical, independently
+verified. Original task commits/broken ancestry were not imported.
+
+The new repository passes `git fsck --full`. All 37 outgoing blob versions
+across the two source snapshot commits were independently inspected: no binary
+raw evidence, blob above 1 MiB, suspected credentials or personal user paths.
+The largest is the intentional 251,514-byte desktop source. Known private JSON
+blob `ef7e5a2d05ebdaf008a3c04380251e6a26d291ed` is absent. New author/committer
+metadata matches the published no-reply identity. Final report updates are
+sanitized documentation only. This resolves delivery integrity without
+rewriting published history or claiming that the old missing objects were
+restored. Any future publication must still fetch and verify the actual remote
+tip; no push or merge is authorized here.
+
+P18-034's branch, status and all 1,043 dirty-file hashes were independently
+checked unchanged. The sibling evidence archive and all private hardware data
+remain read-only and outside Git. No USB command or physical operation occurred
+in P18-047. The next operator action is fresh read-only preflight and preparation
+of the exact A anchor placement for separate authorization. Ordinary BMP and all
+nested Delete stay host-only; only the named B validation procedure is
+READY_FOR_HARDWARE_TEST after its required fresh checks and approvals.
