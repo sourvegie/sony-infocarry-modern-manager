@@ -1,6 +1,35 @@
 # Current Project Status
 
-Date: 2026-10-21
+Date: 2026-10-22
+
+
+## P18-047 — root-BMP host expansion and nested-file models
+
+The isolated `task/P18-047-root-bmp-nested-delete` branch starts at sanitized
+`dd715081`. Ordinary root BMP has conservative host admission for unique safe
+CP932 names, unread `0xe0`, opaque field `0xffffffff`, selector `0x100` and
+16-byte all-`ff` prefix, canonical 237×320 monochrome payloads, and existing
+structural/protected-state checks. Normal live admission remains exact P18-046
+fixture only. A second exact disposable B experiment is prepared behind the
+existing explicit validation mode at serialized `0x6c0`, with the proven A32 TXT
+anchor required at `0x680`; no write is authorized or performed.
+
+Individual nested TXT/BMP now has a host-only candidate and independent verifier
+that preserve parents, siblings, ordering, markers, payloads and timestamps,
+including empty parents. It creates no transaction or sender capability. Nested
+UI and sender admission remain disabled. Existing TXT candidate bytes/audits
+match all 136 archived TXT records. Detailed archive results, minimum four-write
+B experiment and preserved evidence are in the
+[P18-047 delivery record](analysis/p18-047-root-bmp-nested-delete-20261022.md).
+New focused suites pass 25 tests; final independent R3 is pending. Package build,
+plist and signature checks pass; frozen runtime smoke remains unavailable with
+the recorded temporary-checkout AppKit/LaunchServices errors.
+
+The starting temporary repository has five missing ancestor tree objects.
+Current/reviewed snapshots are intact, but full outgoing-history audit and
+publication readiness remain blocked until exact trusted objects are restored.
+P18-034 working files and private evidence are preserved. No USB operation,
+production safety-state mutation, push or merge occurred.
 
 ## P18-046 — exact disposable root-BMP Delete physically validated
 

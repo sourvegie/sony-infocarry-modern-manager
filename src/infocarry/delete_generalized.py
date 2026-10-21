@@ -19,7 +19,8 @@ from typing import Any, Mapping, Optional
 from .backup_format import BackupFormatError, ParsedBackupBlob, parse_backup_blob
 from .delete_model import (
     DeleteModelError, OfflineDeleteModel, build_one_txt_delete_model,
-    build_one_root_bmp_delete_model,
+    build_one_root_bmp_delete_model, build_one_nested_file_delete_model,
+    verify_nested_file_delete_model,
 )
 from .delete_state import (
     FIXED_STATE_COMMANDS,
@@ -224,6 +225,70 @@ class GeneralizedDeleteCandidate:
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.audit)
+
+
+@dataclass(frozen=True)
+class NestedFileDeleteCandidate:
+    """Host-only nested model and protected state; deliberately no transaction.
+
+    This is not a GeneralizedDeleteCandidate and cannot be authorized or
+    bound to the guarded sender. Nested live capability remains disabled.
+    """
+
+    backup: VerifiedBackup
+    baseline: ParsedBackupBlob
+    candidate_model: OfflineDeleteModel
+    fixed_state: DeleteStateCandidate
+    audit: Mapping[str, Any]
+
+    @property
+    def candidate_blob(self) -> bytes:
+        return self.candidate_model.candidate_blob
+
+    @property
+    def candidate_blob_sha256(self) -> str:
+        return self.candidate_model.candidate_blob_sha256
+
+    @property
+    def target_path(self) -> str:
+        return self.candidate_model.target_path
+
+    @property
+    def target_record_offset(self) -> int:
+        return self.candidate_model.target_record_offset
+
+    @property
+    def target_payload_sha256(self) -> str:
+        return self.candidate_model.target_payload_sha256
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self.audit)
+
+
+def build_nested_file_delete_candidate(
+    backup_directory: Path, target_path: str, target_record_offset: int, *,
+    now: Optional[datetime] = None,
+    max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+) -> NestedFileDeleteCandidate:
+    """Prepare a nested leaf and preserve supported protected associations.
+
+    Requires a complete verified backup and refuses referenced targets,
+    unfamiliar state and ambiguous parent relationships. No transaction,
+    authorization, claim, marker, lock or USB access is created.
+    """
+    try:
+        backup = verify_fresh_backup(backup_directory, now=now, max_age_seconds=max_age_seconds)
+        baseline = parse_backup_blob(_read_object(backup, _DYNAMIC_BLOB_KEY))
+        model = build_one_nested_file_delete_model(baseline, target_path, target_record_offset)
+        state = derive_preserved_delete_state(
+            backup, baseline, parse_backup_blob(model.candidate_blob),
+            target_record_offset=target_record_offset,
+        )
+    except (BackupFormatError, DeleteModelError, DeleteStateError, WriteGateError, OSError) as exc:
+        raise GeneralizedDeleteError(f"could not build nested host-only delete candidate: {exc}") from exc
+    audit = dict(model.audit)
+    audit["fixed_state"] = state.audit
+    return NestedFileDeleteCandidate(backup, baseline, model, state, audit)
 
 
 def build_generalized_delete_candidate(
@@ -579,6 +644,8 @@ def authorize_generalized_delete(
 ) -> GeneralizedDeleteAuthorization:
     """Authorize one exact offline candidate; never opens USB."""
 
+    if not isinstance(candidate, GeneralizedDeleteCandidate):
+        raise GeneralizedDeleteError("nested deletion is host-only and cannot be authorized")
     if confirmation != DELETE_GENERALIZED_CONFIRMATION_PHRASE:
         raise GeneralizedDeleteError("delete confirmation phrase was not accepted")
     authorization = GeneralizedDeleteAuthorization(
@@ -620,6 +687,15 @@ class GeneralizedDeleteSenderBinding:
         return self.authorization.baseline
 
     def _require_execution_admitted(self) -> None:
+        if not isinstance(self.candidate, GeneralizedDeleteCandidate):
+            raise GeneralizedDeleteError("nested deletion is host-only and cannot bind a sender")
+        try:
+            parsed = parse_backup_blob(self.candidate.baseline.data)
+            path = parsed.paths.get(self.candidate.target_record_offset)
+        except BackupFormatError as exc:
+            raise GeneralizedDeleteError("sender baseline is malformed") from exc
+        if path is None or len(path) != 2 or path[0] != "root":
+            raise GeneralizedDeleteError("nested deletion is host-only and cannot bind a sender")
         # BMP host authorizations deliberately cannot become sender capability.
         # Derive the gate from the parsed source, not audit/operation labels.
         if self.candidate.target_extension != "txt" or self.authorization.target_extension != "txt":
@@ -696,14 +772,62 @@ def verify_generalized_delete_readback(
 ) -> GeneralizedDeleteVerification:
     """Require exact completion, candidate bytes, fixed state, and path delta."""
 
+    if not isinstance(candidate, GeneralizedDeleteCandidate):
+        raise GeneralizedDeleteVerificationError("candidate is malformed")
+    return _verify_delete_readback(candidate, post_delete_directory, completion=completion,
+                                   now=now, max_age_seconds=max_age_seconds)
+
+
+def verify_nested_file_delete_readback(
+    candidate: NestedFileDeleteCandidate, post_delete_directory: Path, *,
+    completion: int, now: Optional[datetime] = None,
+    max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+) -> GeneralizedDeleteVerification:
+    """Check a simulated nested result independently; grants no live authority.
+
+    The original complete baseline is reverified, the structural validator
+    checks the candidate without invoking the repacker, and protected state
+    is derived again from the original verified bytes before readback.
+    """
+    if not isinstance(candidate, NestedFileDeleteCandidate):
+        raise GeneralizedDeleteVerificationError("nested candidate is malformed")
+    try:
+        backup = verify_fresh_backup(candidate.backup.directory, now=now,
+                                     max_age_seconds=max_age_seconds)
+        if (backup.manifest_sha256 != candidate.backup.manifest_sha256
+                or backup.blob_sha256 != candidate.candidate_model.source_blob_sha256):
+            raise GeneralizedDeleteError("nested bound baseline identity changed")
+        baseline = parse_backup_blob(_read_object(backup, _DYNAMIC_BLOB_KEY))
+        if baseline.data != candidate.baseline.data:
+            raise GeneralizedDeleteError("nested bound baseline bytes changed")
+        after = verify_nested_file_delete_model(baseline, candidate.candidate_blob,
+                    candidate.target_path, candidate.target_record_offset)
+        target = baseline.record_at(candidate.target_record_offset)
+        if _sha256(baseline.payload_parts(target)[1]) != candidate.target_payload_sha256:
+            raise GeneralizedDeleteError("nested bound target payload changed")
+        state = derive_preserved_delete_state(backup, baseline, after,
+                    target_record_offset=candidate.target_record_offset)
+        if (candidate.fixed_state.before != state.before
+                or candidate.fixed_state.after != state.after):
+            raise GeneralizedDeleteError("nested protected-state derivation changed")
+    except (BackupFormatError, DeleteModelError, DeleteStateError, GeneralizedDeleteError,
+            WriteGateError, OSError) as exc:
+        raise GeneralizedDeleteVerificationError(str(exc)) from exc
+    return _verify_delete_readback(candidate, post_delete_directory, completion=completion,
+                                   now=now, max_age_seconds=max_age_seconds)
+
+
+def _verify_delete_readback(
+    candidate: GeneralizedDeleteCandidate | NestedFileDeleteCandidate,
+    post_delete_directory: Path, *, completion: int, now: Optional[datetime],
+    max_age_seconds: Optional[float],
+) -> GeneralizedDeleteVerification:
     if isinstance(completion, bool) or not isinstance(completion, int):
         raise GeneralizedDeleteVerificationError("delete completion is missing or malformed")
     if completion != 0:
         raise GeneralizedDeleteVerificationError(
             f"delete completion was 0x{completion:04x}", outcome="failed"
         )
-    if not isinstance(candidate, GeneralizedDeleteCandidate):
-        raise GeneralizedDeleteVerificationError("candidate is malformed")
     try:
         after = verify_fresh_backup(
             post_delete_directory,
@@ -775,6 +899,7 @@ __all__ = [
     "DELETE_GENERALIZED_FORMAT",
     "GeneralizedDeleteAuthorization",
     "GeneralizedDeleteCandidate",
+    "NestedFileDeleteCandidate",
     "GeneralizedDeleteError",
     "GeneralizedDeleteSenderBinding",
     "GeneralizedDeleteVerification",
@@ -783,5 +908,7 @@ __all__ = [
     "bind_generalized_delete_sender",
     "build_generalized_delete_candidate",
     "build_root_bmp_delete_candidate",
+    "build_nested_file_delete_candidate",
+    "verify_nested_file_delete_readback",
     "verify_generalized_delete_readback",
 ]

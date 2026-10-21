@@ -52,8 +52,8 @@ def _placement_fixture(target_path, validation_placement, media_type="txt"):
     if validation_placement:
         # Lazy: delete_workflow inherits the existing placement bundle.
         if media_type == "bmp":
-            from .delete_workflow import ROOT_BMP_DELETE_FIXTURE_BYTES, ROOT_BMP_DELETE_FIXTURE_PATH
-            payload = ROOT_BMP_DELETE_FIXTURE_BYTES if target_path == ROOT_BMP_DELETE_FIXTURE_PATH else None
+            from .delete_workflow import ROOT_BMP_DELETE_VALIDATION_FILES
+            payload = ROOT_BMP_DELETE_VALIDATION_FILES.get(target_path)
         else:
             from .delete_workflow import ROOT_TXT_DELETE_VALIDATION_FILES
             payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(target_path)
@@ -108,6 +108,11 @@ def _disposable_delta(before, after, target_path, media_type="txt"):
     added = new[target]
     if added.kind != "file":
         raise ValueError("placement target is not an ordinary file record")
+    if media_type == "bmp":
+        from .delete_workflow import ROOT_BMP_DELETE_EXPANSION_PATH, _root_bmp_expansion_anchor_present
+        if target_path == ROOT_BMP_DELETE_EXPANSION_PATH:
+            if added.offset != 0x6c0 or not _root_bmp_expansion_anchor_present(baseline):
+                raise ValueError("BMP B placement requires the exact TXT A anchor at 0x680 and B at 0x6c0")
     if media_type == "txt":
         expected = (added.extension == "txt" and added.flag in (0x20, 0xE0)
                     and added.field_14_be32 == 0x200)
@@ -594,7 +599,7 @@ class RootTxtPlacementBundle:
                              if self.placement_media == "bmp"
                              else "infocarry-disposable-root-txt-placement-report-v1")
             _write_json(path, {"format": report_format,
-                "experiment_id": "P18-046" if self.placement_media == "bmp" else "P18-045" if self.placement_target_path == "root\\IC_P18_045_DELETE_C.txt" else "P18-044",
+                "experiment_id": ("P18-047" if self.placement_target_path == "root\\IC_P18_047_DELETE_B.bmp" else "P18-046") if self.placement_media == "bmp" else "P18-045" if self.placement_target_path == "root\\IC_P18_045_DELETE_C.txt" else "P18-044",
                 "status": "completed_and_independently_verified",
                 "operation": "separate_fixture_placement", "fixture": _fixture_dict(self.placement_target_path, True, self.placement_media),
                 "sender_invocations": 1, "add_count": 1, "delete_count": 0, "retry_count": 0,

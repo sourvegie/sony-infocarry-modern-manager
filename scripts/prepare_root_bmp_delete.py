@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse
 import json
+import hashlib
 import sys
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -11,7 +12,8 @@ sys.path.insert(0, str(REPOSITORY_ROOT / "src"))
 from infocarry.delete_workflow import (
     ROOT_BMP_DELETE_FIXTURE_BYTES, ROOT_BMP_DELETE_FIXTURE_FILENAME,
     ROOT_BMP_DELETE_FIXTURE_SHA256, prepare_disposable_root_bmp_delete,
-    require_external_bmp_output,
+    require_external_bmp_output, ROOT_BMP_DELETE_VALIDATION_FILES,
+    ROOT_BMP_DELETE_FIXTURE_PATH, build_root_bmp_delete,
 )
 
 
@@ -25,22 +27,38 @@ def main(argv=None):
     prepare.add_argument("--output", type=Path, required=True, help="new private directory outside Git")
     prepare.add_argument("--post-backup", type=Path, help="optional complete post-delete backup for offline verification")
     prepare.add_argument("--completion", type=lambda s: int(s, 0), help="observed native result, required with --post-backup")
+    for command in (fixture, prepare):
+        command.add_argument("--target", choices=tuple(ROOT_BMP_DELETE_VALIDATION_FILES),
+                             default=ROOT_BMP_DELETE_FIXTURE_PATH)
+    inspect = commands.add_parser("inspect", help="inspect one ordinary root BMP offline; no execution authority")
+    inspect.add_argument("--backup", type=Path, required=True)
+    inspect.add_argument("--target", required=True)
     args = parser.parse_args(argv)
+    if args.command == "inspect":
+        core = build_root_bmp_delete(args.backup, args.target)
+        print(json.dumps({"status": "host_prepared_not_live_enabled", "target": core.target_path,
+                          "candidate_sha256": core.candidate_blob_sha256,
+                          "transaction_sha256": core.transaction_sha256,
+                          "execution_available": False, "physical_operation_authorized": False,
+                          "usb_operations": 0}, indent=2, sort_keys=True))
+        return 0
     output = require_external_bmp_output(args.output)
     if output.is_relative_to(REPOSITORY_ROOT):
         parser.error("output must remain outside the source repository")
     if args.command == "fixture":
         output.mkdir(parents=True, exist_ok=False, mode=0o700)
-        with (output / ROOT_BMP_DELETE_FIXTURE_FILENAME).open("xb") as stream:
-            stream.write(ROOT_BMP_DELETE_FIXTURE_BYTES)
-        result = {"status": "host_fixture_only", "file": str(output / ROOT_BMP_DELETE_FIXTURE_FILENAME),
-                  "bytes": len(ROOT_BMP_DELETE_FIXTURE_BYTES), "sha256": ROOT_BMP_DELETE_FIXTURE_SHA256}
+        filename = args.target.rsplit("\\", 1)[-1]
+        payload = ROOT_BMP_DELETE_VALIDATION_FILES[args.target]
+        with (output / filename).open("xb") as stream:
+            stream.write(payload)
+        result = {"status": "host_fixture_only", "file": str(output / filename),
+                  "bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}
     else:
         if (args.post_backup is None) != (args.completion is None):
             parser.error("--post-backup and the actually observed --completion must be supplied together")
         if args.post_backup is not None and output.is_relative_to(args.post_backup.expanduser().resolve()):
             parser.error("output must not modify the post-delete backup")
-        prepared = prepare_disposable_root_bmp_delete(args.backup, output)
+        prepared = prepare_disposable_root_bmp_delete(args.backup, output, target_path=args.target)
         core = prepared.verify()
         result = {"status": "host_prepared_not_live_enabled", "report": str(output / "preparation.json"),
                   "candidate_sha256": core.candidate_blob_sha256, "transaction_sha256": core.transaction_sha256}

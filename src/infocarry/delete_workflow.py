@@ -477,29 +477,79 @@ def root_txt_delete_execution_supported(core):
     return core.baseline.record_at(core.target_record_offset).flag == 0xe0
 
 
-def root_bmp_delete_execution_supported(core):
-    """Only the physically placed P18-046 disposable BMP is executable.
-
-    This is a validation gate for one exact file, not a general BMP policy.
-    The host model still performs the complete path, pointer, payload,
-    allocation, checksum, and protected-state checks before this gate passes.
-    """
+def _root_bmp_fixture_supported(core, target_paths):
+    """Validate a named disposable profile from source bytes, never audit labels."""
     try:
-        if (core.target_path != ROOT_BMP_DELETE_FIXTURE_PATH
-                or core.target_record_offset != 0x680
-                or core.target_extension != "bmp"):
+        if (core.target_path not in target_paths or core.target_extension != "bmp"
+                or core.target_record_offset != ROOT_BMP_DELETE_VALIDATION_OFFSETS[core.target_path]):
             return False
         target = core.baseline.record_at(core.target_record_offset)
         prefix, payload = core.baseline.payload_parts(target)
-        return (
-            target.kind == "file" and target.extension == "bmp"
-            and target.flag == 0xe0 and target.field_14_be32 == 0x100
-            and target.payload_prefix_length == 16 and prefix == b"\xff" * 16
-            and payload == ROOT_BMP_DELETE_FIXTURE_BYTES
-            and _sha(payload) == ROOT_BMP_DELETE_FIXTURE_SHA256
-        )
+        if core.target_path == ROOT_BMP_DELETE_EXPANSION_PATH and not _root_bmp_expansion_anchor_present(core.baseline):
+            return False
+        return (target.kind == "file" and target.extension == "bmp"
+                and target.flag == 0xe0 and target.field_10_be32 == 0xffffffff
+                and target.field_14_be32 == 0x100 and prefix == b"\xff" * 16
+                and payload == ROOT_BMP_DELETE_VALIDATION_FILES[core.target_path])
     except (AttributeError, KeyError, TypeError, ValueError):
         return False
+
+
+def _root_bmp_expansion_anchor_present(parsed):
+    """The already proven disposable TXT anchor fixes B's distinct root slot."""
+    try:
+        anchor = parsed.record_at(0x680)
+        path = ("root", "IC_P18_043_DELETE_A")
+        return (parsed.paths.get(0x680) == path
+                and sum(p == path for p in parsed.paths.values()) == 1
+                and anchor.kind == "file" and anchor.extension == "txt"
+                and anchor.flag in (0xe0, 0x20) and anchor.field_14_be32 == 0x200
+                and parsed.payload_parts(anchor)[1] == ROOT_TXT_DELETE_VALIDATION_FILES["root\\IC_P18_043_DELETE_A.txt"])
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return False
+
+
+def root_bmp_delete_execution_supported(core):
+    """Only the physically demonstrated P18-046 exact disposable profile."""
+    return _root_bmp_fixture_supported(core, (ROOT_BMP_DELETE_FIXTURE_PATH,))
+
+
+def root_bmp_delete_validation_supported(core):
+    """Unproven named B experiment; reachable only through explicit validation."""
+    return _root_bmp_fixture_supported(core, (ROOT_BMP_DELETE_EXPANSION_PATH,))
+
+
+def build_root_bmp_delete(backup_directory, target_path, *, target_record_offset=None,
+                          max_age_seconds=None):
+    """Conservative ordinary root-BMP host admission, with no execution authority.
+
+    Admit unique safe CP932 identities and the observed unread/all-FF 16-byte
+    native prefix/opaque-field profile. The canonical 237x320 monochrome BMP
+    validator and existing candidate/protected-state checks remain authoritative.
+    General BMP live admission remains disabled regardless of this result.
+    """
+    backup = verify_fresh_backup(Path(backup_directory), max_age_seconds=max_age_seconds)
+    if backup.device_identity != ("0x054c", "0x001e"):
+        raise RootTxtDeleteAdmissionError("root BMP Delete requires the characterized VNW-V15 model")
+    parsed = parse_backup_blob(_blob(backup))
+    if not isinstance(target_path, str) or len(target_path.split("\\")) != 2 or not target_path.startswith("root\\"):
+        raise RootTxtDeleteAdmissionError("only one ordinary root-level BMP file is admitted")
+    matches = [r for r in parsed.records if parsed.paths.get(r.offset) is not None
+               and "\\".join(parsed.paths[r.offset]) + ("." + r.extension if r.extension else "") == target_path]
+    if len(matches) != 1:
+        raise RootTxtDeleteAdmissionError("root BMP target is missing or ambiguous")
+    target = matches[0]
+    if (target.kind != "file" or target.extension != "bmp" or target.flag != 0xe0
+            or target.field_10_be32 != 0xffffffff or target.field_14_be32 != 0x100
+            or parsed.payload_parts(target)[0] != b"\xff" * 16):
+        raise RootTxtDeleteAdmissionError("root BMP requires the observed unread/16-byte all-FF prefix profile")
+    if target_record_offset is not None and (type(target_record_offset) is not int or target.offset != target_record_offset):
+        raise RootTxtDeleteAdmissionError("root BMP selected metadata identity changed")
+    try:
+        return build_root_bmp_delete_candidate(backup.directory, target_path, target.offset,
+                                               max_age_seconds=max_age_seconds)
+    except GeneralizedDeleteError as exc:
+        raise RootTxtDeleteAdmissionError("Root BMP native identity, payload, protected state or structural invariants are unsupported") from exc
 
 
 def validate_root_txt_delete_name(name):
@@ -573,7 +623,7 @@ class RootTxtDeleteCandidate:
         if self.exact_fixture:
             return build_experimental_root_txt_delete(self.backup_directory)
         if self.target_extension == "bmp":
-            return build_experimental_root_bmp_delete(self.backup_directory)
+            return build_experimental_root_bmp_delete(self.backup_directory, target_path=self.target_path)
         return build_root_txt_delete(self.backup_directory, self.target_path,
             target_record_offset=self.target_record_offset)
 
@@ -644,7 +694,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
     def execution_available(self):
         if self.candidate.target_extension == "bmp":
             return (self.validation_bmp_only
-                    and root_bmp_delete_execution_supported(self.candidate.core))
+                    and (root_bmp_delete_execution_supported(self.candidate.core)
+                         or root_bmp_delete_validation_supported(self.candidate.core)))
         return root_txt_delete_execution_supported(self.candidate.core)
 
     def assert_execution_admitted(self):
@@ -734,10 +785,10 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
             if core.target_path != FIXTURE_PATH or core.target_payload_sha256 != FIXTURE_SHA256:
                 raise ValueError("Delete target differs from exact experimental fixture")
         elif self.candidate.target_extension == "bmp":
-            if (not self.validation_bmp_only or core.target_path != ROOT_BMP_DELETE_FIXTURE_PATH
-                    or core.target_record_offset != 0x680
-                    or core.target_payload_sha256 != ROOT_BMP_DELETE_FIXTURE_SHA256
-                    or not root_bmp_delete_execution_supported(core)):
+            if (not self.validation_bmp_only or core.target_path not in ROOT_BMP_DELETE_VALIDATION_FILES
+                    or core.target_path != self.candidate.target_path
+                    or core.target_record_offset != self.candidate.target_record_offset
+                    or not self.execution_available):
                 raise ValueError("BMP Delete differs from the exact placed disposable profile")
         elif core.target_path != self.candidate.target_path or core.target_record_offset != self.candidate.target_record_offset:
             raise ValueError("Delete target differs from frozen selected path/record")
@@ -772,8 +823,9 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
                 raise ValueError("deleted fixture source copy or scope changed")
         elif self.candidate.target_extension == "bmp":
             if (not self.validation_bmp_only or self.validation_only
-                    or self.source_path.name != ROOT_BMP_DELETE_FIXTURE_FILENAME
-                    or self.source_path.read_bytes() != ROOT_BMP_DELETE_FIXTURE_BYTES):
+                    or self.target_path not in ROOT_BMP_DELETE_VALIDATION_FILES
+                    or self.source_path.name != self.expected_folder_name
+                    or self.source_path.read_bytes() != ROOT_BMP_DELETE_VALIDATION_FILES[self.target_path]):
                 raise ValueError("BMP source copy or disposable scope changed")
         elif self.source_path.name != "selected-txt.bin" or _sha(self.source_path.read_bytes()) != self.candidate.core.target_payload_sha256:
             raise ValueError("selected TXT source copy changed")
@@ -873,7 +925,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 raise ValueError("Delete admission flags require exact booleans")
             if validation_only and (not general_txt or target_path not in ROOT_TXT_DELETE_VALIDATION_FILES):
                 raise ValueError("validation requires one predetermined disposable target")
-            if validation_bmp_only and (general_txt or validation_only or target_path != ROOT_BMP_DELETE_FIXTURE_PATH):
+            if validation_bmp_only and (general_txt or validation_only or target_path not in ROOT_BMP_DELETE_VALIDATION_FILES):
                 raise ValueError("BMP validation requires only the exact disposable root-BMP target")
             if ((not general_txt and not validation_bmp_only and target_path != FIXTURE_PATH)
                     or device_model != "VNW-V15"):
@@ -904,7 +956,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 progress("Validating operation", 0, 1)
             runtime.assert_same_session(runtime.session_binding_token)
             if validation_bmp_only:
-                core = build_experimental_root_bmp_delete(before.directory, max_age_seconds=max_age_seconds)
+                core = build_experimental_root_bmp_delete(before.directory, target_path=target_path, max_age_seconds=max_age_seconds)
             else:
                 core = (build_root_txt_delete(before.directory, target_path, max_age_seconds=max_age_seconds) if general_txt else
                         build_experimental_root_txt_delete(before.directory, max_age_seconds=max_age_seconds))
@@ -916,7 +968,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 core.transaction, _json(core.to_dict()), core.target_path, core.target_record_offset,
                 not general_txt and not validation_bmp_only,
                 "bmp" if validation_bmp_only else "txt")
-            source_name = (ROOT_BMP_DELETE_FIXTURE_FILENAME if validation_bmp_only else
+            source_name = (target_path.rsplit("\\", 1)[-1] if validation_bmp_only else
                            "selected-txt.bin" if general_txt else FIXTURE_FILENAME)
             source = root / source_name
             with source.open("xb") as output:
@@ -966,8 +1018,8 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
         self._prepared_operation = prepared
 
 
-# An exact disposable specimen for OFFLINE preparation. It is not a live
-# capability: neither the root placement nor root deletion has native proof.
+# Exact P18-046 disposable specimen with bounded physical placement/Delete
+# evidence. Ordinary BMP execution remains outside this exact-fixture gate.
 ROOT_BMP_DELETE_FIXTURE_FILENAME = "IC_P18_046_DELETE_A.bmp"
 ROOT_BMP_DELETE_FIXTURE_PATH = "root\\" + ROOT_BMP_DELETE_FIXTURE_FILENAME
 
@@ -993,40 +1045,62 @@ def _root_bmp_delete_fixture_bytes():
 ROOT_BMP_DELETE_FIXTURE_BYTES = _root_bmp_delete_fixture_bytes()
 ROOT_BMP_DELETE_FIXTURE_SHA256 = _sha(ROOT_BMP_DELETE_FIXTURE_BYTES)
 
+# One additional host-defined disposable experiment, never ordinary BMP authority.
+# Different pixels/orientation and serialized position exercise the same opaque
+# payload deletion arithmetic with survivors on both sides of the target.
+ROOT_BMP_DELETE_EXPANSION_PATH = "root\\IC_P18_047_DELETE_B.bmp"
+_expansion_bmp = bytearray(ROOT_BMP_DELETE_FIXTURE_BYTES)
+_expansion_bmp[22:26] = (-320).to_bytes(4, "little", signed=True)
+_expansion_bmp[62:] = bytes(value ^ 0xff for value in _expansion_bmp[62:])
+ROOT_BMP_DELETE_EXPANSION_BYTES = bytes(_expansion_bmp)
+del _expansion_bmp
+ROOT_BMP_DELETE_VALIDATION_FILES = MappingProxyType({
+    ROOT_BMP_DELETE_FIXTURE_PATH: ROOT_BMP_DELETE_FIXTURE_BYTES,
+    ROOT_BMP_DELETE_EXPANSION_PATH: ROOT_BMP_DELETE_EXPANSION_BYTES,
+})
+ROOT_BMP_DELETE_VALIDATION_OFFSETS = MappingProxyType({
+    ROOT_BMP_DELETE_FIXTURE_PATH: 0x680, ROOT_BMP_DELETE_EXPANSION_PATH: 0x6c0,
+})
 
-def build_experimental_root_bmp_delete(backup_directory, *, max_age_seconds=None):
-    """Build the exact physically placed disposable BMP delete candidate.
 
-    Generalized BMP candidates remain host-only. This wrapper additionally
-    binds the known disposable path, payload, unread/prefix profile and
-    physically observed serialized record position.
+
+def build_experimental_root_bmp_delete(backup_directory, *, target_path=ROOT_BMP_DELETE_FIXTURE_PATH, max_age_seconds=None):
+    """Build a named exact disposable BMP validation candidate.
+
+    A is physically demonstrated; B remains a separately authorized future
+    experiment. Both bind exact path/payload, unread/prefix and record position;
+    B additionally requires the preserved disposable TXT anchor.
+    Generalized BMP candidates remain host-only.
     """
-    core = build_disposable_root_bmp_delete(backup_directory, max_age_seconds=max_age_seconds)
-    if not root_bmp_delete_execution_supported(core):
-        raise ValueError("only the exact physically placed VNW-V15 disposable BMP profile is admitted")
+    core = build_disposable_root_bmp_delete(backup_directory, target_path=target_path, max_age_seconds=max_age_seconds)
+    if not (root_bmp_delete_execution_supported(core) or root_bmp_delete_validation_supported(core)):
+        raise ValueError("the named VNW-V15 disposable BMP profile or required anchor does not match")
     return core
 
 
-def build_disposable_root_bmp_delete(backup_directory, *, max_age_seconds=None):
+def build_disposable_root_bmp_delete(backup_directory, *, target_path=ROOT_BMP_DELETE_FIXTURE_PATH, max_age_seconds=None):
     """Prepare only the exact unread, 16-byte-prefix specimen, without USB.
 
     The broader retained BMP model remains host-only. This additional profile
-    chooses a reproducible experiment; it makes no claim of root native proof.
+    chooses a reproducible experiment; it conveys no live authorization.
     """
     backup = verify_fresh_backup(Path(backup_directory), max_age_seconds=max_age_seconds)
     if backup.device_identity != ("0x054c", "0x001e"):
         raise ValueError("disposable BMP preparation requires a VNW-V15 backup")
+    if target_path not in ROOT_BMP_DELETE_VALIDATION_FILES:
+        raise ValueError("only a named disposable root BMP may enter validation")
     parsed = parse_backup_blob(_blob(backup))
+    filename = target_path.rsplit("\\", 1)[-1]
     matches = [r for r in parsed.records if parsed.paths.get(r.offset)
-               == ("root", Path(ROOT_BMP_DELETE_FIXTURE_FILENAME).stem) and r.extension == "bmp"]
+               == ("root", Path(filename).stem) and r.extension == "bmp"]
     if len(matches) != 1:
         raise ValueError("exact unique disposable root BMP is absent or ambiguous")
     target = matches[0]
     if target.flag != 0xe0 or target.field_14_be32 != 0x100:
         raise ValueError("disposable BMP requires unread state and a 16-byte native prefix")
-    if parsed.payload_parts(target)[1] != ROOT_BMP_DELETE_FIXTURE_BYTES:
+    if parsed.payload_parts(target)[1] != ROOT_BMP_DELETE_VALIDATION_FILES[target_path]:
         raise ValueError("disposable BMP payload differs from the exact specimen")
-    return build_root_bmp_delete_candidate(backup.directory, ROOT_BMP_DELETE_FIXTURE_PATH,
+    return build_root_bmp_delete_candidate(backup.directory, target_path,
         target.offset, max_age_seconds=max_age_seconds)
 
 
@@ -1051,6 +1125,7 @@ class RootBmpDeletePreparation:
     artifacts: tuple[OperationArtifact, ...]
     directory: Path
     report_json: bytes
+    target_path: str = ROOT_BMP_DELETE_FIXTURE_PATH
 
     @property
     def execution_available(self):
@@ -1062,29 +1137,31 @@ class RootBmpDeletePreparation:
                 "execution_available": False, "physical_operation_authorized": False,
                 "fresh_for_physical_use": False, "automatic_retry_allowed": False,
                 "owner_approval_identity_created": False,
-                "fixture": {"path": ROOT_BMP_DELETE_FIXTURE_PATH,
-                            "bytes": len(ROOT_BMP_DELETE_FIXTURE_BYTES),
-                            "sha256": ROOT_BMP_DELETE_FIXTURE_SHA256,
+                "fixture": {"path": self.target_path,
+                            "bytes": len(ROOT_BMP_DELETE_VALIDATION_FILES[self.target_path]),
+                            "sha256": _sha(ROOT_BMP_DELETE_VALIDATION_FILES[self.target_path]),
                             "flag": "0xe0", "native_prefix_bytes": 16},
                 "host_binding": self.authorization.to_dict(),
                 "artifacts": [artifact.to_dict() for artifact in self.artifacts],
-                "missing_proof": ["native_root_bmp_placement_and_complete_readback",
-                                  "root_bmp_delete_before_after_pair",
-                                  "reviewed_bounded_live_adapter"]}
+                "missing_proof": (["broader_root_bmp_class_physical_validation"]
+                                  if self.target_path == ROOT_BMP_DELETE_FIXTURE_PATH else
+                                  ["separately_authorized_expansion_placement_and_delete"])}
 
     def verify(self):
         if type(self.authorization) is not GeneralizedDeleteAuthorization or self.authorization.target_extension != "bmp":
             raise ValueError("BMP preparation requires the existing host-only BMP binding")
-        core = build_disposable_root_bmp_delete(self.authorization.baseline.directory)
+        if self.target_path not in ROOT_BMP_DELETE_VALIDATION_FILES:
+            raise ValueError("BMP preparation target is not a named disposable")
+        core = build_disposable_root_bmp_delete(self.authorization.baseline.directory, target_path=self.target_path)
         self.authorization.revalidate(core, max_age_seconds=None)
-        expected_files = (self.directory / ROOT_BMP_DELETE_FIXTURE_FILENAME,
+        expected_files = (self.directory / self.target_path.rsplit("\\", 1)[-1],
                           self.directory / "candidate.bin", self.directory / "candidate-audit.json",
                           self.directory / "host-binding.json")
         expected_artifacts = tuple(OperationArtifact.file(p) for p in expected_files) + (
             OperationArtifact.backup_manifest(core.backup.directory),)
         if self.artifacts != expected_artifacts:
             raise ValueError("BMP preparation artifacts changed or were rebound")
-        expected_bytes = (ROOT_BMP_DELETE_FIXTURE_BYTES, core.candidate_blob,
+        expected_bytes = (ROOT_BMP_DELETE_VALIDATION_FILES[self.target_path], core.candidate_blob,
                           _json(core.to_dict()), _json(self.authorization.to_dict()))
         if any(p.read_bytes() != data for p, data in zip(expected_files, expected_bytes)):
             raise ValueError("BMP preparation differs from independent reconstruction")
@@ -1100,16 +1177,16 @@ class RootBmpDeletePreparation:
             completion=completion, max_age_seconds=None)
 
 
-def prepare_disposable_root_bmp_delete(backup_directory, output_directory):
+def prepare_disposable_root_bmp_delete(backup_directory, output_directory, *, target_path=ROOT_BMP_DELETE_FIXTURE_PATH):
     """Persist exact host preparation. Existing artifacts are never overwritten."""
     output = require_external_bmp_output(output_directory)
     baseline = Path(backup_directory).expanduser().resolve()
     if output.is_relative_to(baseline):
         raise ValueError("BMP output must not modify the source backup")
-    core = build_disposable_root_bmp_delete(baseline)
+    core = build_disposable_root_bmp_delete(baseline, target_path=target_path)
     binding = authorize_generalized_delete(core, confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE)
     output.mkdir(parents=True, exist_ok=False, mode=0o700)
-    files = ((ROOT_BMP_DELETE_FIXTURE_FILENAME, ROOT_BMP_DELETE_FIXTURE_BYTES),
+    files = ((target_path.rsplit("\\", 1)[-1], ROOT_BMP_DELETE_VALIDATION_FILES[target_path]),
              ("candidate.bin", core.candidate_blob), ("candidate-audit.json", _json(core.to_dict())),
              ("host-binding.json", _json(binding.to_dict())))
     for filename, data in files:
@@ -1118,7 +1195,7 @@ def prepare_disposable_root_bmp_delete(backup_directory, output_directory):
     core.transaction.preserve(output / "transaction", source="host-only-disposable-root-bmp-delete")
     artifacts = tuple(OperationArtifact.file(output / name) for name, _ in files) + (
         OperationArtifact.backup_manifest(core.backup.directory),)
-    provisional = RootBmpDeletePreparation(binding, artifacts, output, b"")
+    provisional = RootBmpDeletePreparation(binding, artifacts, output, b"", target_path)
     report = _json(provisional._report())
     with (output / "preparation.json").open("xb") as stream:
         stream.write(report)

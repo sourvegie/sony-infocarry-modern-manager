@@ -1,0 +1,16 @@
+{
+  "format": "infocarry-disposable-root-bmp-fixture-v1",
+  "device_model": "Sony VNW-V15",
+  "path": "root\\IC_P18_047_DELETE_B.bmp",
+  "bytes": 10302,
+  "sha256": "c172a44bb01de67abb3146b2bad89abe524963cf9ca56fc911bb4430dac70e82",
+  "bitmap": {"width": 237, "height": -320, "bits_per_pixel": 1, "compression": 0},
+  "record_offset": "0x6c0",
+  "native_flag": "0xe0",
+  "native_prefix_selector": "0x100",
+  "native_prefix_bytes": 16,
+  "required_anchor": "root\\IC_P18_043_DELETE_A.txt",
+  "required_anchor_offset": "0x680",
+  "physical_operations_authorized": false,
+  "general_bmp_execution_enabled": false
+}

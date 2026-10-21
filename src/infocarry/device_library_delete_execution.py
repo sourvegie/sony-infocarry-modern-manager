@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import threading
+import hashlib
 from typing import Callable, Sequence
 
 from .desktop import DesktopWorkflowModel, InventoryRow
@@ -18,9 +19,9 @@ from .delete_workflow import (
     ExperimentalRootTxtDeleteFacade, RootTxtDeleteBundle,
     ROOT_TXT_DELETE_VALIDATION_FILES, validate_root_txt_delete_name,
     build_root_txt_delete, root_txt_delete_execution_supported,
-    ROOT_BMP_DELETE_FIXTURE_PATH, ROOT_BMP_DELETE_FIXTURE_BYTES,
-    ROOT_BMP_DELETE_FIXTURE_SHA256, build_experimental_root_bmp_delete,
-    root_bmp_delete_execution_supported,
+    ROOT_BMP_DELETE_FIXTURE_PATH, build_experimental_root_bmp_delete,
+    root_bmp_delete_execution_supported, root_bmp_delete_validation_supported,
+    ROOT_BMP_DELETE_VALIDATION_FILES, ROOT_BMP_DELETE_VALIDATION_OFFSETS,
 )
 from .library_transfer_execution import OwnerAuthorizedOperationIdentity
 from .library_transfer_runtime_provider import PinnedRootTxtRuntime
@@ -53,6 +54,7 @@ class DeviceDeleteSelection:
 def select_device_library_delete(
     model: DesktopWorkflowModel, offsets: Sequence[int], *, device_model: str = "VNW-V15",
     allow_general_txt: bool = False, allow_exact_bmp: bool = False,
+    bmp_validation_target: str | None = None,
 ) -> DeviceDeleteSelection:
     """Cheap UI admission; fresh backup/candidate validation happens off Tk."""
     if device_model != "VNW-V15":
@@ -70,10 +72,14 @@ def select_device_library_delete(
     if row.extension == "bmp":
         if not allow_exact_bmp:
             raise DeviceLibraryDeleteError("Root-level BMP deletion is unavailable.")
-        if (row.display_name != ROOT_BMP_DELETE_FIXTURE_PATH
-                or row.payload_bytes != len(ROOT_BMP_DELETE_FIXTURE_BYTES)
-                or row.payload_sha256 != ROOT_BMP_DELETE_FIXTURE_SHA256
-                or row.read_state != "unread" or row.record_offset != 0x680):
+        payload = ROOT_BMP_DELETE_VALIDATION_FILES.get(row.display_name)
+        if (payload is None
+                or (row.display_name != ROOT_BMP_DELETE_FIXTURE_PATH
+                    and row.display_name != bmp_validation_target)
+                or row.payload_bytes != len(payload)
+                or row.payload_sha256 != hashlib.sha256(payload).hexdigest()
+                or row.read_state != "unread"
+                or row.record_offset != ROOT_BMP_DELETE_VALIDATION_OFFSETS[row.display_name]):
             raise DeviceLibraryDeleteError("Only the exact unread disposable root BMP validated for this experiment is eligible.")
         bmp_validation = True
     elif row.extension != "txt":
@@ -124,7 +130,7 @@ class DeviceLibraryDeleteService:
     """Own one UI attempt while delegating all safety decisions to P18-041."""
 
     def __init__(self, runtime_factory: Callable[[], PinnedRootTxtRuntime], *, validation_target: str | None = None):
-        if validation_target is not None and validation_target not in ROOT_TXT_DELETE_VALIDATION_FILES:
+        if validation_target is not None and validation_target not in (*ROOT_TXT_DELETE_VALIDATION_FILES, *ROOT_BMP_DELETE_VALIDATION_FILES):
             raise DeviceLibraryDeleteError("Validation requires one predetermined disposable target.")
         self.validation_target = validation_target
         self._runtime_factory = runtime_factory
@@ -135,25 +141,25 @@ class DeviceLibraryDeleteService:
 
     def select(self, model, offsets, *, device_model="VNW-V15"):
         return select_device_library_delete(model, offsets, device_model=device_model,
-                                            allow_general_txt=True, allow_exact_bmp=True)
+                                            allow_general_txt=True, allow_exact_bmp=True,
+                                            bmp_validation_target=self.validation_target)
 
     def execution_available(self, selection):
+        if self.validation_target is not None and selection.row.display_name != self.validation_target:
+            return False
         if selection.validation_bmp:
             if (selection.row.display_name != ROOT_BMP_DELETE_FIXTURE_PATH
-                    or selection.row.payload_bytes != len(ROOT_BMP_DELETE_FIXTURE_BYTES)
-                    or selection.row.payload_sha256 != ROOT_BMP_DELETE_FIXTURE_SHA256
-                    or selection.row.read_state != "unread"
-                    or selection.row.record_offset != 0x680):
+                    and selection.row.display_name != self.validation_target):
                 return False
             try:
-                core = build_experimental_root_bmp_delete(selection.backup_directory)
+                core = build_experimental_root_bmp_delete(selection.backup_directory,
+                    target_path=selection.row.display_name)
                 return (core.target_record_offset == selection.row.record_offset
-                        and root_bmp_delete_execution_supported(core))
+                        and (root_bmp_delete_execution_supported(core)
+                             or root_bmp_delete_validation_supported(core)))
             except (OSError, ValueError, WriteGateError, AttributeError, TypeError):
                 return False
         if selection.row.extension.lower() == "bmp":
-            return False
-        if self.validation_target is not None and selection.row.display_name != self.validation_target:
             return False
         if self.validation_target is not None:
             payload = ROOT_TXT_DELETE_VALIDATION_FILES.get(self.validation_target)
