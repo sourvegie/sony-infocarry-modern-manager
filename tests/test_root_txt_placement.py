@@ -14,6 +14,8 @@ from infocarry.library_transfer_execution import OwnerAuthorizedOperationIdentit
 from infocarry.root_txt_placement import (
     RootTxtPlacementFacade, CONFIRMATION, FIXTURE_FILENAME, FIXTURE_PATH, FIXTURE_BYTES,
 )
+from infocarry.delete_workflow import ROOT_BMP_DELETE_FIXTURE_BYTES, ROOT_BMP_DELETE_FIXTURE_FILENAME, ROOT_BMP_DELETE_FIXTURE_PATH
+from infocarry.backup_format import calculate_backup_checksum
 from infocarry.p18_041h_experiment import _validate_fixture_prestage_report
 from infocarry.write_protocol import REQUEST_COMPLETION, REQUEST_BEGIN_TRANSMIT
 try:
@@ -27,11 +29,21 @@ except ModuleNotFoundError:
 
 
 class RootPlacementTests(unittest.TestCase):
-    def setup_case(self, *, backend_options=None, reconnect=False, equivalence_device=None):
+    def setup_case(self, *, backend_options=None, reconnect=False, equivalence_device=None, media="txt"):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
-        state = {"blob": _make_root_blob(), "fixed": None, "closed": False,
+        blob = _make_root_blob()
+        if media == "bmp":
+            from test_backup_duplicate import make_nested_blob
+            bmp_blob = bytearray(make_nested_blob(ROOT_BMP_DELETE_FIXTURE_BYTES, prefix_length=16))
+            bmp_blob[0x141:0x144] = b"bmp"
+            bmp_blob[0x1c:0x20] = bytes(4)
+            bmp_blob[0x1c:0x20] = calculate_backup_checksum(bmp_blob).to_bytes(4, "big")
+            blob = bytes(bmp_blob)
+        bmp_zero_state = ({command: bytes(64) for command in (0x001B, 0x001C, 0x001D, 0x001E, 0x001F)}
+                          if media == "bmp" else None)
+        state = {"blob": blob, "fixed": bmp_zero_state, "closed": False,
                  "session": "selected-session-A", "captures": [], "capacity": _response(),
                  "after_bad": False, "timestamp_calls": 0}
         class Backend(WorkflowBackend):
@@ -47,8 +59,8 @@ class RootPlacementTests(unittest.TestCase):
             def close(self):
                 state["backend_closed"] = True
         backend = Backend(**(backend_options or {}))
-        source = root / FIXTURE_FILENAME
-        source.write_bytes(FIXTURE_BYTES)
+        source = root / (ROOT_BMP_DELETE_FIXTURE_FILENAME if media == "bmp" else FIXTURE_FILENAME)
+        source.write_bytes(ROOT_BMP_DELETE_FIXTURE_BYTES if media == "bmp" else FIXTURE_BYTES)
         claims = PersistentExecutionClaimStore(root / "claims.sqlite3")
         lock = PersistentIndeterminateWriteLock(root / "lock.json")
         def same(token):
@@ -76,6 +88,12 @@ class RootPlacementTests(unittest.TestCase):
         facade = RootTxtPlacementFacade(runtime)
         return root, source, state, backend, facade, claims, lock
 
+    def prepare_bmp(self, case):
+        case[2]["bundle"] = case[4].prepare(
+            case[1], target_path=ROOT_BMP_DELETE_FIXTURE_PATH,
+            validation_placement=True, placement_media="bmp")
+        return case[2]["bundle"]
+
     def prepare(self, case):
         case[2]["bundle"] = case[4].prepare(case[1])
         return case[2]["bundle"]
@@ -101,6 +119,54 @@ class RootPlacementTests(unittest.TestCase):
         self.no_send_or_claim(case,bundle)
         case[4].discard_prepared_operation()
         self.assertTrue(case[2]["closed"])
+
+    def test_experimental_root_bmp_bundle_is_sealed_and_scoped_to_one_file(self):
+        case = self.setup_case(media="bmp")
+        bundle = self.prepare_bmp(case)
+        bundle.verify_seal()
+        self.assertEqual(bundle.operation_profile,
+                         "vnw-v15-disposable-root-bmp-placement-validation-v1")
+        self.assertEqual(bundle.owner_confirmation_phrase,
+                         f"ADD {ROOT_BMP_DELETE_FIXTURE_FILENAME} ONCE")
+        self.assertEqual(bundle.candidate.core.audit["target"]["path"], ROOT_BMP_DELETE_FIXTURE_PATH)
+        self.assertEqual(bundle.candidate.core.audit["target"]["native_prefix_length"], 16)
+        self.assertEqual(bundle.authorization.to_dict()["format"],
+                         "infocarry-disposable-root-bmp-placement-authorization-v1")
+        self.assertEqual(bundle.review_dict()["fixture"]["sha256"],
+                         __import__("hashlib").sha256(ROOT_BMP_DELETE_FIXTURE_BYTES).hexdigest())
+        self.no_send_or_claim(case, bundle)
+
+    def test_experimental_root_bmp_uses_existing_one_shot_guard_and_readback(self):
+        case = self.setup_case(media="bmp")
+        bundle = self.prepare_bmp(case)
+        identity = case[4].owner_authorization_identity
+        self.assertEqual(identity.approval_phrase,
+                         f"ADD {ROOT_BMP_DELETE_FIXTURE_FILENAME} ONCE")
+        case[4].authorize_prepared_operation(identity.approval_phrase)
+        confirmation = f"ADD {ROOT_BMP_DELETE_FIXTURE_FILENAME} ONCE"
+        result = case[4].execute_once(confirmation_interaction=lambda _: confirmation)
+        self.assertEqual(result.completion, 0)
+        self.assertEqual(result.audit["workflow"]["sender_calls"], 1)
+        self.assertEqual(sum(call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
+                             for call in case[3].calls), 1)
+        self.assertIsNotNone(case[5].read_claim(bundle.seal_sha256))
+        self.assertIsNone(case[5].read_sender_in_flight())
+        verification = result.verification.to_dict()["exact_path_and_payload_verification"]
+        self.assertEqual(verification["only_path_delta"], ROOT_BMP_DELETE_FIXTURE_PATH)
+        self.assertTrue(verification["unrelated_payloads_unchanged"])
+        self.assertTrue(verification["surviving_timestamps_unchanged"])
+
+    def test_experimental_root_bmp_ambiguous_sender_sets_global_lock_without_retry(self):
+        case = self.setup_case(media="bmp", backend_options={"fail_bulk_at": 1})
+        bundle = self.prepare_bmp(case)
+        self.approve(case)
+        with self.assertRaises(Exception) as raised:
+            case[4].execute_once(confirmation_interaction=lambda _: bundle.authorization.core.confirmation_phrase)
+        self.assertEqual(raised.exception.state, "indeterminate_after_transaction_start")
+        self.assertTrue(case[6].path.is_file())
+        self.assertEqual(sum(call[0] == "control_out" and call[1] == REQUEST_BEGIN_TRANSMIT
+                             for call in case[3].calls), 1)
+        self.assertIsNotNone(case[5].read_sender_in_flight())
 
     def test_changed_name_payload_nested_model_rejected(self):
         variants = ["name", "payload", "nested", "model"]

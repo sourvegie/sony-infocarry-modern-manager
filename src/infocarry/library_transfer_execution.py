@@ -472,9 +472,13 @@ class OwnerAuthorizedOperationIdentity:
     def __post_init__(self) -> None:
         _require_phrase(self.operation_id, "owner-authorized operation id")
         if self.readable_confirmation_phrase is not None:
-            _require_phrase(self.readable_confirmation_phrase, "root Delete confirmation")
-            if self.operation_id != "root-txt-delete-" + self.bundle_sha256:
-                raise ValueError("readable root Delete confirmation requires its sealed operation")
+            _require_phrase(self.readable_confirmation_phrase, "sealed operation confirmation")
+            if self.operation_id not in {
+                "root-txt-delete-" + self.bundle_sha256,
+                "root-bmp-delete-" + self.bundle_sha256,
+                "root-bmp-placement-" + self.bundle_sha256,
+            }:
+                raise ValueError("readable confirmation requires its sealed root operation")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("owner authorization is not bound to the reviewed VNW-V15")
         for label, value in (

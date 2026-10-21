@@ -4975,7 +4975,7 @@ def launch_ttk_desktop(
         invalidate_library_transfer_review_if_stale()
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         export_button.configure(state="normal" if selected and worker is None else "disabled")
-        delete_message = "Select one supported root-level TXT file."
+        delete_message = "Select one supported root-level file."
         delete_allowed = False
         try:
             delete_selection = device_delete_service.select(model, selected)

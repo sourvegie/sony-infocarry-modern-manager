@@ -11,7 +11,12 @@ from infocarry.device_library_delete_execution import (
     DeviceLibraryDeleteError, DeviceLibraryDeleteService, select_device_library_delete,
     load_verified_delete_result, delete_failure_message,
 )
-from infocarry.delete_workflow import ROOT_TXT_DELETE_CONFIRMATION
+from infocarry.delete_workflow import (
+    ROOT_TXT_DELETE_CONFIRMATION, ROOT_BMP_DELETE_FIXTURE_BYTES,
+    ROOT_BMP_DELETE_FIXTURE_PATH, ROOT_BMP_DELETE_FIXTURE_SHA256,
+)
+from infocarry.backup_format import calculate_backup_checksum, parse_backup_blob
+from infocarry.backup_repack import rename_existing_record
 from infocarry.device_model_profile import VNW_V15_PROFILE
 from infocarry.p18_041h_experiment import FIXTURE_PATH, FIXTURE_SHA256
 from infocarry.protocol import TransferCancelledError
@@ -22,6 +27,44 @@ try:
 except ModuleNotFoundError:
     from tests import test_experimental_root_txt_delete as experimental_helpers
     from tests.test_new_txt import _write_archive
+try:
+    from test_delete_hardening import _make_root_siblings
+except ModuleNotFoundError:
+    from tests.test_delete_hardening import _make_root_siblings
+
+
+def _bmp_delete_fixture_at_supported_offset():
+    """Build the exact disposable BMP at native record offset 0x680."""
+    payloads = [f"unrelated {index:02d}\r\n".encode() for index in range(24)]
+    payloads[-1] = ROOT_BMP_DELETE_FIXTURE_BYTES
+    parsed = parse_backup_blob(_make_root_siblings(payloads))
+    metadata = bytearray(parsed.data[:parsed.header.content_start])
+    content = bytearray()
+    for row in parsed.records:
+        if row.kind != 'file':
+            continue
+        prefix, payload = parsed.payload_parts(row)
+        metadata[row.offset + 4:row.offset + 8] = len(content).to_bytes(4, 'big')
+        if row.offset == 0x680:
+            metadata[row.offset] = 0xe0
+            metadata[row.offset + 1:row.offset + 4] = b'bmp'
+            metadata[row.offset + 20:row.offset + 24] = (0x100).to_bytes(4, 'big')
+            prefix = prefix[:16]
+        content.extend(prefix + payload)
+        content.extend(b'\0' * (-len(content) % 4))
+    total = len(metadata) + len(content) + 4
+    metadata[0x18:0x1c] = (total - 1).to_bytes(4, 'big')
+    metadata[0x34:0x38] = len(content).to_bytes(4, 'big')
+    metadata[0x38:0x3c] = total.to_bytes(4, 'big')
+    blob = bytearray(metadata + content + b'\xff' * 4)
+    blob[0x1c:0x20] = calculate_backup_checksum(blob).to_bytes(4, 'big')
+    result = rename_existing_record(parse_backup_blob(bytes(blob)), 0x680,
+                                    ROOT_BMP_DELETE_FIXTURE_PATH.rsplit('\\', 1)[-1][:-4])
+    target = parse_backup_blob(result).record_at(0x680)
+    assert parse_backup_blob(result).paths[0x680] == ('root', 'IC_P18_046_DELETE_A')
+    assert parse_backup_blob(result).payload_parts(target)[1] == ROOT_BMP_DELETE_FIXTURE_BYTES
+    assert ROOT_BMP_DELETE_FIXTURE_SHA256 == __import__('hashlib').sha256(ROOT_BMP_DELETE_FIXTURE_BYTES).hexdigest()
+    return result
 
 
 class DeviceLibraryDeleteExecutionTests(unittest.TestCase):
@@ -82,6 +125,91 @@ class DeviceLibraryDeleteExecutionTests(unittest.TestCase):
                 select_device_library_delete(model, offsets)
         with self.assertRaises(DeviceLibraryDeleteError):
             select_device_library_delete(model, (row.record_offset,), device_model='VNW-V10')
+
+    def test_exact_disposable_bmp_uses_one_guarded_delete_and_refreshes_library(self):
+        helper = experimental_helpers.ExperimentalRootTxtDeleteTests(
+            'test_exact_candidate_inverse_preserves_timestamps_and_is_claim_free')
+        self.addCleanup(helper.doCleanups)
+        case = helper.setup_case()
+        state, backend = case[2], case[3]
+        state['blob'] = _bmp_delete_fixture_at_supported_offset()
+        state['fixture_blob'] = state['blob']
+        state['fixed'] = {command: bytes(64) for command in range(0x1b, 0x20)}
+        baseline = case[0] / 'displayed-bmp-backup'
+        _write_archive(baseline, state['blob'], datetime.now(timezone.utc), fixed_state=state['fixed'])
+        model = DesktopWorkflowModel()
+        model.load_backup(baseline)
+        selection = select_device_library_delete(model, (0x680,), allow_exact_bmp=True)
+        self.assertEqual(selection.row.display_name, ROOT_BMP_DELETE_FIXTURE_PATH)
+        self.assertEqual(selection.row.payload_sha256, ROOT_BMP_DELETE_FIXTURE_SHA256)
+        self.assertTrue(selection.validation_bmp)
+        service = DeviceLibraryDeleteService(lambda: case[4].runtime)
+        self.addCleanup(service.discard)
+        self.assertTrue(service.execution_available(selection))
+        prepared = service.prepare(selection)
+        state['bundle'] = prepared.bundle
+        self.assertEqual(prepared.confirmation_message.splitlines()[0],
+                         'Delete IC_P18_046_DELETE_A.bmp from Sony InfoCarry VNW-V15?')
+        for visible in ('Operation: Delete', 'Deletion modifies device storage', 'Backup is not undo'):
+            self.assertIn(visible, prepared.confirmation_message)
+        for internal in ('SHA-256', prepared.bundle.seal_sha256, 'claim', 'marker', '0x101b'):
+            self.assertNotIn(internal, prepared.confirmation_message)
+        self.assertEqual(prepared.bundle.operation_profile,
+                         'vnw-v15-exact-disposable-root-bmp-delete-validation-v1')
+        self.assertEqual(prepared.bundle.candidate.core.target_record_offset, 0x680)
+        result = service.execute_once(prepared, confirmed=True)
+        self.assertEqual(result.completion, 0)
+        self.assertEqual(result.audit['workflow']['sender_calls'], 1)
+        self.assertEqual(sum(call[0] == 'control_out' for call in backend.calls), 1)
+        self.assertIsNone(case[5].read_sender_in_flight())
+        self.assertIsNotNone(case[5].read_claim(prepared.bundle.seal_sha256))
+        self.assertIsNone(case[6].read(VNW_V15_PROFILE.lock_key))
+        summary = load_verified_delete_result(model, result)
+        self.assertEqual(summary.directory, result.after_backup.directory)
+        self.assertNotIn(ROOT_BMP_DELETE_FIXTURE_PATH, [row.display_name for row in model.rows()])
+        self.assertEqual(model.state.source_blob_sha256, prepared.bundle.candidate_blob_sha256)
+        verification = result.verification.to_dict()['exact_path_and_payload_verification']
+        self.assertEqual(verification['only_removed_path'], ROOT_BMP_DELETE_FIXTURE_PATH)
+        self.assertTrue(verification['surviving_timestamps_preserved'])
+        self.assertTrue(verification['unrelated_payloads_unchanged'])
+
+    def test_bmp_disconnect_after_sender_start_is_single_attempt_and_keeps_global_lock(self):
+        helper = experimental_helpers.ExperimentalRootTxtDeleteTests(
+            'test_exact_candidate_inverse_preserves_timestamps_and_is_claim_free')
+        self.addCleanup(helper.doCleanups)
+        case = helper.setup_case(backend_options={'fail_bulk_at': 2})
+        state, backend = case[2], case[3]
+        state['blob'] = _bmp_delete_fixture_at_supported_offset()
+        state['fixed'] = {command: bytes(64) for command in range(0x1b, 0x20)}
+        baseline = case[0] / 'displayed-bmp-disconnect-backup'
+        _write_archive(baseline, state['blob'], datetime.now(timezone.utc), fixed_state=state['fixed'])
+        model = DesktopWorkflowModel(); model.load_backup(baseline)
+        selection = select_device_library_delete(model, (0x680,), allow_exact_bmp=True)
+        service = DeviceLibraryDeleteService(lambda: case[4].runtime)
+        self.addCleanup(service.discard)
+        prepared = service.prepare(selection)
+        state['bundle'] = prepared.bundle
+        with self.assertRaises(Exception) as error:
+            service.execute_once(prepared, confirmed=True)
+        self.assertEqual(error.exception.state, 'indeterminate_after_transaction_start')
+        self.assertEqual(sum(call[0] == 'control_out' for call in backend.calls), 1)
+        self.assertIsNotNone(case[5].read_claim(prepared.bundle.seal_sha256))
+        self.assertIsNotNone(case[5].read_sender_in_flight())
+        self.assertIsNotNone(case[6].read(VNW_V15_PROFILE.lock_key))
+        self.assertIn(ROOT_BMP_DELETE_FIXTURE_PATH, [row.display_name for row in model.rows()])
+
+    def test_exact_bmp_ui_admission_rejects_changed_payload_path_offset_or_read_state(self):
+        data = self.setup_case()
+        _, model, _, _ = data
+        from infocarry.desktop import InventoryRow
+        row = InventoryRow(record_offset=0x680, path='root\\IC_P18_046_DELETE_A', kind='file', extension='bmp',
+            payload_bytes=len(ROOT_BMP_DELETE_FIXTURE_BYTES), payload_sha256=ROOT_BMP_DELETE_FIXTURE_SHA256,
+            read_state='unread')
+        for changed in (replace(row, payload_sha256='0' * 64), replace(row, record_offset=0x6c0),
+                        replace(row, path='root\\nested\\IC_P18_046_DELETE_A.bmp'),
+                        replace(row, read_state='read')):
+            with patch.object(model, 'rows', return_value=(changed,)), self.assertRaises(DeviceLibraryDeleteError):
+                select_device_library_delete(model, (changed.record_offset,), allow_exact_bmp=True)
 
     def test_ambiguous_path_and_offset_rejected(self):
         _, model, selection, _ = self.setup_case()

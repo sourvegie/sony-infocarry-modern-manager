@@ -1,6 +1,77 @@
 # Current Project Status
 
-Date: 2026-10-12
+Date: 2026-10-21
+
+## P18-046 — exact disposable root-BMP Delete physically validated
+
+The isolated task branch starts at published sanitized `d344f1e59664f38ebb8c3a3219c72b6eea8f79cd`,
+verified against fetched GitHub main on October 17 JST. Only the reviewed BMP
+source/test/fixture patch was ported; no original branch ancestry was imported.
+The implementation is byte-identical to original reviewed head `93a437c`.
+Original P18-034 and P18-046 checkouts and evidence remain preserved.
+
+The exact disposable unread/16-byte-prefix BMP has an offline direct-root
+candidate builder and a bounded placement adapter through the existing
+root-placement facade and guarded one-shot lifecycle. On October 21, the exact
+placement was owner-authorized and physically completed once: native `0x0000`,
+one sender, no retries, complete independent post-backup, and preservation of
+unrelated content and protected state. The payload is 10,302 bytes with SHA-256
+`2701eb9214e2f0afec20b36c93ef739ef3bce35e931fd8c5721e15915447b26d`, at record
+offset `0x680`.
+
+The Device Library Delete path admits only this exact root BMP, exact payload,
+unread `0xe0` state, `0x100` selector/16-byte `ff` prefix, and record offset
+`0x680`. It reuses the reviewed candidate builder, immutable operation
+identity, existing authorization/claim/marker/global-lock lifecycle, guarded
+sender, no-retry handling, complete independent readback, and Device Library
+refresh. On October 21, the separately authorized Delete completed once with
+native `0x0000`, one sender/`0x101b`, zero retries, and a complete independent
+eight-object post-backup. The exact target was the only removed path; all 454
+surviving records, payloads, timestamps, protected state, and auxiliary
+associations passed readback. The post-delete archive is byte-identical to the
+frozen candidate and preserved pre-placement baseline. The one-shot claim is
+consumed, the sender marker is terminally resolved and absent, and the global
+lock is clear. Independent USB bus tracing was not captured.
+
+The physical result justifies the **exact disposable root-BMP profile only**.
+It does not enable other BMPs, record positions, states, nested files, VNW-V10,
+or recovery. The exact file is now absent from the device; a future operation
+still requires it to be present and a fresh exact preflight plus the normal
+owner confirmation. Independent exact-head R3 review of
+`2125278960c3754c7eeef34769b67e979f1f9f60` passed with P0/P1/P2=0/0/0. The
+reviewed implementation is unchanged. Other BMPs, record positions, states,
+nesting, VNW-V10, and recovery remain unavailable.
+
+The exact disposable VNW-V15 placement target is `root\\IC_P18_046_DELETE_A.bmp`,
+10,302 bytes, SHA-256
+`2701eb9214e2f0afec20b36c93ef739ef3bce35e931fd8c5721e15915447b26d`. The
+initial independent R3 review found one P1 protected-reference gap and one P2
+overlapping-allocation gap. Both were corrected and passed exact-head R3 review
+at `3b525d833ad572ddc3d5dd9cfabb5084bfd2f9ef`, P0/P1/P2=0/0/0. The exact
+disposable placement and Delete are complete and independently verified.
+The legacy UTM staging observation is not required for this host candidate;
+the earlier ScreenCaptureKit `-3811` attempt exposed no Manager state and is
+not treated as evidence. No new safety architecture has been introduced.
+General BMP Delete remains disabled and no other BMP may enter this exact-file
+experiment. Root-TXT behavior is unchanged.
+
+[Continuation and review packet](analysis/p18-046-sanitized-continuation-20261017.md),
+[bounded placement procedure](analysis/p18-046-native-root-bmp-placement-proposal-20261017.md),
+and [root-BMP exact-head R3 report](analysis/p18-046-root-bmp-placement-r3-review-20261017.md).
+The exact disposable Delete review is recorded in
+[its independent R3 report](analysis/p18-046-root-bmp-delete-r3-review-20261021.md).
+The initial implementation test run reported **1,217 tests run, 1,212 passed,
+five established skips**. After correction, the focused suite passes **52 tests
+with two established skips**. The current full portable suite passes **1,222
+tests with five established skips**; the independent reviewer reran it and the
+focused BMP/Delete suites (60 passed). The macOS package build, plist and
+code-signature checks pass. The local frozen runtime smoke remains unavailable
+from this isolated checkout: direct launch aborted with status 134 and
+LaunchServices returned `-10827` (`kLSNoExecutableErr`) for the temporary
+bundle despite its executable being present. This matches the previously
+recorded `/private/tmp` Tk/AppKit and LaunchServices limitation; it is not
+counted as a passing runtime smoke or as evidence of an application
+regression. No push or merge has occurred.
 
 ## P18-045 — physical gap validation, root-TXT promotion and disposable cleanup COMPLETE
 

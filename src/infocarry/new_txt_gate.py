@@ -88,11 +88,12 @@ class NewTxtAddAuthorization:
             raise NewTxtGateError("authorization does not contain the new-TXT confirmation phrase")
 
     def to_dict(self) -> dict[str, Any]:
+        is_bmp = self.target_path.lower().endswith(".bmp")
         return {
-            "format": "infocarry-new-root-txt-gate-v1",
+            "format": "infocarry-new-root-bmp-gate-v1" if is_bmp else "infocarry-new-root-txt-gate-v1",
             "state": "authorized_for_future_writer_only",
             "usb_transmission_performed": False,
-            "operation": "add_one_root_txt",
+            "operation": "add_one_root_bmp" if is_bmp else "add_one_root_txt",
             "device": {
                 "vendor_id": self.device_identity[0],
                 "product_id": self.device_identity[1],

@@ -1,0 +1,27 @@
+{
+  "format": "infocarry-disposable-root-bmp-fixture-v1",
+  "model": "VNW-V15",
+  "path": "root\\IC_P18_046_DELETE_A.bmp",
+  "bytes": 10302,
+  "sha256": "2701eb9214e2f0afec20b36c93ef739ef3bce35e931fd8c5721e15915447b26d",
+  "bmp": {
+    "width": 237,
+    "height": 320,
+    "bits_per_pixel": 1,
+    "compression": "BI_RGB",
+    "dib_header_bytes": 40,
+    "pixel_offset": 62,
+    "row_stride": 32,
+    "orientation": "bottom_up",
+    "palette": "black_then_white"
+  },
+  "proposed_host_record": {
+    "flag": "0xe0",
+    "native_prefix_selector": "0x100",
+    "native_prefix_bytes": 16,
+    "target_references_allowed": false
+  },
+  "evidence_class": "synthetic_host_specimen_not_native_root_proof",
+  "physical_operations_authorized": false,
+  "live_adapter_available": false
+}
