@@ -51,10 +51,36 @@ private evidence were preserved.
 **READY_FOR_HARDWARE_TEST only for the exact B procedure** in the
 [delivery record](p18-047-root-bmp-nested-delete-20261022.md), requiring fresh
 complete state/capacity and separate owner approval for each of its four writes.
-No P18-047 hardware operation has been performed or authorized.
+At this original offline review checkpoint no P18-047 hardware operation had
+been performed or authorized. Subsequent separately authorized results follow.
 
 Ordinary root-BMP admission and individual nested TXT/BMP deletion remain
 **HOST-ONLY / NOT PHYSICALLY DEMONSTRATED / NOT LIVE-ENABLED**. There is no
 automatic class promotion from either host tests or future physical success.
 The exact P18-046 disposable profile retains its existing physical scope;
 VNW-V10 and interrupted-write recovery remain unsupported.
+
+
+## October 23 JST — independent physical-result closeout
+
+All four separately owner-authorized frozen operations were independently
+reviewed after actual execution: A32 placement, B placement, B Delete and A32
+cleanup. Each post-operation review passed **P0/P1/P2=0/0/0**, independently
+checking the saved complete backups and hashes, exact candidates/transactions,
+owner binding, native `0x0000`, one audited sender/transaction, zero retries,
+path/payload/timestamp/protected-state preservation and terminal safety state.
+B was confirmed at serialized `0x6c0` with A32 at `0x680`. Final cleanup removed
+only A32; every final raw object directly matches the original complete baseline
+by bytes, length and rehashed digest. All four claims were consumed once,
+markers resolved/absent, and the global lock remained clear and unchanged.
+
+The reviewer independently inspected actual terminal Manager screenshots for
+B Delete and A32 cleanup: refreshed verified backup, removed-target search empty,
+Delete disabled and verified-success footer. No reviewer USB operation or GUI
+input was used. No independent bus trace is claimed. Source remained unchanged
+at `ed76e7990faf77b181726ff56f0debfccc0f3389`; raw evidence and independent
+reports remain outside Git. Their hashes are indexed in the
+[physical delivery record](p18-047-root-bmp-nested-delete-20261022.md).
+
+This closes the exact B experiment and disposable cleanup. It does not enable
+ordinary BMP or nested deletion, or constitute a new class-promotion R3 review.

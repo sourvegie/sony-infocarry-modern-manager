@@ -12,8 +12,9 @@ final objects match the original pre-placement state. The physical proof is
 limited to the exact unread BMP at serialized `0x680`, native completion zero,
 one sender, no retry, and independent readback. See the
 [P18-046 physical record](p18-046-root-bmp-delete-physical-validation-20261021.md).
-This task performs no USB command or physical write and touches no production
-claim, marker, or lock.
+The original offline engineering checkpoint performed no USB command or
+physical write and touched no production claim, marker, or lock. Subsequent
+separately owner-authorized physical execution is recorded below.
 
 ## Ordinary root-BMP host admission
 
@@ -38,8 +39,10 @@ candidate, protected-state derivation, transaction and host authorization model:
 Ordinary BMP sender binding and normal UI execution remain blocked. The
 existing `prepare_root_bmp_delete.py inspect --backup ... --target ...` command
 provides offline candidate inspection with explicit unavailable execution.
-The P18-046 exact fixture gate remains the only physically demonstrated BMP
-operation. Ordinary TXT behavior and candidate bytes/audits are retained.
+The P18-046 exact fixture remains the only normal-UI BMP gate. The additional
+P18-047 exact B profile was subsequently physically demonstrated in explicit
+validation mode, as recorded below. Ordinary TXT behavior and candidate
+bytes/audits are retained.
 
 ## Individual nested-file model
 
@@ -156,6 +159,69 @@ those approvals. Success would trigger a bounded evidence/R3 assessment of the
 ordinary unread root-BMP envelope; there is no automatic class-enabling switch.
 Nested TXT/BMP physical validation remains a later separately scoped operation.
 
+## Physical execution and final cleanup — October 23 JST
+
+The owner separately approved each of the four frozen operations. The reviewed
+implementation remained unchanged at `ed76e7990faf77b181726ff56f0debfccc0f3389`.
+Every operation returned native **`0x0000`**, with exactly **one audited guarded
+sender / single `0x101b` transaction**, **zero automatic retries**, a fresh
+complete pre-operation backup and complete independent post-operation readback.
+No independent USB bus trace was captured; counts are execution-audit evidence.
+
+| Operation | Actual serialized target | Verified result |
+| --- | --- | --- |
+| Add `IC_P18_043_DELETE_A.txt` | `0x680`, exact canonical 32-byte A32 | Sole addition; 300 existing payload/prefix pairs and 454 timestamps preserved |
+| Add `IC_P18_047_DELETE_B.bmp` | `0x6c0`, exact manifest 10,302-byte B | Sole addition; A32 intact; 301 existing payload/prefix pairs and 455 timestamps preserved |
+| Delete B through Device Library | `0x6c0`; 26 survivor records before, 429 after | Sole removal; all eight objects match actual verified A32 placement state; 301 survivor payload/prefix pairs and 455 timestamps preserved |
+| Delete A32 through Device Library | `0x680` | Sole removal; all eight objects match original pre-experiment baseline; 300 survivor payload/prefix pairs and 454 timestamps preserved |
+
+Every readback also verified checksum/structure, protected state and supported
+auxiliary associations. Actual A32 archive SHA-256 was
+`5b37577aa61e2903affef62608e9b954a545e41afc5de908973e2173fdcadb1f`;
+actual B archive SHA-256 was
+`78cb68973ba97ccebc362240467326c431d199122f2b01be48da7fbc583197b4`.
+B deletion returned the A32 archive exactly. Final cleanup archive SHA-256
+`6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8`
+matches the original 2,210,432-byte archive and its frozen deletion candidate.
+All eight final raw objects, including fixed state, capacity and blob probe,
+match the original complete baseline. Both disposable files are absent.
+These are actual operation results, distinct from the fixed-timestamp offline
+simulation above; placement timestamp differences explain their different hashes.
+
+Each operation consumed its own exact claim once. All four sender markers were
+terminally resolved and are absent. The final read-only safety inspection found
+24 historical consumed claims, with the previous 23 unchanged by cleanup, no
+in-flight marker, and the clear global lock byte-identical to pre-operation
+state. Frozen bundles, owner approvals, raw before/after backups, result audits,
+terminal-resolution reports, independent reports and actual GUI screenshots
+remain outside Git without alteration.
+
+Sanitized evidence anchors (SHA-256):
+
+| Operation | Complete post-backup manifest | Independent post-operation report |
+| --- | --- | --- |
+| A32 placement | `46da21e4aa5bce05138406e660ca9cce9661a9bdb60d56ec5ce0b5c7d6fe4952` | `3a3f850f067b7d400f6767b3221d1f238575e442ccd8a9d011a1de9d91c8dc5b` |
+| B placement | `a6d86925968545c1ffb80540e969b7877564658d30f9ce30e71d66ea05c8aed7` | `517244f74cc952ce8dafe8270e6f0ad05a15de57c8851e53298c2f6b130c72dd` |
+| B Delete | `204bbb10ce606325e44d6ccd3a5f06e6da7d87a56f42d96ba9595c097f1ba9d9` | `5d8a152989381d0b68a74a580abcdf73376117d1996a4c6ad0e3182eec446de0` |
+| A32 cleanup | `a468e63b795263612749d740bd732b0f5493633427e6bebc9b1086fcfd4d29d3` | `153cd1a759a31b570b830cff2a4f7cbf5854c19383d2fca8d0eda4c4c3247eda` |
+
+The actual Manager screenshots confirm the refreshed verified post-backup,
+empty search for the removed target, disabled Delete and verified-completion
+footer. Single Delete/Cancel confirmations were used; no typed fingerprint or
+new approval mechanism was introduced.
+
+Together with P18-046, this adds a second exact BMP payload, top-down orientation
+and serialized position `0x6c0` with survivors on both sides, using the same
+unread `0xe0` / `0x100` selector / 16-byte all-`ff` prefix profile. It supports
+a bounded assessment of ordinary unread root-BMP admission; it is not physical
+proof of every host-admitted file. No capability gate changes accompany this
+closeout: ordinary BMP and all nested Delete remain host-only, B remains an
+explicit exact-fixture validation route, and P18-046 retains its existing exact
+normal-UI profile. Read/32-prefix BMP states, directories/subtrees, VNW-V10 and
+interrupted-write recovery remain unsupported. Any class promotion requires a
+separate reviewed decision and owner approval; no further experiment is run
+automatically.
+
 ## Sanitized snapshot port and preservation
 
 The original temporary repository has five missing ancestor root tree objects
@@ -186,8 +252,8 @@ tip; no push or merge is authorized here.
 
 P18-034's branch, status and all 1,043 dirty-file hashes were independently
 checked unchanged. The sibling evidence archive and all private hardware data
-remain read-only and outside Git. No USB command or physical operation occurred
-in P18-047. The next operator action is fresh read-only preflight and preparation
-of the exact A anchor placement for separate authorization. Ordinary BMP and all
-nested Delete stay host-only; only the named B validation procedure is
-READY_FOR_HARDWARE_TEST after its required fresh checks and approvals.
+remain outside Git. The original offline checkpoint performed no physical
+operation; the later separately authorized experiment and final cleanup are
+complete as recorded above. No additional hardware action is pending in this
+procedure. Ordinary BMP and all nested Delete stay host-only pending their
+separately approved capability/validation work.

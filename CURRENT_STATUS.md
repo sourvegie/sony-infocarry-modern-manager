@@ -1,6 +1,6 @@
 # Current Project Status
 
-Date: 2026-10-22
+Date: 2026-10-23
 
 
 ## P18-047 — root-BMP host expansion and nested-file models
@@ -13,7 +13,15 @@ CP932 names, unread `0xe0`, opaque field `0xffffffff`, selector `0x100` and
 structural/protected-state checks. Normal live admission remains exact P18-046
 fixture only. A second exact disposable B experiment is prepared behind the
 existing explicit validation mode at serialized `0x6c0`, with the proven A32 TXT
-anchor required at `0x680`; no write is authorized or performed.
+anchor required at `0x680`. The four separately owner-authorized placement,
+Delete and cleanup operations have now completed: each returned native
+`0x0000`, one audited sender/transaction, zero retries and complete independent
+eight-object readback. B was physically verified at `0x6c0`, with A32 intact at
+`0x680`. Final A32 cleanup returned all eight objects byte-for-byte to the
+original pre-experiment baseline; both disposables are absent. Claims are
+consumed, markers resolved/absent and the global lock remains clear. The
+additional B payload/orientation/position is demonstrated only in explicit
+validation mode; ordinary BMP and nested live admission remain disabled.
 
 Individual nested TXT/BMP now has a host-only candidate and independent verifier
 that preserve parents, siblings, ordering, markers, payloads and timestamps,
@@ -34,10 +42,13 @@ new isolated repository at `/private/tmp/p18-047-sanitized-delivery`, based only
 on published sanitized `d344f1e` and independently checked exact snapshot ports.
 No missing/unsanitized task ancestry was imported. Complete Git integrity and
 outgoing-file/commit-metadata scans pass. The original branch references,
-P18-034's 1,043 dirty files, and private evidence are preserved. No USB
-operation, production safety-state mutation, push or merge occurred. The exact
-B procedure is **READY_FOR_HARDWARE_TEST** only after separate operation-specific
-approvals; ordinary BMP and nested Delete remain host-only.
+P18-034's 1,043 dirty files, and private evidence are preserved. The original
+offline engineering checkpoint performed no USB or production safety-state
+mutation. The later authorized physical experiment is recorded in the delivery
+record; no push or merge occurred. The reviewed source remains `ed76e799`;
+physical closeout changes documentation only. Ordinary BMP class promotion
+requires a separate reviewed capability decision and owner approval; nested
+Delete remains host-only. No independent USB bus trace was captured.
 
 ## P18-046 — exact disposable root-BMP Delete physically validated
 
