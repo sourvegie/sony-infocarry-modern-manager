@@ -183,7 +183,7 @@ actual B archive SHA-256 was
 B deletion returned the A32 archive exactly. Final cleanup archive SHA-256
 `6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8`
 matches the original 2,210,432-byte archive and its frozen deletion candidate.
-All eight final raw objects, including fixed state, capacity and blob probe,
+All eight final raw objects, including fixed state, the `0x0024` response and blob probe,
 match the original complete baseline. Both disposable files are absent.
 These are actual operation results, distinct from the fixed-timestamp offline
 simulation above; placement timestamp differences explain their different hashes.
