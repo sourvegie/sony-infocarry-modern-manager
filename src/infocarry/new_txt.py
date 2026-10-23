@@ -1,4 +1,4 @@
-"""Offline construction and comparison of one new root-level TXT record.
+"""Offline construction and comparison of one new template-backed TXT record.
 
 This is the first Milestone F candidate boundary.  It starts from a complete
 verified backup, uses the existing template-backed metadata rewriter, and
@@ -38,6 +38,7 @@ from .write_state import StateSerializationError, rebase_fixed_state_responses
 
 
 NEW_ROOT_TXT_FORMAT = "infocarry-offline-new-root-txt-v1"
+NEW_NESTED_TXT_FORMAT = "infocarry-offline-new-nested-txt-v1"
 _DYNAMIC_BLOB_KEY = "0x8004:backup-blob"
 _FIXED_STATE_KEYS = (
     "0x001b:response-001b",
@@ -301,7 +302,7 @@ class NewTxtComparison:
         }
 
 
-def build_new_root_txt_add(
+def _build_new_txt_add(
     backup_directory: Path,
     source_path: Path,
     target_filename: str,
@@ -314,8 +315,10 @@ def build_new_root_txt_add(
     now: Optional[datetime] = None,
     max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
     fresh_new_allocation: bool = False,
+    target_directory_path: tuple[str, ...] = ("root",),
+    target_directory_offset: Optional[int] = None,
 ) -> NewTxtAddResult:
-    """Build one root-level TXT candidate without mutating any input.
+    """Build one bounded template-backed TXT candidate without mutating input.
 
     ``available_capacity_bytes`` is an explicit safe budget supplied by the
     caller. It is not inferred from a blob length or a response whose capacity
@@ -358,20 +361,53 @@ def build_new_root_txt_add(
     root = parsed.record_at(parsed.header.metadata_start)
     if root.kind != "directory" or root.name != "root":
         raise NewTxtAddError("fresh backup does not have the required root directory")
+    nested = target_directory_path != ("root",)
+    if nested:
+        if (not isinstance(target_directory_path, tuple) or len(target_directory_path) < 2
+                or target_directory_path[0] != "root"
+                or any(not isinstance(part, str) or not part for part in target_directory_path)
+                or type(target_directory_offset) is not int
+                or parsed.paths.get(target_directory_offset) != target_directory_path):
+            raise NewTxtAddError("nested parent must match one exact reachable directory path and offset")
+        parent = parsed.record_at(target_directory_offset)
+        if parent.kind != "directory" or parent.name == "..":
+            raise NewTxtAddError("nested parent must be an existing ordinary directory")
+        if (record_timestamp_be32 is None or metadata_timestamps is not None
+                or not fresh_new_allocation):
+            raise NewTxtAddError("nested placement requires a frozen new timestamp and fresh allocation; existing timestamps must remain exact")
+        if any(path[:-1] == target_directory_path and path[-1].casefold() == basename.casefold()
+               for path in parsed.paths.values()):
+            raise NewTxtAddError("nested target conflicts with an existing native sibling")
+    else:
+        target_directory_offset = parsed.header.metadata_start
     if any(
-        path == ("root", basename)
+        path == target_directory_path + (basename,)
         and parsed.record_at(offset).extension.lower() == "txt"
         for offset, path in parsed.paths.items()
     ):
         raise NewTxtAddError(f"duplicate root-level TXT target: {target_filename!r}")
-    template, template_path = _resolve_template(parsed, source_template_offset)
+    if nested:
+        if type(source_template_offset) is not int:
+            raise NewTxtAddError("source_template_offset must be an integer")
+        try:
+            template = parsed.record_at(source_template_offset)
+            template_path = parsed.paths.get(source_template_offset)
+            prefix, _ = parsed.payload_parts(template)
+        except BackupFormatError as exc:
+            raise NewTxtAddError(f"nested TXT template is invalid: {exc}") from exc
+        if (template_path is None or template.kind != "file" or template.extension != "txt"
+                or template.flag != 0xe0 or template.field_10_be32 != 0xffffffff
+                or template.field_14_be32 != 0x200 or len(prefix) != 32):
+            raise NewTxtAddError("nested placement requires an ordinary unread TXT template with its captured 32-byte native prefix")
+    else:
+        template, template_path = _resolve_template(parsed, source_template_offset)
     if template.name.casefold() == basename.casefold():
         raise NewTxtAddError("target filename would reuse the source template name")
 
     try:
         candidate_blob = add_file_from_template(
             parsed,
-            parsed.header.metadata_start,
+            target_directory_offset,
             source_template_offset,
             basename,
             authored_payload,
@@ -383,7 +419,7 @@ def build_new_root_txt_add(
     except (BackupDuplicateError, BackupFormatError, OverflowError) as exc:
         raise NewTxtAddError(f"template-backed TXT construction failed: {exc}") from exc
 
-    target_path = ("root", basename)
+    target_path = target_directory_path + (basename,)
     target_offsets = [offset for offset, path in candidate.paths.items() if path == target_path]
     if len(target_offsets) != 1:
         raise NewTxtAddError("candidate did not contain exactly one new root-level TXT record")
@@ -399,6 +435,16 @@ def build_new_root_txt_add(
     metadata_delta = candidate.header.metadata_length - parsed.header.metadata_length
     if metadata_delta != parsed.header.record_size:
         raise NewTxtAddError("candidate metadata growth is not exactly one record")
+    if nested:
+        from .delete_model import DeleteModelError, build_one_nested_file_delete_model
+        try:
+            restored = build_one_nested_file_delete_model(
+                candidate, "\\".join(target_path) + ".txt", target_offset,
+            )
+        except DeleteModelError as exc:
+            raise NewTxtAddError(f"nested placement inverse verification failed: {exc}") from exc
+        if restored.candidate_blob != baseline_blob:
+            raise NewTxtAddError("nested placement/delete does not restore the exact baseline blob")
     state_insertion_offset = target_offset - parsed.header.metadata_start
     try:
         state_before = tuple(
@@ -413,6 +459,21 @@ def build_new_root_txt_add(
         )
     except StateSerializationError as exc:
         raise NewTxtAddError(f"fixed-state reference rebasing failed closed: {exc}") from exc
+
+    if nested:
+        from .prepared_fixed_state import PreparedFixedStateError, assess_prepared_fixed_state
+        try:
+            snapshot = assess_prepared_fixed_state(
+                backup, allow_verified_display_history=True, allow_verified_bookmarks=True,
+            ).require_supported()
+            protected, _history, _bookmarks = snapshot.rebase_auxiliary_state(
+                parsed, candidate, insertion_offset=state_insertion_offset,
+                metadata_delta=metadata_delta,
+            )
+            if protected.candidate_raw_blocks != tuple(rebased_offset_lists) + (rebased_grouped,):
+                raise NewTxtAddError("nested placement protected state disagrees with the existing rebase")
+        except PreparedFixedStateError as exc:
+            raise NewTxtAddError(f"nested placement protected-state verification failed: {exc}") from exc
 
     transaction = _build_transaction(
         candidate_blob,
@@ -431,7 +492,7 @@ def build_new_root_txt_add(
         raise NewTxtAddError("candidate allocation padding is outside the observed 0..3-byte range")
 
     audit: dict[str, Any] = {
-        "format": NEW_ROOT_TXT_FORMAT,
+        "format": NEW_NESTED_TXT_FORMAT if nested else NEW_ROOT_TXT_FORMAT,
         "state": "offline_only",
         "usb_transmission_performed": False,
         "device_identity": {
@@ -449,7 +510,7 @@ def build_new_root_txt_add(
             "newline_policy": "crlf",
         },
         "target": {
-            "path": "root\\" + target_filename,
+            "path": "\\".join(target_directory_path) + "\\" + target_filename,
             "record_offset_hex": _hex(target_offset),
             "record_flag_hex": _hex(target.flag),
             "extension": target.extension,
@@ -504,11 +565,67 @@ def build_new_root_txt_add(
             "The supplied capacity budget is an external safe bound; device capacity-field semantics are not inferred.",
         ],
     }
+    if nested:
+        audit["parent"] = {"path": "\\".join(target_directory_path),
+                           "record_offset_hex": _hex(target_directory_offset)}
+        audit["preservation"]["inverse_nested_delete_exact_baseline"] = True
+        audit["safety"] = {"host_only": True, "physical_behavior_proven": False,
+                           "general_nested_delete_enabled": False}
+        audit["assumptions"][0] = "The existing captured TXT template and directory insertion model prepare one host-only nested leaf; no physical nested placement or delete behavior is claimed."
     if fresh_new_allocation:
         audit["allocation"]["fresh_new_allocation"] = True
     audit_bytes = json.dumps(audit, sort_keys=True, separators=(",", ":")).encode("utf-8")
     audit["audit_sha256"] = _sha256(audit_bytes)
     return NewTxtAddResult(candidate_blob=candidate_blob, transaction=transaction, audit=audit)
+
+
+
+def build_new_root_txt_add(
+    backup_directory: Path, source_path: Path, target_filename: str, *,
+    source_template_offset: int, available_capacity_bytes: Optional[int],
+    source_encoding: str = "cp932", record_timestamp_be32: Optional[int] = None,
+    metadata_timestamps: Optional[Mapping[int, int]] = None,
+    now: Optional[datetime] = None,
+    max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+    fresh_new_allocation: bool = False,
+) -> NewTxtAddResult:
+    """Build the established root-level TXT candidate without changing its scope."""
+    return _build_new_txt_add(
+        backup_directory, source_path, target_filename,
+        source_template_offset=source_template_offset,
+        available_capacity_bytes=available_capacity_bytes, source_encoding=source_encoding,
+        record_timestamp_be32=record_timestamp_be32, metadata_timestamps=metadata_timestamps,
+        now=now, max_age_seconds=max_age_seconds, fresh_new_allocation=fresh_new_allocation,
+    )
+
+
+def build_new_nested_txt_add(
+    backup_directory: Path, source_path: Path, target_filename: str, *,
+    target_directory_path: tuple[str, ...], target_directory_offset: int,
+    source_template_offset: int, available_capacity_bytes: Optional[int],
+    record_timestamp_be32: int, source_encoding: str = "cp932",
+    now: Optional[datetime] = None,
+    max_age_seconds: Optional[float] = DEFAULT_MAX_AGE_SECONDS,
+) -> NewTxtAddResult:
+    """Prepare one disposable unread nested TXT using the existing insertion model.
+
+    This USB-neutral builder grants no authorization or production capability.
+    It requires an exact existing nested parent, fresh new allocation, immutable
+    survivor timestamps, supported auxiliary state, and byte-exact restoration
+    of the original blob by the independently checked nested-delete model.
+    The caller must separately bind fresh native capacity and guarded execution.
+    """
+    if (not isinstance(target_directory_path, tuple) or len(target_directory_path) < 2
+            or target_directory_path[0] != "root"):
+        raise NewTxtAddError("nested parent must be an exact path below root")
+    return _build_new_txt_add(
+        backup_directory, source_path, target_filename,
+        source_template_offset=source_template_offset,
+        available_capacity_bytes=available_capacity_bytes, source_encoding=source_encoding,
+        record_timestamp_be32=record_timestamp_be32, now=now, max_age_seconds=max_age_seconds,
+        fresh_new_allocation=True, target_directory_path=target_directory_path,
+        target_directory_offset=target_directory_offset,
+    )
 
 
 def _normalized_blob(data: bytes, parsed: ParsedBackupBlob) -> bytes:
@@ -606,9 +723,11 @@ def compare_new_txt_candidate(
 
 __all__ = [
     "NEW_ROOT_TXT_FORMAT",
+    "NEW_NESTED_TXT_FORMAT",
     "NewTxtAddError",
     "NewTxtAddResult",
     "NewTxtComparison",
     "build_new_root_txt_add",
+    "build_new_nested_txt_add",
     "compare_new_txt_candidate",
 ]

@@ -17,7 +17,7 @@ from infocarry.delete_workflow import (
     build_experimental_root_txt_delete, ExperimentalRootTxtDeleteFacade,
     ROOT_TXT_DELETE_CONFIRMATION, EXPERIMENTAL_ROOT_TXT_DELETE_PROFILE,
     build_root_txt_delete, ROOT_TXT_DELETE_HOST_PROFILE, ROOT_TXT_DELETE_VALIDATION_FILES,
-    ROOT_BMP_DELETE_VALIDATION_FILES,
+    ROOT_BMP_DELETE_VALIDATION_FILES, NESTED_TXT_DELETE_VALIDATION_PATH,
 )
 
 
@@ -27,7 +27,7 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, help="new directory outside the repository, offline mode only")
     parser.add_argument("--allow-write", action="store_true", help="separately owner-authorized physical experiment")
     parser.add_argument("--target", help="ordinary root TXT path for offline preparation only")
-    parser.add_argument("--manager-validation-target", choices=(*ROOT_TXT_DELETE_VALIDATION_FILES, *ROOT_BMP_DELETE_VALIDATION_FILES),
+    parser.add_argument("--manager-validation-target", choices=(*ROOT_TXT_DELETE_VALIDATION_FILES, *ROOT_BMP_DELETE_VALIDATION_FILES, NESTED_TXT_DELETE_VALIDATION_PATH),
         help="separately authorized disposable validation through the normal Manager Delete UI")
     args = parser.parse_args(argv)
     if not args.allow_write:

@@ -89,11 +89,14 @@ class NewTxtAddAuthorization:
 
     def to_dict(self) -> dict[str, Any]:
         is_bmp = self.target_path.lower().endswith(".bmp")
+        is_nested_txt = not is_bmp and len(self.target_path.split("\\")) > 2
         return {
-            "format": "infocarry-new-root-bmp-gate-v1" if is_bmp else "infocarry-new-root-txt-gate-v1",
+            "format": "infocarry-new-nested-txt-gate-v1" if is_nested_txt else
+                      "infocarry-new-root-bmp-gate-v1" if is_bmp else "infocarry-new-root-txt-gate-v1",
             "state": "authorized_for_future_writer_only",
             "usb_transmission_performed": False,
-            "operation": "add_one_root_bmp" if is_bmp else "add_one_root_txt",
+            "operation": "add_one_nested_txt" if is_nested_txt else
+                         "add_one_root_bmp" if is_bmp else "add_one_root_txt",
             "device": {
                 "vendor_id": self.device_identity[0],
                 "product_id": self.device_identity[1],

@@ -477,8 +477,10 @@ class OwnerAuthorizedOperationIdentity:
                 "root-txt-delete-" + self.bundle_sha256,
                 "root-bmp-delete-" + self.bundle_sha256,
                 "root-bmp-placement-" + self.bundle_sha256,
+                "nested-txt-delete-" + self.bundle_sha256,
+                "nested-txt-placement-" + self.bundle_sha256,
             }:
-                raise ValueError("readable confirmation requires its sealed root operation")
+                raise ValueError("readable confirmation requires its sealed operation")
         if self.device_identity != ("0x054c", "0x001e"):
             raise ValueError("owner authorization is not bound to the reviewed VNW-V15")
         for label, value in (
