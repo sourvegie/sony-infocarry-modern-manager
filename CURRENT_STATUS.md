@@ -26,7 +26,10 @@ No physical operation, push or merge is performed in P18-048. The corrected
 portable suite passed **1,256 run / 1,251 passed / five established skips**;
 72 focused regressions and 37 TXT regressions passed, plus 24 report/expansion
 tests after a metadata correction. Package build/signature/runtime smoke pass.
-Validation and final independent R3 results are recorded in the
+Independent exact-head R3 passed **P0/P1/P2=0/0/0** at source
+`3a4f3a77aa20b0bd36858b86d2b3066bd064c0ed`; final report changes are documentation
+only. No additional physical experiment is essential for this reviewed scope.
+Validation and independent review are recorded in the
 [P18-048 delivery record](analysis/p18-048-root-bmp-promotion-20261023.md).
 
 ## P18-047 — root-BMP host expansion and nested-file models

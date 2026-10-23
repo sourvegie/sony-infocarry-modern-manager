@@ -88,9 +88,13 @@ A nonblocking review comment identified historical missing-proof labels in the
 standalone offline preparation report. They now record completed fixture
 validation and still require a fresh guarded operation/owner confirmation.
 The report/expansion regression passed 24 tests after that metadata-only change.
-It grants no execution authority. Final exact-head R3 disposition follows in
-its independent report; no material safety finding was identified in the
-critical implementation review.
+It grants no execution authority. Final independent exact-head R3 is **PASS,
+P0/P1/P2=0/0/0** at source `3a4f3a77aa20b0bd36858b86d2b3066bd064c0ed`.
+No material safety correction round was required. The reviewer independently
+ran the 72 focused and 24 final report/expansion tests and inspected the actual
+completed full-suite/package/runtime logs. See the
+[independent R3 report](p18-048-independent-r3-review-20261023.md).
+Final report updates change documentation only.
 
 The macOS package build, plist and strict/deep ad-hoc signature checks pass.
 The existing frozen runtime smoke passed outside the sandbox with its isolated
