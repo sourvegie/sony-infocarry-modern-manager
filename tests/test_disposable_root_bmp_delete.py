@@ -107,6 +107,8 @@ class DisposableRootBmpDeleteTests(unittest.TestCase):
             report = json.loads(prepared.report_json)
             self.assertFalse(report['physical_operation_authorized'])
             self.assertFalse(report['owner_approval_identity_created'])
+            self.assertEqual(report['physical_fixture_validation'], 'completed')
+            self.assertEqual(report['missing_proof'], ['fresh_guarded_operation_and_owner_confirmation'])
             self.assertEqual(report['host_binding']['state'], 'authorized_for_host_review_only')
             for binding in (prepared.authorization, replace(prepared.authorization, target_extension='txt')):
                 with self.assertRaisesRegex(GeneralizedDeleteError, 'host-only'):

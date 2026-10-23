@@ -1174,9 +1174,8 @@ class RootBmpDeletePreparation:
                             "flag": "0xe0", "native_prefix_bytes": 16},
                 "host_binding": self.authorization.to_dict(),
                 "artifacts": [artifact.to_dict() for artifact in self.artifacts],
-                "missing_proof": (["broader_root_bmp_class_physical_validation"]
-                                  if self.target_path == ROOT_BMP_DELETE_FIXTURE_PATH else
-                                  ["separately_authorized_expansion_placement_and_delete"])}
+                "physical_fixture_validation": "completed",
+                "missing_proof": ["fresh_guarded_operation_and_owner_confirmation"]}
 
     def verify(self):
         if type(self.authorization) is not GeneralizedDeleteAuthorization or self.authorization.target_extension != "bmp":

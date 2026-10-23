@@ -22,8 +22,11 @@ no retry and independent readback remain unchanged. Nested deletion remains
 host-only; the existing offline preparation script now inspects one nested
 TXT/BMP candidate without any transaction or authorization. Sequential host
 removals also verify preserved ancestors/siblings/markers/protected state.
-No physical operation, push or merge is performed in P18-048. Implementation
-validation and exact-head independent R3 results are recorded in the
+No physical operation, push or merge is performed in P18-048. The corrected
+portable suite passed **1,256 run / 1,251 passed / five established skips**;
+72 focused regressions and 37 TXT regressions passed, plus 24 report/expansion
+tests after a metadata correction. Package build/signature/runtime smoke pass.
+Validation and final independent R3 results are recorded in the
 [P18-048 delivery record](analysis/p18-048-root-bmp-promotion-20261023.md).
 
 ## P18-047 — root-BMP host expansion and nested-file models
