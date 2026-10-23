@@ -12,8 +12,12 @@ protected-state verification feed the existing sealed bundle, claim, sender,
 lock and no-retry lifecycle. Ordinary nested Delete stays disabled; only the
 exact specimen is recognized in explicit validation mode. Root TXT/BMP gates
 remain unchanged. Offline archive replay returns all eight objects exactly to
-baseline with two operations and no setup/cleanup write. Independent R3, fresh
-read-only scope freeze and the sole task-level hardware approval remain pending.
+baseline with two operations and no setup/cleanup write. Final source `2835e795` passes independent exact-source R3 (P0/P1/P2=0/0/0),
+1,275 portable tests (1,270 passed/five established skips), package/signature and
+isolated runtime/native GUI smokes. Fresh read-only preflight freezes parent
+`0x700`, target `0x880`, 34-byte fixture and maximum two sender invocations in
+envelope `eae6909886fbbfc10ab2e21d7e773c71ea9624ab1843f837960d7466648200a5`.
+**READY_FOR_HARDWARE_TEST**; the sole task-level owner approval is pending.
 No physical write, push or merge. See the [P18-049 record](analysis/p18-049-nested-txt-delete-20261024.md).
 
 ## P18-048 — Experimental unread root-BMP Delete promotion

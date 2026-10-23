@@ -10,7 +10,9 @@ satisfy the existing per-operation owner/confirmation gates after their exact
 bundles are frozen; no extra human approval is required for listed intermediate
 writes. A mismatch stops the task and permits no recovery/cleanup write.
 General nested Delete remains disabled; physical success cannot promote it
-automatically. Initial code checkpoint: `85b50b7` (independent review pending).
+automatically. Final reviewed executable source: `2835e79599618376b2b28594809e9ed8e4673cae`.
+Disposition: **READY_FOR_HARDWARE_TEST**, pending the single owner approval;
+no listed device write has been authorized or executed.
 
 Published `origin/main` was independently queried before branching and matched
 `25bfddda7232617f7fc84ada4c44c9440306b584`. Isolated branch:
@@ -114,5 +116,75 @@ requires a revised reviewed plan before asking for hardware approval.
 New focused tests: 19 passed (placement, exact Delete, task envelope/replay).
 Additional root TXT/BMP and exact validation focused regression: 41 passed.
 Full portable suite, independent exact-code-head R3 and final package/runtime
-results are recorded in the closeout below when finished. A successful fake
+results are recorded in the closeout below. A successful fake
 transport or archive replay is host evidence only. No physical write has occurred.
+
+## Final reviewed checkpoint and frozen approval scope
+
+Final source `2835e79599618376b2b28594809e9ed8e4673cae` passed the complete
+portable suite: **1,275 run, 1,270 passed, five established skips**, 236.352s.
+All 19 new focused tests pass. The independent reviewer additionally ran 98
+root/nested/reference/state/Device Library regressions and reran the 19 new
+cases at final source. Independent exact-source R3: **P0/P1/P2 = 0/0/0**.
+The sole P3 audit-label observation was corrected and re-reviewed; no candidate,
+transaction or authority behavior changed. See the [independent review](p18-049-independent-r3-review-20261024.md).
+Compile and diff checks pass. The final macOS package builds and passes strict
+signature validation. Its isolated frozen-runtime smoke passes with all physical
+and production safety counters zero. A native Tk exact nested-Delete smoke shows
+one real Delete/Cancel dialog containing the full path, one fake sender and
+verified refresh; real USB and production-runtime creation are forbidden in
+that smoke. These are host/UI checks, not a physical Delete result.
+
+After validation and source review, the final read-only native preflight used
+the existing VNW-V15 runtime only to query capacity and capture a complete backup.
+It accepted no owner authorization and entered no sender. The fresh state still
+has the actual Section-A parent at `0x700`; the exact placement predicts target
+`0x880`, baseline 2,210,432 bytes, candidate 2,210,564 bytes, native capacity
+3,145,728 bytes. The host timestamp is frozen below. Both candidate/transaction
+hashes match the actual sealed read-only placement and independently rebuilt
+Delete. All eight simulated final objects match the actual fresh baseline.
+Production safety snapshots before/after are identical: 24 historical consumed
+claims, zero sender markers and the unchanged clear global lock.
+
+The immutable external envelope is
+`/private/tmp/p18-049-fresh-readonly-20261024-02/frozen-task/task-envelope.json`.
+Raw backups, sealed transactions, capacity bytes and private read-only preparation
+remain outside Git. Its SHA-256 is:
+
+`eae6909886fbbfc10ab2e21d7e773c71ea9624ab1843f837960d7466648200a5`
+
+Fixture: 34 exact CP932/CRLF bytes, SHA-256
+`aa1cecbacdeb3daa43c1b162aee68c7d3ad87f89f98874b61db0c02569984975`.
+Target prefix SHA-256: `d0bcc6bc85dc36cdc1ad3882952c5d3d4414869c0bdd75b3b58ba28a32deb92a`.
+Placement timestamp: `1792768350` (only the new record).
+Baseline complete manifest SHA-256: `88b4567b32bd174311e9eb0cc089d1fff5a97bbbf73a521f0abac49b9e80c2e9`.
+
+| Ordered write | Candidate dynamic SHA-256 | Transaction SHA-256 |
+| --- | --- | --- |
+| 1. Place exact TXT | `a0d28fbbd8ce6bd354df9f91ccf0088c045f84053178e9f4523c6de615933475` | `cfb0950d09b19458d7a6dc1a8c9d7203e7db08f8097f1845d00088db6ac25560` |
+| 2. Delete same TXT | `6d50eb4c5276d194069be92b4b352fe2cb625ed2b1972de27ea9af8a410b46b8` | `e5831e0e363cab494c3f4aa859763808fa5a7676b01c6fd4ddb15edd4d58c452` |
+
+The executor must pin the placement runtime's `new_record_timestamp_be32` callable
+to the envelope's frozen timestamp; a new wall-clock value is not interchangeable.
+Before accepting each existing operation identity, compare source fixture,
+model, current complete object-state identity, native capacity, target/parent
+identity and predicted candidate/transaction with this envelope. The second
+operation starts only from independently verified successful placement. Fresh
+backup manifest times and temporary host paths may differ in just-in-time
+bundles; native object state and the frozen predicted bytes must match exactly.
+Each write rewrites the complete candidate library image through one existing
+canonical transaction, even though its logical path delta is one small file.
+
+One owner approval of **this exact envelope** covers both ordered operations and
+their existing internal owner/confirmation gates. It permits at most two sender
+invocations total, zero retries, no extra setup/cleanup/recovery write and no
+capability promotion. New or changed state aborts the task; it does not silently
+amend this envelope. Ordinary nested Delete remains disabled until physical
+success and a separately explicit reviewed promotion decision.
+
+The isolated branch remains local. Sanitized ancestry, Git integrity and outgoing
+text/metadata audits pass; the known excluded private JSON object is absent.
+No pre-sanitization history or raw device evidence is imported. P18-034's original
+HEAD, status and all 1,107 observed dirty-path hashes are preserved. Final
+checkpoint changes after the reviewed source are documentation only. No physical
+write, push or merge has occurred.
