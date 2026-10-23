@@ -115,8 +115,11 @@ class DisposableRootBmpDeleteTests(unittest.TestCase):
                     bind_generalized_delete_sender(binding, core)
             model = DesktopWorkflowModel(); model.load_backup(core.backup.directory)
             service = DeviceLibraryDeleteService(lambda: self.fail('BMP opened a runtime'))
-            with self.assertRaises(ValueError):
-                service.select(model, [core.target_record_offset])
+            selection = service.select(model, [core.target_record_offset])
+            self.assertTrue(selection.general_bmp)
+            self.assertTrue(service.execution_available(selection))
+            # The standalone host preparation still grants no sender/runtime;
+            # ordinary UI admission requires a newly frozen guarded operation.
 
     def test_absent_wrong_name_read_state_and_prefix_refuse_before_output(self):
         for mode in ('absent', 'wrong_name', 'read', 'prefix32'):

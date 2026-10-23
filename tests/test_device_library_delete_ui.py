@@ -7,6 +7,7 @@ import ast
 import inspect
 import queue
 import threading
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -89,6 +90,8 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
             dialogs.append(message)
             return confirmed() if callable(confirmed) else confirmed
         env = dict(
+            tk=SimpleNamespace(PhotoImage=lambda **_kwargs: SimpleNamespace(put=lambda *_args, **_kw: None),
+                               TclError=RuntimeError),
             model=model, tree=tree, tree_items={'target': selection.row.record_offset},
             worker=None, device_delete_active=False, device_delete_evidence=None,
             library_device_change_in_progress=False, library_operation_token=None,
@@ -122,11 +125,14 @@ class DeviceLibraryDeleteUITests(unittest.TestCase):
         action, close, state, show_selection, invalidate_review, replacement_action = callback_harness(env)
         def drain():
             # Each callback is delivered on this test's main thread, as with Tk.
+            deadline = time.monotonic() + 30
             while controller.busy or not posted.empty():
                 try:
-                    callback = posted.get(timeout=3)
+                    callback = posted.get(timeout=1)
                 except queue.Empty:
-                    self.fail('Delete worker did not deliver a terminal callback')
+                    if time.monotonic() >= deadline:
+                        self.fail('Delete worker did not deliver a terminal callback within 30 seconds')
+                    continue
                 callback()
         return SimpleNamespace(data=data, action=action, close=close, state=state, controller=controller,
             drain=drain, dialogs=dialogs, refreshes=refreshes, controls=controls, notices=notices,

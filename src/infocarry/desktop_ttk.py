@@ -5569,7 +5569,7 @@ def launch_ttk_desktop(
             "then choose Transfer. Existing items are never overwritten. A transfer may be "
             "planned offline even when that selection is not enabled for device transfer.\n\n"
             "Back Up saves a read-only snapshot. Backup is not Restore, and Restore is unavailable. "
-            "Delete is Experimental for the exact demonstrated root TXT file only; other files and folders remain unavailable.",
+            "Delete is Experimental for supported unread root-level TXT and BMP files; unsupported files, nested files and folders remain unavailable.",
             parent=root,
         )
 

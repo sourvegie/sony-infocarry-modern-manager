@@ -335,6 +335,44 @@ class NestedFileDeleteTests(unittest.TestCase):
             counts[row.extension] += 1
         self.assertEqual(counts, {"txt": 3, "bmp": 2})
 
+    def test_sequential_host_leaf_deletions_keep_ancestors_siblings_and_markers(self):
+        baseline = nested_library()
+        first = self.candidate(baseline, 0x1c0)
+        first_post = self.post(first)
+        verify_nested_file_delete_readback(first, first_post, completion=0, max_age_seconds=None)
+        after_first = parse_backup_blob(first.candidate_blob)
+        image_offset = next(o for o, p in after_first.paths.items() if p == ('root', 'folder', 'image'))
+        second = build_nested_file_delete_candidate(first_post, 'root\\folder\\image.bmp', image_offset,
+                                                   max_age_seconds=None)
+        verify_nested_file_delete_readback(second, self.post(second), completion=0, max_age_seconds=None)
+        final = parse_backup_blob(second.candidate_blob)
+        self.assertEqual(set(final.paths.values()),
+            {('root',), ('root','folder'), ('root','outside'),
+             ('root','folder','sub'), ('root','folder','sub','deep')})
+        self.assertEqual(sum(r.name == '..' for r in final.records),
+                         sum(r.name == '..' for r in parse_backup_blob(baseline).records))
+        self.assertFalse(hasattr(second, 'transaction'))
+
+    def test_nested_offline_inspection_command_opens_no_runtime(self):
+        import importlib.util, io, json
+        from contextlib import redirect_stdout
+        path = Path(__file__).resolve().parents[1]/'scripts/prepare_root_bmp_delete.py'
+        spec = importlib.util.spec_from_file_location('nested_delete_inspect', path)
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        for offset in (0x1c0, 0x240):
+            candidate = self.candidate(offset=offset)
+            out = io.StringIO()
+            with patch('infocarry.library_transfer_runtime_provider.ProductionLibraryTransferRuntimeProvider.for_current_application',
+                       side_effect=AssertionError('runtime opened')), redirect_stdout(out):
+                module.main(['inspect-nested', '--backup', str(candidate.backup.directory),
+                             '--target', candidate.target_path, '--record-offset', hex(offset)])
+            result = json.loads(out.getvalue())
+            self.assertEqual(result['candidate_sha256'], candidate.candidate_blob_sha256)
+            self.assertFalse(result['execution_available'])
+            self.assertFalse(result['physical_operation_authorized'])
+            self.assertEqual(result['usb_operations'], 0)
+            self.assertNotIn('transaction_sha256', result)
+
     def test_nonzero_missing_completion_and_incomplete_post_backup_refuse(self):
         candidate = self.candidate()
         for completion in (None, True, '0', 1):

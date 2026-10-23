@@ -1,8 +1,8 @@
 """Device Library integration of the existing exact guarded Delete operation.
 
 This is a product facade, not a second writer. It admits the reviewed unread
-root-TXT envelope and the single exact disposable root BMP validation target;
-other BMPs, nested files and directories remain unavailable. Every selection
+root-TXT and root-BMP envelopes, plus retained exact validation targets;
+unsupported BMPs, nested files and directories remain unavailable. Every selection
 is bound to the library image the user saw and compared with a new complete
 backup before approval. All execution authority remains in delete_workflow.
 """
@@ -19,7 +19,7 @@ from .delete_workflow import (
     ExperimentalRootTxtDeleteFacade, RootTxtDeleteBundle,
     ROOT_TXT_DELETE_VALIDATION_FILES, validate_root_txt_delete_name,
     build_root_txt_delete, root_txt_delete_execution_supported,
-    ROOT_BMP_DELETE_FIXTURE_PATH, build_experimental_root_bmp_delete,
+    ROOT_BMP_DELETE_FIXTURE_PATH, build_experimental_root_bmp_delete, build_root_bmp_delete,
     root_bmp_delete_execution_supported, root_bmp_delete_validation_supported,
     ROOT_BMP_DELETE_VALIDATION_FILES, ROOT_BMP_DELETE_VALIDATION_OFFSETS,
 )
@@ -45,6 +45,7 @@ class DeviceDeleteSelection:
     device_model: str = "VNW-V15"
     general_txt: bool = False
     validation_bmp: bool = False
+    general_bmp: bool = False
 
     @property
     def filename(self) -> str:
@@ -53,7 +54,7 @@ class DeviceDeleteSelection:
 
 def select_device_library_delete(
     model: DesktopWorkflowModel, offsets: Sequence[int], *, device_model: str = "VNW-V15",
-    allow_general_txt: bool = False, allow_exact_bmp: bool = False,
+    allow_general_txt: bool = False, allow_exact_bmp: bool = False, allow_general_bmp: bool = False,
     bmp_validation_target: str | None = None,
 ) -> DeviceDeleteSelection:
     """Cheap UI admission; fresh backup/candidate validation happens off Tk."""
@@ -69,29 +70,34 @@ def select_device_library_delete(
     if row.kind != "file" or len(row.path.split("\\")) != 2 or row.path.split("\\")[0] != "root":
         raise DeviceLibraryDeleteError("Root, system entries, folders and nested files cannot be deleted.")
     bmp_validation = False
+    general_bmp = False
     if row.extension == "bmp":
-        if not allow_exact_bmp:
+        if not allow_exact_bmp and not allow_general_bmp:
             raise DeviceLibraryDeleteError("Root-level BMP deletion is unavailable.")
+        if row.read_state != "unread":
+            raise DeviceLibraryDeleteError("Only supported unread root-level BMP files are eligible.")
         payload = ROOT_BMP_DELETE_VALIDATION_FILES.get(row.display_name)
-        if (payload is None
-                or (row.display_name != ROOT_BMP_DELETE_FIXTURE_PATH
-                    and row.display_name != bmp_validation_target)
-                or row.payload_bytes != len(payload)
-                or row.payload_sha256 != hashlib.sha256(payload).hexdigest()
-                or row.read_state != "unread"
-                or row.record_offset != ROOT_BMP_DELETE_VALIDATION_OFFSETS[row.display_name]):
-            raise DeviceLibraryDeleteError("Only the exact unread disposable root BMP validated for this experiment is eligible.")
-        bmp_validation = True
+        exact_bmp = (payload is not None
+            and (row.display_name == ROOT_BMP_DELETE_FIXTURE_PATH or row.display_name == bmp_validation_target)
+            and row.payload_bytes == len(payload)
+            and row.payload_sha256 == hashlib.sha256(payload).hexdigest()
+            and row.record_offset == ROOT_BMP_DELETE_VALIDATION_OFFSETS[row.display_name])
+        if exact_bmp and allow_exact_bmp:
+            bmp_validation = True
+        elif allow_general_bmp and bmp_validation_target is None:
+            general_bmp = True
+        else:
+            raise DeviceLibraryDeleteError("The exact disposable root BMP does not match this validation.")
     elif row.extension != "txt":
-        raise DeviceLibraryDeleteError("Only supported root-level TXT files or the exact disposable BMP are available.")
+        raise DeviceLibraryDeleteError("Only supported root-level TXT and BMP files are available.")
     if (sum(other.display_name.casefold() == row.display_name.casefold() for other in rows) != 1
             or sum(other.path.casefold() == row.path.casefold() for other in rows) != 1):
         raise DeviceLibraryDeleteError("The selected path is ambiguous. Delete is unavailable.")
-    if bmp_validation:
+    if bmp_validation or general_bmp:
         exact = False
     else:
         exact = row.display_name == FIXTURE_PATH and row.payload_bytes == 29 and row.payload_sha256 == FIXTURE_SHA256
-    if not exact and not bmp_validation and not allow_general_txt:
+    if not exact and not bmp_validation and not general_bmp and not allow_general_txt:
         raise DeviceLibraryDeleteError("General root-level TXT deletion still requires hardware validation.")
     if not exact:
         try:
@@ -101,11 +107,11 @@ def select_device_library_delete(
         if (type(row.payload_bytes) is not int or row.payload_bytes < 0
                 or not isinstance(row.payload_sha256, str) or len(row.payload_sha256) != 64
                 or any(c not in "0123456789abcdef" for c in row.payload_sha256)):
-            raise DeviceLibraryDeleteError("Selected TXT payload identity is incomplete.")
+            raise DeviceLibraryDeleteError("Selected file payload identity is incomplete.")
     if model.state.backup_directory is None or model.state.source_blob_sha256 is None:
         raise DeviceLibraryDeleteError("Load a complete backup before selecting Delete.")
     return DeviceDeleteSelection(model.state.backup_directory, model.state.source_blob_sha256,
-                                 row, device_model, not exact and not bmp_validation, bmp_validation)
+                                 row, device_model, not exact and not bmp_validation and not general_bmp, bmp_validation, general_bmp)
 
 
 @dataclass(frozen=True)
@@ -141,12 +147,22 @@ class DeviceLibraryDeleteService:
 
     def select(self, model, offsets, *, device_model="VNW-V15"):
         return select_device_library_delete(model, offsets, device_model=device_model,
-                                            allow_general_txt=True, allow_exact_bmp=True,
+                                            allow_general_txt=True, allow_exact_bmp=True, allow_general_bmp=True,
                                             bmp_validation_target=self.validation_target)
 
     def execution_available(self, selection):
         if self.validation_target is not None and selection.row.display_name != self.validation_target:
             return False
+        if selection.general_bmp:
+            try:
+                core = build_root_bmp_delete(selection.backup_directory, selection.row.display_name,
+                    target_record_offset=selection.row.record_offset)
+                # This builder already reconstructs and validates the complete
+                # conservative profile. The frozen bundle repeats admission
+                # before granting execution authority.
+                return core.target_record_offset == selection.row.record_offset
+            except (OSError, ValueError, RuntimeError, AttributeError, TypeError):
+                return False
         if selection.validation_bmp:
             if (selection.row.display_name != ROOT_BMP_DELETE_FIXTURE_PATH
                     and selection.row.display_name != self.validation_target):
@@ -199,6 +215,8 @@ class DeviceLibraryDeleteService:
             raise DeviceLibraryDeleteError("Validation permits only its named disposable target.", stage="admission")
         if self.validation_target is not None and not self.execution_available(selection):
             raise DeviceLibraryDeleteError("The named disposable validation payload or state is unsupported.", stage="admission")
+        if selection.general_bmp and not self.execution_available(selection):
+            raise DeviceLibraryDeleteError("The selected BMP structure or protected state is unsupported.", stage="admission")
         # Re-admit the exact selection from its immutable archive before opening
         # any runtime. Caller-created tokens cannot bypass capability admission.
         original = DesktopWorkflowModel()
@@ -217,7 +235,7 @@ class DeviceLibraryDeleteService:
                 general_txt=selection.general_txt,
                 validation_only=(self.validation_target is not None
                     and selection.general_txt and self.execution_available(selection)),
-                validation_bmp_only=selection.validation_bmp)
+                validation_bmp_only=selection.validation_bmp, general_bmp=selection.general_bmp)
             if (_backup_identity(bundle.before_backup) != identity
                     or bundle.candidate.core.target_record_offset != selection.row.record_offset):
                 raise DeviceLibraryDeleteError("Device contents changed since the displayed backup. Refresh Device Library.", stage="approval")

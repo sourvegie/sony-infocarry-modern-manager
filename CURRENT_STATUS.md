@@ -3,6 +3,29 @@
 Date: 2026-10-23
 
 
+## P18-048 — Experimental unread root-BMP Delete promotion
+
+The owner's approved P18-048 scope promotes the conservative unread VNW-V15
+root-BMP envelope after P18-046/047 physical evidence and independent assessment.
+Device Library uses the existing Select → Delete → one Delete/Cancel dialog →
+verified result/refresh workflow. Admission requires one unique safe native root
+BMP, unread `0xe0`, opaque `0xffffffff`, selector `0x100`, 16 all-FF prefix bytes,
+canonical 237×320 uncompressed monochrome payload, unreferenced target and all
+existing structural/protected-state checks. Names, payload pixels, orientation
+and valid serialized root slots vary within these checked invariants; physical
+specimens were at `0x680` and `0x6c0`. This wider envelope is an engineering
+inference supported by physical and offline evidence, not exhaustive live proof.
+
+Frozen source/candidate/transaction/owner binding, fresh complete backup/native
+capacity, reconnect-safe state equality, claims/markers/global lock, one sender,
+no retry and independent readback remain unchanged. Nested deletion remains
+host-only; the existing offline preparation script now inspects one nested
+TXT/BMP candidate without any transaction or authorization. Sequential host
+removals also verify preserved ancestors/siblings/markers/protected state.
+No physical operation, push or merge is performed in P18-048. Implementation
+validation and exact-head independent R3 results are recorded in the
+[P18-048 delivery record](analysis/p18-048-root-bmp-promotion-20261023.md).
+
 ## P18-047 — root-BMP host expansion and nested-file models
 
 `task/P18-047-root-bmp-nested-delete` carries forward sanitized snapshot
@@ -46,8 +69,8 @@ P18-034's 1,043 dirty files, and private evidence are preserved. The original
 offline engineering checkpoint performed no USB or production safety-state
 mutation. The later authorized physical experiment is recorded in the delivery
 record; no push or merge occurred. The reviewed source remains `ed76e799`;
-physical closeout changes documentation only. Ordinary BMP class promotion
-requires a separate reviewed capability decision and owner approval; nested
+physical closeout changed documentation only. P18-048 above supersedes the
+original ordinary-BMP host-only boundary under its explicit owner scope; nested
 Delete remains host-only. No independent USB bus trace was captured.
 
 ## P18-046 — exact disposable root-BMP Delete physically validated

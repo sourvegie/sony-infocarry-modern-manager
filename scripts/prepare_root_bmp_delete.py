@@ -33,7 +33,20 @@ def main(argv=None):
     inspect = commands.add_parser("inspect", help="inspect one ordinary root BMP offline; no execution authority")
     inspect.add_argument("--backup", type=Path, required=True)
     inspect.add_argument("--target", required=True)
+    nested = commands.add_parser("inspect-nested", help="inspect one nested TXT/BMP leaf offline; no transaction or authorization")
+    nested.add_argument("--backup", type=Path, required=True)
+    nested.add_argument("--target", required=True)
+    nested.add_argument("--record-offset", type=lambda s: int(s, 0), required=True)
     args = parser.parse_args(argv)
+    if args.command == "inspect-nested":
+        from infocarry.delete_generalized import build_nested_file_delete_candidate
+        core = build_nested_file_delete_candidate(args.backup, args.target,
+            args.record_offset, max_age_seconds=None)
+        print(json.dumps({"status": "nested_host_only", "target": core.target_path,
+            "candidate_sha256": core.candidate_blob_sha256,
+            "audit": core.to_dict(), "execution_available": False,
+            "physical_operation_authorized": False, "usb_operations": 0}, indent=2, sort_keys=True))
+        return 0
     if args.command == "inspect":
         core = build_root_bmp_delete(args.backup, args.target)
         print(json.dumps({"status": "host_prepared_not_live_enabled", "target": core.target_path,

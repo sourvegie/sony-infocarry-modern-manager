@@ -70,7 +70,7 @@ class RootBmpExpansionTests(unittest.TestCase):
                         blob=rename_existing_record(parse_backup_blob(blob),offset,name)
                         core=build_root_bmp_delete(self.archive(blob),f'root\\{name}.bmp',target_record_offset=offset)
                         self.assertEqual(core.target_record_offset,offset)
-                        self.assertFalse(root_bmp_delete_execution_supported(core))
+                        self.assertTrue(root_bmp_delete_execution_supported(core))
                         self.assertFalse(root_bmp_delete_validation_supported(core))
                         binding=authorize_generalized_delete(core,confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE)
                         with self.assertRaisesRegex(RuntimeError,'host-only'):
@@ -125,7 +125,7 @@ class RootBmpExpansionTests(unittest.TestCase):
         prepared=prepare_disposable_root_bmp_delete(before,self.root/'prepared',target_path=ROOT_BMP_DELETE_EXPANSION_PATH)
         core=prepared.verify()
         self.assertFalse(prepared.execution_available)
-        self.assertFalse(root_bmp_delete_execution_supported(core))
+        self.assertTrue(root_bmp_delete_execution_supported(core))
         self.assertTrue(root_bmp_delete_validation_supported(core))
         parsed=parse_backup_blob(blob);after=parse_backup_blob(core.candidate_blob)
         self.assertEqual(parsed.record_at(0x680).raw_hex,after.record_at(0x680).raw_hex)
@@ -183,10 +183,12 @@ class RootBmpExpansionTests(unittest.TestCase):
             service=DeviceLibraryDeleteService(lambda:self.fail('nested file opened runtime'))
             with self.subTest(ext=ext),self.assertRaises(ValueError):service.select(model,[0x140])
 
-    def test_normal_device_library_rejects_B_before_runtime_creation(self):
+    def test_normal_device_library_admits_supported_B_but_not_multiple_or_root(self):
         case,model=self.fake_case()
         normal=DeviceLibraryDeleteService(lambda:self.fail('unsupported BMP opened runtime'))
-        with self.assertRaises(ValueError):normal.select(model,[0x6c0])
+        selected = normal.select(model,[0x6c0])
+        self.assertTrue(selected.general_bmp)
+        self.assertTrue(normal.execution_available(selected))
         with self.assertRaises(ValueError):normal.select(model,[0x680,0x6c0])
         with self.assertRaises(ValueError):normal.select(model,[0x40])
         self.assertEqual(case[3].calls,[])
