@@ -1,7 +1,20 @@
 # Current Project Status
 
-Date: 2026-10-23
+Date: 2026-10-24
 
+
+## P18-049 — exact nested TXT Delete experiment preparation
+
+An isolated branch from independently verified published `25bfddd` prepares
+one disposable unread nested TXT in the existing P18-040 Section-A directory,
+then removes that same leaf. Existing host candidate/independent marker and
+protected-state verification feed the existing sealed bundle, claim, sender,
+lock and no-retry lifecycle. Ordinary nested Delete stays disabled; only the
+exact specimen is recognized in explicit validation mode. Root TXT/BMP gates
+remain unchanged. Offline archive replay returns all eight objects exactly to
+baseline with two operations and no setup/cleanup write. Independent R3, fresh
+read-only scope freeze and the sole task-level hardware approval remain pending.
+No physical write, push or merge. See the [P18-049 record](analysis/p18-049-nested-txt-delete-20261024.md).
 
 ## P18-048 — Experimental unread root-BMP Delete promotion
 
