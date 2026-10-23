@@ -503,6 +503,9 @@ def build_nested_txt_validation_delete(backup_directory, target_path, *,
                                               max_age_seconds=max_age_seconds)
     transaction = _build_transaction(host.candidate_blob, host.fixed_state)
     audit = host.to_dict()
+    audit["safety"] = dict(audit.get("safety", {}), transaction_constructed=True,
+                           authorization_created=False, execution_available=False,
+                           physical_behavior_proven=False)
     audit.update(profile=NESTED_TXT_DELETE_VALIDATION_PROFILE,
                  capability_status="exact_disposable_nested_txt_validation_only",
                  transaction_sha256=transaction.concatenated_sha256)

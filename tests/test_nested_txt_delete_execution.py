@@ -73,6 +73,8 @@ class NestedTxtDeleteExecutionTests(unittest.TestCase):
     def test_exact_nested_bundle_reconstructs_and_generic_sender_stays_closed(self):
         case = self.setup_case(); bundle=self.prepare(case)
         self.assertEqual(bundle.operation_profile, PROFILE)
+        self.assertTrue(bundle.candidate.core.to_dict()["safety"]["transaction_constructed"])
+        self.assertFalse(bundle.candidate.core.to_dict()["safety"]["execution_available"])
         self.assertEqual(bundle.target_path, TARGET)
         self.assertEqual(bundle.candidate.core.target_record_offset,0x300)
         self.assertEqual(case[3].calls,[])
