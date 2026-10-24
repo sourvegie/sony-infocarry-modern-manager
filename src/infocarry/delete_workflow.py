@@ -14,7 +14,7 @@ Device Library delegates only the same exact gated operation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, field
 from datetime import datetime
 import math
 from pathlib import Path
@@ -513,6 +513,18 @@ def build_nested_txt_validation_delete(backup_directory, target_path, *,
                                       host.fixed_state, transaction, audit)
 
 
+def _restoration_items(objects):
+    if objects is None:
+        return None
+    keys = {f"0x{command:04x}:response-{command:04x}" for command in range(0x1b, 0x20)}
+    keys.update({"0x0024:response-0024", "0x8004:backup-blob", "0x8004:backup-blob-probe"})
+    if (type(objects) is not dict or set(objects) != keys
+            or any(type(value) is not str or len(value) != 64
+                   or any(c not in "0123456789abcdef" for c in value) for value in objects.values())):
+        raise ValueError("restoration requires all eight exact native object hashes")
+    return tuple(sorted(objects.items()))
+
+
 class RootTxtDeleteAdmissionError(ValueError):
     stage = "admission"
 
@@ -753,6 +765,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     validation_only: bool = False
     validation_bmp_only: bool = False
+    restoration_objects: tuple[tuple[str, str], ...] | None = field(default=None, kw_only=True)
 
     @property
     def target_path(self):
@@ -865,6 +878,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
             value.update(format="infocarry-exact-nested-txt-delete-bundle-v1",
                          nested_validation=True, capability_status="exact_disposable_nested_txt_validation_only",
                          target_profile={"flag": "0xe0", "prefix_selector": "0x200", "prefix_bytes": 32})
+        if self.restoration_objects is not None:
+            value["restoration_objects"] = dict(self.restoration_objects)
         return value
 
     def _consume_execution_claim(self, owner):
@@ -947,6 +962,17 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         if _json(self._envelope()) != self.envelope_json or _sha(self.envelope_json) != self.seal_sha256 or self.seal_artifact.sha256 != self.seal_sha256:
             raise ValueError("frozen Delete identity changed")
         self._exact_candidate_binding()
+        if self.restoration_objects is not None:
+            if (not self.candidate.nested_validation or type(self.restoration_objects) is not tuple
+                    or _restoration_items(dict(self.restoration_objects)) != self.restoration_objects):
+                raise ValueError("restoration scope requires exact nested validation and immutable object hashes")
+            core = self.candidate.core
+            expected = dict(self.restoration_objects)
+            if expected["0x8004:backup-blob"] != core.candidate_blob_sha256:
+                raise ValueError("Delete candidate does not restore the original dynamic object")
+            for command, digest in zip(range(0x1b, 0x20), core.fixed_state.after_hashes):
+                if expected[f"0x{command:04x}:response-{command:04x}"] != digest:
+                    raise ValueError("Delete candidate does not restore original protected state")
         # Deletion shrinks the image; the additive capacity-length helper
         # deliberately rejects shrinkage and is not used to assert growth.
         if max(len(_blob(self.before_backup)), len(self.candidate.candidate_blob)) > self.capacity_response.capacity_limit_bytes:
@@ -967,6 +993,48 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
                 "capability_status": "exact disposable nested TXT validation only" if self.candidate.nested_validation else
                 ("Experimental unread root BMP" if self.candidate.general_bmp else "exact disposable BMP validation only") if bmp else None}
 
+    def require_deletion_task_binding(self, envelope, *, source_head):
+        """Bind the complete remaining one-write intent before owner acceptance."""
+        self.verify_seal()
+        if (type(source_head) is not str or len(source_head) != 40
+                or any(c not in "0123456789abcdef" for c in source_head)):
+            raise ValueError("task binding requires the exact reviewed source commit")
+        core = self.candidate.core
+        parsed = core.baseline
+        record = parsed.record_at(core.target_record_offset)
+        prefix, payload = parsed.payload_parts(record)
+        parent_path = parsed.paths[record.offset][:-1]
+        parents = [offset for offset, path in parsed.paths.items() if path == parent_path]
+        profile = {"flag": record.flag, "opaque": record.field_10_be32,
+                   "selector": record.field_14_be32, "prefix_bytes": len(prefix),
+                   "prefix_sha256": _sha(prefix), "record_sha256": _sha(bytes.fromhex(record.raw_hex)),
+                   "payload_bytes": len(payload), "payload_sha256": _sha(payload)}
+        operation = {"ordinal": 1, "operation": "delete_existing_nested_txt",
+                     "target": self.target_path, "target_record_offset": core.target_record_offset,
+                     "candidate_sha256": self.candidate_blob_sha256,
+                     "transaction_sha256": self.transaction_sha256,
+                     "expected_added_paths": [], "expected_removed_paths": [self.target_path],
+                     "sender_invocations": 1}
+        if (not self.candidate.nested_validation or self.restoration_objects is None
+                or envelope.get("format") != "infocarry-nested-txt-deletion-only-task-v1"
+                or envelope.get("task") != "P18-049-final-delete"
+                or envelope.get("source_head") != source_head
+                or envelope.get("model") != "VNW-V15"
+                or type(envelope.get("maximum_sender_invocations")) is not int
+                or envelope["maximum_sender_invocations"] != 1
+                or envelope.get("operations") != [operation]
+                or envelope.get("target") != self.target_path
+                or envelope.get("target_profile") != profile
+                or envelope.get("parent_record_offset") != (parents[0] if len(parents) == 1 else None)
+                or envelope.get("baseline_objects") != dict(self.before_backup.object_sha256_by_key)
+                or envelope.get("placement_after_objects") != dict(self.before_backup.object_sha256_by_key)
+                or envelope.get("baseline_state_identity_sha256") != self.baseline_state_identity_sha256
+                or envelope.get("capacity") != self.capacity_response.to_dict()
+                or envelope.get("restoration_objects") != dict(self.restoration_objects)
+                or envelope.get("automatic_retry_allowed") is not False
+                or envelope.get("extra_setup_or_cleanup_writes") != 0):
+            raise ValueError("deletion-only task differs from the sealed operation or restoration scope")
+
     def verify_readback(self, after, *, completion, now=None, max_age_seconds=None):
         self.verify_seal()
         if self.candidate.nested_validation:
@@ -979,6 +1047,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
                 self.candidate.core, after.directory, completion=completion,
                 now=now, max_age_seconds=max_age_seconds,
             )
+        if self.restoration_objects is not None and dict(verification.after.object_sha256_by_key) != dict(self.restoration_objects):
+            raise ValueError("post-delete native objects do not exactly restore all eight original objects")
         # The existing verifier requires byte-exact candidate model and
         # fixed-state blocks, thereby checking every survivor timestamp too.
         report = verification.to_dict()
@@ -1025,7 +1095,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
     def prepare(self, *, target_path=FIXTURE_PATH, device_model="VNW-V15",
                 max_age_seconds=DEFAULT_MAX_AGE_SECONDS, cancelled=None, progress=None,
                 general_txt=False, validation_only=False, validation_bmp_only=False, general_bmp=False,
-                nested_validation=False):
+                nested_validation=False, restoration_objects=None):
         if self.stop_approved_rebuild():
             raise ValueError("approved Delete cannot refresh or adopt a new candidate")
         try:
@@ -1035,6 +1105,9 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                     or type(validation_bmp_only) is not bool or type(general_bmp) is not bool
                     or type(nested_validation) is not bool):
                 raise ValueError("Delete admission flags require exact booleans")
+            restoration = _restoration_items(restoration_objects)
+            if restoration is not None and not nested_validation:
+                raise ValueError("restoration scope is restricted to exact nested TXT validation")
             if nested_validation and (general_txt or general_bmp or validation_only or validation_bmp_only
                     or target_path != NESTED_TXT_DELETE_VALIDATION_PATH):
                 raise ValueError("nested validation requires only the predetermined disposable target")
@@ -1118,7 +1191,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 OperationArtifact.file(capacity_path), OperationArtifact.backup_manifest(before.directory),
                 OperationArtifact(str(seal_path), "0" * 64, "file_bytes", 0),
                 transaction_path, b"", "0" * 64, runtime.session_binding_token, None,
-                validation_only, validation_bmp_only)
+                validation_only, validation_bmp_only, restoration_objects=restoration)
             envelope = _json(provisional._envelope())
             with seal_path.open("xb") as output:
                 output.write(envelope)

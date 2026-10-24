@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import threading
 import hashlib
+import json
 from typing import Callable, Sequence
 
 from .desktop import DesktopWorkflowModel, InventoryRow
@@ -24,7 +25,7 @@ from .delete_workflow import (
     root_bmp_delete_execution_supported, root_bmp_delete_validation_supported,
     ROOT_BMP_DELETE_VALIDATION_FILES, ROOT_BMP_DELETE_VALIDATION_OFFSETS,
     NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_TXT_DELETE_VALIDATION_BYTES,
-    build_nested_txt_validation_delete,
+    build_nested_txt_validation_delete, _restoration_items,
 )
 from .library_transfer_execution import OwnerAuthorizedOperationIdentity
 from .library_transfer_runtime_provider import PinnedRootTxtRuntime
@@ -150,9 +151,14 @@ class PreparedDeviceDelete:
 class DeviceLibraryDeleteService:
     """Own one UI attempt while delegating all safety decisions to P18-041."""
 
-    def __init__(self, runtime_factory: Callable[[], PinnedRootTxtRuntime], *, validation_target: str | None = None):
+    def __init__(self, runtime_factory: Callable[[], PinnedRootTxtRuntime], *, validation_target: str | None = None,
+                 restoration_objects: dict[str, str] | None = None):
         if validation_target is not None and validation_target not in (*ROOT_TXT_DELETE_VALIDATION_FILES, *ROOT_BMP_DELETE_VALIDATION_FILES, NESTED_TXT_DELETE_VALIDATION_PATH):
             raise DeviceLibraryDeleteError("Validation requires one predetermined disposable target.")
+        self.restoration_objects = _restoration_items(restoration_objects)
+        if self.restoration_objects is not None and validation_target != NESTED_TXT_DELETE_VALIDATION_PATH:
+            raise DeviceLibraryDeleteError("Restoration requires the exact nested validation target.")
+        self._deletion_task_binding = None
         self.validation_target = validation_target
         self._runtime_factory = runtime_factory
         self._facade = None
@@ -228,6 +234,7 @@ class DeviceLibraryDeleteService:
         facade = self._facade
         self._facade = None
         self._prepared = None
+        self._deletion_task_binding = None
         if facade is not None:
             facade.discard_prepared_operation()
 
@@ -261,7 +268,8 @@ class DeviceLibraryDeleteService:
                 validation_only=(self.validation_target is not None
                     and selection.general_txt and self.execution_available(selection)),
                 validation_bmp_only=selection.validation_bmp, general_bmp=selection.general_bmp,
-                nested_validation=selection.nested_validation)
+                nested_validation=selection.nested_validation,
+                restoration_objects=dict(self.restoration_objects) if self.restoration_objects is not None else None)
             if (_backup_identity(bundle.before_backup) != identity
                     or bundle.candidate.core.target_record_offset != selection.row.record_offset):
                 raise DeviceLibraryDeleteError("Device contents changed since the displayed backup. Refresh Device Library.", stage="approval")
@@ -274,6 +282,15 @@ class DeviceLibraryDeleteService:
         except BaseException:
             self.discard()
             raise
+
+    def bind_deletion_task(self, prepared, envelope, *, source_head):
+        """Snapshot the reviewed one-write intent; this grants no write authority."""
+        if (prepared is not self._prepared or self._facade is None
+                or self._facade.owner_approval_accepted):
+            raise DeviceLibraryDeleteError("Delete task cannot bind a different preparation.", stage="approval")
+        frozen = json.dumps(envelope, sort_keys=True, separators=(",", ":"))
+        prepared.bundle.require_deletion_task_binding(json.loads(frozen), source_head=source_head)
+        self._deletion_task_binding = (prepared, frozen, source_head)
 
     def execute_once(self, prepared: PreparedDeviceDelete, *, confirmed: bool, progress=None):
         """One normal Delete/Cancel decision binds the frozen internal identity."""
@@ -290,6 +307,11 @@ class DeviceLibraryDeleteService:
             prepared.bundle.verify_seal()
             if OwnerAuthorizedOperationIdentity.from_bundle(prepared.bundle) != prepared.owner_identity:
                 raise DeviceLibraryDeleteError("The approved operation changed. Review the selection again.", stage="approval")
+            if prepared.bundle.restoration_objects is not None:
+                binding = self._deletion_task_binding
+                if binding is None or binding[0] is not prepared:
+                    raise DeviceLibraryDeleteError("Deletion-only task must be bound before confirmation.", stage="approval")
+                prepared.bundle.require_deletion_task_binding(json.loads(binding[1]), source_head=binding[2])
             self._facade.authorize_prepared_operation(prepared.owner_identity.approval_phrase)
             review = prepared.bundle.review_dict()
             def confirmation(current):

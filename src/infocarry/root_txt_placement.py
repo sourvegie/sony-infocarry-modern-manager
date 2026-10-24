@@ -91,6 +91,51 @@ def _absent_disposable_target(parsed, filename):
         raise ValueError("disposable target must be absent without native-stem ambiguity")
 
 
+def _select_nested_txt_template(parsed):
+    """Use the existing facade traversal consistently in host and live preparation.
+
+    Eligible records may have different identities and payloads. Only the copied
+    native signature may agree; full source identity is bound separately.
+    """
+    offsets = [offset for offset in parsed.paths
+               if parsed.record_at(offset).kind == "file"
+               and parsed.record_at(offset).extension == "txt"
+               and parsed.record_at(offset).flag == 0xe0
+               and parsed.record_at(offset).field_10_be32 == 0xffffffff
+               and parsed.record_at(offset).field_14_be32 == 0x200
+               and len(parsed.payload_parts(parsed.record_at(offset))[0]) == 32]
+    signatures = {bytes.fromhex(parsed.record_at(offset).raw_hex)[:4] +
+                  bytes.fromhex(parsed.record_at(offset).raw_hex)[16:24] +
+                  parsed.payload_parts(parsed.record_at(offset))[0] for offset in offsets}
+    if not offsets or len(signatures) != 1:
+        raise ValueError("nested TXT templates are missing or have ambiguous copied native fields")
+    return offsets[0]
+
+
+def _nested_txt_template_provenance(parsed, offset):
+    if type(offset) is not int or offset not in parsed.paths:
+        raise ValueError("nested template identity is not an exact reachable record")
+    record = parsed.record_at(offset)
+    prefix, payload = parsed.payload_parts(record)
+    raw = bytes.fromhex(record.raw_hex)
+    return {"record_offset_hex": f"0x{offset:08x}",
+            "path": "\\".join(parsed.paths[offset]) + "." + record.extension,
+            "record_sha256": _sha(raw), "payload_sha256": _sha(payload),
+            "prefix_sha256": _sha(prefix), "copied_fields_sha256": _sha(raw[:4] + raw[16:24])}
+
+
+def require_nested_placement_provenance(parsed, operation, candidate_audit):
+    """Reject contradictory provenance even if resulting device bytes agree."""
+    offset = _select_nested_txt_template(parsed)
+    identity = _nested_txt_template_provenance(parsed, offset)
+    if (type(operation.get("template_offset")) is not int
+            or operation["template_offset"] != offset
+            or operation.get("template_provenance") != identity
+            or candidate_audit.get("template") != {key: identity[key]
+                for key in ("record_offset_hex", "path", "record_sha256")}):
+        raise ValueError("task and sealed placement source-template provenance differ")
+
+
 def _nested_parent(parsed, target_path):
     parent_path = tuple(target_path.split("\\")[:-1])
     offsets = [offset for offset, path in parsed.paths.items() if path == parent_path]
@@ -759,17 +804,7 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             templates = [offset for offset in parsed.paths if parsed.record_at(offset).kind == "file" and parsed.record_at(offset).extension.lower() == template_extension]
             if nested_validation:
                 _nested_parent(parsed, target_path)
-                templates = [offset for offset in templates
-                             if parsed.record_at(offset).extension == "txt"
-                             and parsed.record_at(offset).flag == 0xe0
-                             and parsed.record_at(offset).field_10_be32 == 0xffffffff
-                             and parsed.record_at(offset).field_14_be32 == 0x200
-                             and len(parsed.payload_parts(parsed.record_at(offset))[0]) == 32]
-                signatures = {bytes.fromhex(parsed.record_at(offset).raw_hex)[:4] +
-                              bytes.fromhex(parsed.record_at(offset).raw_hex)[16:24] +
-                              parsed.payload_parts(parsed.record_at(offset))[0] for offset in templates}
-                if len(signatures) > 1:
-                    raise ValueError("nested TXT templates have ambiguous native record fields")
+                templates = [_select_nested_txt_template(parsed)]
             elif validation_placement and placement_media == "txt":
                 templates = [offset for offset in templates if parsed.paths[offset][:-1] == ("root",)
                              and parsed.record_at(offset).extension == "txt"
