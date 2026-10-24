@@ -1,5 +1,10 @@
 # P18-049 — individual nested TXT Delete preparation
 
+**Current disposition: STOPPED after approved placement; Delete not attempted.**
+The later [independent physical assessment](p18-049-physical-verification-20261024.md)
+supersedes the readiness checkpoint below for continuation. The exact disposable
+remains present; the original baseline has not been restored.
+
 ## Authority and disposition
 
 The owner's October 23 task authorizes offline engineering, local commits,
@@ -188,3 +193,39 @@ No pre-sanitization history or raw device evidence is imported. P18-034's origin
 HEAD, status and all 1,107 observed dirty-path hashes are preserved. Final
 checkpoint changes after the reviewed source are documentation only. No physical
 write, push or merge has occurred.
+
+## Owner-approved execution — stopped before the second write
+
+On October 24 JST the owner explicitly approved the complete frozen envelope,
+maximum two sends and no intermediate owner approval, while retaining the
+mandatory stop-on-inconsistency rule. Actual placement completed once with
+native `0x0000`, one audited sender/transaction and no retry. Independent
+verification confirms the exact frozen placement candidate/transaction, sole
+34-byte unread target addition at `0x880`, preserved parent/two siblings, all
+454 survivor timestamps, 300 payload/prefix pairs, 79 marker records and
+protected associations. All eight actual native pre/post objects are preserved
+and verified. The new claim is consumed (24→25), every historical claim remains
+unchanged, no sender marker remains and the global lock is byte-identical/clear.
+
+Independent actual-data review found a pre-existing P1 preparation inconsistency:
+the task envelope's explicit source template is `0x1c0`, while the original
+sealed read-only preparation and actual operation audit use `0x7180`. The two
+records have identical copied fields and prefixes and independently generate
+identical approved candidate/transaction bytes. Thus placement output is exact,
+but its recorded task provenance is inconsistent. The pre-send preparation and
+review failed to compare this explicit field. We stopped under the owner's rule.
+
+Only one physical sender was invoked. Delete, retry, recovery and cleanup were
+not attempted. No operation-2 directory or independent continuation PASS gate
+was created. The disposable remains present; the original eight-object baseline
+is not restored. An offline Delete reconstruction matches the earlier predicted
+baseline candidate/transaction, but grants no authority to continue this stopped
+run. No template-selection correction or source change is made in this closeout.
+
+Disposition: **STOPPED / ESCALATION_REQUIRED**, independent P0/P1/P2=0/1/0.
+The earlier readiness PASS is superseded for continuation. See the
+[final independent verification](p18-049-physical-verification-20261024.md)
+for actual evidence anchors and the precise finding. All raw/private artifacts
+remain outside Git. Ordinary nested Delete is disabled; no feature promotion,
+push or merge occurred. P18-034 HEAD/status/all 1,107 dirty-path hashes remain
+preserved. Final checkpoint edits are documentation only.

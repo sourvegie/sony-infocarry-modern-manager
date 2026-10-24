@@ -3,22 +3,28 @@
 Date: 2026-10-24
 
 
-## P18-049 — exact nested TXT Delete experiment preparation
+## P18-049 — stopped after the approved placement
 
-An isolated branch from independently verified published `25bfddd` prepares
-one disposable unread nested TXT in the existing P18-040 Section-A directory,
-then removes that same leaf. Existing host candidate/independent marker and
-protected-state verification feed the existing sealed bundle, claim, sender,
-lock and no-retry lifecycle. Ordinary nested Delete stays disabled; only the
-exact specimen is recognized in explicit validation mode. Root TXT/BMP gates
-remain unchanged. Offline archive replay returns all eight objects exactly to
-baseline with two operations and no setup/cleanup write. Final source `2835e795` passes independent exact-source R3 (P0/P1/P2=0/0/0),
-1,275 portable tests (1,270 passed/five established skips), package/signature and
-isolated runtime/native GUI smokes. Fresh read-only preflight freezes parent
-`0x700`, target `0x880`, 34-byte fixture and maximum two sender invocations in
-envelope `eae6909886fbbfc10ab2e21d7e773c71ea9624ab1843f837960d7466648200a5`.
-**READY_FOR_HARDWARE_TEST**; the sole task-level owner approval is pending.
-No physical write, push or merge. See the [P18-049 record](analysis/p18-049-nested-txt-delete-20261024.md).
+The owner approved the complete two-write envelope `eae69098…648200a5`.
+Placement completed once with native `0x0000`, exact approved candidate and
+transaction bytes, one audited sender and no retry. Independent actual-data
+verification preserves all 454 survivor timestamps, 300 payload/prefix pairs,
+79 markers, the existing parent/two siblings and protected associations. The
+34-byte disposable TXT remains at `0x880` inside the existing Section-A parent.
+
+**STOPPED / ESCALATION_REQUIRED — Delete was not attempted.** Independent
+post-placement review found one P1 provenance inconsistency: the immutable task
+envelope records template `0x1c0`, while both its original sealed preparation
+and actual placement use `0x7180`. Both templates generate byte-identical
+approved output, but the explicit field was not reconciled before the sender.
+The owner's stop rule prevents continuation; baseline restoration is incomplete.
+There is no continuation PASS gate, second sender, retry, recovery or cleanup.
+
+The one new claim is consumed (24→25), all historical rows remain unchanged,
+markers are absent and the global lock is unchanged/clear. Ordinary nested
+Delete stays disabled; no promotion, push or merge. Reviewed source `2835e795`
+is unchanged. P18-034 remains preserved. See the
+[final independent verification](analysis/p18-049-physical-verification-20261024.md).
 
 ## P18-048 — Experimental unread root-BMP Delete promotion
 

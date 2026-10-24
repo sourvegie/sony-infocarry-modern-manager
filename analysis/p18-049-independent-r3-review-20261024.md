@@ -51,3 +51,13 @@ The two-operation scope is acceptable for one later task-level owner approval. T
 ## Disposition
 
 **READY_FOR_HARDWARE_TEST.** The next permitted step is the one concise owner approval request for the exact envelope hash above, followed by STOP. No physical write has occurred or been authorized by this review; no push/merge or ordinary nested capability promotion is approved. Every later physical operation must remain inside the two-write immutable scope and independently pass its fresh guards. Any changed scope or unresolved mismatch requires stopping and a revised review/owner decision.
+
+## Post-authorization erratum — continuation stopped
+
+The later [independent physical assessment](p18-049-physical-verification-20261024.md)
+found one P1 task-provenance comparison gap missed by this readiness review:
+envelope template `0x1c0` conflicts with original sealed/actual template `0x7180`.
+Candidate/transaction bytes and actual placement preservation pass, but the owner
+stop rule prevents Delete. This earlier PASS must not be cited as an unqualified
+continuation or completion assessment. One sender occurred; the fixture remains,
+Delete is unperformed and no further write is permitted in the stopped run.
