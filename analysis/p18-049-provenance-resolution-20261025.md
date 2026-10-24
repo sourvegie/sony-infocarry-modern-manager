@@ -86,3 +86,26 @@ not retroactively validate the old envelope or reuse its unused second write.
 The next scope requires its own single deletion-only owner approval. Ordinary
 nested Delete remains disabled. No physical write, placement, push or merge is
 authorized or performed by this resolution checkpoint.
+
+
+## Final readiness checkpoint
+
+Source `51d6b75166a164c2fba707506fbeb3d2164f37d2` passed independent exact-head
+R3 review, P0/P1/P2=0/0/0, including final fresh read-only scope and the new
+unexecuted opt-in executor. Full portable suite: 1,281 run, 1,276 passed, five
+established skips; independent focused suite: 106 passed. Package/signature,
+compile/diff and isolated packaged GUI/Tk runtime smoke pass, with zero physical
+operation counters.
+
+Fresh read-only native backup matches all eight actual post-placement objects.
+The new deletion-only envelope is
+`0fbc9a8216bd383b9b86e7f1632fdd8ebc0d3025a4620bdbdbece2fd76d556e1`.
+It binds the reviewed source, existing fixture at `0x880`, parent `0x700`, exact
+candidate/transaction, unchanged capacity and all eight original restoration
+hashes; one maximum sender, no retry or extra write. The original 103 evidence
+files and primary checkout's 1,107 dirty-path evidence entries remain preserved.
+
+See the [entire remaining one-write plan](p18-049-deletion-only-plan-20261025.md)
+and [independent final review](p18-049-resolution-r3-review-20261025.md).
+READY_FOR_HARDWARE_TEST, awaiting one new owner approval. No physical deletion,
+re-placement, push, merge or general nested Delete promotion occurred.

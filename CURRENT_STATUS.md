@@ -1,30 +1,37 @@
 # Current Project Status
 
-Date: 2026-10-24
+Date: 2026-10-25
 
+## P18-049 — provenance resolved; deletion-only approval pending
 
-## P18-049 — stopped after the approved placement
+The original placement remains verified, and the stopped two-write envelope
+and execution records remain unchanged. The source records at `0x1c0` and
+`0x7180` are distinct files with different payloads (53 versus 8,850 bytes).
+Independent field-by-field reconstruction proves that their differing fields
+are overwritten or never copied, so all candidate bytes and eight transaction
+ranges match. The original provenance inconsistency remains a recorded failure;
+its unused second write is not continuation authority.
 
-The owner approved the complete two-write envelope `eae69098…648200a5`.
-Placement completed once with native `0x0000`, exact approved candidate and
-transaction bytes, one audited sender and no retry. Independent actual-data
-verification preserves all 454 survivor timestamps, 300 payload/prefix pairs,
-79 markers, the existing parent/two siblings and protected associations. The
-34-byte disposable TXT remains at `0x880` inside the existing Section-A parent.
+Reviewed source `51d6b75166a164c2fba707506fbeb3d2164f37d2` shares the existing
+placement selector, explicitly compares complete source provenance and adds an
+all-eight restoration profile to the existing guarded Delete lifecycle. Ordinary
+nested Delete remains disabled. Fresh read-only native capture exactly matches
+the independently verified placement: fixture at `0x880`, parent `0x700`,
+capacity 3,145,728 bytes, 25 unchanged claims, zero markers and clear unchanged
+lock. No physical write occurred during this resolution.
 
-**STOPPED / ESCALATION_REQUIRED — Delete was not attempted.** Independent
-post-placement review found one P1 provenance inconsistency: the immutable task
-envelope records template `0x1c0`, while both its original sealed preparation
-and actual placement use `0x7180`. Both templates generate byte-identical
-approved output, but the explicit field was not reconciled before the sender.
-The owner's stop rule prevents continuation; baseline restoration is incomplete.
-There is no continuation PASS gate, second sender, retry, recovery or cleanup.
-
-The one new claim is consumed (24→25), all historical rows remain unchanged,
-markers are absent and the global lock is unchanged/clear. Ordinary nested
-Delete stays disabled; no promotion, push or merge. Reviewed source `2835e795`
-is unchanged. P18-034 remains preserved. See the
-[final independent verification](analysis/p18-049-physical-verification-20261024.md).
+A separate immutable deletion-only envelope `0fbc9a82…76d556e1` binds only the
+existing 34-byte fixture. It permits at most one sender, no placement, retry,
+recovery or extra cleanup, and requires complete restoration of the original
+eight native objects before canonical success. The 1,281-test suite passes
+(1,276 passed, five established skips); 106 independent focused regressions,
+package/signature and isolated GUI/runtime smoke pass. Exact-code-head R3 and
+final scope review are recorded in the linked report. **READY_FOR_HARDWARE_TEST:
+stop before Delete and obtain one new owner approval for the remaining write.**
+No push, merge or feature promotion. P18-034 and all 103 original evidence files
+remain unchanged. See [provenance resolution](analysis/p18-049-provenance-resolution-20261025.md),
+[deletion-only plan](analysis/p18-049-deletion-only-plan-20261025.md) and
+[independent R3 review](analysis/p18-049-resolution-r3-review-20261025.md).
 
 ## P18-048 — Experimental unread root-BMP Delete promotion
 
