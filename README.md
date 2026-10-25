@@ -367,7 +367,7 @@ it refuses archived offline inputs and collects a new complete backup.
 
 ## Device Library Delete
 
-Select one supported unread root TXT file, choose **Delete**, then review
+Select one supported unread root TXT/BMP or conservatively admitted nested TXT file, choose **Delete**, then review
 one **Delete / Cancel** dialog. The narrow Experimental VNW-V15 envelope has
 passed exact-head R3 review; see its [independent report](analysis/p18-045-independent-root-txt-promotion-r3-review-20261012.md).
 The Manager obtains a fresh complete backup,
@@ -382,14 +382,25 @@ under **More → Technical Details**.
 The P18-045 Experimental envelope is one ordinary unread VNW-V15 root-level TXT
 file with the known32-byte native prefix, a unique safe CP932 filename,
 unreferenced target and supported protected state/structure. The Delete button
-and Device menu are available only for an admitted selection. Read-state TXT,
-BMP, nested files, directories, multiple selections and VNW-V10 remain unavailable.
+and Device menu are available only for an admitted selection. Read-state TXT, unsupported nested files, directories, multiple selections and
+VNW-V10 remain unavailable.
 Backup is not undo; Restore remains unavailable. See the
 [physical evidence and capability decision](analysis/p18-045-root-txt-delete-validation-20261011.md)
 and authoritative [capability matrix](CAPABILITY_MATRIX.md) for review/release status.
 
-Root-BMP candidate/authorization/readback models remain host-only and cannot
-enter the live sender or Device Library Delete workflow.
+P18-048 also admits the reviewed unread root-BMP profile. P18-050 admits one
+unread nested TXT under exactly two existing folders, leaving its parent
+nonempty, with the exact P18-049 native prefix and supported unique CP932,
+marker, graph, aligned-allocation and unreferenced protected state. Names,
+lengths and positions beyond the exact physical fixture are host-supported
+engineering inference. Nested BMP remains host-only. See the authoritative
+[capability matrix](CAPABILITY_MATRIX.md) and
+[P18-050 evidence](analysis/p18-050-independent-evidence-assessment-20261025.md).
+
+`scripts/prepare_nested_bmp_validation.py` prepares a private host-only exact
+placement/inverse rehearsal from an archived complete backup. Its capacity
+argument is a host budget, not fresh native capacity. It offers no USB/write
+mode and does not produce a hardware-ready approval envelope.
 
 ## General root-TXT Delete preparation and validation
 

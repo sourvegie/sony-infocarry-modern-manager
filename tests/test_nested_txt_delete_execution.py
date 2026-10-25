@@ -32,7 +32,8 @@ def exact_nested_blob(**kwargs):
     # Swap the two TXT records' payload allocations to place the parameterized
     # target at the deeper level, without inventing a second format fixture.
     kwargs.setdefault("prefix", 32)
-    blob = bytearray(nested_library(text=PAYLOAD, **kwargs))
+    kwargs.setdefault("text", PAYLOAD)
+    blob = bytearray(nested_library(**kwargs))
     a, b = bytes(blob[0x1c0:0x200]), bytes(blob[0x300:0x340])
     blob[0x1c0:0x200], blob[0x300:0x340] = b, a
     from infocarry.backup_format import calculate_backup_checksum
@@ -140,7 +141,7 @@ class NestedTxtDeleteExecutionTests(unittest.TestCase):
         case,model,selection,service=self.data(reconnect=True)
         self.assertTrue(selection.nested_validation)
         normal=DeviceLibraryDeleteService(lambda:case[4].runtime)
-        with self.assertRaises(Exception):normal.select(model,[0x300])
+        self.assertFalse(normal.execution_available(normal.select(model,[0x300])))
         self.assertFalse(normal.execution_available(selection))
         helper=ui_helpers.DeviceLibraryDeleteUITests();self.addCleanup(helper.doCleanups)
         ui=helper.setup_ui(data_override=(case,model,selection,service))

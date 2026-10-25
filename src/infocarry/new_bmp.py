@@ -124,7 +124,7 @@ def _validate_fixed_state_rebase(parsed_before, parsed_after, state_before, stat
             raise NewTxtAddError(f"grouped-state entry {group_index} no longer points to its original file")
 
 
-def build_new_root_bmp_add(
+def _build_new_bmp_add(
     backup_directory: Path,
     source_path: Path,
     target_filename: str,
@@ -134,8 +134,10 @@ def build_new_root_bmp_add(
     record_timestamp_be32: int,
     now=None,
     max_age_seconds=DEFAULT_MAX_AGE_SECONDS,
+    target_directory_path: tuple[str, ...] = ("root",),
+    target_directory_offset: int | None = None,
 ) -> NewTxtAddResult:
-    """Build one exact unread, 16-byte-prefix root BMP candidate offline.
+    """Build one unread 16-byte-prefix BMP candidate offline.
 
     This deliberately accepts only the P16-observed all-``ff`` 16-byte BMP
     prefix and unread ``0xe0`` file state. All other BMP record bytes are
@@ -172,6 +174,8 @@ def build_new_root_bmp_add(
 
     backup = _validate_complete_backup(Path(backup_directory), now=now,
                                        max_age_seconds=max_age_seconds)
+    if target_directory_path != ("root",) and backup.device_identity != ("0x054c", "0x001e"):
+        raise NewTxtAddError("nested BMP preparation requires a VNW-V15 archive")
     baseline_blob = _read_verified_object(backup, "0x8004:backup-blob")
     try:
         before = parse_backup_blob(baseline_blob)
@@ -191,16 +195,28 @@ def build_new_root_bmp_add(
         validate_bmp_payload(template_payload)
     except PreparedMediaPackageError as exc:
         raise NewTxtAddError(f"template BMP payload is invalid: {exc}") from exc
-    target_path = ("root", basename)
+    nested = target_directory_path != ("root",)
+    parent_offset = before.header.metadata_start
+    if nested:
+        matches = [o for o, p in before.paths.items() if p == target_directory_path]
+        if (type(target_directory_path) is not tuple or not 2 <= len(target_directory_path) <= 3
+                or target_directory_path[0] != "root" or len(matches) != 1
+                or type(target_directory_offset) is not int or matches != [target_directory_offset]
+                or before.record_at(target_directory_offset).kind != "directory"):
+            raise NewTxtAddError("nested BMP requires an exact existing parent path and offset")
+        parent_offset = target_directory_offset
+        if template.field_10_be32 != 0xffffffff:
+            raise NewTxtAddError("nested BMP template opaque field +0x10 must be 0xffffffff")
+    target_path = target_directory_path + (basename,)
     target_matches = [path for path in before.paths.values()
-                      if len(path) == 2 and path[0].casefold() == "root"
-                      and path[1].casefold() == basename.casefold()]
+                      if tuple(p.casefold() for p in path[:-1]) == tuple(p.casefold() for p in target_directory_path)
+                      and path[-1].casefold() == basename.casefold()]
     if target_matches:
-        raise NewTxtAddError("root-level BMP target already exists or is ambiguous")
+        raise NewTxtAddError("BMP target already exists or is ambiguous in its parent")
 
     try:
         candidate_blob = add_file_from_template(
-            before, before.header.metadata_start, source_template_offset,
+            before, parent_offset, source_template_offset,
             basename, payload, timestamp_be32=record_timestamp_be32,
             fresh_new_allocation=True,
         )
@@ -215,9 +231,9 @@ def build_new_root_bmp_add(
     if len(after.paths) != len(set(after.paths.values())):
         raise NewTxtAddError("candidate has ambiguous native paths")
     before_root_order = [path for _, path in sorted(
-        (offset, path) for offset, path in before.paths.items() if len(path) == 2 and path[0] == "root")]
+        (offset, path) for offset, path in before.paths.items() if path[:-1] == target_directory_path)]
     after_root_order = [path for _, path in sorted(
-        (offset, path) for offset, path in after.paths.items() if len(path) == 2 and path[0] == "root")]
+        (offset, path) for offset, path in after.paths.items() if path[:-1] == target_directory_path)]
     if after_root_order != before_root_order + [target_path]:
         raise NewTxtAddError("candidate did not append the BMP after existing root children")
     if (target.kind != "file" or target.extension != "bmp" or
@@ -245,6 +261,11 @@ def build_new_root_bmp_add(
     metadata_delta = after.header.metadata_length - before.header.metadata_length
     if metadata_delta != before.header.record_size:
         raise NewTxtAddError("candidate metadata growth is not exactly one record")
+    if nested:
+        from .delete_model import build_one_nested_file_delete_model
+        restored = build_one_nested_file_delete_model(after, "\\".join(target_path) + ".bmp", offsets[0])
+        if restored.candidate_blob != baseline_blob:
+            raise NewTxtAddError("nested BMP inverse Delete does not restore the exact original model")
     relative_offset = offsets[0] - before.header.metadata_start
     try:
         state_before = tuple(_read_verified_object(backup, key) for key in _FIXED_STATE_KEYS)
@@ -255,6 +276,14 @@ def build_new_root_bmp_add(
         _validate_fixed_state_rebase(
             before, after, state_before, rebased_lists, grouped_before, rebased_grouped,
             insertion_offset=relative_offset, metadata_delta=metadata_delta)
+        if nested:
+            from .prepared_fixed_state import assess_prepared_fixed_state
+            snapshot = assess_prepared_fixed_state(backup, allow_verified_display_history=True,
+                                                   allow_verified_bookmarks=True).require_supported()
+            protected, _history, _bookmarks = snapshot.rebase_auxiliary_state(
+                before, after, insertion_offset=relative_offset, metadata_delta=metadata_delta)
+            if protected.candidate_raw_blocks != tuple(rebased_lists) + (rebased_grouped,):
+                raise NewTxtAddError("nested BMP protected-state derivation disagrees with pointer rebase")
     except StateSerializationError as exc:
         raise NewTxtAddError(f"protected-state pointer rebase failed: {exc}") from exc
     transaction = _build_transaction(candidate_blob, (b"".join(rebased_lists), rebased_grouped))
@@ -305,7 +334,36 @@ def build_new_root_bmp_add(
             "Native root placement, exact completion behavior, and physical readback remain unproven.",
         ],
     }
+    if nested:
+        audit.update(format="infocarry-offline-new-nested-bmp-v1")
+        audit["target"]["path"] = "\\".join(target_path) + ".bmp"
+        audit["target"]["parent_record_offset"] = parent_offset
+        audit["template"].update(payload_sha256=_sha(template_payload), prefix_sha256=_sha(prefix),
+            copied_record_fields_sha256=_sha(bytes.fromhex(template.raw_hex)[:4] + bytes.fromhex(template.raw_hex)[16:24]))
+        audit["preservation"]["inverse_nested_delete_exact_baseline"] = True
+        audit["assumptions"] = ["Host-only nested BMP insertion and inverse model; no physical nested BMP proof or live admission.",
+                                "Native auxiliary response/probe changes are not predicted by this host model."]
     return NewBmpAddResult(candidate_blob, transaction, audit)
 
 
-__all__ = ["ROOT_BMP_ADD_FORMAT", "NewBmpAddResult", "build_new_root_bmp_add"]
+def build_new_root_bmp_add(backup_directory, source_path, target_filename, *, source_template_offset,
+                          available_capacity_bytes, record_timestamp_be32, now=None,
+                          max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
+    return _build_new_bmp_add(backup_directory, source_path, target_filename,
+        source_template_offset=source_template_offset, available_capacity_bytes=available_capacity_bytes,
+        record_timestamp_be32=record_timestamp_be32, now=now, max_age_seconds=max_age_seconds)
+
+
+def build_new_nested_bmp_add(backup_directory, source_path, target_filename, *, target_directory_path,
+                            target_directory_offset, source_template_offset, available_capacity_bytes,
+                            record_timestamp_be32, now=None, max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
+    """Host-only bounded placement preparation; no facade, sender or admission."""
+    if target_directory_path == ("root",):
+        raise NewTxtAddError("nested BMP parent must be below root")
+    return _build_new_bmp_add(backup_directory, source_path, target_filename,
+        target_directory_path=target_directory_path, target_directory_offset=target_directory_offset,
+        source_template_offset=source_template_offset, available_capacity_bytes=available_capacity_bytes,
+        record_timestamp_be32=record_timestamp_be32, now=now, max_age_seconds=max_age_seconds)
+
+
+__all__ = ["ROOT_BMP_ADD_FORMAT", "NewBmpAddResult", "build_new_root_bmp_add", "build_new_nested_bmp_add"]

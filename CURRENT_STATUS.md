@@ -2,6 +2,43 @@
 
 Date: 2026-10-25
 
+## P18-050 — conservative nested-TXT promotion; nested-BMP host preparation
+
+The owner authorized offline promotion work, with zero physical writes and no
+push/merge. Experimental ordinary Delete now admits one unread VNW-V15 nested
+TXT leaf under **exactly two existing ordinary folders**, leaving its parent
+nonempty. The exact observed 32-byte prefix, `0xe0` / `0xffffffff` / `0x200`,
+unique safe CP932 identities, complete marker/graph/allocation checks and
+unreferenced supported protected state are mandatory. The existing single
+Delete/Cancel confirmation, frozen identity, fresh complete backup/capacity,
+reconnect equivalence, durable claim/marker/global lock, one sender/no retry,
+native zero, complete independent readback and verified refresh are retained.
+Root TXT/BMP admission is unchanged. Other nested shapes and nested BMP stay
+unavailable for live Delete.
+
+Physical proof remains **only** P18-049's exact 34-byte fixture at `0x880`.
+The wider enabled subset is engineering inference: independent archive replay
+finds 36 matching two-folder/nonempty-parent TXT candidates spanning all four
+alignment remainders. Independent preserved-evidence assessment directly
+confirms all eight original objects restored byte-for-byte and preserves the
+original template-provenance P1/STOP as history. The observed TXT prefix is
+**not all-FF32**; its SHA-256 is `d0bcc6bc…deb92a`.
+
+Nested BMP has a host-only template-backed placement/inverse rehearsal with
+full provenance and protected-state checks, using one 10,302-byte disposable
+in existing Section-A, then removal of only that leaf and original baseline
+restoration. It creates no live nested-BMP Delete adapter or admission. The
+rehearsal is not hardware-ready: a reviewed exact validation adapter, fresh
+baseline/native-capacity guards and one immutable two-write task approval are
+still required. Native probe/auxiliary response changes are not predicted from
+host simulation. No hardware approval is being requested for that rehearsal.
+
+Validation and exact-head review are recorded in the
+[P18-050 delivery report](analysis/p18-050-nested-delete-promotion-20261025.md)
+and [independent evidence assessment](analysis/p18-050-independent-evidence-assessment-20261025.md).
+The following milestone sections preserve their historical checkpoint scopes;
+this section and the capability matrix define the current P18-050 boundary.
+
 ## P18-049 — final exact nested-TXT Delete physically verified
 
 The owner separately approved deletion-only envelope `0fbc9a82…76d556e1`.
