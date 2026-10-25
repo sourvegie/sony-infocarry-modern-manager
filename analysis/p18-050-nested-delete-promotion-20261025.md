@@ -47,9 +47,17 @@ The fixture reuses the canonical root-BMP specimen: **10,302 bytes**, SHA-256 `2
 
 ## Validation and review
 
-At the implementation checkpoint, focused suites passed 68 tests, plus 14 new/extended promotion and BMP tests after additional adversarial coverage. Full final portable suite and independent exact-head R3 are being completed; their final counts and source identity will be recorded before delivery. No new evidence skip is permitted.
+The corrected exact code head is `cb5714ddf9f149d7febe3dfe9d29224316769125`.
+The full portable offline suite passes **1,296 run / 1,291 passed / five
+established skips**, in 322.113 seconds on Python 3.12.14. The five skips remain
+the established absent private capture/recovery/native-range inputs; no new
+skip was introduced. Focused implementation suites passed 68 tests, followed
+by 15 corrected promotion/BMP regressions. The independent reviewer ran 91
+relevant nested/model/BMP/root/UI regressions and separately reran all 15
+corrected tests. Final exact-head R3 is **PASS, P0/P1/P2 = 0/0/0**, recorded in the
+[independent review](p18-050-independent-r3-review-20261025.md).
 
-Native isolated Tk automation passed actual selection, enabled Delete, one real Delete/Cancel dialog, fake sender completion and verified refresh, with zero real USB calls/writes. Fake-callback tests cover Cancel, errors, progress and no-retry outcomes. Package build, plist/signature checks and isolated frozen runtime passed at the preliminary implementation; final-source package validation is recorded at closeout. This is automated host GUI evidence, not human visual inspection or physical-device proof.
+At corrected source `cb5714ddf9f149d7febe3dfe9d29224316769125`, native isolated Tk automation passed actual selection, enabled Delete, one real Delete/Cancel dialog, fake sender completion and verified refresh, with zero real USB calls/writes. Callback tests also cover Cancel, errors, progress and no-retry outcomes. The corrected macOS package build, plist/signature checks and isolated frozen runtime pass. Runtime counters for device enumeration, sender, claims and sender markers are all zero. The corrected portable wheel builds and imports its nested TXT/BMP APIs in isolation. All Python sources compile and diff whitespace checks pass. These are automated host GUI/package results, not human visual inspection, Windows execution or physical-device proof.
 
 Independent initial exact-head R3 identified one P2: the inherited nested model
 checked target-versus-survivor overlap but did not reject overlapping allocations
@@ -61,3 +69,31 @@ correction round; final independent assessment is recorded separately.
 ## Publication preparation
 
 Only a fast-forward of verified local main to the final reviewed branch would be considered, after final ancestry/privacy/integrity checks and owner authorization. No command to integrate, push, merge, reset or rebase the primary checkout was executed. The eventual outgoing range must contain no known private JSON blob `ef7e5a2d05ebdaf008a3c04380251e6a26d291ed`, raw backup, device content, private source paths or unexpected large blob. Final audit and preservation results are recorded at closeout.
+
+
+Preservation closeout rechecks the primary checkout's HEAD, exact status and refs,
+and all **1,337 captured path hashes** across primary dirty paths and preserved
+P18-049 evidence: before/after snapshots match exactly. P18-034 is unchanged.
+Full Git integrity passes. Outgoing commits remain a linear descendant of the
+verified sanitized remote baseline; the excluded private JSON blob is not
+reachable. All outgoing blob versions and commit metadata pass private-path,
+credential, raw-evidence and size checks. No private device payload or raw evidence was added
+to Git. Final report/review additions are documentation only.
+
+
+The exact host-only BMP rehearsal is bound to corrected source `cb5714d` and
+SHA-256 `1f26a4f8ffe13cf107c9fb51ff9055880f803bd02a2c2c49c9a14a1769a637aa`.
+It binds device, exact fixture/path/parent/target, source provenance, candidate,
+transaction, timestamp, archived baseline/restoration hashes, max two senders
+and stop rules. Its status remains `host_rehearsal_not_hardware_ready`; it is
+not a replacement for a later executable reviewed task envelope or approval.
+
+The smallest publication decision is **local-main fast-forward integration
+only** from verified `25bfddda…` to this clean task's final documentation
+checkpoint, with no push. Before any separately authorized publication, fetch
+and reverify remote main, require the final exact branch/head and unchanged
+reviewed code, rerun the outgoing ancestry/privacy audit and stop if the remote
+or intended scope differs. Include the preserved P18-049 correction/final
+physical closeout and P18-050 commits; do not import the research/P18-034
+checkout, reset/rebase it, or push other refs. This preparation performs no
+integration or publication.

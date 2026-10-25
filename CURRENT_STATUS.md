@@ -33,6 +33,14 @@ baseline/native-capacity guards and one immutable two-write task approval are
 still required. Native probe/auxiliary response changes are not predicted from
 host simulation. No hardware approval is being requested for that rehearsal.
 
+The corrected full portable suite passes **1,296 run / 1,291 passed / five
+established skips**. Corrected package/signature/frozen runtime, native Tk
+fake-workflow, wheel import and compile/diff checks pass. Source is
+`cb5714ddf9f149d7febe3dfe9d29224316769125`; independent review records one
+allocation P2 corrected in one round; final **P0/P1/P2 = 0/0/0**.
+The 1,107 primary dirty-path states/hashes and 230 preserved evidence-path hashes,
+primary HEAD/status/refs and original P18-049 checkpoint are unchanged.
+
 Validation and exact-head review are recorded in the
 [P18-050 delivery report](analysis/p18-050-nested-delete-promotion-20261025.md)
 and [independent evidence assessment](analysis/p18-050-independent-evidence-assessment-20261025.md).

@@ -369,7 +369,8 @@ it refuses archived offline inputs and collects a new complete backup.
 
 Select one supported unread root TXT/BMP or conservatively admitted nested TXT file, choose **Delete**, then review
 one **Delete / Cancel** dialog. The narrow Experimental VNW-V15 envelope has
-passed exact-head R3 review; see its [independent report](analysis/p18-045-independent-root-txt-promotion-r3-review-20261012.md).
+passed exact-head R3 review; see the [root-TXT review](analysis/p18-045-independent-root-txt-promotion-r3-review-20261012.md)
+and [P18-050 nested-TXT review](analysis/p18-050-independent-r3-review-20261025.md).
 The Manager obtains a fresh complete backup,
 validates the selected state, freezes the operation and performs final fresh
 backup/state checks before one guarded send. Completion requires native zero,

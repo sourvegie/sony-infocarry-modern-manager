@@ -1,6 +1,6 @@
 # Risk Register
 
-Date: 2026-10-10
+Date: 2026-10-25
 
 This file lists open material risks only. Closed findings and chronological
 evidence remain in `analysis/`, including the archived register through
