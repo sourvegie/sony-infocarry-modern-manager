@@ -502,8 +502,13 @@ def build_nested_txt_delete(backup_directory, target_path, *,
         raise RootTxtDeleteAdmissionError("nested TXT must leave a nonempty parent")
     if target_record_offset is not None and (type(target_record_offset) is not int or target_record_offset != target.offset):
         raise RootTxtDeleteAdmissionError("nested selected record identity changed")
+    # The nested inverse model checks target-versus-survivor geometry. Live
+    # promotion additionally requires disjoint allocations among all survivors.
+    from .new_bmp import _validate_content_geometry
+    _validate_content_geometry(parsed, "nested TXT baseline")
     host = build_nested_file_delete_candidate(backup.directory, target_path, target.offset,
                                               max_age_seconds=max_age_seconds)
+    _validate_content_geometry(parse_backup_blob(host.candidate_blob), "nested TXT candidate")
     transaction = _build_transaction(host.candidate_blob, host.fixed_state)
     audit = host.to_dict()
     audit["safety"] = dict(audit.get("safety", {}), transaction_constructed=True,

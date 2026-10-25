@@ -167,3 +167,16 @@ class NestedTxtPromotionTests(unittest.TestCase):
             with patch.object(data[3],'_runtime_factory',side_effect=AssertionError('runtime opened')):
                 with self.assertRaises(ValueError):data[3].prepare(data[2])
             self.assertEqual(data[0][3].calls,[])
+
+    def test_unrelated_survivor_overlap_and_alignment_fail_before_runtime(self):
+        baseline=ordinary_nested_blob();parsed=parse_backup_blob(baseline)
+        for pointer in (parsed.record_at(0x1c0).field_04_be32,1):
+            changed=bytearray(baseline);changed[0x104:0x108]=pointer.to_bytes(4,'big')
+            data=self.data(blob=_checksum(changed))
+            self.assertFalse(data[3].execution_available(data[2]))
+            with patch.object(data[3],'_runtime_factory',side_effect=AssertionError('runtime opened')):
+                with self.assertRaises(ValueError):data[3].prepare(data[2])
+            with self.assertRaises(ValueError):
+                build_nested_txt_delete(data[2].backup_directory,data[2].row.display_name,target_record_offset=0x300)
+            self.assertEqual(data[0][3].calls,[])
+            self.assertIsNone(data[0][5].read_sender_in_flight())

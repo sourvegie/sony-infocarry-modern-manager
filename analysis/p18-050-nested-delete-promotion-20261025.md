@@ -51,6 +51,13 @@ At the implementation checkpoint, focused suites passed 68 tests, plus 14 new/ex
 
 Native isolated Tk automation passed actual selection, enabled Delete, one real Delete/Cancel dialog, fake sender completion and verified refresh, with zero real USB calls/writes. Fake-callback tests cover Cancel, errors, progress and no-retry outcomes. Package build, plist/signature checks and isolated frozen runtime passed at the preliminary implementation; final-source package validation is recorded at closeout. This is automated host GUI evidence, not human visual inspection or physical-device proof.
 
+Independent initial exact-head R3 identified one P2: the inherited nested model
+checked target-versus-survivor overlap but did not reject overlapping allocations
+between unrelated survivors. The promoted gate now reuses the existing full
+content-geometry validator on baseline and candidate, with explicit before-runtime
+refusal regressions. Root admission is unchanged. This is one material review
+correction round; final independent assessment is recorded separately.
+
 ## Publication preparation
 
 Only a fast-forward of verified local main to the final reviewed branch would be considered, after final ancestry/privacy/integrity checks and owner authorization. No command to integrate, push, merge, reset or rebase the primary checkout was executed. The eventual outgoing range must contain no known private JSON blob `ef7e5a2d05ebdaf008a3c04380251e6a26d291ed`, raw backup, device content, private source paths or unexpected large blob. Final audit and preservation results are recorded at closeout.
