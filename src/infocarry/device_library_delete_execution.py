@@ -27,6 +27,7 @@ from .delete_workflow import (
     ROOT_BMP_DELETE_VALIDATION_FILES, ROOT_BMP_DELETE_VALIDATION_OFFSETS,
     NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_TXT_DELETE_VALIDATION_BYTES,
     build_nested_txt_validation_delete, build_nested_txt_delete, _restoration_items,
+    NESTED_BMP_DELETE_VALIDATION_PATH, ROOT_BMP_DELETE_FIXTURE_BYTES, build_nested_bmp_validation_delete,
 )
 from .library_transfer_execution import OwnerAuthorizedOperationIdentity
 from .library_transfer_runtime_provider import PinnedRootTxtRuntime
@@ -76,14 +77,16 @@ def select_device_library_delete(
     if len(selected) != 1:
         raise DeviceLibraryDeleteError("The selected file is missing or ambiguous. Refresh Device Library.")
     row = selected[0]
-    if nested_validation_target == NESTED_TXT_DELETE_VALIDATION_PATH and row.display_name == nested_validation_target:
-        if (nested_validation_target != NESTED_TXT_DELETE_VALIDATION_PATH
-                or row.kind != "file" or row.extension != "txt" or row.read_state != "unread"
-                or row.payload_bytes != len(NESTED_TXT_DELETE_VALIDATION_BYTES)
-                or row.payload_sha256 != hashlib.sha256(NESTED_TXT_DELETE_VALIDATION_BYTES).hexdigest()
+    if nested_validation_target in (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_BMP_DELETE_VALIDATION_PATH) and row.display_name == nested_validation_target:
+        bmp = nested_validation_target == NESTED_BMP_DELETE_VALIDATION_PATH
+        payload = ROOT_BMP_DELETE_FIXTURE_BYTES if bmp else NESTED_TXT_DELETE_VALIDATION_BYTES
+        if (nested_validation_target not in (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_BMP_DELETE_VALIDATION_PATH)
+                or row.kind != "file" or row.extension != ("bmp" if bmp else "txt") or row.read_state != "unread"
+                or row.payload_bytes != len(payload)
+                or row.payload_sha256 != hashlib.sha256(payload).hexdigest()
                 or sum(other.display_name.casefold() == row.display_name.casefold() for other in rows) != 1
                 or model.state.backup_directory is None or model.state.source_blob_sha256 is None):
-            raise DeviceLibraryDeleteError("Only the exact unread nested disposable TXT is eligible.")
+            raise DeviceLibraryDeleteError("Only the exact unread nested disposable file is eligible.")
         return DeviceDeleteSelection(model.state.backup_directory, model.state.source_blob_sha256,
                                      row, device_model, nested_validation=True)
     if (allow_nested_txt and row.kind == "file" and row.extension == "txt"
@@ -165,11 +168,13 @@ class DeviceLibraryDeleteService:
 
     def __init__(self, runtime_factory: Callable[[], PinnedRootTxtRuntime], *, validation_target: str | None = None,
                  restoration_objects: dict[str, str] | None = None):
-        if validation_target is not None and validation_target not in (*ROOT_TXT_DELETE_VALIDATION_FILES, *ROOT_BMP_DELETE_VALIDATION_FILES, NESTED_TXT_DELETE_VALIDATION_PATH):
+        if validation_target is not None and validation_target not in (*ROOT_TXT_DELETE_VALIDATION_FILES, *ROOT_BMP_DELETE_VALIDATION_FILES, NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_BMP_DELETE_VALIDATION_PATH):
             raise DeviceLibraryDeleteError("Validation requires one predetermined disposable target.")
         self.restoration_objects = _restoration_items(restoration_objects)
-        if self.restoration_objects is not None and validation_target != NESTED_TXT_DELETE_VALIDATION_PATH:
+        if self.restoration_objects is not None and validation_target not in (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_BMP_DELETE_VALIDATION_PATH):
             raise DeviceLibraryDeleteError("Restoration requires the exact nested validation target.")
+        if validation_target == NESTED_BMP_DELETE_VALIDATION_PATH and self.restoration_objects is None:
+            raise DeviceLibraryDeleteError("Nested BMP validation requires all-eight restoration hashes.")
         self._deletion_task_binding = None
         self.validation_target = validation_target
         self._runtime_factory = runtime_factory
@@ -198,10 +203,11 @@ class DeviceLibraryDeleteService:
             except (OSError, ValueError, RuntimeError, AttributeError, TypeError):
                 return False
         if selection.nested_validation:
-            if self.validation_target != NESTED_TXT_DELETE_VALIDATION_PATH:
+            if self.validation_target not in (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_BMP_DELETE_VALIDATION_PATH):
                 return False
             try:
-                core = build_nested_txt_validation_delete(selection.backup_directory,
+                builder = build_nested_bmp_validation_delete if selection.row.extension == "bmp" else build_nested_txt_validation_delete
+                core = builder(selection.backup_directory,
                     selection.row.display_name, target_record_offset=selection.row.record_offset)
                 return core.target_record_offset == selection.row.record_offset
             except (OSError, ValueError, RuntimeError, AttributeError, TypeError):
@@ -306,13 +312,16 @@ class DeviceLibraryDeleteService:
             self.discard()
             raise
 
-    def bind_deletion_task(self, prepared, envelope, *, source_head):
-        """Snapshot the reviewed one-write intent; this grants no write authority."""
+    def bind_deletion_task(self, prepared, envelope, *, source_head, placement_result=None):
+        """Snapshot the reviewed task intent; this grants no write authority."""
         if (prepared is not self._prepared or self._facade is None
                 or self._facade.owner_approval_accepted):
             raise DeviceLibraryDeleteError("Delete task cannot bind a different preparation.", stage="approval")
         frozen = json.dumps(envelope, sort_keys=True, separators=(",", ":"))
-        prepared.bundle.require_deletion_task_binding(json.loads(frozen), source_head=source_head)
+        if prepared.selection.nested_validation and prepared.selection.row.extension == "bmp":
+            self._facade.bind_task(json.loads(frozen), source_head=source_head, placement_result=placement_result)
+        else:
+            prepared.bundle.require_deletion_task_binding(json.loads(frozen), source_head=source_head)
         self._deletion_task_binding = (prepared, frozen, source_head)
 
     def execute_once(self, prepared: PreparedDeviceDelete, *, confirmed: bool, progress=None):
@@ -333,8 +342,11 @@ class DeviceLibraryDeleteService:
             if prepared.bundle.restoration_objects is not None:
                 binding = self._deletion_task_binding
                 if binding is None or binding[0] is not prepared:
-                    raise DeviceLibraryDeleteError("Deletion-only task must be bound before confirmation.", stage="approval")
-                prepared.bundle.require_deletion_task_binding(json.loads(binding[1]), source_head=binding[2])
+                    raise DeviceLibraryDeleteError("The exact deletion task must be bound before confirmation.", stage="approval")
+                if prepared.selection.row.extension == "bmp":
+                    self._facade.require_task_binding()
+                else:
+                    prepared.bundle.require_deletion_task_binding(json.loads(binding[1]), source_head=binding[2])
             self._facade.authorize_prepared_operation(prepared.owner_identity.approval_phrase)
             review = prepared.bundle.review_dict()
             def confirmation(current):

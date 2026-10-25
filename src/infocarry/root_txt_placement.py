@@ -25,7 +25,7 @@ from .library_transfer_execution import (
 )
 from .library_transfer_runtime_provider import PinnedRootTxtRuntime
 from .new_txt import NewTxtAddResult, build_new_root_txt_add, build_new_nested_txt_add
-from .new_bmp import build_new_root_bmp_add
+from .new_bmp import build_new_root_bmp_add, build_new_nested_bmp_add
 from .new_txt_gate import authorize_new_txt_add, NEW_ROOT_TXT_CONFIRMATION_PHRASE
 from .prepared_library_package_operation_bundle import OperationArtifact
 from .write_artifact import ProspectiveWriteTransaction, load_preserved_artifact
@@ -40,6 +40,7 @@ ROOT_TXT_PLACEMENT_PROFILE = "vnw-v15-exact-clock-root-txt-placement-v1"
 CONFIRMATION = f"ADD {FIXTURE_FILENAME} ONCE"
 DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE = "vnw-v15-disposable-root-txt-placement-validation-v1"
 DISPOSABLE_NESTED_TXT_PLACEMENT_PROFILE = "vnw-v15-disposable-nested-txt-placement-validation-v1"
+DISPOSABLE_NESTED_BMP_PLACEMENT_PROFILE = "vnw-v15-disposable-nested-bmp-placement-validation-v1"
 DISPOSABLE_ROOT_BMP_PLACEMENT_PROFILE = "vnw-v15-disposable-root-bmp-placement-validation-v1"
 
 
@@ -49,10 +50,13 @@ def _placement_fixture(target_path, validation_placement, media_type="txt", *, n
     if type(nested_validation) is not bool:
         raise ValueError("nested validation opt-in must be explicit boolean")
     if nested_validation:
-        from .delete_workflow import NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_TXT_DELETE_VALIDATION_BYTES
-        if not validation_placement or media_type != "txt" or target_path != NESTED_TXT_DELETE_VALIDATION_PATH:
-            raise ValueError("nested placement admits only the exact disposable nested TXT validation")
-        return target_path.split("\\")[-1], NESTED_TXT_DELETE_VALIDATION_BYTES
+        from .delete_workflow import (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_TXT_DELETE_VALIDATION_BYTES,
+                                      NESTED_BMP_DELETE_VALIDATION_PATH, ROOT_BMP_DELETE_FIXTURE_BYTES)
+        expected = {"txt": (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_TXT_DELETE_VALIDATION_BYTES),
+                    "bmp": (NESTED_BMP_DELETE_VALIDATION_PATH, ROOT_BMP_DELETE_FIXTURE_BYTES)}
+        if not validation_placement or media_type not in expected or target_path != expected[media_type][0]:
+            raise ValueError("nested placement admits only its exact disposable validation target")
+        return target_path.split("\\")[-1], expected[media_type][1]
     if media_type not in {"txt", "bmp"}:
         raise ValueError("placement media type must be TXT or BMP")
     if media_type == "bmp" and not validation_placement:
@@ -124,15 +128,45 @@ def _nested_txt_template_provenance(parsed, offset):
             "prefix_sha256": _sha(prefix), "copied_fields_sha256": _sha(raw[:4] + raw[16:24])}
 
 
-def require_nested_placement_provenance(parsed, operation, candidate_audit):
+def _select_nested_bmp_template(parsed):
+    """One canonical source traversal for rehearsal and guarded preparation."""
+    from .prepared_media_package import validate_bmp_payload
+    offsets = []
+    for offset in parsed.paths:
+        record = parsed.record_at(offset)
+        if (record.kind != "file" or record.extension != "bmp" or record.flag != 0xe0
+                or record.field_10_be32 != 0xffffffff or record.field_14_be32 != 0x100):
+            continue
+        prefix, payload = parsed.payload_parts(record)
+        if prefix != b"\xff" * 16:
+            continue
+        try:
+            validate_bmp_payload(payload)
+        except ValueError:
+            continue
+        offsets.append(offset)
+    signatures = {bytes.fromhex(parsed.record_at(o).raw_hex)[:4] +
+                  bytes.fromhex(parsed.record_at(o).raw_hex)[16:24] +
+                  parsed.payload_parts(parsed.record_at(o))[0] for o in offsets}
+    if not offsets or len(signatures) != 1:
+        raise ValueError("nested BMP templates are missing or have ambiguous copied native fields")
+    return offsets[0]
+
+
+def require_nested_placement_provenance(parsed, operation, candidate_audit, media_type="txt"):
     """Reject contradictory provenance even if resulting device bytes agree."""
-    offset = _select_nested_txt_template(parsed)
+    if media_type not in {"txt", "bmp"}:
+        raise ValueError("unsupported nested template media")
+    offset = (_select_nested_bmp_template if media_type == "bmp" else _select_nested_txt_template)(parsed)
     identity = _nested_txt_template_provenance(parsed, offset)
+    expected = {key: identity[key] for key in ("record_offset_hex", "path", "record_sha256")}
+    if media_type == "bmp":
+        expected.update(payload_sha256=identity["payload_sha256"], prefix_sha256=identity["prefix_sha256"],
+                        copied_record_fields_sha256=identity["copied_fields_sha256"])
     if (type(operation.get("template_offset")) is not int
             or operation["template_offset"] != offset
             or operation.get("template_provenance") != identity
-            or candidate_audit.get("template") != {key: identity[key]
-                for key in ("record_offset_hex", "path", "record_sha256")}):
+            or candidate_audit.get("template") != expected):
         raise ValueError("task and sealed placement source-template provenance differ")
 
 
@@ -144,9 +178,9 @@ def _nested_parent(parsed, target_path):
     return parent_path, offsets[0]
 
 
-def _nested_disposable_delta(before, after, target_path):
+def _nested_disposable_delta(before, after, target_path, media_type="txt"):
     from .delete_model import verify_nested_file_delete_model
-    filename, payload = _placement_fixture(target_path, True, nested_validation=True)
+    filename, payload = _placement_fixture(target_path, True, media_type, nested_validation=True)
     baseline, candidate = parse_backup_blob(before), parse_backup_blob(after)
     parent_path, _ = _nested_parent(baseline, target_path)
     target = parent_path + (filename[:-4],)
@@ -158,9 +192,11 @@ def _nested_disposable_delta(before, after, target_path):
         raise ValueError("one exact nested disposable target is required")
     record = candidate.record_at(offsets[0])
     prefix, actual = candidate.payload_parts(record)
-    if (record.kind != "file" or record.extension != "txt" or record.flag != 0xe0
-            or record.field_10_be32 != 0xffffffff or record.field_14_be32 != 0x200
-            or len(prefix) != 32 or actual != payload):
+    if (record.kind != "file" or record.extension != media_type or record.flag != 0xe0
+            or record.field_10_be32 != 0xffffffff
+            or record.field_14_be32 != (0x100 if media_type == "bmp" else 0x200)
+            or len(prefix) != (16 if media_type == "bmp" else 32)
+            or (media_type == "bmp" and prefix != b"\xff" * 16) or actual != payload):
         raise ValueError("nested disposable target native identity differs")
     # An independent inverse check proves all raw survivor records, markers,
     # payloads, padding, timestamps and opaque header/trailer bytes are exact.
@@ -173,7 +209,7 @@ def _nested_disposable_delta(before, after, target_path):
 
 def _disposable_delta(before, after, target_path, media_type="txt", *, nested_validation=False):
     if nested_validation:
-        return _nested_disposable_delta(before, after, target_path)
+        return _nested_disposable_delta(before, after, target_path, media_type)
     filename, payload = _placement_fixture(target_path, True, media_type)
     baseline, candidate = parse_backup_blob(before), parse_backup_blob(after)
     _absent_disposable_target(baseline, filename)
@@ -223,6 +259,27 @@ def _disposable_delta(before, after, target_path, media_type="txt", *, nested_va
             "payload_sha256": _sha(payload), "only_path_delta": target_path,
             "unrelated_payloads_unchanged": True, "surviving_prefixes_unchanged": True,
             "surviving_timestamps_unchanged": True}
+
+
+def _require_nested_bmp_task_header(envelope, source_head):
+    from .delete_workflow import NESTED_BMP_DELETE_VALIDATION_PATH, ROOT_BMP_DELETE_FIXTURE_BYTES
+    if (type(source_head) is not str or len(source_head) != 40
+            or any(c not in "0123456789abcdef" for c in source_head)
+            or type(envelope) is not dict
+            or envelope.get("format") != "infocarry-nested-bmp-delete-task-envelope-v1"
+            or envelope.get("task") != "P18-051"
+            or envelope.get("status") != "prepared_for_independent_review"
+            or envelope.get("source_head") != source_head
+            or envelope.get("model") != "VNW-V15"
+            or envelope.get("vendor_id") != "0x054c" or envelope.get("product_id") != "0x001e"
+            or envelope.get("target") != NESTED_BMP_DELETE_VALIDATION_PATH
+            or _json(envelope.get("fixture")) != _json({"bytes":len(ROOT_BMP_DELETE_FIXTURE_BYTES), "sha256":_sha(ROOT_BMP_DELETE_FIXTURE_BYTES)})
+            or type(envelope.get("maximum_sender_invocations")) is not int
+            or envelope["maximum_sender_invocations"] != 2
+            or envelope.get("automatic_retry_allowed") is not False
+            or type(envelope.get("extra_setup_or_cleanup_writes")) is not int
+            or envelope["extra_setup_or_cleanup_writes"] != 0):
+        raise ValueError("exact two-write nested BMP task contract required")
 
 
 def _sha(data: bytes) -> str:
@@ -325,7 +382,9 @@ class RootTxtPlacementAuthorization:
         self.core.binding.require_same_candidate(candidate.core)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"format": ("infocarry-disposable-nested-txt-placement-authorization-v1"
+        return {"format": ("infocarry-disposable-nested-bmp-placement-authorization-v1"
+                           if self.core.profile_id == DISPOSABLE_NESTED_BMP_PLACEMENT_PROFILE
+                           else "infocarry-disposable-nested-txt-placement-authorization-v1"
                            if self.core.profile_id == DISPOSABLE_NESTED_TXT_PLACEMENT_PROFILE
                            else "infocarry-disposable-root-bmp-placement-authorization-v1"
                            if self.core.profile_id == DISPOSABLE_ROOT_BMP_PLACEMENT_PROFILE
@@ -398,14 +457,14 @@ class RootTxtPlacementBundle:
     @property
     def operation_id(self) -> str:
         if self.nested_validation:
-            return "nested-txt-placement-" + self.seal_sha256
+            return f"nested-{self.placement_media}-placement-" + self.seal_sha256
         prefix = "root-bmp-placement-" if self.placement_media == "bmp" else "root-txt-placement-"
         return prefix + self.seal_sha256
 
     @property
     def operation_profile(self) -> str:
         if self.nested_validation:
-            return DISPOSABLE_NESTED_TXT_PLACEMENT_PROFILE
+            return DISPOSABLE_NESTED_BMP_PLACEMENT_PROFILE if self.placement_media == "bmp" else DISPOSABLE_NESTED_TXT_PLACEMENT_PROFILE
         if self.validation_placement and self.placement_media == "bmp":
             return DISPOSABLE_ROOT_BMP_PLACEMENT_PROFILE
         return DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE if self.validation_placement else ROOT_TXT_PLACEMENT_PROFILE
@@ -421,7 +480,7 @@ class RootTxtPlacementBundle:
     @property
     def result_format(self) -> str:
         if self.nested_validation:
-            return "infocarry-disposable-nested-txt-placement-result-v1"
+            return f"infocarry-disposable-nested-{self.placement_media}-placement-result-v1"
         if self.validation_placement and self.placement_media == "bmp":
             return "infocarry-disposable-root-bmp-placement-result-v1"
         return ("infocarry-disposable-root-txt-placement-result-v1" if self.validation_placement
@@ -430,7 +489,7 @@ class RootTxtPlacementBundle:
     @property
     def terminal_format(self) -> str:
         if self.nested_validation:
-            return "infocarry-disposable-nested-txt-placement-terminal-resolution-v1"
+            return f"infocarry-disposable-nested-{self.placement_media}-placement-terminal-resolution-v1"
         if self.validation_placement and self.placement_media == "bmp":
             return "infocarry-disposable-root-bmp-placement-terminal-resolution-v1"
         return ("infocarry-disposable-root-txt-placement-terminal-resolution-v1" if self.validation_placement
@@ -475,7 +534,7 @@ class RootTxtPlacementBundle:
             OwnerAuthorizedOperationIdentity.from_bundle(self).approval_phrase})
 
     def review_dict(self) -> dict[str, Any]:
-        review_format = ("infocarry-disposable-nested-txt-placement-review-v1" if self.nested_validation
+        review_format = (f"infocarry-disposable-nested-{self.placement_media}-placement-review-v1" if self.nested_validation
                          else "infocarry-disposable-root-bmp-placement-review-v1"
                          if self.validation_placement and self.placement_media == "bmp"
                          else "infocarry-disposable-root-txt-placement-review-v1"
@@ -493,7 +552,7 @@ class RootTxtPlacementBundle:
                 "required_post_backup": "complete_independent_exact_readback"}
 
     def _envelope(self) -> dict[str, Any]:
-        envelope_format = ("infocarry-disposable-nested-txt-placement-bundle-v1" if self.nested_validation
+        envelope_format = (f"infocarry-disposable-nested-{self.placement_media}-placement-bundle-v1" if self.nested_validation
                            else "infocarry-disposable-root-bmp-placement-bundle-v1"
                            if self.validation_placement and self.placement_media == "bmp"
                            else "infocarry-disposable-root-txt-placement-bundle-v1"
@@ -553,7 +612,7 @@ class RootTxtPlacementBundle:
         preparation = audit.get("disposable_placement")
         if not isinstance(preparation, dict):
             raise ValueError("disposable placement preparation identity missing")
-        builder = (build_new_nested_txt_add if self.nested_validation else
+        builder = ((build_new_nested_bmp_add if self.placement_media == "bmp" else build_new_nested_txt_add) if self.nested_validation else
                    build_new_root_bmp_add if self.placement_media == "bmp" else build_new_root_txt_add)
         kwargs = {"source_template_offset": int(audit["template"]["record_offset_hex"], 16),
                   "available_capacity_bytes": self.capacity_response.capacity_limit_bytes-len(_blob(before)),
@@ -569,6 +628,74 @@ class RootTxtPlacementBundle:
         rebuilt_audit["disposable_placement"] = preparation
         if result.candidate_blob != self.candidate.candidate_blob or result.transaction != self.candidate.transaction or _json(rebuilt_audit) != self.candidate.audit_json:
             raise ValueError("disposable candidate/transaction/audit differs from independent reconstruction")
+
+    def require_two_write_task_binding(self, envelope, *, source_head, placement_result=None):
+        """Bind this exact placement and its inverse to the single task intent."""
+        from .delete_generalized import build_nested_file_delete_candidate
+        from .delete_workflow import NESTED_BMP_DELETE_VALIDATION_PATH
+        self.verify_seal()
+        if (not self.nested_validation or self.placement_media != "bmp"
+                or self.placement_target_path != NESTED_BMP_DELETE_VALIDATION_PATH
+                or placement_result is not None):
+            raise ValueError("two-write task requires the exact nested BMP placement")
+        _require_nested_bmp_task_header(envelope, source_head)
+        before = parse_backup_blob(_blob(self.before_backup))
+        after = parse_backup_blob(self.candidate.candidate_blob)
+        parent_path, parent_offset = _nested_parent(before, self.placement_target_path)
+        offsets = [o for o,p in after.paths.items() if p == parent_path + (self.expected_folder_name[:-4],)]
+        if len(offsets) != 1:
+            raise ValueError("task target is ambiguous")
+        record = after.record_at(offsets[0])
+        prefix, payload = after.payload_parts(record)
+        profile = {"flag":"0xe0", "opaque":"0xffffffff", "selector":"0x100",
+                   "prefix_bytes":16, "prefix_sha256":_sha(prefix),
+                   "target_record_sha256":_sha(bytes.fromhex(record.raw_hex)),
+                   "timestamp_be32":record.timestamp_be32}
+        audit = self.candidate.audit_dict()
+        template = _select_nested_bmp_template(before)
+        first = {"ordinal":1, "operation":"place_exact_nested_bmp", "target":self.placement_target_path,
+                 "target_record_offset":record.offset, "template_offset":template,
+                 "template_provenance":_nested_txt_template_provenance(before, template),
+                 "candidate_sha256":self.candidate_blob_sha256, "transaction_sha256":self.transaction_sha256,
+                 "growth_bytes":len(after.data)-len(before.data),
+                 "expected_added_paths":[self.placement_target_path], "expected_removed_paths":[], "sender_invocations":1}
+        operations = envelope.get("operations")
+        if type(operations) is not list or len(operations) != 2 or _json(operations[0]) != _json(first):
+            raise ValueError("task placement differs from the frozen operation")
+        require_nested_placement_provenance(before, operations[0], audit, media_type="bmp")
+        # The inverse is independently modeled from candidate bytes. It must
+        # produce the precise second transaction and original six write objects.
+        from .delete_model import build_one_nested_file_delete_model
+        from .new_txt import _build_transaction, _read_verified_object
+        inverse = build_one_nested_file_delete_model(after, self.placement_target_path, record.offset)
+        tx = self.candidate.transaction
+        original_fixed = tuple(_read_verified_object(self.before_backup, f"0x{c:04x}:response-{c:04x}")
+                               for c in range(0x1b,0x20))
+        inverse_tx = _build_transaction(inverse.candidate_blob, (b"".join(original_fixed[:4]), original_fixed[4]))
+        second = {"ordinal":2, "operation":"delete_same_nested_bmp", "target":self.placement_target_path,
+                  "target_record_offset":record.offset, "candidate_sha256":_sha(inverse.candidate_blob),
+                  "transaction_sha256":inverse_tx.concatenated_sha256,
+                  "expected_added_paths":[], "expected_removed_paths":[self.placement_target_path], "sender_invocations":1}
+        expected_objects = {"0x8004:backup-blob": self.candidate_blob_sha256,
+                            "0x001f:response-001f": _sha(tx.ranges[1])}
+        expected_objects.update({f"0x{c:04x}:response-{c:04x}": _sha(tx.ranges[0][i*64:(i+1)*64])
+                                 for i,c in enumerate(range(0x1b,0x1f))})
+        if (inverse.candidate_blob != before.data
+                or _json(operations[1]) != _json(second)
+                or envelope.get("baseline_objects") != dict(self.before_backup.object_sha256_by_key)
+                or envelope.get("restoration_objects") != dict(self.before_backup.object_sha256_by_key)
+                or envelope.get("baseline_state_identity_sha256") != self.baseline_state_identity_sha256
+                or envelope.get("restoration_state_identity_sha256") != self.baseline_state_identity_sha256
+                or envelope.get("capacity") != self.capacity_response.to_dict()
+                or envelope.get("target_record_offset") != record.offset
+                or envelope.get("parent_record_offset") != parent_offset
+                or envelope.get("parent_path") != "\\".join(parent_path)
+                or envelope.get("placement_timestamp_be32") != record.timestamp_be32
+                or _json(envelope.get("native_profile")) != _json(profile)
+                or envelope.get("placement_expected_objects") != expected_objects
+                or envelope.get("placement_unpredicted_objects") != ["0x0024:response-0024", "0x8004:backup-blob-probe"]):
+            raise ValueError("two-write task state, provenance, profile or inverse differs")
+
 
     def _consume_execution_claim(self, owner: PersistentWriteSafetyOwner):
         from .prepared_library_package_live_adapter import _execution_claim_bindings
@@ -704,12 +831,12 @@ class RootTxtPlacementBundle:
             if audit.get("execution_claim", {}).get("committed") is not True or audit.get("execution_claim", {}).get("sender_marker", {}).get("resolved") is not True:
                 raise ValueError("report requires committed claim and resolved marker")
             path = Path(root) / "disposable-placement-report.json"
-            report_format = ("infocarry-disposable-nested-txt-placement-report-v1" if self.nested_validation
+            report_format = (f"infocarry-disposable-nested-{self.placement_media}-placement-report-v1" if self.nested_validation
                              else "infocarry-disposable-root-bmp-placement-report-v1"
                              if self.placement_media == "bmp"
                              else "infocarry-disposable-root-txt-placement-report-v1")
             _write_json(path, {"format": report_format,
-                "experiment_id": "P18-049" if self.nested_validation else ("P18-047" if self.placement_target_path == "root\\IC_P18_047_DELETE_B.bmp" else "P18-046") if self.placement_media == "bmp" else "P18-045" if self.placement_target_path == "root\\IC_P18_045_DELETE_C.txt" else "P18-044",
+                "experiment_id": ("P18-051" if self.placement_media == "bmp" else "P18-049") if self.nested_validation else ("P18-047" if self.placement_target_path == "root\\IC_P18_047_DELETE_B.bmp" else "P18-046") if self.placement_media == "bmp" else "P18-045" if self.placement_target_path == "root\\IC_P18_045_DELETE_C.txt" else "P18-044",
                 "status": "completed_and_independently_verified",
                 "operation": "separate_fixture_placement", "fixture": _fixture_dict(self.placement_target_path, True, self.placement_media, nested_validation=self.nested_validation),
                 "sender_invocations": 1, "add_count": 1, "delete_count": 0, "retry_count": 0,
@@ -738,7 +865,7 @@ class RootTxtPlacementBundle:
             raise ValueError("independent root readback reconciliation failed")
         if self.validation_placement:
             report = json.loads((Path(result.audit["evidence_outputs"]["root"]) / "disposable-placement-report.json").read_bytes())
-            expected_format = ("infocarry-disposable-nested-txt-placement-report-v1" if self.nested_validation
+            expected_format = (f"infocarry-disposable-nested-{self.placement_media}-placement-report-v1" if self.nested_validation
                                else "infocarry-disposable-root-bmp-placement-report-v1"
                                if self.placement_media == "bmp"
                                else "infocarry-disposable-root-txt-placement-report-v1")
@@ -761,8 +888,29 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             raise ValueError("placement requires the pinned operation runtime")
         super().__init__()
         self.runtime = runtime
+        self._task_binding = None
+
+    def bind_task(self, envelope, *, source_head, placement_result=None):
+        if self._prepared_operation is None or self.owner_approval_accepted:
+            raise ValueError("task must bind the current preparation before owner acceptance")
+        frozen = _json(envelope)
+        self._prepared_operation.require_two_write_task_binding(json.loads(frozen), source_head=source_head, placement_result=placement_result)
+        self._task_binding = (self._prepared_operation, frozen, source_head, placement_result)
+
+    def require_task_binding(self):
+        bundle = self._prepared_operation
+        if bundle is not None and bundle.operation_profile in {DISPOSABLE_NESTED_BMP_PLACEMENT_PROFILE, "vnw-v15-exact-nested-bmp-delete-validation-v1"}:
+            binding = self._task_binding
+            if binding is None or binding[0] is not bundle:
+                raise ValueError("exact two-write BMP task must be bound before owner acceptance")
+            bundle.require_two_write_task_binding(json.loads(binding[1]), source_head=binding[2], placement_result=binding[3])
+
+    def authorize_prepared_operation(self, approval_phrase):
+        self.require_task_binding()
+        return super().authorize_prepared_operation(approval_phrase)
 
     def discard_prepared_operation(self) -> None:
+        self._task_binding = None
         super().discard_prepared_operation()
         self.runtime.close()
 
@@ -804,7 +952,7 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             templates = [offset for offset in parsed.paths if parsed.record_at(offset).kind == "file" and parsed.record_at(offset).extension.lower() == template_extension]
             if nested_validation:
                 _nested_parent(parsed, target_path)
-                templates = [_select_nested_txt_template(parsed)]
+                templates = [(_select_nested_bmp_template if placement_media == "bmp" else _select_nested_txt_template)(parsed)]
             elif validation_placement and placement_media == "txt":
                 templates = [offset for offset in templates if parsed.paths[offset][:-1] == ("root",)
                              and parsed.record_at(offset).extension == "txt"
@@ -848,7 +996,8 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             timestamp = runtime.new_record_timestamp_be32()
             if nested_validation:
                 parent_path, parent_offset = _nested_parent(parsed, target_path)
-                result = build_new_nested_txt_add(before.directory, source_copy, filename,
+                builder = build_new_nested_bmp_add if placement_media == "bmp" else build_new_nested_txt_add
+                result = builder(before.directory, source_copy, filename,
                     target_directory_path=parent_path, target_directory_offset=parent_offset,
                     source_template_offset=templates[0], available_capacity_bytes=capacity.capacity_limit_bytes-len(baseline_blob),
                     record_timestamp_be32=timestamp)
@@ -880,7 +1029,7 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
             binding = authorize_new_txt_add(result, confirmation=NEW_ROOT_TXT_CONFIRMATION_PHRASE)
             authorization = RootTxtPlacementAuthorization(RootTxtAuthorizationCore(binding, before.directory, source_copy,
                 confirmation_phrase=f"ADD {filename} ONCE",
-                profile_id=DISPOSABLE_NESTED_TXT_PLACEMENT_PROFILE if nested_validation else DISPOSABLE_ROOT_BMP_PLACEMENT_PROFILE if validation_placement and placement_media == "bmp"
+                profile_id=(DISPOSABLE_NESTED_BMP_PLACEMENT_PROFILE if placement_media == "bmp" else DISPOSABLE_NESTED_TXT_PLACEMENT_PROFILE) if nested_validation else DISPOSABLE_ROOT_BMP_PLACEMENT_PROFILE if validation_placement and placement_media == "bmp"
                 else DISPOSABLE_ROOT_TXT_PLACEMENT_PROFILE if validation_placement else ROOT_TXT_PLACEMENT_PROFILE))
             seal_path = root / "operation-bundle.json"
             from dataclasses import replace
@@ -917,6 +1066,7 @@ class RootTxtPlacementFacade(LibraryTransferExecutionFacade):
         try:
             if prepared is None or self._owner_authorized_identity is None:
                 raise LibraryTransferExecutionError("separate exact owner approval required", stage="owner_authorization")
+            self.require_task_binding()
             prepared.verify_seal()
             admit = getattr(prepared, "assert_execution_admitted", None)
             if admit is not None:

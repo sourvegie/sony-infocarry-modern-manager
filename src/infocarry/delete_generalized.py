@@ -576,10 +576,17 @@ class GeneralizedDeleteAuthorization:
         if self.target_extension == "bmp":
             # Reconstruct through the same builder before accepting a host
             # authorization. Parsed caches and mutable audit are not authority.
-            expected = build_root_bmp_delete_candidate(
-                candidate.backup.directory, candidate.target_path,
-                candidate.target_record_offset, max_age_seconds=None,
-            )
+            if len(candidate.target_path.split("\\")) > 2:
+                # Only the exact guarded nested specimen has an executable
+                # adapter; the generic sender continues to refuse all nesting.
+                from .delete_workflow import build_nested_bmp_validation_delete
+                expected = build_nested_bmp_validation_delete(
+                    candidate.backup.directory, candidate.target_path,
+                    target_record_offset=candidate.target_record_offset, max_age_seconds=None)
+            else:
+                expected = build_root_bmp_delete_candidate(
+                    candidate.backup.directory, candidate.target_path,
+                    candidate.target_record_offset, max_age_seconds=None)
             if (candidate.baseline.data != expected.baseline.data
                     or candidate.candidate_blob != expected.candidate_blob
                     or candidate.target_payload_sha256 != expected.target_payload_sha256

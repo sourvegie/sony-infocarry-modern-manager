@@ -479,6 +479,8 @@ class OwnerAuthorizedOperationIdentity:
                 "root-bmp-placement-" + self.bundle_sha256,
                 "nested-txt-delete-" + self.bundle_sha256,
                 "nested-txt-placement-" + self.bundle_sha256,
+                "nested-bmp-delete-" + self.bundle_sha256,
+                "nested-bmp-placement-" + self.bundle_sha256,
             }:
                 raise ValueError("readable confirmation requires its sealed operation")
         if self.device_identity != ("0x054c", "0x001e"):

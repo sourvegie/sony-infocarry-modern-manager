@@ -2,6 +2,21 @@
 
 Date: 2026-10-25
 
+## P18-051 — exact nested BMP validation preparation
+
+Offline implementation is in progress on isolated `task/p18-051-nested-bmp-delete`
+from published sanitized `c87a208`. The existing guarded placement/Delete
+architecture now has an explicit exact nested BMP validation route. It accepts
+only `root\IC_P18_040_NESTED_20260930_01\Section-A\IC_P18_051_DELETE_A.bmp`,
+the existing 10,302-byte fixture, unread `e0` / `ffffffff` / `100` / all-FF16.
+Both operations must bind the same immutable two-write task; Delete additionally
+requires the actual verified placement result and original all-eight restoration
+hashes inside canonical readback. Ordinary nested BMP remains unavailable.
+
+No physical writes, push or merge. Full host validation, fresh read-only staging
+and independent exact-head R3 are required before requesting one owner approval.
+See the [preparation report](analysis/p18-051-nested-bmp-delete-validation-20261025.md).
+
 ## P18-050 — conservative nested-TXT promotion; nested-BMP host preparation
 
 The owner authorized offline promotion work, with zero physical writes and no
