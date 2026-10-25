@@ -2,36 +2,36 @@
 
 Date: 2026-10-25
 
-## P18-049 — provenance resolved; deletion-only approval pending
+## P18-049 — final exact nested-TXT Delete physically verified
 
-The original placement remains verified, and the stopped two-write envelope
-and execution records remain unchanged. The source records at `0x1c0` and
-`0x7180` are distinct files with different payloads (53 versus 8,850 bytes).
-Independent field-by-field reconstruction proves that their differing fields
-are overwritten or never copied, so all candidate bytes and eight transaction
-ranges match. The original provenance inconsistency remains a recorded failure;
-its unused second write is not continuation authority.
+The owner separately approved deletion-only envelope `0fbc9a82…76d556e1`.
+The existing 34-byte fixture at `0x880` was deleted once: native `0x0000`,
+one audited sender/transaction, zero retries and no additional fixture or write.
+Fresh preflight matched the frozen post-placement state and capacity. The
+complete native post-delete capture restores **all eight original native objects
+byte-for-byte**, including the auxiliary response and probe. Only the named leaf
+was removed; the existing parent/siblings, all 454 surviving record timestamps,
+300 payload/prefix pairs, 79 markers and protected references are preserved.
 
-Reviewed source `51d6b75166a164c2fba707506fbeb3d2164f37d2` shares the existing
-placement selector, explicitly compares complete source provenance and adds an
-all-eight restoration profile to the existing guarded Delete lifecycle. Ordinary
-nested Delete remains disabled. Fresh read-only native capture exactly matches
-the independently verified placement: fixture at `0x880`, parent `0x700`,
-capacity 3,145,728 bytes, 25 unchanged claims, zero markers and clear unchanged
-lock. No physical write occurred during this resolution.
+The new claim is consumed (25→26), all 25 historical rows are unchanged,
+sender markers are absent and the global lock is clear/byte-identical.
+Independent actual-evidence review is recorded in the
+[final physical-validation report](analysis/p18-049-final-delete-physical-verification-20261025.md).
+This is physical evidence for one exact disposable unread nested TXT only.
+**General nested Delete remains disabled; no promotion, push or merge.**
 
-A separate immutable deletion-only envelope `0fbc9a82…76d556e1` binds only the
-existing 34-byte fixture. It permits at most one sender, no placement, retry,
-recovery or extra cleanup, and requires complete restoration of the original
-eight native objects before canonical success. The 1,281-test suite passes
-(1,276 passed, five established skips); 106 independent focused regressions,
-package/signature and isolated GUI/runtime smoke pass. Exact-code-head R3 and
-final scope review are recorded in the linked report. **READY_FOR_HARDWARE_TEST:
-stop before Delete and obtain one new owner approval for the remaining write.**
-No push, merge or feature promotion. P18-034 and all 103 original evidence files
-remain unchanged. See [provenance resolution](analysis/p18-049-provenance-resolution-20261025.md),
-[deletion-only plan](analysis/p18-049-deletion-only-plan-20261025.md) and
-[independent R3 review](analysis/p18-049-resolution-r3-review-20261025.md).
+The original two-write experiment's provenance P1/STOP and execution records
+remain unchanged. Distinct source identities/payloads and complete-byte
+reconstruction are documented in the separate
+[provenance resolution](analysis/p18-049-provenance-resolution-20261025.md).
+The new deletion used no old continuation authority and no insertion template.
+Reviewed implementation `51d6b75166a164c2fba707506fbeb3d2164f37d2` is unchanged;
+its 1,281-test suite (1,276 passed, five established skips), package/GUI checks
+and exact-head R3 remain applicable. The P18-034 checkout, 103 original evidence
+files and 120 preexisting frozen artifacts remain preserved. The prior
+[one-write plan](analysis/p18-049-deletion-only-plan-20261025.md) and
+[readiness review](analysis/p18-049-resolution-r3-review-20261025.md) remain
+historical preparation records; the new report records actual completion.
 
 ## P18-048 — Experimental unread root-BMP Delete promotion
 
