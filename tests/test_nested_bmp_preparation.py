@@ -38,7 +38,7 @@ class NestedBmpPreparationTests(unittest.TestCase):
         args.update(changes)
         return build_new_nested_bmp_add(**args)
 
-    def test_host_placement_inverse_complete_state_restoration_and_no_admission(self):
+    def test_host_model_stays_sender_free_and_ordinary_service_admits_reviewed_profile(self):
         placed=self.build();after=parse_backup_blob(placed.candidate_blob)
         target=next(o for o,p in after.paths.items() if p==('root','folder','sub','disposable'))
         post=self.archive(placed.candidate_blob,dict(zip(range(0x1b,0x20),
@@ -52,7 +52,9 @@ class NestedBmpPreparationTests(unittest.TestCase):
         verify_nested_file_delete_readback(host,final,completion=0,max_age_seconds=None)
         model=DesktopWorkflowModel();model.load_backup(post)
         service=DeviceLibraryDeleteService(lambda: (_ for _ in ()).throw(AssertionError('runtime opened')))
-        with self.assertRaises(ValueError):service.select(model,[target])
+        selection=service.select(model,[target])
+        self.assertTrue(selection.general_nested_bmp)
+        self.assertTrue(service.execution_available(selection))
         self.assertTrue(placed.audit['preservation']['inverse_nested_delete_exact_baseline'])
         self.assertEqual(placed.audit['template']['record_offset_hex'],'0x00000240')
         self.assertIn('copied_record_fields_sha256',placed.audit['template'])

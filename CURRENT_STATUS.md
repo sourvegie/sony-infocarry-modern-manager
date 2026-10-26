@@ -1,6 +1,33 @@
 # Current Project Status
 
-Date: 2026-10-26
+Date: 2026-10-27
+
+## P18-052 — conservative Experimental nested-BMP Delete promotion
+
+Offline implementation and validation in progress on isolated
+`task/p18-052-nested-bmp-promotion`, derived from sanitized P18-051
+`219ebfb4182e8cafbb294e69e1fd8b79a9636579`. No hardware write, push,
+merge or local main integration is authorized or performed.
+
+Normal Device Library admits one unique unread canonical BMP leaf under
+exactly two existing ordinary folders, leaving its parent nonempty. The
+FF16 / `e0` / `ffffffff` / `100` native profile, safe exact CP932 identities,
+complete graph/marker/allocation/checksum and protected-state checks are
+mandatory. Existing one-confirmation, fresh complete backup/capacity,
+frozen identity, reconnect, durable claim/marker/global lock, one sender,
+no retry, native zero, independent readback and refresh are unchanged.
+Root TXT/BMP, nested TXT, inspection and transfer scopes are preserved.
+
+Physical proof is P18-051's one exact bottom-up fixture only. One restored
+archived BMP matches this conservative class. Other safe names, pixels,
+positions and top-down nested content are host-supported engineering
+inference. Unsupported profiles/depths, emptied parents, references,
+active Marks, ambiguity, directories/subtrees, VNW-V10 and recovery refuse.
+
+Tests, package checks and required exact-head R3 review are recorded in the
+[P18-052 report](analysis/p18-052-nested-bmp-delete-promotion-20261027.md).
+The matrix defines current admission; older sections below retain their
+historical checkpoint scope.
 
 ## P18-051 — exact nested BMP placement/Delete physically verified
 

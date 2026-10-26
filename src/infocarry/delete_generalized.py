@@ -577,10 +577,15 @@ class GeneralizedDeleteAuthorization:
             # Reconstruct through the same builder before accepting a host
             # authorization. Parsed caches and mutable audit are not authority.
             if len(candidate.target_path.split("\\")) > 2:
-                # Only the exact guarded nested specimen has an executable
-                # adapter; the generic sender continues to refuse all nesting.
-                from .delete_workflow import build_nested_bmp_validation_delete
-                expected = build_nested_bmp_validation_delete(
+                # Preserve the retained exact route; otherwise reconstruct the
+                # conservative source-derived class. The generic sender still
+                # refuses every nested candidate, regardless of audit labels.
+                from .delete_workflow import (build_nested_bmp_validation_delete,
+                    build_nested_bmp_delete, NESTED_BMP_DELETE_VALIDATION_PROFILE)
+                builder = (build_nested_bmp_validation_delete
+                           if candidate.to_dict().get("profile") == NESTED_BMP_DELETE_VALIDATION_PROFILE
+                           else build_nested_bmp_delete)
+                expected = builder(
                     candidate.backup.directory, candidate.target_path,
                     target_record_offset=candidate.target_record_offset, max_age_seconds=None)
             else:

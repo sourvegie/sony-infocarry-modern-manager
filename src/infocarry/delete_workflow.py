@@ -517,6 +517,58 @@ def build_nested_bmp_validation_delete(backup_directory, target_path, *,
                                       host.fixed_state, transaction, audit)
 
 
+NESTED_BMP_DELETE_LIVE_PROFILE = "vnw-v15-unread-nested-bmp-delete-v1"
+
+
+def build_nested_bmp_delete(backup_directory, target_path, *,
+                            target_record_offset=None, max_age_seconds=None):
+    """Experimental two-folder unread BMP subset; no general nested Delete.
+
+    P18-051 proves one exact bottom-up specimen with a surviving sibling.
+    Other safe names, pixels, orientations and serialized positions within the
+    checked canonical profile are host-supported engineering inference.
+    """
+    backup = verify_fresh_backup(Path(backup_directory), max_age_seconds=max_age_seconds)
+    if backup.device_identity != ("0x054c", "0x001e") or backup.object_count != 8:
+        raise RootTxtDeleteAdmissionError("nested BMP requires a complete VNW-V15 archive")
+    parsed = parse_backup_blob(_blob(backup))
+    matches = [r for r in parsed.records if r.kind == "file" and r.extension == "bmp"
+               and r.offset in parsed.paths
+               and "\\".join(parsed.paths[r.offset]) + ".bmp" == target_path]
+    if len(matches) != 1:
+        raise RootTxtDeleteAdmissionError("nested BMP target is missing or ambiguous")
+    target = matches[0]
+    parts = parsed.paths[target.offset]
+    prefix, _payload = parsed.payload_parts(target)
+    if (len(parts) != 4 or parts[0] != "root" or target.flag != 0xe0
+            or target.field_10_be32 != 0xffffffff or target.field_14_be32 != 0x100
+            or prefix != b"\xff" * 16):
+        raise RootTxtDeleteAdmissionError("nested BMP requires two existing folders and the observed unread all-FF16 profile")
+    if not any(p[:-1] == parts[:-1] and o != target.offset for o,p in parsed.paths.items()):
+        raise RootTxtDeleteAdmissionError("nested BMP must leave a nonempty parent")
+    if target_record_offset is not None and (type(target_record_offset) is not int or target_record_offset != target.offset):
+        raise RootTxtDeleteAdmissionError("nested BMP selected record identity changed")
+    from .new_bmp import _validate_content_geometry
+    _validate_content_geometry(parsed, "nested BMP baseline")
+    # The existing nested model validates canonical BMP payload, unique exact
+    # CP932 identities, ancestor/marker ownership, checksums and target geometry.
+    # Its protected-state derivation refuses references, active Marks and unknown
+    # structures. No repacker or format inference is added by this admission.
+    host = build_nested_file_delete_candidate(backup.directory, target_path, target.offset,
+                                              max_age_seconds=max_age_seconds)
+    _validate_content_geometry(parse_backup_blob(host.candidate_blob), "nested BMP candidate")
+    transaction = _build_transaction(host.candidate_blob, host.fixed_state)
+    audit = host.to_dict()
+    audit["safety"] = dict(audit.get("safety", {}), transaction_constructed=True,
+                           authorization_created=False, execution_available=False,
+                           physical_behavior_proven=False)
+    audit.update(profile=NESTED_BMP_DELETE_LIVE_PROFILE,
+                 capability_status="experimental_unread_nested_bmp",
+                 transaction_sha256=transaction.concatenated_sha256)
+    return GeneralizedDeleteCandidate(host.backup, host.baseline, host.candidate_model,
+                                      host.fixed_state, transaction, audit)
+
+
 def build_nested_txt_delete(backup_directory, target_path, *,
                             target_record_offset=None, max_age_seconds=None):
     """Experimental unread TXT subset of the independently checked nested model.
@@ -788,6 +840,7 @@ class RootTxtDeleteCandidate:
     general_bmp: bool = False
     nested_validation: bool = False
     general_nested_txt: bool = False
+    general_nested_bmp: bool = False
 
     @property
     def core(self):
@@ -799,6 +852,9 @@ class RootTxtDeleteCandidate:
                 target_record_offset=self.target_record_offset)
         if self.general_nested_txt:
             return build_nested_txt_delete(self.backup_directory, self.target_path,
+                target_record_offset=self.target_record_offset)
+        if self.general_nested_bmp:
+            return build_nested_bmp_delete(self.backup_directory, self.target_path,
                 target_record_offset=self.target_record_offset)
         if self.exact_fixture:
             return build_experimental_root_txt_delete(self.backup_directory)
@@ -846,7 +902,9 @@ class RootTxtDeleteAuthorization:
             raise ValueError("frozen Delete differs from independently reconstructed candidate")
 
     def to_dict(self):
-        return {"format": ("infocarry-experimental-nested-txt-delete-authorization-v1"
+        return {"format": ("infocarry-experimental-nested-bmp-delete-authorization-v1"
+                            if self.core.profile_id == NESTED_BMP_DELETE_LIVE_PROFILE else
+                            "infocarry-experimental-nested-txt-delete-authorization-v1"
                             if self.core.profile_id == NESTED_TXT_DELETE_LIVE_PROFILE else
                             "infocarry-exact-nested-txt-delete-authorization-v1"
                             if self.core.profile_id == NESTED_TXT_DELETE_VALIDATION_PROFILE else
@@ -880,7 +938,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def execution_available(self):
-        if self.candidate.nested_validation or self.candidate.general_nested_txt:
+        if self.candidate.nested_validation or self.candidate.general_nested_txt or self.candidate.general_nested_bmp:
             # Reconstruct the source-derived profile before permitting execution.
             self.candidate.core
             return True
@@ -898,7 +956,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def operation_id(self):
-        if self.candidate.nested_validation or self.candidate.general_nested_txt:
+        if self.candidate.nested_validation or self.candidate.general_nested_txt or self.candidate.general_nested_bmp:
             return f"nested-{self.candidate.target_extension}-delete-" + self.seal_sha256
         if self.candidate.target_extension == "bmp":
             return "root-bmp-delete-" + self.seal_sha256
@@ -906,6 +964,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def operation_profile(self):
+        if self.candidate.general_nested_bmp:
+            return NESTED_BMP_DELETE_LIVE_PROFILE
         if self.candidate.general_nested_txt:
             return NESTED_TXT_DELETE_LIVE_PROFILE
         if self.candidate.nested_validation:
@@ -918,8 +978,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def result_format(self):
-        if self.candidate.general_nested_txt:
-            return "infocarry-experimental-nested-txt-delete-result-v1"
+        if self.candidate.general_nested_txt or self.candidate.general_nested_bmp:
+            return f"infocarry-experimental-nested-{self.candidate.target_extension}-delete-result-v1"
         if self.candidate.nested_validation:
             return f"infocarry-exact-nested-{self.candidate.target_extension}-delete-result-v1"
         if self.candidate.target_extension == "bmp":
@@ -928,8 +988,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     @property
     def terminal_format(self):
-        if self.candidate.general_nested_txt:
-            return "infocarry-experimental-nested-txt-delete-terminal-resolution-v1"
+        if self.candidate.general_nested_txt or self.candidate.general_nested_bmp:
+            return f"infocarry-experimental-nested-{self.candidate.target_extension}-delete-terminal-resolution-v1"
         if self.candidate.nested_validation:
             return f"infocarry-exact-nested-{self.candidate.target_extension}-delete-terminal-resolution-v1"
         if self.candidate.target_extension == "bmp":
@@ -989,6 +1049,12 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
                          target_profile={"flag": "0xe0", "prefix_selector": "0x200", "prefix_bytes": 32,
                                          "prefix_sha256": _sha(NESTED_TXT_DELETE_NATIVE_PREFIX), "directory_depth": 2,
                                          "parent_remains_nonempty": True})
+        if self.candidate.general_nested_bmp:
+            value.update(format="infocarry-experimental-nested-bmp-delete-bundle-v1",
+                         general_nested_bmp=True, capability_status="experimental_unread_nested_bmp",
+                         target_profile={"flag":"0xe0", "opaque":"0xffffffff", "prefix_selector":"0x100",
+                                         "prefix_bytes":16, "prefix_sha256":_sha(b"\xff"*16),
+                                         "directory_depth":2, "parent_remains_nonempty":True})
         if self.restoration_objects is not None:
             value["restoration_objects"] = dict(self.restoration_objects)
         return value
@@ -1004,7 +1070,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         if self.candidate.exact_fixture:
             if core.target_path != FIXTURE_PATH or core.target_payload_sha256 != FIXTURE_SHA256:
                 raise ValueError("Delete target differs from exact experimental fixture")
-        elif self.candidate.target_extension == "bmp" and not self.candidate.nested_validation:
+        elif self.candidate.target_extension == "bmp" and not self.candidate.nested_validation and not self.candidate.general_nested_bmp:
             if ((not self.candidate.general_bmp and (not self.validation_bmp_only or core.target_path not in ROOT_BMP_DELETE_VALIDATION_FILES))
                     or core.target_path != self.candidate.target_path
                     or core.target_record_offset != self.candidate.target_record_offset
@@ -1038,16 +1104,21 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         if (type(self.validation_only) is not bool or type(self.validation_bmp_only) is not bool
                 or type(self.candidate.exact_fixture) is not bool or type(self.candidate.general_bmp) is not bool
                 or type(self.candidate.nested_validation) is not bool
-                or type(self.candidate.general_nested_txt) is not bool):
+                or type(self.candidate.general_nested_txt) is not bool
+                or type(self.candidate.general_nested_bmp) is not bool):
             raise ValueError("Delete admission flags must be exact booleans")
-        if self.candidate.nested_validation and (self.candidate.general_nested_txt or self.candidate.exact_fixture or self.candidate.general_bmp
+        if self.candidate.nested_validation and (self.candidate.general_nested_txt or self.candidate.general_nested_bmp or self.candidate.exact_fixture or self.candidate.general_bmp
                 or self.validation_only or self.validation_bmp_only
                 or (self.candidate.target_extension, self.target_path) not in {
                     ("txt", NESTED_TXT_DELETE_VALIDATION_PATH), ("bmp", NESTED_BMP_DELETE_VALIDATION_PATH)}):
             raise ValueError("nested validation cannot adopt another Delete scope")
-        if self.candidate.general_nested_txt and (self.candidate.exact_fixture or self.candidate.general_bmp
+        if self.candidate.general_nested_txt and (self.candidate.general_nested_bmp or self.candidate.exact_fixture or self.candidate.general_bmp
                 or self.validation_only or self.validation_bmp_only or self.candidate.target_extension != "txt"):
             raise ValueError("ordinary nested TXT conflicts with another Delete scope")
+        if self.candidate.general_nested_bmp and (self.candidate.exact_fixture or self.candidate.general_bmp
+                or self.validation_only or self.validation_bmp_only or self.candidate.nested_validation
+                or self.candidate.general_nested_txt or self.candidate.target_extension != "bmp"):
+            raise ValueError("ordinary nested BMP conflicts with another Delete scope")
         if self.candidate.general_bmp and (self.candidate.target_extension != "bmp"
                 or self.candidate.exact_fixture or self.validation_bmp_only or self.validation_only):
             raise ValueError("ordinary BMP scope conflicts with fixture validation")
@@ -1061,7 +1132,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         elif self.candidate.target_extension == "bmp":
             if (self.validation_only or self.source_path.name != self.expected_folder_name
                     or _sha(self.source_path.read_bytes()) != self.candidate.core.target_payload_sha256
-                    or (not self.candidate.general_bmp and (not self.validation_bmp_only
+                    or (not self.candidate.general_bmp and not self.candidate.general_nested_bmp and (not self.validation_bmp_only
                         or self.target_path not in ROOT_BMP_DELETE_VALIDATION_FILES
                         or self.source_path.read_bytes() != ROOT_BMP_DELETE_VALIDATION_FILES[self.target_path]))):
                 raise ValueError("BMP source copy or disposable scope changed")
@@ -1101,7 +1172,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     def review_dict(self):
         bmp = self.candidate.target_extension == "bmp"
-        return {"format": ("infocarry-experimental-nested-txt-delete-review-v1" if self.candidate.general_nested_txt else
+        return {"format": (f"infocarry-experimental-nested-{self.candidate.target_extension}-delete-review-v1" if self.candidate.general_nested_txt or self.candidate.general_nested_bmp else
                             "infocarry-experimental-root-bmp-delete-review-v1" if bmp
                             else "infocarry-experimental-root-txt-delete-review-v1"),
                 "owner_identity": OwnerAuthorizedOperationIdentity.from_bundle(self).to_dict(),
@@ -1111,7 +1182,8 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
                 "candidate_prepared": True, "confirmation_phrase": self.authorization.core.confirmation_phrase,
                 "physical_operation_count": 1, "automatic_retry_allowed": False,
                 "profile": self.operation_profile,
-                "capability_status": "Experimental unread nested TXT" if self.candidate.general_nested_txt else
+                "capability_status": "Experimental unread nested BMP" if self.candidate.general_nested_bmp else
+                "Experimental unread nested TXT" if self.candidate.general_nested_txt else
                 f"exact disposable nested {self.candidate.target_extension.upper()} validation only" if self.candidate.nested_validation else
                 ("Experimental unread root BMP" if self.candidate.general_bmp else "exact disposable BMP validation only") if bmp else None}
 
@@ -1193,7 +1265,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
 
     def verify_readback(self, after, *, completion, now=None, max_age_seconds=None):
         self.verify_seal()
-        if self.candidate.nested_validation or self.candidate.general_nested_txt:
+        if self.candidate.nested_validation or self.candidate.general_nested_txt or self.candidate.general_nested_bmp:
             host = build_nested_file_delete_candidate(self.before_backup.directory, self.target_path,
                         self.candidate.target_record_offset, max_age_seconds=None)
             verification = verify_nested_file_delete_readback(host, after.directory,
@@ -1220,7 +1292,7 @@ class RootTxtDeleteBundle(RootTxtPlacementBundle):
         if audit.get("execution_claim", {}).get("sender_marker", {}).get("resolved") is not True:
             raise ValueError("Delete report requires terminal marker resolution")
         bmp = self.candidate.target_extension == "bmp"
-        path = Path(root) / (f"nested-{self.candidate.target_extension}-delete-report.json" if self.candidate.nested_validation or self.candidate.general_nested_txt else
+        path = Path(root) / (f"nested-{self.candidate.target_extension}-delete-report.json" if self.candidate.nested_validation or self.candidate.general_nested_txt or self.candidate.general_nested_bmp else
                              "root-bmp-delete-report.json" if bmp else "root-txt-delete-report.json")
         _write_json(path, {"format": self.result_format,
                           "operation": "Delete", "target": self.target_path,
@@ -1251,7 +1323,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
     def prepare(self, *, target_path=FIXTURE_PATH, device_model="VNW-V15",
                 max_age_seconds=DEFAULT_MAX_AGE_SECONDS, cancelled=None, progress=None,
                 general_txt=False, validation_only=False, validation_bmp_only=False, general_bmp=False,
-                nested_validation=False, general_nested_txt=False, restoration_objects=None):
+                nested_validation=False, general_nested_txt=False, general_nested_bmp=False, restoration_objects=None):
         if self.stop_approved_rebuild():
             raise ValueError("approved Delete cannot refresh or adopt a new candidate")
         try:
@@ -1259,25 +1331,29 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 raise ValueError("discard the previous operation before preparing another")
             if (type(general_txt) is not bool or type(validation_only) is not bool
                     or type(validation_bmp_only) is not bool or type(general_bmp) is not bool
-                    or type(nested_validation) is not bool or type(general_nested_txt) is not bool):
+                    or type(nested_validation) is not bool or type(general_nested_txt) is not bool
+                    or type(general_nested_bmp) is not bool):
                 raise ValueError("Delete admission flags require exact booleans")
             restoration = _restoration_items(restoration_objects)
             if restoration is not None and not nested_validation:
                 raise ValueError("restoration scope is restricted to exact nested validation")
-            if nested_validation and (general_nested_txt or general_txt or general_bmp or validation_only or validation_bmp_only
+            if nested_validation and (general_nested_txt or general_nested_bmp or general_txt or general_bmp or validation_only or validation_bmp_only
                     or target_path not in (NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_BMP_DELETE_VALIDATION_PATH)):
                 raise ValueError("nested validation requires only the predetermined disposable target")
             if nested_validation and target_path == NESTED_BMP_DELETE_VALIDATION_PATH and restoration is None:
                 raise ValueError("nested BMP validation requires all-eight original restoration hashes")
-            if general_nested_txt and (general_txt or general_bmp or validation_only or validation_bmp_only):
+            if general_nested_txt and (general_nested_bmp or general_txt or general_bmp or validation_only or validation_bmp_only):
                 raise ValueError("ordinary nested TXT cannot adopt another Delete scope")
+            if general_nested_bmp and (nested_validation or general_nested_txt or general_txt or general_bmp
+                    or validation_only or validation_bmp_only):
+                raise ValueError("ordinary nested BMP cannot adopt another Delete scope")
             if general_bmp and (general_txt or validation_only or validation_bmp_only):
                 raise ValueError("ordinary BMP cannot adopt another Delete scope")
             if validation_only and (not general_txt or target_path not in ROOT_TXT_DELETE_VALIDATION_FILES):
                 raise ValueError("validation requires one predetermined disposable target")
             if validation_bmp_only and (general_txt or validation_only or target_path not in ROOT_BMP_DELETE_VALIDATION_FILES):
                 raise ValueError("BMP validation requires only the exact disposable root-BMP target")
-            if ((not general_txt and not validation_bmp_only and not general_bmp and not nested_validation and not general_nested_txt and target_path != FIXTURE_PATH)
+            if ((not general_txt and not validation_bmp_only and not general_bmp and not nested_validation and not general_nested_txt and not general_nested_bmp and target_path != FIXTURE_PATH)
                     or device_model != "VNW-V15"):
                 raise ValueError("only the exact VNW-V15 root-TXT fixture or disposable BMP is admitted")
             if max_age_seconds != DEFAULT_MAX_AGE_SECONDS:
@@ -1293,7 +1369,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             capacity = runtime.query_capacity()
             if not isinstance(capacity, NativeCapacityResponse):
                 raise ValueError("fresh native capacity is required")
-            media = "bmp" if validation_bmp_only or general_bmp or (nested_validation and target_path == NESTED_BMP_DELETE_VALIDATION_PATH) else "txt"
+            media = "bmp" if validation_bmp_only or general_bmp or general_nested_bmp or (nested_validation and target_path == NESTED_BMP_DELETE_VALIDATION_PATH) else "txt"
             root = Path(runtime.evidence_namespace) / (f"prepared-root-{media}-delete-" + uuid4().hex)
             root.mkdir(parents=True)
             if progress is not None:
@@ -1308,6 +1384,8 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             if nested_validation:
                 builder = build_nested_bmp_validation_delete if media == "bmp" else build_nested_txt_validation_delete
                 core = builder(before.directory, target_path, max_age_seconds=max_age_seconds)
+            elif general_nested_bmp:
+                core = build_nested_bmp_delete(before.directory, target_path, max_age_seconds=max_age_seconds)
             elif general_nested_txt:
                 core = build_nested_txt_delete(before.directory, target_path, max_age_seconds=max_age_seconds)
             elif general_bmp:
@@ -1323,8 +1401,8 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
                 raise ValueError("disposable validation target payload changed")
             candidate = RootTxtDeleteCandidate(before.directory, core.candidate_blob,
                 core.transaction, _json(core.to_dict()), core.target_path, core.target_record_offset,
-                not general_txt and not validation_bmp_only and not general_bmp and not nested_validation and not general_nested_txt,
-                media, general_bmp, nested_validation, general_nested_txt)
+                not general_txt and not validation_bmp_only and not general_bmp and not nested_validation and not general_nested_txt and not general_nested_bmp,
+                media, general_bmp, nested_validation, general_nested_txt, general_nested_bmp)
             source_name = (target_path.rsplit("\\", 1)[-1] if media == "bmp" else
                            "selected-txt.bin" if general_txt or nested_validation or general_nested_txt else FIXTURE_FILENAME)
             source = root / source_name
@@ -1341,6 +1419,7 @@ class ExperimentalRootTxtDeleteFacade(RootTxtPlacementFacade):
             binding = authorize_generalized_delete(core, confirmation=DELETE_GENERALIZED_CONFIRMATION_PHRASE)
             phrase = f"DELETE {target_path.split(chr(92))[-1]} ONCE"
             profile = ((NESTED_BMP_DELETE_VALIDATION_PROFILE if media == "bmp" else NESTED_TXT_DELETE_VALIDATION_PROFILE) if nested_validation else
+                       NESTED_BMP_DELETE_LIVE_PROFILE if general_nested_bmp else
                        NESTED_TXT_DELETE_LIVE_PROFILE if general_nested_txt else
                        ROOT_BMP_DELETE_LIVE_PROFILE if general_bmp else
                        ROOT_BMP_DELETE_VALIDATION_PROFILE if validation_bmp_only else

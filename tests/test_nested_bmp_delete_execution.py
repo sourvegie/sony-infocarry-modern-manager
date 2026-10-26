@@ -421,11 +421,14 @@ class NestedBmpDeleteExecutionTests(unittest.TestCase):
         target=next(r.record_offset for r in model.rows() if r.display_name==TARGET)
         return case,model,service.select(model,[target]),service
 
-    def test_normal_library_refuses_and_validation_uses_existing_single_dialog(self):
+    def test_normal_library_promotes_separate_scope_and_validation_keeps_single_dialog(self):
         case,model,selection,service=self.data()
         normal=DeviceLibraryDeleteService(lambda:case[4].runtime)
         self.assertFalse(normal.execution_available(selection))
-        with self.assertRaises(ValueError):normal.select(model,[selection.row.record_offset])
+        ordinary=normal.select(model,[selection.row.record_offset])
+        self.assertTrue(ordinary.general_nested_bmp)
+        self.assertFalse(ordinary.nested_validation)
+        self.assertTrue(normal.execution_available(ordinary))
         helper=ui_helpers.DeviceLibraryDeleteUITests();self.addCleanup(helper.doCleanups)
         ui=helper.setup_ui(data_override=(case,model,selection,service));ui.action();ui.drain()
         self.assertEqual(len(ui.dialogs),1);self.assertEqual(len(ui.refreshes),1)

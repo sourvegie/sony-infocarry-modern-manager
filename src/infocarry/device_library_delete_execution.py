@@ -3,7 +3,7 @@
 This is a product facade, not a second writer. It admits the reviewed unread
 root-TXT and root-BMP envelopes, plus retained exact validation targets;
 the retained exact nested disposable route requires explicit validation mode.
-The conservative two-folder unread nested-TXT subset is Experimental.
+The conservative two-folder unread nested TXT/BMP subsets are Experimental.
 Unsupported BMPs and directories remain unavailable. Every selection
 is bound to the library image the user saw and compared with a new complete
 backup before approval. All execution authority remains in delete_workflow.
@@ -26,7 +26,7 @@ from .delete_workflow import (
     root_bmp_delete_execution_supported, root_bmp_delete_validation_supported,
     ROOT_BMP_DELETE_VALIDATION_FILES, ROOT_BMP_DELETE_VALIDATION_OFFSETS,
     NESTED_TXT_DELETE_VALIDATION_PATH, NESTED_TXT_DELETE_VALIDATION_BYTES,
-    build_nested_txt_validation_delete, build_nested_txt_delete, _restoration_items,
+    build_nested_txt_validation_delete, build_nested_txt_delete, build_nested_bmp_delete, _restoration_items,
     NESTED_BMP_DELETE_VALIDATION_PATH, ROOT_BMP_DELETE_FIXTURE_BYTES, build_nested_bmp_validation_delete,
 )
 from .library_transfer_execution import OwnerAuthorizedOperationIdentity
@@ -54,6 +54,7 @@ class DeviceDeleteSelection:
     general_bmp: bool = False
     nested_validation: bool = False
     general_nested_txt: bool = False
+    general_nested_bmp: bool = False
 
     @property
     def filename(self) -> str:
@@ -65,7 +66,7 @@ def select_device_library_delete(
     allow_general_txt: bool = False, allow_exact_bmp: bool = False, allow_general_bmp: bool = False,
     bmp_validation_target: str | None = None,
     nested_validation_target: str | None = None,
-    allow_nested_txt: bool = False,
+    allow_nested_txt: bool = False, allow_nested_bmp: bool = False,
 ) -> DeviceDeleteSelection:
     """Cheap UI admission; fresh backup/candidate validation happens off Tk."""
     if device_model != "VNW-V15":
@@ -89,7 +90,8 @@ def select_device_library_delete(
             raise DeviceLibraryDeleteError("Only the exact unread nested disposable file is eligible.")
         return DeviceDeleteSelection(model.state.backup_directory, model.state.source_blob_sha256,
                                      row, device_model, nested_validation=True)
-    if (allow_nested_txt and row.kind == "file" and row.extension == "txt"
+    if (((allow_nested_txt and row.extension == "txt") or (allow_nested_bmp and row.extension == "bmp"))
+            and row.kind == "file"
             and len(row.path.split("\\")) == 4 and row.path.split("\\")[0] == "root"
             and row.read_state == "unread" and model.state.backup_directory is not None
             and model.state.source_blob_sha256 is not None):
@@ -97,7 +99,7 @@ def select_device_library_delete(
                 or sum(other.path.casefold() == row.path.casefold() for other in rows) != 1):
             raise DeviceLibraryDeleteError("The selected nested path is ambiguous.")
         return DeviceDeleteSelection(model.state.backup_directory, model.state.source_blob_sha256,
-                                     row, device_model, general_nested_txt=True)
+                                     row, device_model, general_nested_txt=row.extension == "txt", general_nested_bmp=row.extension == "bmp")
     if row.kind != "file" or len(row.path.split("\\")) != 2 or row.path.split("\\")[0] != "root":
         raise DeviceLibraryDeleteError("Root, system entries, folders and nested files cannot be deleted.")
     bmp_validation = False
@@ -154,7 +156,7 @@ class PreparedDeviceDelete:
     @property
     def confirmation_message(self) -> str:
         return (
-            f"Delete {self.selection.row.display_name if self.selection.nested_validation or self.selection.general_nested_txt else self.selection.filename} from Sony InfoCarry VNW-V15?\n\n"
+            f"Delete {self.selection.row.display_name if self.selection.nested_validation or self.selection.general_nested_txt or self.selection.general_nested_bmp else self.selection.filename} from Sony InfoCarry VNW-V15?\n\n"
             "Operation: Delete (Experimental)\n"
             "Deletion modifies device storage. A fresh complete backup has been verified. "
             "The Manager will delete once, independently verify the result, and refresh Device Library.\n\n"
@@ -188,11 +190,21 @@ class DeviceLibraryDeleteService:
                                             allow_general_txt=True, allow_exact_bmp=True, allow_general_bmp=True,
                                             bmp_validation_target=self.validation_target,
                                             nested_validation_target=self.validation_target,
-                                            allow_nested_txt=self.validation_target is None)
+                                            allow_nested_txt=self.validation_target is None,
+                                            allow_nested_bmp=self.validation_target is None)
 
     def execution_available(self, selection):
         if self.validation_target is not None and selection.row.display_name != self.validation_target:
             return False
+        if selection.general_nested_bmp:
+            if self.validation_target is not None:
+                return False
+            try:
+                core = build_nested_bmp_delete(selection.backup_directory, selection.row.display_name,
+                    target_record_offset=selection.row.record_offset)
+                return core.target_record_offset == selection.row.record_offset
+            except (OSError, ValueError, RuntimeError, AttributeError, TypeError):
+                return False
         if selection.general_nested_txt:
             if self.validation_target is not None:
                 return False
@@ -275,7 +287,7 @@ class DeviceLibraryDeleteService:
             raise DeviceLibraryDeleteError("Validation permits only its named disposable target.", stage="admission")
         if self.validation_target is not None and not self.execution_available(selection):
             raise DeviceLibraryDeleteError("The named disposable validation payload or state is unsupported.", stage="admission")
-        if (selection.general_bmp or selection.general_nested_txt) and not self.execution_available(selection):
+        if (selection.general_bmp or selection.general_nested_txt or selection.general_nested_bmp) and not self.execution_available(selection):
             raise DeviceLibraryDeleteError("The selected file structure or protected state is unsupported.", stage="admission")
         # Re-admit the exact selection from its immutable archive before opening
         # any runtime. Caller-created tokens cannot bypass capability admission.
@@ -297,7 +309,7 @@ class DeviceLibraryDeleteService:
                     and selection.general_txt and self.execution_available(selection)),
                 validation_bmp_only=selection.validation_bmp, general_bmp=selection.general_bmp,
                 nested_validation=selection.nested_validation,
-                general_nested_txt=selection.general_nested_txt,
+                general_nested_txt=selection.general_nested_txt, general_nested_bmp=selection.general_nested_bmp,
                 restoration_objects=dict(self.restoration_objects) if self.restoration_objects is not None else None)
             if (_backup_identity(bundle.before_backup) != identity
                     or bundle.candidate.core.target_record_offset != selection.row.record_offset):

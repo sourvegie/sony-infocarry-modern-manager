@@ -4975,7 +4975,7 @@ def launch_ttk_desktop(
         invalidate_library_transfer_review_if_stale()
         selected = [tree_items[item] for item in tree.selection() if item in tree_items]
         export_button.configure(state="normal" if selected and worker is None else "disabled")
-        delete_message = "Select one supported root-level file."
+        delete_message = "Select one supported file."
         delete_allowed = False
         try:
             delete_selection = device_delete_service.select(model, selected)
@@ -5569,7 +5569,7 @@ def launch_ttk_desktop(
             "then choose Transfer. Existing items are never overwritten. A transfer may be "
             "planned offline even when that selection is not enabled for device transfer.\n\n"
             "Back Up saves a read-only snapshot. Backup is not Restore, and Restore is unavailable. "
-            "Delete is Experimental for supported unread root-level TXT and BMP files; unsupported files, nested files and folders remain unavailable.",
+            "Delete is Experimental for supported unread root and nested TXT and BMP files; unsupported profiles and folders remain unavailable.",
             parent=root,
         )
 
