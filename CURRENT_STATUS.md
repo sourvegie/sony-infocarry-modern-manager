@@ -4,7 +4,7 @@ Date: 2026-10-27
 
 ## P18-052 — conservative Experimental nested-BMP Delete promotion
 
-Offline implementation and validation in progress on isolated
+**P18-052 REVIEWED — READY FOR LOCAL INTEGRATION.** Completed on isolated
 `task/p18-052-nested-bmp-promotion`, derived from sanitized P18-051
 `219ebfb4182e8cafbb294e69e1fd8b79a9636579`. No hardware write, push,
 merge or local main integration is authorized or performed.
@@ -24,8 +24,17 @@ positions and top-down nested content are host-supported engineering
 inference. Unsupported profiles/depths, emptied parents, references,
 active Marks, ambiguity, directories/subtrees, VNW-V10 and recovery refuse.
 
-Tests, package checks and required exact-head R3 review are recorded in the
-[P18-052 report](analysis/p18-052-nested-bmp-delete-promotion-20261027.md).
+Portable suite: **1,331 run / 1,326 passed / five established skips**.
+Independent new tests **17/17**, existing focused regressions **22/22**;
+macOS package/signature/frozen runtime/native Tk fake workflow/wheel/compile
+checks PASS. Exact-code-head R3 at `75f45db953133b9cbcca6e0a2a555036496464ba`:
+**P0/P1/P2=0/0/0**, no material correction round. All 2,028 evidence anchors,
+original 1,107 dirty paths, P18-051 checkout and production 28-claim/no-marker/
+clear-lock state remain unchanged. Sanitized ancestry/privacy/Git checks PASS.
+Final delivery changes only documentation and retains reviewed source/tests.
+
+See the [P18-052 report](analysis/p18-052-nested-bmp-delete-promotion-20261027.md)
+and [independent R3 review](analysis/p18-052-independent-r3-review-20261027.md).
 The matrix defines current admission; older sections below retain their
 historical checkpoint scope.
 
