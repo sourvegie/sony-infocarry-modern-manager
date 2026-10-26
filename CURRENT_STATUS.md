@@ -1,21 +1,33 @@
 # Current Project Status
 
-Date: 2026-10-25
+Date: 2026-10-26
 
-## P18-051 — exact nested BMP validation preparation
+## P18-051 — READY_FOR_HARDWARE_TEST: exact nested BMP validation
 
-Offline implementation is in progress on isolated `task/p18-051-nested-bmp-delete`
-from published sanitized `c87a208`. The existing guarded placement/Delete
-architecture now has an explicit exact nested BMP validation route. It accepts
-only `root\IC_P18_040_NESTED_20260930_01\Section-A\IC_P18_051_DELETE_A.bmp`,
-the existing 10,302-byte fixture, unread `e0` / `ffffffff` / `100` / all-FF16.
-Both operations must bind the same immutable two-write task; Delete additionally
-requires the actual verified placement result and original all-eight restoration
-hashes inside canonical readback. Ordinary nested BMP remains unavailable.
+Isolated `task/p18-051-nested-bmp-delete` starts at published sanitized
+`c87a208`. Reviewed executable source is `8a443179298ac13d31b14c0f4d92f53035ba46ff`.
+The exact 10,302-byte fixture is
+`root\IC_P18_040_NESTED_20260930_01\Section-A\IC_P18_051_DELETE_A.bmp`,
+parent `0x700`, target `0x880`, unread `e0` / `ffffffff` / `100` / all-FF16.
+The existing placement/Delete architecture binds both operations to one immutable
+two-write task. Delete requires the actual verified placement and original
+all-eight restoration inside canonical readback. General nested BMP stays off.
 
-No physical writes, push or merge. Full host validation, fresh read-only staging
-and independent exact-head R3 are required before requesting one owner approval.
-See the [preparation report](analysis/p18-051-nested-bmp-delete-validation-20261025.md).
+Final portable suite: **1,314 run / 1,309 passed / five established skips**;
+independent focused suite **18/18**. Package/signature/frozen runtime, native Tk
+single-confirmation/verified-refresh, wheel, complete fake runner and native
+provenance/eight-object replay checks pass. Independent R3 **P0/P1/P2=0/0/0**.
+Fresh read-only acquisition October 25 and unchanged-task revalidation October 26
+match all eight original objects and native capacity; 26 claims, no markers and
+cleared lock bytes are unchanged. All 1,550 preservation anchors and original
+P18-034 HEAD/status/refs remain unchanged.
+
+Frozen envelope `315d64e4…a18e7dd` permits exactly placement then deletion,
+maximum two senders, each with fresh backup/capacity/identity/one-shot/readback.
+One owner approval for the complete task is pending. No hardware write, push,
+merge or general nested-BMP promotion occurred. See the
+[preparation report](analysis/p18-051-nested-bmp-delete-validation-20261025.md)
+and [independent R3 review](analysis/p18-051-independent-r3-review-20261026.md).
 
 ## P18-050 — conservative nested-TXT promotion; nested-BMP host preparation
 
