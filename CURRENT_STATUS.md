@@ -2,32 +2,37 @@
 
 Date: 2026-10-26
 
-## P18-051 — READY_FOR_HARDWARE_TEST: exact nested BMP validation
+## P18-051 — exact nested BMP placement/Delete physically verified
 
-Isolated `task/p18-051-nested-bmp-delete` starts at published sanitized
-`c87a208`. Reviewed executable source is `8a443179298ac13d31b14c0f4d92f53035ba46ff`.
-The exact 10,302-byte fixture is
-`root\IC_P18_040_NESTED_20260930_01\Section-A\IC_P18_051_DELETE_A.bmp`,
-parent `0x700`, target `0x880`, unread `e0` / `ffffffff` / `100` / all-FF16.
-The existing placement/Delete architecture binds both operations to one immutable
-two-write task. Delete requires the actual verified placement and original
-all-eight restoration inside canonical readback. General nested BMP stays off.
+**COMPLETE for the exact owner-approved two-write experiment.** Under frozen
+envelope `315d64e4…a18e7dd`, the exact 10,302-byte fixture
+`root\IC_P18_040_NESTED_20260930_01\Section-A\IC_P18_051_DELETE_A.bmp`
+was placed at `0x880` under existing parent `0x700`, independently verified,
+then deleted once through the existing guarded Device Library service.
+Both operations returned native integer `0x0000`, one audited sender/transaction
+each, zero retries and separate fresh complete backups/capacity/identities.
 
-Final portable suite: **1,314 run / 1,309 passed / five established skips**;
-independent focused suite **18/18**. Package/signature/frozen runtime, native Tk
-single-confirmation/verified-refresh, wheel, complete fake runner and native
-provenance/eight-object replay checks pass. Independent R3 **P0/P1/P2=0/0/0**.
-Fresh read-only acquisition October 25 and unchanged-task revalidation October 26
-match all eight original objects and native capacity; 26 claims, no markers and
-cleared lock bytes are unchanged. All 1,550 preservation anchors and original
-P18-034 HEAD/status/refs remain unchanged.
+Independent actual-evidence assessment **PASS, P0/P1/P2=0/0/0**: all eight final
+native objects match the original pre-placement bytes, including probe and
+auxiliary response. Parents/siblings, 454 surviving record timestamps,
+300 payload/prefix pairs, 79 markers and supported protected associations are
+preserved. Exact actual full template provenance, both candidates and every
+transaction range match the frozen task. Claims advance **26→27→28**; the
+26 historical rows are unchanged, both markers resolve, no marker remains and
+the cleared global lock is byte-identical. All 1,550 original preservation
+anchors and original P18-034 HEAD/status/refs are unchanged.
 
-Frozen envelope `315d64e4…a18e7dd` permits exactly placement then deletion,
-maximum two senders, each with fresh backup/capacity/identity/one-shot/readback.
-One owner approval for the complete task is pending. No hardware write, push,
-merge or general nested-BMP promotion occurred. See the
-[preparation report](analysis/p18-051-nested-bmp-delete-validation-20261025.md)
-and [independent R3 review](analysis/p18-051-independent-r3-review-20261026.md).
+Physical execution used reviewed source
+`8a443179298ac13d31b14c0f4d92f53035ba46ff` at delivery `06e8b050`; final full
+portable results remain **1,314 run / 1,309 passed / five established skips**,
+with independent **18/18** focused and GUI/package/complete fake-runner checks.
+No executable code changed for physical execution or closeout. No independent
+USB bus trace or human visual/device-display inspection is claimed.
+
+Ordinary nested BMP remains disabled. No extra hardware operation, retry,
+recovery, cleanup, push or merge was performed or authorized. The task's two
+sender invocations are exhausted; future writes require separate authorization.
+See the [final independent physical-validation report](analysis/p18-051-independent-physical-validation-20261026.md).
 
 ## P18-050 — conservative nested-TXT promotion; nested-BMP host preparation
 

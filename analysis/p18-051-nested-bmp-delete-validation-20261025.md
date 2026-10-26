@@ -192,3 +192,20 @@ no intermediate approval request, no retries/recovery/extra writes, and final
 actual all-eight byte-for-byte restoration. Any failed guard stops the task.
 Zero physical writes have been performed; no push or merge; P18-034 and private
 historical evidence remain unchanged. Ordinary nested BMP is not promoted.
+
+
+## Subsequent owner-authorized physical closeout — 2026-10-26 JST
+
+The owner explicitly approved the complete unchanged frozen two-write task.
+Placement and same-fixture deletion have now both completed, each native
+`0x0000`, one audited sender, no retry and successful complete readback. The
+independent final assessment confirms all eight original native objects restored
+byte-for-byte, correct actual full source provenance and preserved unrelated
+state, P0/P1/P2=0/0/0. Claims are 26→27→28; markers resolve/are absent; the lock
+and all original preservation anchors remain unchanged. The two authorized
+sender invocations are exhausted. No executable code changed, ordinary nested
+BMP was not promoted, and no further operation, push or merge occurred.
+
+The earlier readiness/approval-pending statements above describe their preserved
+pre-execution checkpoint. The authoritative actual result is the
+[final independent physical-validation report](p18-051-independent-physical-validation-20261026.md).
